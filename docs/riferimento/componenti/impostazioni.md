@@ -540,6 +540,22 @@ fa** ogni opera (`FluidLicense.role`) e non solo chi l'ha scritta: per una pagin
 **Versione.** `fluidLicensesSection`, `FluidLicenseGroup`, `FluidLicenseDetails`: 1.4.0. La voce LibrePods, la nota GPL e il ruolo «i pulsanti e le pagine»: **3.0** (BREAKING).
 `glass`: 3.0.1.
 
+## Le pagine delle notifiche (F8.19)
+
+Tre pagine intere (`FluidScreen`) per le notifiche vere di Android, che leggono un `FluidNotifyCenter` (lo dà
+`engine-notify`: `FluidNotify.get(context).center`; il tipo sta in `engine-foundation`, quindi engine-ui non dipende da
+engine-notify). Righe di impostazioni, niente vetro. Rileggono lo stato alla ripresa (al ritorno dalle impostazioni di
+Android); il segno a destra delle righe cambia **sfocato** quando lo cambia l'app (`FluidGlassContentTransition`), il
+numero in attesa scorre (`FluidNumericText`); con «Riduci movimento» cambia di colpo.
+
+| pagina | cosa c'è | come iOS |
+|---|---|---|
+| `FluidNotificationSettingsPage(center, onBack, onOpenUpcoming, onOpenHealth)` | «Attiva le notifiche» col permesso dal tasto (`rememberFluidPermission`), i canali con parole comuni e la loro consegna (Subito, Nel riepilogo, Sempre subito, spento in Android: la riga porta alla pagina del canale), il **riepilogo programmato spento di serie** (due orari, i canali che ci vanno), i Live Update di Android 16, Non disturbare, i rimandi | le impostazioni delle notifiche di un'app, «Consegna» e Riepilogo programmato |
+| `FluidUpcomingRemindersPage(center, onBack)` | «Cosa succederà»: i promemoria in programma (oggi alle 20:00 · al minuto o entro 10 minuti · Ogni giorno), «Togli» nel menu della riga e come azione di TalkBack; sotto, quelli arrivati col ritardo vero e il perché | — |
+| `FluidNotificationHealthPage(center, onBack)` | «Le notifiche non arrivano?»: i controlli, prima ciò che non va (notifiche spente, app sospesa da One UI, un canale spento, allarmi esatti, Non disturbare, Live Update), ogni riga porta nel punto giusto | — |
+
+Le parole: `FluidNotifyPageLabels` (`english()`). I tag dei test: `FluidNotifyPageTags`.
+
 ## Cosa e' verificato dai test
 
 - `FluidAppearanceTest` (`engine-ui`, 19 casi): le voci di tema sono tre e `AMOLED` non e' una di loro; il nero vale per il tema `AMOLED` come per l'interruttore; scegliere un tema

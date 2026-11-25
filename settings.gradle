@@ -59,6 +59,9 @@ include ':engine-security'
 // F8.10 · Condivisione: il QR del foglio (ZXing core) e gli arrivi da altre app. Opt-in tutti e due.
 include ':engine-qr'
 include ':engine-share-in'
+// F8.19 · Notifiche, promemoria e attività fuori dall'app (Live Update di Android 16). Opt-in, senza interfaccia: le pagine
+// e il ponte con la pillola di attività stanno in engine-ui.
+include ':engine-notify'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

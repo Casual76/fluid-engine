@@ -88,6 +88,7 @@ $EngineModules = [ordered]@{
   "engine-auth-google" = @("engine-foundation", "engine-auth")
   "engine-qr"         = @("engine-foundation", "engine-ui")
   "engine-share-in"   = @("engine-foundation", "engine-ui")
+  "engine-notify"     = @("engine-foundation")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -119,7 +120,9 @@ $EngineModules = [ordered]@{
 # -Modules ...,engine-security.
 # engine-qr (F8.10: il QR di "Mostra come QR", con ZXing core) e engine-share-in (F8.10: gli arrivi da altre app) idem:
 # il foglio di condivisione sta gia' in engine-ui, e un'app che non vuole il QR o non riceve niente non li paga.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in")
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify")
+# engine-notify (F8.19: notifiche vere, Live Update, promemoria; nessuna libreria nuova) lo chiede un'app che avvisa fuori
+# dall'app: -Modules ...,engine-notify. Le pagine e il ponte con la pillola sono gia' in engine-ui.
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -330,7 +333,8 @@ $notes = @(
   @("engine-auth", "passkey e gestore delle password, senza rete; il PRF lo scrive il modulo (opt-in)"),
   @("engine-auth-google", "Continua con Google e concessioni Google spente; librerie Google non libere (opt-in)"),
   @("engine-qr", "il QR di 'Mostra come QR' nel foglio di condivisione, ZXing core (opt-in)"),
-  @("engine-share-in", "arrivi da altre app: lettura, copia con tetto, foglio sopra l'app di partenza (opt-in)")
+  @("engine-share-in", "arrivi da altre app: lettura, copia con tetto, foglio sopra l'app di partenza (opt-in)"),
+  @("engine-notify", "notifiche vere, Live Update di Android 16, promemoria che arrivano davvero (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

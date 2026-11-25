@@ -668,6 +668,31 @@ L'anello, le cifre e il battito si ridisegnano soltanto: non ricatturano il vetr
 l'esito, l'anellino), `titolo-menu` (la pillola accanto al titolo che è un selettore) e `assistente` (la pillola mentre
 l'assistente risponde). Le scene sono in `sample/…/dynamic/ActivityPillScene.kt`, `SplitTitleScenes.kt` e `ComposerScenes.kt`.
 
+### Fuori dall'app (F8.19)
+
+La stessa attività **continua fuori dall'app** come notifica viva: su Android 16 un Live Update (il gettone nella barra di
+stato, la barra a tappe, la schermata di blocco), prima una notifica con l'avanzamento. **Si pubblica una volta**, nella
+pillola; uscendo diventa la notifica, rientrando la notifica se ne va e torna la pillola. È la Live Activity che continua
+nella Dynamic Island (ActivityKit). La notifica la fa `engine-notify` (opt-in, scheda [notify](../moduli/notify.md)); il
+ponte sta qui e parla col modello puro di `engine-foundation` (`FluidLiveUpdate`, `FluidLiveUpdateSink`).
+
+```kotlin
+// Un host per tutta la vita dell'app (nell'Application o in un ViewModel), così il lavoro continua a pagina chiusa:
+activities.mirrorOutside(FluidNotify.get(this).liveUpdates.whenOutside, MainScope())
+// Oppure, per un host alla radice dell'attività, dentro la composizione:
+FluidActivityHost(activities) {
+  FluidActivityOutside(activities, FluidNotify.get(LocalContext.current).liveUpdates.whenOutside)
+  App()
+}
+```
+
+- Ogni `publish`, `finish` e `remove` passa subito; l'avanzamento (una lambda letta dalla pillola quando disegna) fuori lo
+  rilegge lo specchio una volta al secondo, **solo mentre l'app è fuori**.
+- I comandi della card (Pausa, Annulla) sono i tasti della notifica e chiamano le stesse funzioni.
+- L'esito di un'attività finita fuori resta nella notifica per quattro ore; `HandedOff` e `remove` la tolgono.
+- `FluidActivity.toLiveUpdate(open)` e `FluidActivityOutcome.toLiveOutcome()` sono la traduzione, se serve a mano.
+- Scena: `--es novita.scene attivita-fuori` (la conversione di Universal Converter).
+
 ## Il tasto diviso
 
 > **Provvisorio.** F6B.11 è integrata in modo provvisorio: Alessio la deve ancora confermare.

@@ -843,19 +843,28 @@ class FluidActivityHostState internal constructor(private val clock: () -> Long)
 
   internal fun now(): Long = clock()
 
+  /**
+   * Chi segue le attività fuori dall'app (F8.19, `mirrorOutside`): riceve ogni pubblicazione, fine e rimozione così come
+   * arrivano, anche quella di un'attività che la pillola non mostrava. Null: nessuno.
+   */
+  internal var observers: List<FluidActivityObserver> = emptyList()
+
   /** Pubblica [activity], o la aggiorna se c'è già un'attività con lo stesso `id`. */
   fun publish(activity: FluidActivity) {
     queue = queue.publish(activity)
+    observers.forEach { it.published(activity) }
   }
 
   /** Finisce l'attività [id] con [outcome]: di serie riuscita. Vedi [FluidActivityOutcome]. */
   fun finish(id: String, outcome: FluidActivityOutcome = FluidActivityOutcome.succeeded()) {
     queue = if (outcome.showsInPill) queue.finish(id, outcome, clock()) else queue.remove(id)
+    observers.forEach { it.finished(id, outcome) }
   }
 
   /** Toglie l'attività [id] subito, senza esito (annullata). */
   fun remove(id: String) {
     queue = queue.remove(id)
+    observers.forEach { it.removed(id) }
   }
 
   /** Le attività in corso, dalla più importante. */

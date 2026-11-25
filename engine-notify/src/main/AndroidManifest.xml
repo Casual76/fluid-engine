@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!--
+    F8.19 · engine-notify. Qui ci sono solo i permessi normali, che Android concede senza chiedere:
+    - RECEIVE_BOOT_COMPLETED, per rimettere i promemoria dopo un riavvio (il ricevitore e' spento finche' non c'e' un
+      promemoria: l'app non si sveglia all'avvio del telefono per niente);
+    - POST_PROMOTED_NOTIFICATIONS, per chiedere i Live Update di Android 16 (l'utente li spegne dalle impostazioni).
+    I permessi che l'utente concede li dichiara l'app, quando li usa: POST_NOTIFICATIONS (da Android 13, si chiede dal
+    tasto con rememberFluidPermission) e SCHEDULE_EXACT_ALARM (i promemoria al minuto, da Android 12; senza, arrivano
+    entro dieci minuti). La galleria pubblicata, per esempio, non chiede niente.
+  -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+
+  <application>
+    <!-- I tocchi sulle notifiche (azioni, risposte, chiusure), i promemoria che scadono e il riepilogo. -->
+    <receiver
+        android:name="dev.antigravity.fluidengine.notify.FluidNotifyReceiver"
+        android:exported="false" />
+    <!--
+      Riavvio, aggiornamento dell'app, cambio d'ora e di fuso, permesso degli allarmi esatti: si rimettono gli allarmi.
+      Spento di serie: lo accende il primo promemoria, lo spegne l'ultimo.
+    -->
+    <receiver
+        android:name="dev.antigravity.fluidengine.notify.FluidNotifyRestoreReceiver"
+        android:enabled="false"
+        android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+        <action android:name="android.intent.action.TIME_SET" />
+        <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+        <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+      </intent-filter>
+    </receiver>
+  </application>
+
+</manifest>

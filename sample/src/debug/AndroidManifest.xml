@@ -12,5 +12,10 @@
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+  <!--
+    F8.19 · Il promemoria «fra un minuto» arriva al minuto con l'allarme esatto («Sveglie e promemoria»): da Android 13 non
+    è concesso di serie, la scena porta nel punto giusto delle impostazioni. Solo nella build di debug, come le notifiche.
+  -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
 </manifest>

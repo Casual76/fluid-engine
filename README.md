@@ -34,6 +34,8 @@ engine-security     il blocco dell'app con l'impronta, la schermata di vetro, il
 engine-qr           il QR di «Mostra come QR» nel foglio di condivisione, con ZXing core (opt-in)
 engine-share-in     gli arrivi da altre app: le forme di Android lette in un modo solo, la copia
                     subito con tetto e avanzamento, il foglio sopra l'app di partenza (opt-in)
+engine-notify       le notifiche vere di Android: canali con parole comuni, notifiche raccolte, risposte rapide,
+                    riepilogo programmato, Live Update di Android 16, promemoria che arrivano davvero (opt-in)
 ```
 
 ## Partire in cinque minuti

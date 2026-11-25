@@ -134,6 +134,8 @@ UI_FLUID_FILES = {
     "impostazioni": [
         "FluidAppearance", "FluidUpdateController", "FluidUpdateModel", "FluidUpdateUi",
         "FluidLabels", "FluidLicenses",
+        # F8.19: le pagine delle notifiche (impostazioni, «Cosa succedera'», «Le notifiche non arrivano?»)
+        "FluidNotifyPages",
     ],
     # forma e tipo stanno col tema; le misure di tasti, barre e icone (FluidMetrics, 4.0) pure, e le forme concentriche (F3.5)
     "tema": ["FluidShape", "FluidConcentricShape", "FluidType", "FluidMetrics"],
@@ -190,6 +192,8 @@ DIR_FAMILY = {
     # le passkey e Google (F10.2), due moduli facoltativi
     "auth": "auth",
     "auth/google": "auth-google",
+    # notifiche, promemoria e attivita' fuori dall'app (F8.19)
+    "notify": "notify",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -239,6 +243,7 @@ FAMILY_TITLES = {
     "auth-google": "engine-auth-google",
     "qr": "engine-qr",
     "share-in": "engine-share-in",
+    "notify": "engine-notify",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

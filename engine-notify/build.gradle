@@ -1,0 +1,82 @@
+// F8.19 · Notifiche, promemoria e attività fuori dall'app (`attivita-fuori-dall-app`, `notifiche-di-sistema`,
+// `promemoria-affidabili`). Opt-in e senza interfaccia Compose: le pagine (impostazioni delle notifiche, «Cosa
+// succederà», «Le notifiche non arrivano?») e il ponte con la pillola di attività stanno in engine-ui, e i due moduli si
+// parlano coi tipi puri di engine-foundation (`foundation.live`, `foundation.notify`).
+//
+//   implementation project(':engine-notify')
+//
+// Dentro: i canali con parole comuni, le notifiche raccolte («3 nuovi voti»), le risposte rapide, il riepilogo a orari
+// scelti (spento di serie), i Live Update di Android 16 (e la notifica con l'avanzamento prima), i promemoria che
+// sopravvivono a riavvio, aggiornamento e cambio d'ora, e i controlli di «Le notifiche non arrivano?».
+//
+// Librerie: solo androidx.core (Apache-2.0), per NotificationCompat e il suo ProgressStyle. Niente WorkManager: il
+// riepilogo e i promemoria passano da AlarmManager, che sveglia anche a telefono fermo.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.notify'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Le notifiche, gli allarmi e i ricevitori si provano in Robolectric (ShadowNotificationManager, ShadowAlarmManager).
+      includeAndroidResources = true
+    }
+  }
+}
+
+// Le prove di Android 16 (Robolectric con sdk 36) vogliono Java 21, e il build gira con il JDK 17. Se sul PC c'e' un
+// JDK 21 (di serie quello di Android Studio; altrimenti la proprieta' `notify.testJdk`), le prove di questo modulo girano
+// su quello e comprendono Android 16; senza, le prove di Android 16 si saltano e lo dice il log. Vale solo per i test di
+// engine-notify: il codice resta compilato per Java 17.
+def notifyTestJdk = [
+  project.findProperty('notify.testJdk'),
+  System.getenv('NOTIFY_TEST_JDK'),
+  'C:/Program Files/Android/Android Studio/jbr',
+  '/Applications/Android Studio.app/Contents/jbr/Contents/Home',
+].findResult { path ->
+  if (path == null) return null
+  def exe = new File(path.toString(), "bin/java" + (System.getProperty('os.name').toLowerCase().contains('windows') ? '.exe' : ''))
+  exe.exists() ? exe : null
+}
+tasks.withType(Test).configureEach {
+  if (notifyTestJdk != null) {
+    executable = notifyTestJdk.absolutePath
+    systemProperty 'fluid.notify.sdk36', 'true'
+    // Robolectric su Java 21 legge i FileDescriptor per riflessione: va aperto java.io (e i vicini che usa).
+    jvmArgs '--add-opens=java.base/java.io=ALL-UNNAMED', '--add-opens=java.base/java.lang=ALL-UNNAMED',
+      '--add-opens=java.base/java.util=ALL-UNNAMED', '--add-opens=java.base/jdk.internal.access=ALL-UNNAMED'
+  } else {
+    filter.excludeTestsMatching '*Android16*'
+    doFirst { logger.lifecycle("engine-notify: nessun JDK 21, le prove di Android 16 si saltano") }
+  }
+}
+
+dependencies {
+  api project(':engine-foundation')
+  api "androidx.core:core-ktx:${engine.coreKtx}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove con notifiche e allarmi veri di Android, mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

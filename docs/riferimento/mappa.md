@@ -36,6 +36,7 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-viewer-ar` | `viewer.ar` | 7 / 1 002 | visori, il modello posato nella stanza con ARCore (chiede la fotocamera) — **opt-in** | **viewer-3d** |
 | `engine-sync` | `sync` | 12 / 2 517 | la sincronizzazione: registro locale (SQLite della piattaforma), orologio logico ibrido, invio una volta sola con chiave d'idempotenza, unione per campo e dei testi lunghi, pietre tombali e compattazione, ripresa dopo mesi, l'adattatore del relay e il sigillo di chi chiama, WorkManager — **opt-in**, dalla 4.0 (F8.21, `moduli/sync.md`) | storage, foundation |
 | `engine-revisions` | `revisions` | 2 / 576 | il foglio di vetro della scelta tra versioni in conflitto, i passaggi diversi con il tetto di lavoro — **opt-in**, dalla 4.0 (F8.21, `moduli/revisions.md`) | foundation, **ui** |
+| `engine-notify` | `notify` | 13 / 2 652 | le notifiche vere di Android: canali, notifiche raccolte per filo, risposte rapide, riepilogo programmato, la porta del ritmo, i Live Update di Android 16 (e la notifica con l'avanzamento prima), i promemoria con `AlarmManager` e il loro ripristino, i controlli di «Le notifiche non arrivano?» — **opt-in**, dalla 4.0 (F8.19, `moduli/notify.md`) | foundation |
 | `engine-viewer-all` | — | 0 / 0 | il visore universale: `api` verso `engine-viewer` e tutte le famiglie — **opt-in** | tutte le famiglie |
 | `engine-auth` | `auth` | 11 / 938 | le passkey e il gestore delle password con Credential Manager, senza rete: l'estensione PRF la scrive il modulo, la risposta torna senza il PRF, gli errori come frasi pronte (`AuthResult`, `FluidAuthLabels`) — **opt-in**, dalla 4.0 (la scheda: `moduli/auth.md`) | foundation (+ `androidx.credentials`) |
 | `engine-auth-google` | `auth.google` | 2 / 277 | «Continua con Google» (`FluidGoogleSignIn`) e le concessioni Google (`FluidGoogleAccess`, **spente**): l'unico modulo con librerie Google non libere, col permesso della GPL-3.0 § 7 — **opt-in**, dalla 4.0 | **auth** (+ Play services, `googleid`) |
@@ -56,6 +57,12 @@ engine-foundation  <-  engine-ui  <-  engine-widget
         +-- engine-net ------+--> engine-config             +-- engine-ai-bridge
         |        ^
         |        +-- engine-update
+        +-- engine-ai (foundation, DataStore, serialization, coroutines-android)  ->  engine-vault
+        +-- engine-vault (DataStore, il Keystore)   <-  engine-security  ->  engine-ui     (opt-in, 4.0)
+        +-- engine-auth (androidx.credentials)  <-  engine-auth-google (Play services)   (opt-in, tutti e due)
+        +-- engine-storage <- engine-sync  (opt-in; WorkManager, coroutines-android; niente Compose)
+engine-ui <- engine-revisions              (opt-in; il foglio della scelta; non conosce engine-sync)
+engine-foundation <- engine-notify         (opt-in; androidx.core; niente Compose: pagine e ponte con la pillola in engine-ui)
 ```
 
 (freccia = «dipende da»: `engine-config` prende foundation, net e storage; `engine-update` foundation e net;
@@ -83,6 +90,7 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | apre file dal disco nel visore (PDF, testo e codice, GIF animate, video e audio) | + `engine-viewer` (**opt-in**: `-Modules …,engine-viewer`; porta `engine-ui` e `engine-foundation`; per video e audio l'app aggiunge il suo `media3-exoplayer`). Il telaio dei visori è già in `engine-ui`: un'app che ha i suoi decodificatori non lo installa |
 | sincronizza i dati fra i dispositivi della persona, o uno spazio condiviso (liste, gruppi), anche senza rete | + `engine-sync` (**opt-in**: `-Modules …,engine-sync`; porta `engine-storage` e WorkManager; la cifratura la mette l'Account Pampa col suo sigillo) |
 | fa scegliere fra due versioni di un elemento in conflitto | + `engine-revisions` (**opt-in**; porta `engine-ui`; non richiede `engine-sync`) |
+| avvisa fuori dall'app (notifiche vere, un lavoro lungo che continua come Live Update, promemoria) | + `engine-notify` (**opt-in**: `-Modules …,engine-notify`; porta solo `engine-foundation` e `androidx.core`; le pagine sono già in `engine-ui`) |
 | apre anche documenti Office, archivi, Markdown e dati, immagini speciali e font, modelli 3D | + il modulo di ogni famiglia che serve (`-Modules …,engine-viewer-office`), o `engine-viewer-all` per il visore universale. Chi non ne aggiunge uno non ne paga il peso (la tabella dei pesi: `moduli/viewer-famiglie.md`); `engine-viewer-ar` chiede la fotocamera |
 | fa entrare con una passkey o salva un codice nel gestore delle password (oggi solo Pampa Store) | + `engine-auth` (**opt-in**: `-Modules …,engine-auth`; porta `engine-foundation` e `androidx.credentials`, niente Compose). Da Android 9 a 13 serve anche `credentials-play-services-auth`, che porta `engine-auth-google` |
 | fa entrare con Google, o chiederà un token Google (solo Pampa Store) | + `engine-auth-google` (**opt-in**; porta `engine-auth` e le librerie Google non libere, col permesso di `LICENSES/Permesso-librerie-Google.md`) |

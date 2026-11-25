@@ -10,7 +10,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | famiglia | file | dichiarazioni |
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
-| [Barre di navigazione e di azione](barre.md) | 18 | 268 |
+| [Barre di navigazione e di azione](barre.md) | 19 | 272 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 52 | 442 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
@@ -20,14 +20,14 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
 | [Vetro](vetro.md) | 33 | 258 |
-| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 6 | 79 |
+| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 7 | 95 |
 | [Tema, forma, tipo](tema.md) | 11 | 148 |
 | [Icone (FluidIcons)](icone.md) | 5 | 212 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 19 | 235 |
+| [engine-foundation](foundation.md) | 21 | 290 |
 | [engine-storage](storage.md) | 3 | 19 |
 | [engine-net](net.md) | 2 | 10 |
 | [engine-config](config.md) | 1 | 10 |
@@ -44,6 +44,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-auth-google](auth-google.md) | 2 | 17 |
 | [engine-qr](qr.md) | 1 | 3 |
 | [engine-share-in](share-in.md) | 3 | 51 |
+| [engine-notify](notify.md) | 9 | 65 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

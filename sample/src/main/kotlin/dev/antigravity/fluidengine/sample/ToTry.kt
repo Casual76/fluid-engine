@@ -1030,7 +1030,7 @@ private val Stable = TryRound(
         "giudica se il tasto dice l'esito, se offline riprova da solo e se «Avanti» passa da uno stato all'altro senza salti.",
       TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Stati pronti"),
     ),
-  ) + VisoriItems + F8p2Items + dev.antigravity.fluidengine.sample.novita.F8p3TryItems + F8p4Items + dev.antigravity.fluidengine.sample.novita.F8p6TryItems + dev.antigravity.fluidengine.sample.novita.F8p5TryItems + dev.antigravity.fluidengine.sample.novita.F8p7TryItems + dev.antigravity.fluidengine.sample.novita.F8p12TryItems + dev.antigravity.fluidengine.sample.novita.F8p8TryItems + dev.antigravity.fluidengine.sample.novita.F8p9TryItems + dev.antigravity.fluidengine.sample.novita.F8p11TryItems + dev.antigravity.fluidengine.sample.novita.F8p10TryItems + dev.antigravity.fluidengine.sample.novita.F8p21TryItems + dev.antigravity.fluidengine.sample.novita.F8p23TryItems,
+  ) + VisoriItems + F8p2Items + dev.antigravity.fluidengine.sample.novita.F8p3TryItems + F8p4Items + dev.antigravity.fluidengine.sample.novita.F8p6TryItems + dev.antigravity.fluidengine.sample.novita.F8p5TryItems + dev.antigravity.fluidengine.sample.novita.F8p7TryItems + dev.antigravity.fluidengine.sample.novita.F8p12TryItems + dev.antigravity.fluidengine.sample.novita.F8p8TryItems + dev.antigravity.fluidengine.sample.novita.F8p9TryItems + dev.antigravity.fluidengine.sample.novita.F8p11TryItems + dev.antigravity.fluidengine.sample.novita.F8p10TryItems + dev.antigravity.fluidengine.sample.novita.F8p19TryItems + dev.antigravity.fluidengine.sample.novita.F8p21TryItems + dev.antigravity.fluidengine.sample.novita.F8p23TryItems,
 )
 
 

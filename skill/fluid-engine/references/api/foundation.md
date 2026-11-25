@@ -288,6 +288,56 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class SyncState` — What the last attempt to refresh the app's data did.
 - `data class SyncStatus(val state: SyncState = SyncState.IDLE, val lastSuccessfulSyncEpochMillis: Long? = null, val message: String? = null, val failedSections: List<String> = emptyList(), val notice: String? = null)` — The result of the app's last refresh, in the shape the design system's status components read.
 
+## `engine-foundation/foundation/live/FluidLiveUpdate.kt`
+
+- `class FluidLiveKind private constructor(val name: String, val promotable: Boolean)` — Il genere di un'attività viva: decide l'icona di serie, la categoria della notifica e se può diventare un Live Update.
+  - `companion object`
+    - `val Sync: FluidLiveKind` — Una sincronizzazione di sottofondo: una notifica con l'avanzamento, mai un Live Update.
+    - `val Transfer: FluidLiveKind` — Un trasferimento chiesto dall'utente (uno scaricamento, un caricamento, una conversione).
+    - `val Timer: FluidLiveKind` — Un timer avviato dall'utente.
+    - `val Assistant: FluidLiveKind` — L'assistente che lavora a una risposta lunga chiesta dall'utente.
+    - `val Recording: FluidLiveKind` — Una registrazione in corso.
+    - `val Navigation: FluidLiveKind` — Un viaggio in corso (Fluid Transit): il caso tipico dei Live Update, con le tappe e le fermate.
+    - `fun custom(name: String, promotable: Boolean = true): FluidLiveKind` — Un genere su misura.
+    - `fun named(name: String): FluidLiveKind` — Il genere di serie col nome [name] (quello della pillola), o uno su misura promuovibile.
+- `class FluidLiveTime private constructor(val anchorMillis: Long, private val mode: Int)` — Il tempo di un'attività viva, sull'orologio che non salta col cambio d'ora (`SystemClock.elapsedRealtime()`), come `FluidActivityTime` della pillola. Fuori dall'app diventa il cronometro della notifica, che il sistema fa scorrere da solo: nessun aggiornamento al secondo.
+  - `val countsDown: Boolean get()` — Vero se il tempo scende verso [anchorMillis] (un timer).
+  - `val running: Boolean get()` — Vero se il tempo scorre da solo (non è fermo).
+  - `fun shownMillis(nowElapsedMillis: Long): Long` — I millisecondi da mostrare a [nowElapsedMillis], mai meno di zero.
+  - `fun wallAnchorMillis(nowElapsedMillis: Long, nowWallMillis: Long): Long?` — L'istante sull'orologio di parete che corrisponde all'ancora, dati gli orologi di adesso: è il `when` del cronometro della notifica. Per un tempo fermo, null.
+  - `companion object`
+    - `fun since(startedAtElapsedMillis: Long): FluidLiveTime` — Il tempo trascorso da [startedAtElapsedMillis]: una registrazione.
+    - `fun until(endsAtElapsedMillis: Long): FluidLiveTime` — Il tempo che resta fino a [endsAtElapsedMillis]: un timer, un arrivo.
+    - `fun fixed(millis: Long): FluidLiveTime` — Un tempo fermo di [millis]: in pausa.
+- `class FluidLiveStage(val length: Int, val color: Int? = null)` — Una tappa della barra a tappe (il `Segment` di `Notification.ProgressStyle` di Android 16): un pezzo del lavoro lungo [length] unità, con un colore facoltativo (ARGB). Le tappe di un viaggio sono i tratti: a piedi, il bus, a piedi.
+- `class FluidLivePoint(val position: Int, val color: Int? = null)` — Un punto sulla barra a tappe (il `Point` di `ProgressStyle`): una fermata, a [position] unità dall'inizio.
+- `class FluidLiveAction(val label: String, val onClick: () -> Unit, val destructive: Boolean = false, val key: String = label)` — Un comando dell'attività (pausa, annulla, termina): una scritta e cosa fa. Fuori dall'app è un tasto della notifica, che chiama la stessa funzione finché il processo dell'app è vivo (il lavoro lungo, di solito, lo tiene vivo un servizio). Se il processo è morto la notifica era vecchia: il tocco la toglie.
+- `class FluidLiveOrigin private constructor(internal val code: Int)` — Chi ha avviato l'attività: le linee guida dei Live Update di Android li vogliono **solo per attività avviate dall'utente** («Don't allow activities triggered by other parties to generate Live Updates»), e un evento seguito in sottofondo vuole un tasto per smettere di seguirlo («Unpin»). Non è un `enum` (regola 3.11).
+  - `val promotable: Boolean get()` — Vero se l'origine permette la promozione a Live Update.
+  - `val followed: Boolean get()` — Vero se l'attività è di qualcun altro e l'utente ha scelto di seguirla: serve il tasto per smettere.
+  - `companion object`
+    - `val User: FluidLiveOrigin` — Avviata dall'utente su questo telefono (di serie).
+    - `val Followed: FluidLiveOrigin` — Di un'altra persona, che l'utente ha **scelto di seguire** su questo telefono (il viaggio di Alessio che la mamma segue con «Avvisa quando arrivo»): può diventare Live Update, e l'engine aggiunge il tasto «Smetti di seguire».
+    - `val Others: FluidLiveOrigin` — Avviata da altri senza una scelta dell'utente: una notifica con l'avanzamento, mai un Live Update.
+- `data class FluidLiveUpdate(val id: String, val kind: FluidLiveKind, val title: String, val text: String? = null, val progress: Float? = null, val stages: List<FluidLiveStage> = emptyList(), val points: List<FluidLivePoint> = emptyList(), val time: FluidLiveTime? = null, val chip: String? = null, val paused: Boolean = false, val actions: List<FluidLiveAction> = emptyList(), val open: String? = null, val promote: Boolean? = null, val origin: FluidLiveOrigin = FluidLiveOrigin.User)` — Un'attività viva: la stessa descrizione per la pillola dentro l'app e per la notifica fuori. L'[id] è l'identità: pubblicare di nuovo lo stesso `id` aggiorna.
+  - `val percent: Int? get()` — L'avanzamento come percentuale intera (0–100), o null.
+  - `val indeterminate: Boolean get()` — Vero se la barra gira (nessuna misura e nessun tempo).
+  - `val wantsPromotion: Boolean get()` — Vero se l'attività chiede di diventare Live Update: la scelta esplicita, o genere e origine che lo permettono.
+- `class FluidLiveOutcome private constructor(internal val code: Int, val message: String?)` — Come finisce un'attività viva. Non è un `enum` (regola 3.11).
+  - `val succeeded: Boolean get()` — Riuscita.
+  - `val failed: Boolean get()` — Non riuscita.
+  - `val silent: Boolean get()` — Finita senza esito da mostrare (annullata, o l'esito lo dice qualcun altro).
+  - `companion object`
+    - `fun succeeded(message: String? = null): FluidLiveOutcome` — Riuscita, con un messaggio facoltativo («Video pronto»).
+    - `fun failed(message: String? = null): FluidLiveOutcome` — Non riuscita, con il perché («Rete assente»).
+    - `val Silent: FluidLiveOutcome` — Finita senza esito: la notifica se ne va.
+- `interface FluidLiveUpdateSink` — Dove va un'attività viva fuori dall'app: lo implementa `engine-notify` (`FluidLiveUpdates`). La pillola di engine-ui ci specchia le sue attività (`FluidActivityHostState.mirrorOutside`), un servizio ci pubblica direttamente.
+  - `fun publish(update: FluidLiveUpdate)` — Pubblica [update], o lo aggiorna se c'è già un'attività con lo stesso `id`.
+  - `fun finish(id: String, outcome: FluidLiveOutcome)` — Finisce l'attività [id] con [outcome].
+  - `fun remove(id: String)` — Toglie l'attività [id] subito, senza esito.
+  - `val outside: StateFlow<Boolean>` — Vero quando le attività si vedono fuori: per uno specchio della pillola, quando l'app non è in primo piano. Chi specchia rilegge l'avanzamento solo allora (dentro lo disegna la pillola).
+  - `val sampleMillis: Long get()` — Ogni quanto ha senso rileggere un avanzamento che cambia di continuo, in millisecondi.
+
 ## `engine-foundation/foundation/memory/FluidMemoryBudget.kt`
 
 - `class FluidMemoryUsage internal constructor(val limitBytes: Long, val usedBytes: Long, val inFlightBytes: Long, val peakBytes: Long, val refusals: Long)` — Lettura puntuale del registro. Il picco comprende insieme lavoro in volo e risorse residenti.
@@ -312,6 +362,43 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-foundation/foundation/memory/FluidSurfaceBytes.kt`
 
 - `fun fluidSurfaceBytes(width: Long, height: Long, bytesPerPixel: Int, copies: Int = 1, rowStrideBytes: Long? = null): Long` — Byte per una o più superfici vive contemporaneamente. Passare le dimensioni fisiche, comprensive del padding del filtro, e il formato effettivo (per esempio 4 byte/pixel per RGBA8 o 8 per RGBA FP16). [rowStrideBytes] comprende l'eventuale allineamento di riga. La dimensione del file su disco è indipendente.
+
+## `engine-foundation/foundation/notify/FluidNotifyCenter.kt`
+
+- `data class FluidNotifyChannelInfo(val id: String, val name: String, val description: String, val enabled: Boolean = true, val urgent: Boolean = false, val inDigest: Boolean = false, val group: String? = null)` — Un canale delle notifiche come lo vede l'utente: parole comuni, non nomi tecnici.
+- `data class FluidNotifyDigestInfo(val enabled: Boolean = false, val times: List<Int> = listOf(8 * 60, 18 * 60), val waiting: Int = 0)` — Il riepilogo a orari scelti (il «Riepilogo programmato» di iOS): **spento di serie**, tutto arriva subito. Lo accende l'utente, e allora i canali che ha scelto arrivano raccolti agli orari [times].
+- `class FluidNotifyLiveState private constructor(internal val code: Int)` — Lo stato dei Live Update dell'app (Android 16). Non è un `enum` (regola 3.11).
+  - `val supported: Boolean get()` — Vero se il telefono li ha (Android 16).
+  - `val allowed: Boolean get()` — Vero se l'utente li lascia accesi per l'app.
+  - `companion object`
+    - `val NotSupported: FluidNotifyLiveState` — Prima di Android 16: le attività fuori dall'app sono notifiche con l'avanzamento.
+    - `val Allowed: FluidNotifyLiveState` — Accesi.
+    - `val Off: FluidNotifyLiveState` — Spenti dall'utente nelle impostazioni dell'app.
+- `data class FluidNotifySettings(val notificationsAllowed: Boolean = true, val channels: List<FluidNotifyChannelInfo> = emptyList(), val digest: FluidNotifyDigestInfo = FluidNotifyDigestInfo(), val live: FluidNotifyLiveState = FluidNotifyLiveState.NotSupported, val focusActive: Boolean = false)` — Le impostazioni delle notifiche come le disegna la pagina.
+- `data class FluidReminderInfo(val id: String, val title: String, val text: String? = null, val atMillis: Long, val exact: Boolean, val repeats: String? = null)` — Un promemoria in programma, per la pagina «Cosa succederà».
+- `data class FluidReminderDelivery(val id: String, val title: String, val scheduledMillis: Long, val deliveredMillis: Long, val reason: String? = null)` — Un promemoria arrivato: quando doveva e quando è arrivato davvero (il registro dei ritardi).
+  - `val delayMillis: Long get()` — Il ritardo in millisecondi, mai meno di zero.
+- `class FluidNotifyFix private constructor(val name: String, val channelId: String? = null)` — Dove porta una correzione della pagina «Le notifiche non arrivano?»: il punto giusto delle impostazioni. Non è un `enum` (regola 3.11).
+  - `companion object`
+    - `val AppNotifications: FluidNotifyFix` — Le notifiche dell'app (il permesso, o l'interruttore generale).
+    - `fun channel(id: String): FluidNotifyFix` — Il canale [id].
+    - `val ExactAlarms: FluidNotifyFix` — Sveglie e promemoria (l'allarme esatto, da Android 12).
+    - `val Battery: FluidNotifyFix` — La batteria dell'app: «Senza restrizioni», così One UI non la sospende.
+    - `val LiveUpdates: FluidNotifyFix` — I Live Update dell'app (Android 16).
+    - `val Focus: FluidNotifyFix` — Le modalità di concentrazione (Non disturbare).
+- `data class FluidNotifyCheck(val id: String, val title: String, val detail: String, val ok: Boolean, val fix: FluidNotifyFix? = null, val fixLabel: String? = null)` — Un controllo della pagina «Le notifiche non arrivano?»: una riga con l'esito e, se qualcosa non va, la correzione.
+- `data class FluidNotifyHealth(val checks: List<FluidNotifyCheck> = emptyList(), val suspended: Boolean = false)` — L'esito dei controlli: [checks] in ordine d'importanza, [suspended] vero se il sistema ha messo l'app a dormire (One UI «App in sospensione», o il secchio «limitato» di Android).
+  - `val allGood: Boolean get()` — Vero se tutti i controlli vanno bene.
+- `interface FluidNotifyCenter` — Il centro delle notifiche dell'app, come lo leggono e lo comandano le pagine di engine-ui. Lo dà `engine-notify` (`FluidNotify.center`); per le prove e le anteprime basta un'implementazione con dati fissi.
+  - `val settings: StateFlow<FluidNotifySettings>` — Le impostazioni.
+  - `val reminders: StateFlow<List<FluidReminderInfo>>` — I promemoria in programma, dal più vicino.
+  - `val deliveries: StateFlow<List<FluidReminderDelivery>>` — I promemoria arrivati, dal più recente (gli ultimi 50).
+  - `val health: StateFlow<FluidNotifyHealth>` — I controlli di «Le notifiche non arrivano?».
+  - `fun refresh()` — Rilegge tutto da Android: le pagine lo chiamano alla ripresa (al ritorno dalle impostazioni).
+  - `fun setChannelInDigest(channelId: String, inDigest: Boolean)` — Il canale [channelId] nel riepilogo ([inDigest]) o subito.
+  - `fun setDigest(enabled: Boolean, times: List<Int>)` — Accende o spegne il riepilogo, con i suoi orari (minuti dalla mezzanotte).
+  - `fun cancelReminder(id: String)` — Toglie il promemoria [id] dal programma.
+  - `fun open(fix: FluidNotifyFix): Boolean` — Apre il punto giusto delle impostazioni di Android per [fix]. Vero se è riuscito ad aprirlo.
 
 ## `engine-foundation/foundation/text/FluidTextDiff.kt`
 

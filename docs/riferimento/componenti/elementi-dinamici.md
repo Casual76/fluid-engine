@@ -48,6 +48,10 @@ diviso, il titolo selettore e la regola dello stesso posto sono **provvisori**: 
 | i suggerimenti sotto il campo, coi recenti | `FluidSearchSuggestions(query, suggestions, onSuggestionClick, onRemoveRecent = …)` |
 | una barra di comandi sopra la tastiera, per campo | `toolbar { keyboard(context = campo) { fieldNavigation(…); suggestions(…); history(…) } }` |
 | un lavoro lungo che si vede in ogni barra, al posto del titolo | `FluidActivityHost(state)` alla radice e `state.publish(FluidActivity.sync(…))` |
+| «Offline · 3 modifiche in attesa» sopra il contenuto, poi «Di nuovo in linea · sincronizzo», e via | `FluidConnectionCapsule(online, status, onSyncNow = …)` (F8.20) |
+| la pillola che dice «Offline» | `FluidActivity.offline(pending, onSyncNow = …)` (F8.20) |
+| la pagina «Trasferimenti» e la sua riga | `FluidTransfersPage(items, controls)`, `FluidTransferRow(item, controls)` (F8.20) |
+| i trasferimenti nella pillola, con l'esito alla fine | `FluidTransferActivity(attivita, overview, controls, onOpen = …)` (F8.20) |
 | un'azione con le sue varianti in un vetro solo | `split(id, text, onClick, menu = { … })`, `FluidSplitButton(…)` |
 | il titolo che apre la scelta dell'account o della località | `title(mode, menu = { … })` o `title(mode, panel = { … })` |
 
@@ -695,6 +699,109 @@ FluidActivityHost(activities) {
 - L'esito di un'attività finita fuori resta nella notifica per quattro ore; `HandedOff` e `remove` la tolgono.
 - `FluidActivity.toLiveUpdate(open)` e `FluidActivityOutcome.toLiveOutcome()` sono la traduzione, se serve a mano.
 - Scena: `--es novita.scene attivita-fuori` (la conversione di Universal Converter).
+## La capsula della rete (F8.20)
+
+**Cosa fa.** Una capsula di vetro che galleggia sul contenuto e dice **«Offline · 3 modifiche in attesa»**; quando la rete
+torna, **«Di nuovo in linea · sincronizzo»**, poi **«Tutto aggiornato»**, e sparisce. Con una rete che non porta a internet
+dice «Nessuna connessione a internet». Al tocco nasce dalla capsula un **pannello** (il popover dalla sorgente, come la card
+della pillola) con l'ultima sincronizzazione («12 min fa»: solo il tempo, mai «Aggiornato adesso» con le modifiche in
+attesa), cosa aspetta e **«Sincronizza ora»**, un tasto con esito spento senza rete.
+
+**Apple.** Nessun componente pubblico: è il comportamento di Mail e di Note su iOS quando manca la rete, sopra
+`NWPathMonitor`. La forma e i tempi seguono la pillola di attività; le uscite a tempo sono **a occhio** (25/11/2026):
+«Tutto aggiornato» resta 1,6 s, «Di nuovo in linea» senza niente da mandare 2 s, «sincronizzo» al più 10 s
+(`FluidConnectionCapsuleDefaults`).
+
+```kotlin
+val online by remember { EngineNetwork.states(context) }.collectAsState(initial = EngineNetwork.current(context))
+val status by sync.status.collectAsState()                 // engine-sync: SyncStatus con pending
+FluidScreen(
+  title = "Note",
+  // Nell'overlay della schermata, in basso al centro: il vetro rifrange la pagina (il fondale che l'overlay riceve).
+  overlay = { pageGlass ->
+    FluidConnectionCapsule(
+      online = online.online, status = status, connected = online.connected,
+      onSyncNow = { sync.syncAll() },
+      backdrop = pageGlass,
+      modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 16.dp),
+    )
+  },
+) { /* il contenuto */ }
+```
+
+**Sta nell'`overlay` della `FluidScreen`** e prende il suo fondale (F8.20b): cosi' il vetro sfoca quello che passa sotto.
+Posata in un `Box` sopra il contenuto non ha un fondale (`currentGlassBackdrop()` li' e' vuoto) e il vetro resterebbe
+limpido sopra il testo: allora la capsula e' **piena** (il colore del contenitore alto del tema), come un vetro a cui il tetto
+della memoria nega la cattura (F7.18). Il vetro è quello dei pannelli (`fluidGlassPanel`), come `FluidFloatingCapsule`: la
+capsula porta una frase, e col vetro dei controlli il testo della pagina sotto restava al limite della lettura. Sul Tab S9
+(25/11) il pannello della capsula e la card della pillola lasciavano leggere la pagina nitida sotto un velo: un pannello
+davanti che trovava la lettura della memoria vecchia aspettava senza cattura e senza pieno. Ora un pannello davanti va subito
+al tetto (F8.20b). Le prove dei pixel (`F8p20GlassPixelsTest`) misurano che sotto il pannello, la card della pillola e la
+capsula il testo non si legga, anche col tetto del vetro pieno.
+
+- **Non legge la rete da sé**: `engine-ui` non conosce `engine-net`. `online` viene da `EngineNetwork.states`, che ha già la
+  tenuta contro le micro-cadute (2,5 s): la capsula non lampeggia per il cambio dal Wi-Fi ai dati o per una caduta di
+  mezzo secondo. Le modifiche in attesa vengono da `SyncStatus.pending` (lo riempie `FluidSync.status`).
+- **Vetro dell'engine**: un pezzo di un `FluidGlassContainer`, compare e scompare per lente (`Materialize`); la frase che
+  cambia entra sfocata (`FluidGlassContentTransition`: la cambia l'app, non il dito). Il vetro rifrange `backdrop`: quello
+  dell'`overlay` della schermata; su una foto in una scena, il `rememberGlassBackdrop` della foto.
+- **Ferma non ridisegna**: nessuna scrittura di stato a riposo; gira solo il segno di «sincronizzo».
+- **TalkBack**: un tasto con la frase come nome, regione viva educata («Offline» si annuncia da solo), l'azione «Mostra i
+  dettagli»; bersaglio da 44 dp (la capsula ne è alta 36). Col movimento ridotto la lente e la frase cambiano a dissolvenza.
+- **Le macchine**: `FluidConnectionPhase` (`Hidden`, `Offline`, `NoInternet`, `BackOnline`, `Synced`); le parole in
+  `FluidConnectionLabels` (italiano, `english()`), da `LocalFluidConnectionLabels`.
+- **Serve un host dei modali** alla radice per il pannello, come per ogni popover.
+
+**La pillola che dice «Offline».** `FluidActivity.offline(pending, onSyncNow, onOpen)`: il genere `FluidActivityKind.Offline`
+(la nuvola sbarrata, ferma, la meno importante: se c'è un lavoro vero la pillola mostra quello), «Offline» nella pillola, «3
+modifiche in attesa» nella card. Per chi vuole lo stato della rete nella barra invece che sopra il contenuto.
+
+**L'indicatore e l'avviso** (`FluidSyncIndicator`, `FluidSyncNotice`) con `OFFLINE` sono grigi e dicono «Offline · 3
+modifiche in attesa» ([tema.md](tema.md)). **Gli stati pronti** (`FluidEmptyState(FluidEmptyPreset.Offline)`) senza `online`
+leggono le condizioni del telefono, se qualcuno le legge (`EngineConditions.install`), e riprovano da soli al ritorno della
+rete, al più ogni 5 s.
+
+**In galleria**: «Elementi nuovi › Offline · 3 modifiche in attesa» (`--es novita.scene rete-capsula`), con la rete simulata
+(le reti finte di `engine-net`: in linea, senza rete, Wi-Fi senza internet, VPN con sotto niente, micro-caduta, dal Wi-Fi ai
+dati), le note che si scrivono e la sincronizzazione vera in memoria.
+
+## La pagina «Trasferimenti» e la pillola dei trasferimenti (F8.20)
+
+**Cosa fa.** La pagina dei trasferimenti lunghi, come gli elenchi di download di Safari e dell'App Store: «In corso» (anche in
+coda, in attesa e in pausa), «Non riusciti», «Completati» (con «Togli i completati»). Ogni riga ha l'icona del verso, il nome,
+la barra (attenuata quando è ferma), **«12,4 MB di 48 MB · 2,1 MB/s · ancora 17 s»** e **il tasto che serve adesso**: «Pausa»,
+«Riprendi», **«Fallo comunque»** per chi aspetta le condizioni, «Riprova» per chi non è riuscito. Chi aspetta dice il perché
+(«Aspetto il Wi-Fi · Rete a consumo»), chi non è riuscito il motivo («Il server non risponde (503)»).
+
+```kotlin
+val items by transfers.items.collectAsState()               // engine-transfer, o una coda dell'app
+FluidTransfersPage(items, controls = transfers, onBack = { … }, onOpen = { item -> apri(item) })
+// alla radice, accanto all'host della pillola: i trasferimenti nella pillola, e l'esito alla fine
+FluidTransferActivity(attivita, transfers.overview.collectAsState().value, transfers, onOpen = { vaiAiTrasferimenti() })
+```
+
+- **Il modello è di foundation** (`FluidTransferItem`, `FluidTransferControls`): la pagina non conosce `engine-transfer`, e
+  un'app con una coda sua la usa uguale.
+- **I numeri cambiano da soli**, quindi scorrono sfocati (`FluidNumericText`) e **al più una volta al secondo**, come in
+  Safari (a occhio); la barra segue ogni avanzamento. Lo stato cambia subito.
+- **TalkBack**: una riga è un nodo solo (nome, stato, quantità, velocità) con le azioni (il tasto, «Annulla», «Apri») come
+  azioni di accessibilità.
+- **La pillola** (`FluidTransferActivity`): pubblica `FluidActivity.transfer` col titolo del trasferimento (o «3
+  trasferimenti»), l'avanzamento da uno stato (niente ripubblicazioni a ogni byte), pausa, riprendi, annulla e «Apri»; si
+  ripubblica solo quando cambia cosa dice; alla fine si chiude con la spunta o col motivo dell'errore. **Fuori dall'app**
+  il trasferimento lo mostra il lavoro di WorkManager con la notifica viva di `engine-notify`
+  (`LiveTransferNotifications`, genere `Transfer`: su Android 16 un Live Update; scheda [transfer](../moduli/transfer.md)):
+  la pillola dei trasferimenti **non** si specchia fuori con `mirrorOutside`, se no le notifiche sarebbero due.
+- **Ferma, una frase sola** (F8.20b): «In pausa · 12,7 MB di 48 MB», «Aspetto il Wi-Fi · Rete a consumo», «Non riuscito ·
+  Il server non risponde (503)», «Completato · 48 MB», che si tronca invece di accavallarsi (sul Tab S9 due testi affiancati
+  si sovrapponevano); mentre corre, i numeri che scorrono e il passo che cede lo spazio.
+- Le parole in `FluidTransferLabels` (italiano, `english()`), da `LocalFluidTransferLabels`; le frasi di una riga sono pure
+  (`fluidTransferPhrases`, con la riga ferma in `line`).
+
+**In galleria**: «Elementi nuovi › Centro trasferimenti» (`--es novita.scene trasferimenti`), con la coda vera
+(`FluidTransfers.from`: la coda della `GalleryApplication`, con SQLite, WorkManager e la notifica viva di `engine-notify`), il
+server di prova sul loopback della galleria o quello del PC (`adb reverse`), e l'interruttore di sviluppo «Simula una rete a
+consumo».
 
 ## Il tasto diviso
 

@@ -440,7 +440,17 @@ data class FluidSyncStrings(
   val hoursAgo: (Int) -> String = { "Aggiornato $it h fa" },
   /** Dopo il primo giorno: la data e l'ora, gia' formattate. */
   val updatedOn: (date: String) -> String = { "Aggiornato il $it" },
+  /**
+   * F8.20: senza rete con modifiche in attesa, nell'indicatore e nell'avviso: «Offline · 3 modifiche in attesa», con `%1$d`
+   * per quante. Una stringa col segnaposto e non una funzione, come le altre parole tradotte come risorse.
+   */
+  val offlinePending: String = "Offline · %1\$d modifiche in attesa",
+  /** Lo stesso con una modifica sola. */
+  val offlinePendingOne: String = "Offline · una modifica in attesa",
 ) {
+  /** La frase di [offlinePending] per [count] modifiche. */
+  fun offlinePending(count: Int): String = if (count == 1) offlinePendingOne else String.format(offlinePending, count)
+
   companion object {
     /** Le stesse frasi in inglese (3.0.4). */
     fun english(): FluidSyncStrings = FluidSyncStrings(
@@ -466,6 +476,8 @@ data class FluidSyncStrings(
       minutesAgo = { "Updated $it min ago" },
       hoursAgo = { "Updated $it h ago" },
       updatedOn = { "Updated on $it" },
+      offlinePending = "Offline · %1\$d changes waiting",
+      offlinePendingOne = "Offline · 1 change waiting",
     )
   }
 }

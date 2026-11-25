@@ -21,6 +21,13 @@ android {
   kotlinOptions {
     jvmTarget = engine.jvmTarget
   }
+
+  testOptions {
+    unitTests {
+      // F8.20: la lettura delle condizioni (risparmio dati ed energetico, corrente) si prova in Robolectric.
+      includeAndroidResources = true
+    }
+  }
 }
 
 dependencies {
@@ -28,4 +35,7 @@ dependencies {
 
   testImplementation "junit:junit:${engine.junit}"
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove della lettura di Android (F8.20), mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
 }

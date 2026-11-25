@@ -219,7 +219,12 @@ FluidAccentPicker(
 ## fluidUpdateSection
 
 **Cos'e'.** Le righe degli aggiornamenti per una pagina di impostazioni: il canale, il controllo con l'installazione, «controllato N minuti fa»,
-lo scarico automatico. Otto app si erano disegnata la propria (chi con un `Dialog`, chi con una scheda, chi con tre tasti in fila) con
+lo scarico automatico. **Dalla F8.20** la riga «Installa la X» e l'avviso (`FluidUpdatePrompt`) leggono le condizioni del
+telefono (`FluidDeviceConditions`, se l'app le fa leggere con `EngineConditions.install`): su una rete a consumo, in roaming,
+col risparmio dati, col risparmio energetico senza corrente o col telefono caldo dicono il perché prima del tocco («Rete a
+consumo: conviene aspettare il Wi-Fi o un momento migliore.», `FluidUpdateStrings.costlyNetwork` col motivo nelle parole di
+`LocalFluidConnectionLabels`) e il tasto diventa
+«Aggiorna comunque» (`installAnyway`): l'aggiornamento lo chiede l'utente, quindi non si blocca, si avvisa. Otto app si erano disegnata la propria (chi con un `Dialog`, chi con una scheda, chi con tre tasti in fila) con
 la stessa differenza di una versione all'altra, quasi tutta nei bug: un `Idle` che compariva a meta' (e che l'engine non ha mai avuto), un errore
 che finiva nel ramo «in corso» senza un modo di riprovare, un download senza peso che mostrava «0%» per tutto il tempo.
 

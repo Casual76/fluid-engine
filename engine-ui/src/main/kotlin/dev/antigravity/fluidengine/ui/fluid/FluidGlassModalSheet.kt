@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -97,6 +98,10 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassLayerProbe
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassStateDump
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassFrameMarker
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanel
@@ -426,6 +431,9 @@ private class FluidSheetMotion {
 
   val zoomFocus = Animatable(1f)
   val zoomInk = Animatable(1f)
+
+  /** F8.10, diagnostica: lo strato del contenuto per la fotografia a riposo ([GlassStateDump]). */
+  val dumpLayer = GlassLayerProbe("sheetLayer")
 
   /** Il viaggio dello zoom adesso: l'apertura sua, ma mai oltre la molla dell'host (che alla chiusura scende). */
   fun zoomTravel(slide: Float): Float = min(zoomOpen.value, slide)
@@ -882,7 +890,27 @@ private fun FluidSheetPane(
               } else {
                 null
               }
-            },
+              // F8.10, diagnostica: i valori che lo strato del contenuto ha davvero adesso (la «x» rimasta sfocata).
+              GlassFrameDiagnostics.event("sheetLayer", motion) {
+                "zoom=${motion.zoomActive} ink=$alpha sigma=$sigma effect=${renderEffect != null}"
+              }
+              if (GlassStateDump.active) {
+                motion.dumpLayer.applied("zoom=${motion.zoomActive} ink=$alpha sigma=$sigma effect=${renderEffect != null}")
+              }
+            }
+            // F8.10, diagnostica: quando il contenuto dello strato si registra di nuovo. Solo col log acceso, o nella
+            // fotografia a riposo di un'app debuggable.
+            .then(if (GlassFrameDiagnostics.enabled) Modifier.glassFrameMarker("sheet.content") else Modifier)
+            .then(
+              if (GlassStateDump.active) {
+                Modifier.drawWithContent {
+                  motion.dumpLayer.recorded()
+                  drawContent()
+                }
+              } else {
+                Modifier
+              },
+            ),
         ) {
           // Davanti alla tab bar in alto della navigazione adattiva: la sua fascia qui non conta (F6B.12). Il velo della
           // pagina passa ai contenuti per l'inchiostro del pannello info (F6C.9).

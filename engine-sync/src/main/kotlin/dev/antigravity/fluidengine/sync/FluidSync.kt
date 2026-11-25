@@ -91,14 +91,18 @@ data class SyncPhrases(
  * - un errore in tutti gli spazi: [SyncState.ERROR]; in alcuni: [SyncState.PARTIAL] con gli spazi in `failedSections`;
  * - altrimenti [SyncState.IDLE], con l'ora dell'ultima riuscita.
  *
+ * In ogni caso [SyncStatus.pending] dice quante modifiche aspettano di partire (F8.20): la capsula «Offline · 3 modifiche
+ * in attesa» la legge da qui.
+ *
  * [label] da' il nome di uno spazio per `failedSections` (di serie il suo identificativo).
  */
 fun SyncOverview.toSyncStatus(
   phrases: SyncPhrases = SyncPhrases(),
   label: (SyncSpaceId) -> String = { it.value },
 ): SyncStatus {
-  if (syncing) return SyncStatus(state = SyncState.SYNCING, lastSuccessfulSyncEpochMillis = lastSuccessMillis)
-  val failure = failure ?: return SyncStatus(state = SyncState.IDLE, lastSuccessfulSyncEpochMillis = lastSuccessMillis)
+  if (syncing) return SyncStatus(state = SyncState.SYNCING, lastSuccessfulSyncEpochMillis = lastSuccessMillis, pending = pending)
+  val failure = failure
+    ?: return SyncStatus(state = SyncState.IDLE, lastSuccessfulSyncEpochMillis = lastSuccessMillis, pending = pending)
   val message = when (failure) {
     SyncFailure.Offline -> if (pending > 0) phrases.pendingOffline(pending) else phrases.offline
     is SyncFailure.RetryLater -> phrases.retryLater
@@ -118,6 +122,7 @@ fun SyncOverview.toSyncStatus(
     lastSuccessfulSyncEpochMillis = lastSuccessMillis,
     message = message,
     failedSections = if (state == SyncState.PARTIAL) failedSpaces.map(label) else emptyList(),
+    pending = pending,
   )
 }
 

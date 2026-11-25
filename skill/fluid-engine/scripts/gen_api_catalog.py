@@ -51,6 +51,8 @@ UI_FLUID_FILES = {
         "FluidSearchTokens",
         # F6B.15: i gettoni nei campi fuori dalla barra (il campo sotto il titolo e FluidSearchField nella pagina).
         "FluidSearchFieldTokens",
+        # F8.20: la capsula della rete («Offline · 3 modifiche in attesa»), che galleggia come la pillola di attività
+        "FluidConnectionCapsule",
         # i bersagli da 48 dp attorno al disegno (F6B.8b): interni, senza dichiarazioni pubbliche
         "FluidTargets",
     ],
@@ -157,6 +159,8 @@ UI_FLUID_DIRS = {
     # i tasti con esito (F6B.3a): stato, esecutore, tasto e glifi
     "ui/fluid/action": "barre",
     "ui/fluid/activity": "barre",
+    # F8.20: la pagina «Trasferimenti», la sua riga e il ponte con la pillola
+    "ui/fluid/transfer": "contenuto",
     # i visori di file (F6C): il telaio e i contratti
     "ui/fluid/viewer": "contenuto",
     # la condivisione (F8.10): il foglio, la copia preparata, il contratto del QR; e le uscite (immagine, PDF, stampa)
@@ -198,6 +202,8 @@ DIR_FAMILY = {
     "account": "account",
     "account/host": "account-host",
     "account/ui": "account-ui",
+    # il centro trasferimenti (F8.20)
+    "transfer": "transfer",
     "ai/provider": "ai-provider",
     "ai/orchestrator": "ai-orchestrator",
     "ai/keys": "ai-chiavi-rete-voce",
@@ -251,6 +257,7 @@ FAMILY_TITLES = {
     "account": "engine-account",
     "account-host": "engine-account-host",
     "account-ui": "engine-account-ui",
+    "transfer": "engine-transfer",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

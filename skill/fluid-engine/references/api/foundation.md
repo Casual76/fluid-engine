@@ -58,6 +58,73 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `enum class EngineCompatibility` — How far behind the engine this app carries is.
 - `fun engineCompatibility(engineVersion: String = EngineBuild.VERSION, minimumVersion: String?, recommendedVersion: String?): EngineCompatibility`
 
+## `engine-foundation/foundation/FluidConditions.kt`
+
+- `class FluidThermal private constructor(val level: Int, private val label: String) : Comparable<FluidThermal>` — Quanto scalda il telefono: i quattro gradini di `ProcessInfo.ThermalState` di Apple (nominal, fair, serious, critical). Su Android li legge `engine-net` da `PowerManager.getCurrentThermalStatus` (API 29): nessuno e leggero → [Nominal], moderato → [Fair], severo → [Serious], critico e oltre → [Critical]. Sotto l'API 29 resta [Nominal].
+  - `val hot: Boolean get()` — Il telefono e' caldo: [Serious] o oltre. Apple chiede, da `serious`, di ridurre il lavoro che si puo' rimandare; e' quello che fa la regola dei lavori ([FluidWork.avoidsHeat]).
+  - `companion object`
+    - `val Nominal: FluidThermal`
+    - `val Fair: FluidThermal`
+    - `val Serious: FluidThermal`
+    - `val Critical: FluidThermal`
+    - `fun of(level: Int): FluidThermal` — Il gradino [level] (fuori scala si ferma ai bordi).
+- `data class FluidConditions(val online: Boolean = true, val connected: Boolean = true, val metered: Boolean = false, val roaming: Boolean = false, val dataSaver: Boolean = false, val powerSave: Boolean = false, val thermal: FluidThermal = FluidThermal.Nominal, val charging: Boolean = false, val lowData: Boolean = false, val known: Boolean = true)` — Le condizioni del telefono adesso. Si legge da [FluidDeviceConditions] (o da `EngineConditions` di `engine-net`) e si interroga con [allows].
+  - `val hot: Boolean get()` — Il telefono e' caldo ([FluidThermal.hot]).
+  - `val unmetered: Boolean get()` — La rete c'e' e non costa (Wi-Fi o Ethernet): e' il «solo Wi-Fi» di un trasferimento e il `NetworkType.UNMETERED` di WorkManager.
+  - `fun allows(work: FluidWork, needs: FluidWorkNeeds = FluidWorkNeeds.None, force: Boolean = false): FluidPermit` — Il permesso per [work], con i vincoli del singolo lavoro ([needs]: solo Wi-Fi, solo in carica). Con [force] (il tasto «Fallo comunque») passano tutti i motivi che si possono forzare; la mancanza di rete no: senza rete non si scarica.
+  - `companion object`
+    - `val Unknown: FluidConditions` — Nessuno ha ancora letto le condizioni: [allows] lascia passare tutto.
+    - `val Offline: FluidConditions` — Senza rete (le altre condizioni tranquille): per le prove e per la simulazione della galleria.
+- `data class FluidWorkNeeds(val wifiOnly: Boolean = false, val chargingOnly: Boolean = false)` — I vincoli che un singolo lavoro aggiunge alla regola di [FluidWork]: «solo Wi-Fi» e «solo in carica», le due spunte di un trasferimento (e di WorkManager: `NetworkType.UNMETERED`, `setRequiresCharging`).
+  - `companion object`
+    - `val None: FluidWorkNeeds` — Nessun vincolo in piu'.
+- `class FluidWork private constructor(val name: String, val needsNetwork: Boolean, val avoidsExpensive: Boolean, val avoidsConstrained: Boolean, val avoidsLowPower: Boolean, val avoidsHeat: Boolean, val lowPowerWhileCharging: Boolean = false)` — Un genere di lavoro, con quello che evita. Si chiede il permesso con [FluidConditions.allows] (o [FluidDeviceConditions.allows]) prima di cominciarlo.
+  - `companion object`
+    - `val LargeDownload: FluidWork` — Scaricare un file grande (un APK, una mappa, un brano per l'ascolto offline): evita le reti che costano, il risparmio dati, il risparmio energetico e il calore. E' `condizioni.consente(Lavoro.ScaricaGrande)` della scheda.
+    - `val LargeUpload: FluidWork` — Caricare un file grande (le foto e i video della galleria): come [LargeDownload].
+    - `val Prefetch: FluidWork` — Scaricare in anticipo qualcosa che l'utente non ha chiesto ancora (le prossime puntate, le miniature): come [LargeDownload].
+    - `val RichMedia: FluidWork` — Media in qualita' alta o in riproduzione automatica (un video che parte da solo, lo streaming migliore): evita il risparmio dati, «Usa pochi dati», il roaming e il risparmio energetico; su una rete a consumo normale si', come su iOS fuori dalla Modalita' dati ridotti.
+    - `val Sync: FluidWork` — Una sincronizzazione piccola (le modifiche di una nota): serve solo la rete.
+    - `val MotionEffects: FluidWork` — Gli effetti di movimento che consumano senza servire (la luce del vetro che segue l'inclinazione, che tiene acceso un sensore e ridisegna il vetro): si fermano col risparmio energetico e col telefono caldo.
+    - `val ContinuousHaptics: FluidWork` — L'aptica continua (la grana di un cursore, i tick di una ruota): si ferma col risparmio energetico, anche in carica.
+    - `fun custom(name: String, needsNetwork: Boolean = true, avoidsExpensive: Boolean = false, avoidsConstrained: Boolean = false, avoidsLowPower: Boolean = false, avoidsHeat: Boolean = false, lowPowerWhileCharging: Boolean = false): FluidWork` — Un lavoro su misura.
+- `class FluidConditionReason private constructor(val name: String, val forceable: Boolean)` — Perche' un lavoro aspetta. [forceable] dice se «Fallo comunque» lo supera: tutti tranne la mancanza di rete.
+  - `companion object`
+    - `val Offline: FluidConditionReason` — Non c'e' rete.
+    - `val NoInternet: FluidConditionReason` — C'e' una rete ma non porta a internet (`NET_CAPABILITY_VALIDATED` assente).
+    - `val Roaming: FluidConditionReason` — La rete e' in roaming.
+    - `val Metered: FluidConditionReason` — La rete e' a consumo.
+    - `val DataSaver: FluidConditionReason` — Il risparmio dati di Android.
+    - `val LowData: FluidConditionReason` — «Usa pochi dati» dell'app.
+    - `val PowerSave: FluidConditionReason` — Il risparmio energetico.
+    - `val Hot: FluidConditionReason` — Il telefono e' caldo.
+    - `val NotWifi: FluidConditionReason` — Il lavoro vuole il Wi-Fi e la rete costa.
+    - `val NotCharging: FluidConditionReason` — Il lavoro vuole la corrente e il telefono non e' in carica.
+    - `val all: List<FluidConditionReason> by lazy` — Tutti i motivi, nell'ordine in cui [FluidConditions.allows] li dice.
+    - `fun named(name: String): FluidConditionReason?` — Il motivo col nome [name], o null: per rileggere un motivo salvato.
+- `class FluidPermit(val reasons: List<FluidConditionReason>, val forced: Boolean = false)` — La risposta di [FluidConditions.allows]: si puo' ([allowed]) o si aspetta, con i motivi ([reasons], il primo e' il piu' importante). [forced] e' il «Fallo comunque» gia' dato.
+  - `val allowed: Boolean get()` — Si puo' partire: nessun motivo, o solo motivi superati da «Fallo comunque».
+  - `val waiting: Boolean get()` — Si aspetta.
+  - `val canForce: Boolean get()` — «Fallo comunque» servirebbe: si aspetta solo per motivi che si possono forzare.
+  - `val reason: FluidConditionReason? get()` — Il motivo principale, o null.
+  - `companion object`
+    - `val Allowed: FluidPermit`
+- `data class FluidConditionPhrases(val offline: String = "Senza rete", val noInternet: String = "La rete non porta a internet", val roaming: String = "Sei in roaming", val metered: String = "Rete a consumo", val dataSaver: String = "Risparmio dati attivo", val lowData: String = "«Usa pochi dati» attivo", val powerSave: String = "Risparmio energetico attivo", val hot: String = "Il telefono è caldo", val notWifi: String = "Solo col Wi-Fi", val notCharging: String = "Solo in carica", val waitNetwork: String = "Aspetto la rete", val waitWifi: String = "Aspetto il Wi-Fi", val waitCharging: String = "Aspetto la carica", val waitCool: String = "Aspetto che si raffreddi", val waitPower: String = "Aspetto la fine del risparmio energetico")` — Le parole dei motivi, di serie in italiano ([english] per l'inglese): [reason] e' il perche' breve («Rete a consumo»), [waitingFor] la frase di chi aspetta («Aspetto il Wi-Fi»). Le usano la pagina dei trasferimenti, la loro notifica e la scena della galleria; un'app le passa tradotte.
+  - `fun reason(reason: FluidConditionReason): String` — Il perche' breve di [reason].
+  - `fun waitingFor(reasons: List<FluidConditionReason>): String?` — Che cosa si aspetta, per il motivo principale di [reasons]: «Aspetto il Wi-Fi». Null senza motivi.
+  - `companion object`
+    - `fun english(): FluidConditionPhrases` — Le parole inglesi.
+- `object FluidDeviceConditions` — **Il posto solo** delle condizioni del telefono nel processo: chi le legge (`EngineConditions.install` di `engine-net`) le pubblica qui con [publish], chi le usa le legge da [state] o da [current]. Di serie [FluidConditions.Unknown]: finche' nessuno le legge, nessuno si ferma.
+  - `val state: StateFlow<FluidConditions>` — Le condizioni di adesso, con «Usa pochi dati» e la simulazione.
+  - `val current: FluidConditions get()` — Lo stesso di `state.value`.
+  - `val measured: FluidConditions get()` — Le condizioni lette davvero, senza simulazione.
+  - `val simulated: Boolean get()` — Vero se c'e' una simulazione attiva.
+  - `var lowData: Boolean` — «Usa pochi dati» dell'app: l'app lo mette dalle sue impostazioni.
+  - `fun publish(conditions: FluidConditions)` — Pubblica la lettura vera (la chiama `engine-net`).
+  - `fun simulate(transform: ((FluidConditions) -> FluidConditions)?)` — Simula le condizioni sopra quelle vere ([transform] le riceve e le cambia), o toglie la simulazione con null. Una condizione simulata e' sempre «saputa» ([FluidConditions.known]): la simulazione vale anche prima della prima lettura.
+  - `fun allows(work: FluidWork, needs: FluidWorkNeeds = FluidWorkNeeds.None, force: Boolean = false): FluidPermit` — Il permesso per [work] adesso: vedi [FluidConditions.allows].
+  - `fun reset()` — Torna come all'avvio: nessuna lettura, nessuna simulazione, «Usa pochi dati» spento. Per le prove.
+
 ## `engine-foundation/foundation/FluidDates.kt`
 
 - `object FluidDates` — I giorni della settimana come li conta una lingua.
@@ -286,7 +353,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-foundation/foundation/SyncStatus.kt`
 
 - `enum class SyncState` — What the last attempt to refresh the app's data did.
-- `data class SyncStatus(val state: SyncState = SyncState.IDLE, val lastSuccessfulSyncEpochMillis: Long? = null, val message: String? = null, val failedSections: List<String> = emptyList(), val notice: String? = null)` — The result of the app's last refresh, in the shape the design system's status components read.
+- `data class SyncStatus(val state: SyncState = SyncState.IDLE, val lastSuccessfulSyncEpochMillis: Long? = null, val message: String? = null, val failedSections: List<String> = emptyList(), val notice: String? = null, val pending: Int = 0)` — The result of the app's last refresh, in the shape the design system's status components read.
 
 ## `engine-foundation/foundation/live/FluidLiveUpdate.kt`
 
@@ -415,3 +482,60 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val edits: Int by lazy` — Quanti pezzi sono stati tolti da `a` o aggiunti in `b`.
   - `val hunks: List<FluidDiffHunk> by lazy` — I tratti diversi, in ordine: fra due tratti tutto e' uguale.
 - `data class FluidDiffHunk(val aStart: Int, val aEnd: Int, val bStart: Int, val bEnd: Int)` — Un tratto diverso: i pezzi [aStart]..[aEnd) di `a` (tolti) sono diventati [bStart]..[bEnd) di `b` (aggiunti). Uno dei due intervalli puo' essere vuoto: un'aggiunta pura o una cancellazione pura.
+
+## `engine-foundation/foundation/transfer/FluidTransfer.kt`
+
+- `class FluidTransferDirection private constructor(val name: String)` — Il verso di un trasferimento. Non e' un `enum` (regola 3.11).
+  - `companion object`
+    - `val Download: FluidTransferDirection`
+    - `val Upload: FluidTransferDirection`
+    - `fun named(name: String): FluidTransferDirection` — Il verso col nome [name] (quello salvato), di serie [Download].
+- `class FluidTransferState private constructor(val name: String)` — Dove sta un trasferimento. Non e' un `enum` (regola 3.11): uno stato nuovo non rompe i `when` delle app.
+  - `val active: Boolean get()` — In coda, in corso o in attesa: non e' fermo per scelta e non e' finito.
+  - `val finished: Boolean get()` — Finito: riuscito o annullato.
+  - `companion object`
+    - `val Queued: FluidTransferState`
+    - `val Running: FluidTransferState`
+    - `val Waiting: FluidTransferState`
+    - `val Paused: FluidTransferState`
+    - `val Failed: FluidTransferState`
+    - `val Completed: FluidTransferState`
+    - `val Cancelled: FluidTransferState`
+    - `val all: List<FluidTransferState> by lazy` — Tutti gli stati.
+    - `fun named(name: String): FluidTransferState` — Lo stato col nome [name] (quello salvato), di serie [Queued].
+- `class FluidTransferFailure private constructor(val kind: String, val retryable: Boolean, val code: Int? = null, val message: String? = null)` — Perche' un trasferimento non e' riuscito. [retryable] dice se ha senso riprovare da soli (la rete caduta, un server occupato) o se serve qualcuno (il file non c'e' piu', l'accesso e' negato, il disco e' pieno). Il tasto «Riprova» c'e' sempre.
+  - `fun withMessage(message: String?): FluidTransferFailure` — Lo stesso genere con un altro testo tecnico.
+  - `companion object`
+    - `fun network(message: String? = null): FluidTransferFailure` — La connessione si e' interrotta o non si e' aperta.
+    - `fun server(code: Int, message: String? = null): FluidTransferFailure` — Il server ha risposto con un errore suo ([code]): 5xx e 429 si riprovano da soli, gli altri no.
+    - `fun notFound(code: Int = 404): FluidTransferFailure` — Il file non c'e' (404, 410).
+    - `fun unauthorized(code: Int = 401): FluidTransferFailure` — L'accesso e' negato (401, 403): servono credenziali nuove.
+    - `fun storage(message: String? = null): FluidTransferFailure` — Non c'e' spazio, o il file non si scrive o non si legge.
+    - `fun integrity(message: String? = null): FluidTransferFailure` — Il file arrivato non e' quello atteso (dimensione o impronta diverse).
+    - `fun unknown(message: String? = null): FluidTransferFailure` — Altro.
+    - `fun restore(kind: String, retryable: Boolean, code: Int?, message: String?): FluidTransferFailure` — Rilegge un motivo salvato.
+    - `const val Network: String`
+    - `const val Server: String`
+    - `const val NotFound: String`
+    - `const val Unauthorized: String`
+    - `const val Storage: String`
+    - `const val Integrity: String`
+    - `const val Unknown: String`
+- `data class FluidTransferItem(val id: String, val title: String, val direction: FluidTransferDirection, val state: FluidTransferState, val bytesDone: Long = 0L, val bytesTotal: Long = -1L, val bytesPerSecond: Long = 0L, val remainingMillis: Long? = null, val subtitle: String? = null, val failure: FluidTransferFailure? = null, val waitingFor: List<FluidConditionReason> = emptyList(), val canForce: Boolean = false, val resumable: Boolean = true, val attempts: Int = 0, val wifiOnly: Boolean = false, val chargingOnly: Boolean = false, val createdAtMillis: Long = 0L, val finishedAtMillis: Long? = null)` — Un trasferimento come si mostra: la riga della pagina «Trasferimenti», la pillola, la notifica.
+  - `val progress: Float?` — L'avanzamento da 0 a 1, o null se il peso non si sa.
+- `data class FluidTransferOverview(val items: List<FluidTransferItem> = emptyList())` — Tutti i trasferimenti insieme, per la pillola e la notifica: quanti ce ne sono in giro, l'avanzamento complessivo, la velocita' e il tempo che manca.
+  - `val active: List<FluidTransferItem> get()` — In coda, in corso o in attesa.
+  - `val running: FluidTransferItem? get()` — Quello che sta trasferendo adesso, o null.
+  - `val waiting: List<FluidTransferItem> get()` — Quelli in attesa delle condizioni.
+  - `val failed: List<FluidTransferItem> get()` — Quelli non riusciti.
+  - `val paused: List<FluidTransferItem> get()` — Quelli fermati dall'utente.
+  - `val progress: Float?` — L'avanzamento di tutti quelli in giro (attivi e in pausa), pesato sui byte, o null se qualcuno non ha un peso.
+  - `val bytesPerSecond: Long get()` — La velocita' di quello in corso, o 0.
+  - `val remainingMillis: Long?` — Il tempo che manca a tutti quelli in giro alla velocita' di adesso, o null.
+- `interface FluidTransferControls` — I comandi di un trasferimento, quelli della pagina e della pillola. `FluidTransfers` di `engine-transfer` li implementa; un'app con una coda sua li implementa per usare la stessa pagina.
+  - `fun pause(id: String)` — Ferma il trasferimento: riprende da dov'era.
+  - `fun resume(id: String)` — Riprende un trasferimento fermato.
+  - `fun retry(id: String)` — Riprova un trasferimento non riuscito.
+  - `fun force(id: String)` — «Fallo comunque»: parte anche se le condizioni direbbero di aspettare (non senza rete).
+  - `fun cancel(id: String)` — Annulla e toglie il file a meta'.
+  - `fun clearFinished()` — Toglie dalla lista quelli finiti.

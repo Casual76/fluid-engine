@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+  <!--
+    F8.20 · Il servizio in primo piano dei trasferimenti, dichiarato onestamente: e' quello di WorkManager
+    (`SystemForegroundService`), di tipo `dataSync` (spostare dati sulla rete, chiesto dall'utente). Da Android 14 il tipo
+    vuole il suo permesso, che e' normale (non si chiede all'utente). Da Android 15 il sistema da' a `dataSync` al piu' sei
+    ore al giorno: un trasferimento fermato dal sistema riprende da dove era.
+  -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+  <application>
+    <service
+        android:name="androidx.work.impl.foreground.SystemForegroundService"
+        android:foregroundServiceType="dataSync"
+        tools:node="merge" />
+  </application>
+</manifest>

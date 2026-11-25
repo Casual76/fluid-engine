@@ -41,6 +41,8 @@ engine-account      l'Account Pampa visto da un'app: chi sei, token, chiavi dell
 engine-account-host il motore dell'account in Pampa Store: provider firmato, sessione, custodia delle chiavi,
                     codice di recupero, backup dello Store (opt-in, solo lo Store)
 engine-account-ui   la riga «Account Pampa» e l'avatar (opt-in)
+engine-transfer     il centro trasferimenti: coda persistita di scaricamenti e caricamenti lunghi, pausa e
+                    ripresa con Range, solo Wi-Fi e in carica, WorkManager col servizio dataSync (opt-in)
 ```
 
 ## Partire in cinque minuti

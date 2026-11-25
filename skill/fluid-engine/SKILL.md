@@ -61,7 +61,7 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-foundation` | modelli, versioni, manifest remoto, flag, impostazioni — niente Compose | `moduli/foundation.md` |
 | `engine-ui` | il design system Fluid: tema, componenti, vetro, Fluid-physics, pagine, aptica, tutorial | `componenti/` |
 | `engine-storage` | DataStore: impostazioni, cache del manifest | `moduli/storage.md` |
-| `engine-net` | `EngineHttp`: leggi un documento, scarica un file | `moduli/net.md` |
+| `engine-net` | `EngineHttp`: leggi un documento, scarica un file; l'osservatore della rete che non lampeggia e le condizioni del telefono (rete a consumo, risparmio dati ed energetico, calore) | `moduli/net.md` |
 | `engine-config` | `EngineRemoteConfig`: flag, versione minima, avvisi, kill switch | `moduli/config.md` |
 | `engine-update` | aggiornamento in-app via PackageInstaller | `moduli/update.md` |
 | `engine-widget` | palette e componenti Glance con lo stesso aspetto | `moduli/widget.md` |
@@ -81,6 +81,7 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-account` | l'Account Pampa visto da un'app: chi sei, token per il suo servizio, chiavi dell'app, backup, aspetto e luoghi comuni, sempre attraverso Pampa Store e **mai la rete** (**opt-in**, dalla 4.0) | `moduli/account.md` |
 | `engine-account-host` | il motore dell'account dentro Pampa Store: provider firmato, sessione, custodia delle chiavi (epoche, porte, passaggio col QR, due classi), codice di recupero, backup dello Store (**opt-in**, solo lo Store) | `moduli/account-host.md` |
 | `engine-account-ui` | la riga «Account Pampa» e l'avatar, nei quattro stati, senza grafica finale (**opt-in**) | `moduli/account-ui.md` |
+| `engine-transfer` | il centro trasferimenti: coda persistita di scaricamenti e caricamenti lunghi, pausa e ripresa con `Range`, solo Wi-Fi e in carica, WorkManager col servizio `dataSync` (**opt-in**, dalla 4.0) | `moduli/transfer.md` |
 | `engine-viewer-office`, `-archive`, `-data`, `-graphics`, `-3d`, `-ar`, `-all` | i moduli di famiglia dei visori: Office, archivi, testi ricchi e dati, immagini speciali e font, 3D, AR, e il visore universale (**opt-in**, uno per famiglia, col loro peso) | `moduli/viewer-famiglie.md` |
 | `engine-auth`, `engine-auth-google` | le passkey e il gestore delle password con Credential Manager, senza rete (il PRF lo scrive il modulo, gli errori come frasi pronte); «Continua con Google» e le concessioni Google, spente (**opt-in**, dalla 4.0; Google ha il permesso della GPL-3.0 § 7) | `moduli/auth.md` |
 
@@ -104,6 +105,9 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | condividere (il foglio di vetro con le app Pampa e le azioni, le opzioni prima dell'invio), fare di una vista un'immagine (un voto nei formati delle storie), un PDF impaginato con testo vero, la stampa; ricevere da un'altra app | `componenti/condivisione.md`; ricevere: `moduli/share-in.md`; il QR: `moduli/qr.md` |
 | l'Account Pampa in un'app: la riga nelle impostazioni, un token per il servizio, le chiavi per sincronizzare, il backup | `moduli/account.md`, `moduli/account-ui.md` (opt-in) |
 | custodire le chiavi dell'account in Pampa Store (porte, epoche, passaggio, codice di recupero) | `moduli/account-host.md` (opt-in, solo lo Store) |
+| «Offline · 3 modifiche in attesa» sopra il contenuto, o sapere se c'è internet senza falsi allarmi (Wi-Fi d'albergo, VPN, micro-cadute) | `componenti/elementi-dinamici.md` («La capsula della rete») e `moduli/net.md` |
+| non scaricare un file grande con la rete a consumo, il risparmio dati, la batteria scarica o il telefono caldo, con «Fallo comunque» | `moduli/foundation.md` («Le condizioni del telefono») e `moduli/net.md` |
+| scaricare o caricare file grandi con pausa e ripresa, anche con l'app chiusa, e la pagina «Trasferimenti» | `moduli/transfer.md` (opt-in) e `componenti/elementi-dinamici.md` |
 | il visore di un file a tutto schermo (foto, video, audio, PDF, testo, sconosciuto): rotta, ritorno nella miniatura, barre al tocco, pannello info, strumenti | `componenti/visori.md` |
 | aprire un PDF, un file di testo o di codice, una GIF animata o un video nel visore di file (decodificare, non solo mostrare) | `moduli/viewer.md` (opt-in) |
 | aprire un DOCX, un foglio, uno ZIP, un Markdown o un JSON, un EPUB, un HEIC, un SVG, un font, un modello 3D; quanto pesa ogni modulo | `moduli/viewer-famiglie.md` (opt-in) |

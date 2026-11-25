@@ -139,12 +139,6 @@ fun Modifier.drawBackdrop(
 5. **Sorgente sparita.** Ricatturare senza sorgente non registra niente (`LayerBackdrop.drawBackdrop` esce senza coordinate): una cattura vuota sotto una tinta traslucida è la pagina cruda e **nitida**
    dentro la sagoma del vetro, un fotogramma di testo leggibile sotto la barra. Quindi si tiene la cattura vecchia fino a **400 ms** (`SourceGoneGraceMillis`: il caso vero dura un fotogramma — un cambio pagina smonta
    la sorgente vecchia e monta la nuova — ma un fotogramma che compone una pagina intera può durare 80 ms), poi basta: tenere un'immagine ormai falsa a tempo indeterminato è peggio di un vetro vuoto.
-6. **La cattura presa in movimento è provvisoria** (4.0, F8.10). Se l'ultima cattura è stata presa mentre il pannello si muoveva rispetto alle sorgenti, al primo disegno da fermo si rifà, **una
-   volta** (`settlesCapture`); un controllo 50 ms dopo l'ultima cattura in movimento (`SettleRecaptureMillis`) chiede quel disegno anche se niente ridisegnerebbe il pannello. Vale solo per il
-   vetro su vetro (che campiona il materiale di un pannello) e per uno spostamento vero rispetto alle stesse sorgenti; non con `sampleOnce`.
-   Sul Tab S9 la «x» di un foglio nato da un tasto, alla prima apertura dopo l'avvio, restava per sempre il disco sfocato di metà zoom: stesse decisioni e stesse sorgenti vive del caso buono, ma i
-   pixel della cattura erano quelli di allora; li rimetteva a posto solo una cattura nuova. Al PC ogni fotogramma si rende da capo e non si vede: la regola la prova `SettleRecaptureTest`
-   (al JVM), l'effetto si guarda sul tablet.
 
 **Il padding è l'unica cosa che invalida la catena.** `updateEffects` rifà il `RenderEffect` ogni volta che i numeri cambiano, ma dirty-a la cattura **solo** se cambia il *padding* (il margine di registrazione che
 serve alla sfocatura perché i bordi non si sporchino). Una sfocatura che sale con uno scorrimento o una lente che si ispessisce all'arrivo di un modale non costano altro che ricostruire l'effetto. Il
@@ -348,9 +342,20 @@ I conteggi costano solo con `enabled` acceso, e contano ciò che nasce **dopo** 
 
 **Il log dei fotogrammi del vetro** (sul dispositivo: `adb shell setprop log.tag.FluidGlassFrame VERBOSE` prima di avviare l'app, poi `logcat -s FluidGlassFrame`; di serie
 spento, costo zero). Ogni evento ha l'istante, il tipo e l'identità di chi lo scrive. `draw` e `capture` (con misura, scala, posizione nella radice), `decide` (perché la cattura si rifà o
-no: `needs`, `wanted`, `moved`, `same`, `ready`, `gone`, `holding`, `settle`…), e da F8.10 in `capture` e `decide` le **sorgenti** campionate (`src=`: quella scritta nel fondale, quella letta
+no: `needs`, `wanted`, `moved`, `same`, `ready`, `gone`, `holding`…), e da F8.10 in `capture` e `decide` le **sorgenti** campionate (`src=`: quella scritta nel fondale, quella letta
 davvero, il suo layer, chi la registra, i lettori, la revisione); `materialRecord` (il pannello che registra il materiale per il vetro dentro di lui), `readerAdd`/`readerRemove` (chi guarda
 un layer su richiesta), `pageNew`/`pageRetire` (la pagina privata di un layer su richiesta), `glassBudgetReserve`/`glassBudgetDenied` (la memoria del vetro).
+Per lo strato e il tasto (F8.10): `sheetLayer` (i valori che lo strato del contenuto di un foglio ha davvero: zoom, inchiostro, sfocatura, `renderEffect`),
+`buttonLayer` (la sfocatura dello strato del contenuto di un tasto di vetro), `buttonDraw` (la pressione quando il tasto si registra), `contentFade` (quanto si vede il contenuto di una
+lastra: zero vuol dire che il glifo non si disegna) e `presenceSkip` (la lastra che salta tutto). Col log acceso ci sono anche i segni `sheet.content`, `button.lens` e `button.glyph`: dicono
+quando quel contenuto si registra di nuovo (un layer che non si registra non scrive niente, anche se si vede). `awaitReading`: la cattura aspetta la lettura della memoria.
+
+**La fotografia a riposo** (F8.10, `GlassStateDump`): il log per fotogramma rallenta abbastanza da far sparire un difetto di tempi, quindi per lo stato fermo c'è una fotografia a
+richiesta, **solo in un'app debuggable** sul dispositivo (in release e in Robolectric è spenta: nessun ricevitore, nessuna sonda, catene dei modificatori uguali):
+`adb shell am broadcast -a dev.antigravity.fluidengine.DUMP_GLASS_STATE -p <pacchetto>`, poi `logcat -d -s FluidGlassState`. Una riga per ogni vetro vivo (`kind=glass`: misura,
+posizione, età dell'ultimo disegno e dell'ultima cattura, ammissione, quante volte `AwaitReading` e l'ultima, byte, sorgenti) e per gli strati sondati: `sheetLayer` (lo strato del
+contenuto di un foglio), `buttonLayer` (lo strato del contenuto di un tasto di vetro), `button` (il contenuto del tasto, con la pressione), `contentFade` (la dissolvenza del
+contenuto di una lastra), ognuno coi valori applicati, quando sono stati scritti e l'ultima volta che il contenuto si è registrato.
 
 ## Cosa è verificato dai test
 

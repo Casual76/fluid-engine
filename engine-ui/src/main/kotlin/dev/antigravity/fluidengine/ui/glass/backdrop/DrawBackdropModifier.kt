@@ -814,38 +814,6 @@ internal fun holdsCaptureOfGoneSource(
 ): Boolean = !ready && sampled && notReadyForMillis < SourceGoneGraceMillis
 
 /**
- * Fluid Engine addition (4.0.0, F8.10): quanto dopo l'ultima cattura presa in movimento il vetro controlla se si e'
- * fermato, per rifarla una volta a riposo ([settlesCapture]). Due fotogrammi a 60 Hz e un margine: un movimento che
- * continua ricattura comunque a ogni fotogramma, e il controllo non trova niente da fare.
- */
-internal const val SettleRecaptureMillis = 50L
-
-/**
- * Fluid Engine addition (4.0.0, F8.10): se un vetro fermo deve rifare **una volta** la cattura presa mentre si muoveva
- * rispetto alle sue sorgenti.
- *
- * Il tablet, 25 novembre 2026: la «x» di un foglio nato da un tasto, alla prima apertura dopo l'avvio, restava un disco
- * sfocato senza glifo per sempre. La sua cattura era l'ultima presa durante lo zoom; a riposo la superficie si
- * ridisegnava a ogni fotogramma con le stesse decisioni e le stesse sorgenti vive (il materiale del foglio, registrato
- * di nuovo a ogni fotogramma), ma i pixel che la cattura conservava erano rimasti quelli di meta' zoom. Ridisegnare la
- * colonna del foglio non la rimetteva a posto; una cattura nuova si' (l'andata e ritorno dalle opzioni). Al PC, dove
- * ogni fotogramma si rende da capo, non si vede.
- *
- * Quindi la cattura presa in movimento e' provvisoria: al primo disegno da fermo si rifa', e solo quella volta. Non
- * vale per chi campiona una volta sola ([sampleOnce]: il movimento non e' una sua ragione), ne' senza una cattura
- * valida o senza sorgente pronta (lo gestiscono gia' le altre regole). E vale solo per il vetro su vetro, che campiona il
- * materiale di un pannello, e per uno spostamento vero rispetto alle stesse sorgenti (non la prima cattura): e' li' che il
- * pannello cambia mentre il vetro dentro si sposta, e il conto delle catture del resto (`GlassNodeCountTest`) non cambia.
- */
-internal fun settlesCapture(
-    capturedMoving: Boolean,
-    moved: Boolean,
-    sampled: Boolean,
-    ready: Boolean,
-    sampleOnce: Boolean,
-): Boolean = capturedMoving && !moved && sampled && ready && !sampleOnce
-
-/**
  * Fluid Engine addition (4.0.0, F2.3): se questo layer lo registra un nodo del vetro (un export, il materiale di un
  * pannello). Per [LayerBackdrop.announcesRevisions]: quei layer avvisano quando si registrano di nuovo. Qui perche'
  * `DrawBackdropNode` e' privato a questo file.
@@ -872,7 +840,7 @@ private class DrawBackdropNode(
     // Fluid Engine addition (F1A.6): vedi `drawBackdrop(onDrawLight)`.
     var onDrawLight: (DrawScope.() -> Unit)? = null
 ) : LayoutModifierNode, DrawModifierNode, GlobalPositionAwareModifierNode, ObserverModifierNode,
-    GlassContainer, GlassContainerReader, CompositionLocalConsumerModifierNode, Modifier.Node() {
+    GlassContainer, GlassContainerReader, CompositionLocalConsumerModifierNode, GlassStateDump.Probe, Modifier.Node() {
 
     private val effectScope =
         object : BackdropEffectScopeImpl(), GlassNestingScope, GlassRenderQuality, GlassBodyFallbackScope {
@@ -1017,16 +985,31 @@ private class DrawBackdropNode(
     /** Se il fotogramma prima si stava tenendo ferma la cattura. Vedi [frozen]. */
     private var wasHolding = false
 
-    /** F8.10: l'ultima cattura valida e' stata presa mentre questo vetro si muoveva rispetto alle sorgenti. */
-    private var capturedMoving = false
-
-    /** F8.10: il controllo dopo l'ultima cattura in movimento. Vedi [settlesCapture]. */
-    private val settleCheck = Runnable {
-        if (isAttached && capturedMoving) invalidateDraw()
-    }
-
     /** Da quando il fondale non e' pronto, o zero se lo e'. Vedi [holdsCaptureOfGoneSource]. */
     private var notReadySince = 0L
+
+    // F8.10, diagnostica per la fotografia a riposo ([GlassStateDump]): costano due assegnazioni per disegno.
+    /** Quante volte l'ammissione della cattura ha aspettato la lettura della memoria, e l'ultima. */
+    private var awaitReadings = 0
+    private var lastAwaitReadingAt = 0L
+
+    /** L'ultimo disegno: quando, a che misura e con quale ammissione della cattura. */
+    private var lastDrawAt = 0L
+    private var lastDrawSize = Size.Zero
+    private var lastAdmission: CaptureAdmission? = null
+
+    /** F8.10: una riga per [GlassStateDump]. Sul thread principale, a richiesta. */
+    override fun describe(now: Long): String {
+        fun age(at: Long) = if (at == 0L) "mai" else "${now - at}ms"
+        return "kind=glass id=${System.identityHashCode(this)} size=$lastDrawSize" +
+            " at=${layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()} drawAge=${age(lastDrawAt)}" +
+            " sampled=$sampled recorded=$recordedSize captureAge=${age(lastRecordedAt)} replay=$replay" +
+            " admission=$lastAdmission awaitReading=$awaitReadings lastAwaitAge=${age(lastAwaitReadingAt)}" +
+            " bytes=$residentBytes denied=$budgetDenied suspended=$readsSuspended dirty=$surfaceDirty" +
+            " container=${container?.let { System.identityHashCode(it) }}" +
+            " material=${containerMaterial?.let { System.identityHashCode(it) }} owner=${glassFrameOwner()}" +
+            " src=${describeSources()}"
+    }
 
     // --- Fluid Engine addition (2.13.0), vetro su vetro: questa superficie come lettrice ---------
 
@@ -1154,6 +1137,7 @@ private class DrawBackdropNode(
     private var refreshPosted = false
     private val refreshAllocationReading = Runnable {
         refreshPosted = false
+        GlassFrameDiagnostics.event("glassReadingRefreshed", this) { "attached=$isAttached" }
         if (isAttached) {
             readBeforeAllocation()
             wake()
@@ -1357,13 +1341,27 @@ private class DrawBackdropNode(
             return CaptureAdmission.Ready
         }
         if (nextBytes == 0L) return CaptureAdmission.Ready
-        if (waitForBytes > 0L && nextBytes >= waitForBytes) return CaptureAdmission.Denied
+        if (waitForBytes > 0L && nextBytes >= waitForBytes) {
+            GlassFrameDiagnostics.event("glassWaitBytes", this) { "bytes=$nextBytes waiting=$waitForBytes denied=$budgetDenied front=$front" }
+            return CaptureAdmission.Denied
+        }
         if (!allocationPrepared || !resources.allocationReadingFresh) {
+            GlassFrameDiagnostics.event("glassAwaitReading", this) { "bytes=$nextBytes prepared=$allocationPrepared front=$front" }
             if (!refreshPosted) {
                 refreshPosted = true
                 MainHandler.post(refreshAllocationReading)
             }
-            return CaptureAdmission.AwaitReading
+            // F8.20b: un pannello davanti (modale, popover, card) non aspetta la lettura. Aspettando disegnava vetro limpido
+            // sopra la pagina leggibile, e se il risveglio non arrivava restava cosi' (il pannello della capsula della rete
+            // sul Tab S9, 25/11; `F8p20GlassPixelsTest` col tetto pieno). Va subito al tetto con la lettura che c'e': se la
+            // cattura non entra, la strada di F7.18 (la precedenza davanti, la scala ridotta, poi il pieno).
+            if (!front) {
+              // F8.10, diagnostica: il vetro aspetta la lettura della memoria (log e fotografia a riposo).
+              awaitReadings++
+              lastAwaitReadingAt = System.currentTimeMillis()
+              GlassFrameDiagnostics.event("awaitReading", this) { "size=$record bytes=$nextBytes prepared=$allocationPrepared" }
+              return CaptureAdmission.AwaitReading
+            }
         }
         pending = resources.budget.tryReserve(FluidMemoryCategory.GLASS, nextBytes)
         if (pending != null) {
@@ -1636,21 +1634,12 @@ private class DrawBackdropNode(
                 renderState.optics == GlassOptics.Protected && !sampleOnce && moved && ready -> true
                 holding -> false
                 refreshAfterHold -> true
-                // F8.10: la cattura presa in movimento si rifa' una volta da fermi. Vedi [settlesCapture].
-                settlesCapture(capturedMoving, moved, sampled, ready, sampleOnce) -> true
                 else -> wanted && !tooSoon
             }
-            // Questa cattura, se si fa, e' presa in movimento: da rifare a riposo. Solo uno spostamento vero (le stesse
-            // sorgenti, posizioni relative diverse: non la prima cattura, non un fondale che non sa dire cosa contiene) e
-            // solo per il vetro su vetro, che campiona il materiale di un pannello (la «x» del foglio): e' li' che il
-            // pannello cambia mentre il vetro dentro si sposta, e il conto delle catture del resto non cambia.
-            val recordingMoving = needsRecord && !sampleOnce && containerMaterial != null &&
-                currentOffsets.valid && sameSources && !currentOffsets.offsets.contentEquals(recordedSourceOffsets.offsets)
             // F8.10: perché la cattura si rifà o no, per leggere sul dispositivo un vetro rimasto a un fotogramma vecchio
             // (`adb shell setprop log.tag.FluidGlassFrame VERBOSE`, prima di aprire l'app).
             GlassFrameDiagnostics.event("decide", this@DrawBackdropNode) {
                 "needs=$needsRecord wanted=$wanted dirty=$surfaceDirty size=$recordSize recorded=$recordedSize moved=$moved " +
-                    "settle=${capturedMoving && !moved} " +
                     "same=$sameSources sampled=$sampled ready=$ready gone=$sourceGone holding=$holding tooSoon=$tooSoon " +
                     "region=$region recordedRegion=$recordedRegion lostLoan=$lostLoan at=${layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()}" +
                     " container=${container?.let { System.identityHashCode(it) }} material=${containerMaterial?.let { System.identityHashCode(it) }}" +
@@ -1718,12 +1707,6 @@ private class DrawBackdropNode(
                     surfaceDirty = false
                     sampled = true
                     lastRecordedAt = now
-                    // F8.10: una cattura presa in movimento resta provvisoria. Se il movimento continua, il fotogramma
-                    // dopo ricattura comunque; se si ferma, il controllo qui sotto chiede il disegno che la rifa' a
-                    // riposo, anche quando nient'altro ridisegnerebbe questo vetro.
-                    capturedMoving = recordingMoving
-                    MainHandler.removeCallbacks(settleCheck)
-                    if (recordingMoving) MainHandler.postDelayed(settleCheck, SettleRecaptureMillis)
                     FluidGlassDiagnostics.onCapture()
                 }
             }
@@ -1834,6 +1817,10 @@ private class DrawBackdropNode(
         val previouslyReplayed = replay
         replay = true
         GlassFrameDiagnostics.event("draw", this@DrawBackdropNode)
+        if (GlassStateDump.active) {
+            lastDrawAt = System.currentTimeMillis()
+            lastDrawSize = size
+        }
         while (true) {
             val previous = effectiveScale
             val travel = sampleFor(size, target)
@@ -1846,6 +1833,7 @@ private class DrawBackdropNode(
             if (sampleChanged || newPipeline) surfaceDirty = true
             effectsUpdates.onDraw(scopeChanged = changed || sampleChanged || newPipeline)
             val admission = refreshCapture()
+            lastAdmission = admission
             if (admission == CaptureAdmission.Ready) {
                 if (nativeSampleLayer != null && travel !== nativeSample && !surfaceDirty) releaseNativeSample()
                 break
@@ -2112,6 +2100,9 @@ private class DrawBackdropNode(
         adoptNestedReaders()
 
         observeEffects()
+        // F8.10: la fotografia a riposo, solo in un'app debuggable ([GlassStateDump]).
+        GlassStateDump.install(view.context)
+        GlassStateDump.register(this)
     }
 
     /**
@@ -2145,6 +2136,7 @@ private class DrawBackdropNode(
     }
 
     override fun onDetach() {
+        GlassStateDump.unregister(this)
         forgetRejectedUpgrade()
         releaseFrontDemand()
         if (residentBytes > 0L) GlassFrameDiagnostics.event("glassRelease", this) { "bytes=$residentBytes detach=true" }
@@ -2181,8 +2173,6 @@ private class DrawBackdropNode(
         desiredBytes = 0L
         MainHandler.removeCallbacks(awaitBudget)
         MainHandler.removeCallbacks(refreshAllocationReading)
-        MainHandler.removeCallbacks(settleCheck)
-        capturedMoving = false
         refreshPosted = false
         if (budgetDenied) resources.visibleCaptureDenied(window, false)
         budgetDenied = false

@@ -10,6 +10,34 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `fun Modifier.fluidBackgroundExtension(start: Dp? = null, end: Dp = 0.dp): Modifier` — Continua un'immagine sotto la navigazione laterale mantenendo nitida e intera la sua parte visibile. Applicarlo al fondale, prima del suo disegno. Lo spazio di [FluidAdaptiveNavigation] segue il vetro; [start] e [end] permettono di servire anche un pannello o un ispettore disposti dall'app. Sotto la colonna di [FluidAdaptiveNavigation] c'è di serie lo sfondo del tema: l'estensione si disegna sopra e lo copre.
 
+## `engine-ui/ui/fluid/FluidConnectionCapsule.kt`
+
+- `class FluidConnectionPhase private constructor(val name: String)` — Le fasi della capsula. Non e' un `enum` (regola 3.11).
+  - `val visible: Boolean get()` — La capsula si vede.
+  - `val offline: Boolean get()` — Senza internet (la rete manca o non porta fuori).
+  - `companion object`
+    - `val Hidden: FluidConnectionPhase`
+    - `val Offline: FluidConnectionPhase`
+    - `val NoInternet: FluidConnectionPhase`
+    - `val BackOnline: FluidConnectionPhase`
+    - `val Synced: FluidConnectionPhase`
+- `object FluidConnectionCapsuleDefaults` — I tempi della capsula: a occhio (25 novembre 2026), sul ritmo dei brevi avvisi di Mail («Aggiornato adesso»).
+  - `const val SyncedHoldMillis: Long` — Quanto resta «Tutto aggiornato» prima di sparire.
+  - `const val BackOnlineHoldMillis: Long` — Quanto resta «Di nuovo in linea» quando non c'e' niente da sincronizzare.
+  - `const val BackOnlineMaxMillis: Long` — Il tetto di «Di nuovo in linea · sincronizzo»: una sincronizzazione che dura di piu' continua senza la capsula (lo stato resta nell'indicatore della barra e nell'avviso, `FluidSyncIndicator` e `FluidSyncNotice`).
+  - `val Height` — L'altezza della capsula: 36 dp, come la pillola di attivita' compatta; il bersaglio del tocco e' 44 dp.
+  - `val TouchTarget` — Il bersaglio del tocco, la base dell'accessibilita'.
+- `data class FluidConnectionLabels(val offline: String = "Offline", val noInternet: String = "Nessuna connessione a internet", val backOnline: String = "Di nuovo in linea", val syncing: String = "sincronizzo", val synced: String = "Tutto aggiornato", val pending: (Int) -> String = { n -> if (n == 1) "una modifica in attesa" els…, val separator: String = " · ", val panelOffline: String = "Sei offline", val panelNoInternet: String = "La rete non porta a internet", val panelOnline: String = "In linea", val lastSync: String = "Ultima sincronizzazione", val waiting: String = "In attesa", val nothingWaiting: String = "Niente", val changes: (Int) -> String = { n -> if (n == 1) "Una modifica" else "$n modi…, val offlineDetail: String = "Le modifiche restano sul telefono e partono da…, val noInternetDetail: String = "Sei collegato a una rete che non porta a inter…, val onlineDetail: String = "Le modifiche partono da sole.", val syncNow: String = "Sincronizza ora", val syncingNow: String = "Sincronizzo…", val synced2: String = "Fatto", val syncFailed: String = "Non riuscito", val showDetails: String = "Mostra i dettagli", val conditions: FluidConditionPhrases = FluidConditionPhrases(), val lastSyncJustNow: String = "meno di un minuto fa", val lastSyncMinutes: (Int) -> String = { "$it min fa" }, val lastSyncHours: (Int) -> String = { n -> if (n == 1) "un'ora fa" else "$n ore fa"…, val lastSyncOn: (String) -> String = { "il $it" }, val lastSyncNever: String = "mai")` — Le parole della capsula e del suo pannello, di serie in italiano ([english] per l'inglese). Si cambiano alla radice con [LocalFluidConnectionLabels].
+  - `companion object`
+    - `fun english(): FluidConnectionLabels` — Le parole inglesi.
+- `fun fluidConnectionLastSync(status: SyncStatus, labels: FluidConnectionLabels = FluidConnectionLabels(), nowEpochMillis: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): String` — Il valore di «Ultima sincronizzazione» nel pannello della capsula: quanto tempo fa, senza dire «aggiornato» (offline con modifiche in attesa non lo e'). Durante una sincronizzazione, «Sincronizzo…». Pura.
+- `val LocalFluidConnectionLabels` — Le parole della capsula della rete, di serie in italiano.
+- `object FluidConnectionCapsuleTags` — I tag per le prove.
+  - `const val Capsule: String`
+  - `const val Panel: String`
+  - `const val SyncNow: String`
+- `@Composable fun FluidConnectionCapsule(online: Boolean, status: SyncStatus, modifier: Modifier = Modifier, connected: Boolean = false, onSyncNow: (suspend () -> Unit)? = null, backdrop: GlassBackdropState = currentGlassBackdrop())` — **La capsula della rete** (F8.20, `stato-rete-e-offline`): una capsula di vetro che galleggia sul contenuto e dice «Offline · 3 modifiche in attesa»; quando la rete torna, «Di nuovo in linea · sincronizzo», poi «Tutto aggiornato», e sparisce. Al tocco, dalla capsula nasce un pannello con l'ultima sincronizzazione, cosa aspetta e «Sincronizza ora».
+
 ## `engine-ui/ui/fluid/FluidFindInText.kt`
 
 - `data class FluidFindHighlights(val current: SpanStyle, val others: SpanStyle)` — Gli evidenziatori di «trova» (F6B.6): la corrispondenza corrente e le altre.
@@ -243,6 +271,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `val Timer: FluidActivityKind` — Un timer: l'anello che si svuota e il tempo che resta.
     - `val Assistant: FluidActivityKind` — L'assistente che lavora o risponde: la sua icona.
     - `val Recording: FluidActivityKind` — Una registrazione: il microfono con la tinta d'allarme e il tempo trascorso. La più importante: deve sempre vedersi.
+    - `val Offline: FluidActivityKind` — Senza rete (F8.20): la nuvola sbarrata, ferma, senza anello: non e' un lavoro che avanza, e' un lavoro che aspetta («Offline · 3 modifiche in attesa»). Meno importante di tutto: se c'e' un lavoro vero, la pillola mostra quello.
     - `fun custom(name: String, icon: ImageVector, importance: Int = FluidActivityProfile.SyncImportance, ring: Boolean = true, alert: Boolean = false): FluidActivityKind` — Un genere su misura. [importance] di serie è quello di [Sync]: non passa davanti a niente.
 - `class FluidActivityTime private constructor(internal val anchorMillis: Long, internal val mode: Int)` — Il tempo che la pillola mostra al posto della percentuale, con cifre tabulari e una larghezza fissa. I millisecondi sono quelli di `SystemClock.elapsedRealtime()`, l'orologio che non salta col cambio d'ora.
   - `companion object`
@@ -253,6 +282,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `data class FluidActivity(val id: String, val kind: FluidActivityKind, val progress: (() -> Float)? = null, val title: String, val actions: List<FluidActivityAction> = emptyList(), val detail: String? = null, val time: FluidActivityTime? = null, val paused: Boolean = false, val icon: ImageVector? = null, val importance: Int? = null, val onOpen: (() -> Unit)? = null)` — Un lavoro lungo dell'app, da mostrare nella pillola di attività ([FluidActivityHostState.publish]).
   - `companion object`
     - `fun sync(id: String = "sync", title: String? = null, progress: (() -> Float)? = null, detail: String? = null, onCancel: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — Una sincronizzazione: l'anello che gira, o che avanza con [progress].
+    - `fun offline(pending: Int = 0, id: String = "sync", onSyncNow: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — Senza rete (F8.20, `stato-rete-e-offline`): la pillola dice «Offline» e, nella card, quante modifiche aspettano ([pending]); con [onSyncNow] la card offre «Sincronizza ora» (che parte quando torna la rete). Si toglie ([FluidActivityHostState.remove]) o si chiude con l'esito della sincronizzazione al ritorno della rete ([FluidActivityHostState.finish]).
     - `fun transfer(id: String, progress: () -> Float, title: String? = null, upload: Boolean = false, detail: String? = null, paused: Boolean = false, onPause: (() -> Unit)? = null, onResume: (() -> Unit)? = null, onCancel: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — Un trasferimento con la percentuale; [upload] sceglie la freccia in su. In pausa offre «Riprendi», se no «Pausa».
     - `fun recording(startedAtMillis: Long, id: String = "recording", title: String? = null, pausedElapsedMillis: Long? = null, onPause: (() -> Unit)? = null, onResume: (() -> Unit)? = null, onStop: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — Una registrazione col tempo trascorso da [startedAtMillis] (`SystemClock.elapsedRealtime()`). In pausa si passa [pausedElapsedMillis], il tempo registrato fin lì: il tempo si ferma.
     - `fun assistant(id: String = "assistant", title: String? = null, detail: String? = null, onStop: (() -> Unit)? = null, onOpen: (() -> Unit)? = null, labels: FluidActivityLabels = FluidActivityLabels()): FluidActivity` — L'assistente che lavora o risponde; [detail] è ciò che sta facendo («Cerco nelle tue note»).
@@ -268,7 +298,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
     - `val Title: FluidActivityPlacement` — **Al posto del titolo in linea** (di serie, scelta di Alessio del 21 novembre 2026). Col titolo grande, questo resta sotto.
     - `val Trailing: FluidActivityPlacement` — Fra i tasti di fine riga, col suo vetro: per una pagina che vuole tenere il titolo.
-- `data class FluidActivityLabels(val sync: String = "Sincronizzo", val upload: String = "Caricamento", val download: String = "Scaricamento", val recording: String = "Registrazione", val assistant: String = "Assistente", val timer: String = "Timer", val pause: String = "Pausa", val resume: String = "Riprendi", val cancel: String = "Annulla", val stop: String = "Interrompi", val open: String = "Apri", val paused: String = "In pausa", val succeeded: String = "Fatto", val failed: String = "Non riuscito", val showDetails: String = "Mostra i dettagli", val alsoRunning: String = "Anche in corso", val others: (Int) -> String = { count -> if (count == 1) "e un'altra attività…, val percent: (Int) -> String = { "$it%" })` — Le parole della pillola e della card, di serie in italiano ([english] per l'inglese). Si cambiano alla radice con [LocalFluidActivityLabels].
+- `data class FluidActivityLabels(val sync: String = "Sincronizzo", val upload: String = "Caricamento", val download: String = "Scaricamento", val recording: String = "Registrazione", val assistant: String = "Assistente", val timer: String = "Timer", val pause: String = "Pausa", val resume: String = "Riprendi", val cancel: String = "Annulla", val stop: String = "Interrompi", val open: String = "Apri", val paused: String = "In pausa", val succeeded: String = "Fatto", val failed: String = "Non riuscito", val showDetails: String = "Mostra i dettagli", val alsoRunning: String = "Anche in corso", val others: (Int) -> String = { count -> if (count == 1) "e un'altra attività…, val percent: (Int) -> String = { "$it%" }, val offline: String = "Offline", val pendingChanges: (Int) -> String = { n -> if (n == 1) "Una modifica in attesa" els…, val offlineDetail: String = "Le modifiche restano qui", val syncNow: String = "Sincronizza ora")` — Le parole della pillola e della card, di serie in italiano ([english] per l'inglese). Si cambiano alla radice con [LocalFluidActivityLabels].
   - `companion object`
     - `fun english(): FluidActivityLabels` — Le parole inglesi.
 - `val LocalFluidActivityLabels` — Le parole della pillola, di serie in italiano.

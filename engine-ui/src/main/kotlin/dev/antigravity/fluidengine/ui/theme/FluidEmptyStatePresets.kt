@@ -12,6 +12,8 @@ import androidx.compose.animation.togetherWith
 import android.os.Build
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import dev.antigravity.fluidengine.foundation.FluidDeviceConditions
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -84,7 +86,9 @@ sealed class FluidEmptyPreset {
  * - **Offline**: con [online] la pagina riprova da sola quando la rete torna (il passaggio da falso a vero), al più una
  *   volta ogni [FluidEmptyStateDefaults.AutoRetryGapMillis]: il riprova automatico non parte a raffica. Lo stato della
  *   rete lo dà l'app (`EngineNetwork.states` di `engine-net` guarda `NET_CAPABILITY_VALIDATED`: una rete senza internet
- *   non è «online»).
+ *   non è «online»). **Dalla F8.20**, se l'app non lo passa e le condizioni del telefono sono lette
+ *   (`EngineConditions.install` di `engine-net`, il posto solo `FluidDeviceConditions`), la pagina le legge da lì: riprova
+ *   da sola senza una riga in più, con la tenuta contro le micro-cadute.
  * - **Permesso**: [onAction] è «Apri le impostazioni» ([actionLabel] per un'altra parola).
  *
  * L'icona è grande e quieta, come il simbolo di `ContentUnavailableView`, e TalkBack non la legge: il titolo dice tutto.
@@ -108,9 +112,17 @@ fun FluidEmptyState(
     FluidIcon(imageVector = icon, contentDescription = null, size = FluidEmptyStateDefaults.IconSize)
   }
   val retries = preset is FluidEmptyPreset.Error || preset is FluidEmptyPreset.Offline
+  // F8.20: senza `online` dall'app, quello del posto solo delle condizioni (se qualcuno le legge).
+  val measured = if (preset is FluidEmptyPreset.Offline && online == null) {
+    val conditions by FluidDeviceConditions.state.collectAsState()
+    conditions.takeIf { it.known }?.online
+  } else {
+    null
+  }
+  val shownOnline = online ?: measured
   val action: (@Composable () -> Unit)? = when {
     retries && onRetry != null -> {
-      { FluidRetryButton(words, onRetry, online = if (preset is FluidEmptyPreset.Offline) online else null) }
+      { FluidRetryButton(words, onRetry, online = if (preset is FluidEmptyPreset.Offline) shownOnline else null) }
     }
     onAction != null -> {
       {

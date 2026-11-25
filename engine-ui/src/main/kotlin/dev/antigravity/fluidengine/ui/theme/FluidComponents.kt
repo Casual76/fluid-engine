@@ -689,6 +689,9 @@ private fun FluidSyncIndicatorSurface(
     status.state == SyncState.IDLE -> if (neverSynced) FluidTone.Warning else FluidTone.Success
     status.state == SyncState.SYNCING -> FluidTone.Info
     status.state == SyncState.PARTIAL -> FluidTone.Warning
+    // F8.20: senza rete non e' un guasto: niente rosso. La nuvola sbarrata dice cosa succede, il grigio che non c'e'
+    // niente da aggiustare (le modifiche aspettano e partono da sole).
+    status.state == SyncState.OFFLINE -> FluidTone.Neutral
     else -> FluidTone.Danger
   }
   val sync = LocalFluidLabels.current.sync
@@ -697,6 +700,7 @@ private fun FluidSyncIndicatorSurface(
     status.state == SyncState.IDLE -> if (neverSynced) sync.neverCompleted else sync.completed
     status.state == SyncState.SYNCING -> sync.inProgress
     status.state == SyncState.PARTIAL -> sync.partial
+    status.state == SyncState.OFFLINE -> if (status.pending > 0) sync.offlinePending(status.pending) else sync.offline
     else -> sync.failed
   }
   val colors = toneColors(tone)
@@ -819,16 +823,19 @@ fun FluidSyncNotice(
       status.state == SyncState.ERROR ||
       status.state == SyncState.OFFLINE
     )
+  val offline = !notStarted && status.state == SyncState.OFFLINE
   val tone = when {
     notStarted -> FluidTone.Info
-    status.state == SyncState.ERROR || status.state == SyncState.OFFLINE -> FluidTone.Danger
+    // F8.20: senza rete non e' un errore (le modifiche aspettano qui): il tono neutro, la nuvola sbarrata.
+    offline -> FluidTone.Neutral
+    status.state == SyncState.ERROR -> FluidTone.Danger
     status.state == SyncState.PARTIAL -> FluidTone.Warning
     else -> FluidTone.Info
   }
   val sync = LocalFluidLabels.current.sync
   val title = when {
     notStarted -> notice.orEmpty()
-    status.state == SyncState.OFFLINE -> sync.offline
+    offline -> if (status.pending > 0) sync.offlinePending(status.pending) else sync.offline
     isFailure -> sync.updateFailed
     else -> sync.dataUnavailable
   }
@@ -847,7 +854,11 @@ fun FluidSyncNotice(
         verticalAlignment = Alignment.Top,
       ) {
         FluidIcon(
-          imageVector = if (isFailure) FluidIcons.PriorityHigh else FluidIcons.Info,
+          imageVector = when {
+            offline -> FluidIcons.CloudOff
+            isFailure -> FluidIcons.PriorityHigh
+            else -> FluidIcons.Info
+          },
           contentDescription = null,
           modifier = Modifier.size(20.dp),
           tint = toneColors(tone).content,

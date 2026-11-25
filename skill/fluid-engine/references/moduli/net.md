@@ -1,7 +1,10 @@
 # engine-net
 
 **Le due chiamate HTTP che l'engine fa da solo**: leggere un documento piccolo (`EngineHttp.readText`, il manifest) e scaricare un file grande
-(`EngineHttp.download`, l'APK dell'aggiornamento). Una sola classe, `EngineHttp`, nel pacchetto `dev.antigravity.fluidengine.net`.
+(`EngineHttp.download`, l'APK dell'aggiornamento), nel pacchetto `dev.antigravity.fluidengine.net`. **Dalla 4.0 (F8.20)** anche l'osservatore della
+rete che non lampeggia (`EngineNetwork`) e la lettura delle condizioni del telefono (`EngineConditions`: rete a consumo e roaming, risparmio dati ed
+energetico, calore, corrente), con le reti finte per le prove (`testing.FakeNetworks`). La coda dei trasferimenti lunghi, con pausa e ripresa, è un
+modulo a parte sopra questo: [transfer](transfer.md).
 
 E' costruita su `HttpURLConnection` e **non** su una libreria client, di proposito: queste chiamate girano prima che lo stack di rete dell'app sia
 necessariamente pronto (il controllo aggiornamenti parte a freddo, il fetch della config deve funzionare in un'app che non parla con nient'altro), e
@@ -20,6 +23,11 @@ Usato da [config](config.md) (`readText`) e [update](update.md) (`readText` per 
 | dare all'engine il nome della mia app nello `User-Agent` | `EngineHttp(userAgent = "MiaApp/1.2.3")` |
 | chiamate dell'app (API, POST, auth, retry, cache, certificati) | il **tuo** client (OkHttp, Ktor…): `EngineHttp` non e' fatto per questo |
 | un solo `EngineHttp` per config e aggiornamenti | lo stesso oggetto passato a `EngineRemoteConfig` e a `EngineAppUpdater`/`AndroidAppUpdateInstaller` |
+| sapere se c'è internet, senza falsi allarmi (Wi-Fi d'albergo, VPN, micro-cadute) | `EngineNetwork.states(context)` (la tenuta di 2,5 s è di serie) |
+| la capsula «Offline · 3 modifiche in attesa» | `EngineNetwork.states` → `online`, nella `FluidConnectionCapsule` di `engine-ui` ([elementi-dinamici](../componenti/elementi-dinamici.md)) |
+| chiedere il permesso prima di un lavoro pesante (rete a consumo, risparmio dati, batteria, calore) | `EngineConditions.install(context)` una volta, poi `FluidDeviceConditions.allows(FluidWork.LargeDownload)` ([foundation](foundation.md)) |
+| provare la rete in una prova o simularla in una galleria | `testing.FakeNetworks` (la regola e la tenuta vere, senza telefono) |
+| un download lungo che si mette in pausa, riprende e continua con l'app chiusa | **non** `EngineHttp`: `engine-transfer` ([transfer](transfer.md)) |
 
 ## `EngineHttp`
 
@@ -93,24 +101,91 @@ class FakeHttp(private val body: String) : EngineHttp() {
 
 **Versione.** Dalla 1.0; la verifica della dimensione attesa e `open` dalla 1.1.0.
 
-## Lo stato della rete: `EngineNetwork`, `EngineNetworkState` (F8.1, 4.0)
+## Lo stato della rete: `EngineNetwork`, `EngineNetworkState` (F8.1, F8.20)
 
-L'osservatore della rete dell'engine, **senza interfaccia** (lo usano gli stati pronti di `engine-ui` e, più avanti,
-`stato-rete-e-offline` di F8.20). Guarda la rete predefinita del telefono, quella che le app usano davvero.
+L'osservatore della rete dell'engine, **senza interfaccia**. Lo usano gli stati pronti di `engine-ui` (che riprovano da
+soli quando la rete torna), la capsula della rete (`FluidConnectionCapsule`) e le condizioni del telefono
+(`EngineConditions`, sotto). Guarda la rete predefinita del telefono, quella che le app usano davvero, e le reti che
+stanno sotto una VPN.
 
 ```kotlin
-EngineNetwork.current(context): EngineNetworkState          // adesso
-EngineNetwork.states(context): Flow<EngineNetworkState>     // ogni volta che cambia; parte dallo stato di adesso
-EngineNetworkState(connected, validated, metered).online    // connected && validated
+EngineNetwork.current(context): EngineNetworkState                          // adesso (una lettura, senza tenuta)
+EngineNetwork.states(context, graceMillis = 2_500): Flow<EngineNetworkState> // ogni volta che cambia, con la tenuta
+EngineNetwork.steady(raw, graceMillis, now): Flow<EngineNetworkState>        // la tenuta su un flusso qualsiasi
+EngineNetworkState(connected, validated, metered, vpn = false, roaming = false).online   // connected && validated
 ```
 
 - **«Offline» non è «senza rete»**: un Wi-Fi d'albergo senza accesso è una rete che non porta a internet. `online` chiede
-  anche `validated`, cioè `NET_CAPABILITY_VALIDATED` (Android ha provato che quella rete arriva a internet).
-- `metered` è la rete a consumo (dati mobili, hotspot): un'app rimanda i download grandi.
-- Il flusso non ripete uno stato uguale e si stacca da solo quando chi raccoglie smette (`callbackFlow` con
-  `registerDefaultNetworkCallback`, API 24).
+  anche `validated`, cioè `NET_CAPABILITY_VALIDATED` (Android ha provato che quella rete arriva a internet); un portale
+  di login (`CAPTIVE_PORTAL`) e una rete sospesa (`NOT_SUSPENDED` assente, i dati durante una chiamata) non sono online.
+- **La VPN vale quanto la rete sotto.** Android segna spesso la VPN come validata senza provarla, e certe VPN non lo dicono
+  mai: l'osservatore guarda anche le reti che non sono VPN (`registerNetworkCallback` con la richiesta di serie, che
+  chiede `NOT_VPN`). Online se almeno una rete sotto porta a internet, offline se nessuna, anche se la VPN dice il
+  contrario; a consumo e in roaming come la rete sotto che la VPN usa (quella che non costa, se c'è). Se non si sa cosa
+  c'è sotto, si crede alla VPN.
+- **Non lampeggia.** Il passaggio da online a non online aspetta `graceMillis` (`EngineNetworkDefaults.OfflineGraceMillis`,
+  **2,5 s a occhio**, 25/11/2026) e si annulla se la rete torna: il cambio dal Wi-Fi ai dati (il Wi-Fi si perde prima che
+  la rete nuova sia validata), un ascensore, un treno sotto un ponte. La tenuta conta dalla **prima** caduta, non
+  dall'ultimo cambio (Wi-Fi senza internet e poi niente: 2,5 s dal primo). Il ritorno in linea e ogni altro cambio
+  (a consumo, roaming) passano subito. Ogni raccolta ha il suo stato: due schermate sullo stesso flusso non si pestano.
+- `metered` è la rete a consumo (dati mobili, hotspot; `TEMPORARILY_NOT_METERED` del 5G illimitato conta come non a
+  consumo): un'app rimanda i download grandi. `roaming` dall'API 28.
+- La regola è pura (`EngineNetworkRule`, interna) e si prova sul computer con le reti finte.
 - Serve `ACCESS_NETWORK_STATE`, che il manifesto di `engine-net` dichiara già.
-- La regola delle capacità è pura (`EngineNetworkState.of`) e si prova sul computer.
+
+**Apple.** Nessun componente pubblico: `NWPathMonitor` riporta ogni cambio, e sono Mail e Note a non mostrare le cadute
+brevi. Il tempo della tenuta è nostro.
+
+### Le reti finte: `testing.FakeNetworks`
+
+Per le prove e per la simulazione di una galleria: **non tocca il telefono**, e la regola e la tenuta sono quelle vere.
+
+```kotlin
+val nets = FakeNetworks(graceMillis = 2_500, now = { clock })   // parte con un Wi-Fi che porta a internet
+nets.wifi(validated = false, captivePortal = true)              // un Wi-Fi d'albergo
+nets.cellular(roaming = true); nets.vpn(claimsValidated = true); nets.vpnOff(); nets.lose("wifi"); nets.disconnect()
+nets.microCut(600)                                              // sospesa: una caduta di 0,6 s
+nets.handover(gapMillis = 400, validationMillis = 700)          // sospesa: dal Wi-Fi ai dati com'è su un telefono
+nets.raw: StateFlow<EngineNetworkState>                         // senza tenuta
+nets.states: Flow<EngineNetworkState>                           // con la tenuta, come EngineNetwork.states
+```
+
+## Le condizioni del telefono: `EngineConditions` (F8.20, 4.0)
+
+**Un posto solo** che sa in che condizioni è il telefono (la scheda `pochi-dati-poca-batteria`): la rete (con la tenuta),
+il risparmio dati, il risparmio energetico, il calore e la corrente, in un `FluidConditions` di `engine-foundation`. Qui
+c'è solo la lettura di Android; i tipi e la regola (`FluidConditions.allows`, `FluidWork`, `FluidPermit`) e il posto solo
+del processo (`FluidDeviceConditions`) stanno in [foundation](foundation.md).
+
+```kotlin
+EngineConditions.install(context)            // una volta: tiene aggiornato FluidDeviceConditions per tutto il processo
+EngineConditions.current(context): FluidConditions
+EngineConditions.states(context, graceMillis = 2_500): Flow<FluidConditions>
+// prima di un lavoro pesante, ovunque:
+val permit = FluidDeviceConditions.allows(FluidWork.LargeDownload, FluidWorkNeeds(wifiOnly = true))
+if (permit.waiting) mostraIlPerche(permit.reasons)          // e «Fallo comunque»: allows(…, force = true)
+```
+
+| condizione | da dove | quando conta |
+|---|---|---|
+| rete, a consumo, roaming | `EngineNetwork.states` (tenuta di 2,5 s) | sempre |
+| risparmio dati | `ConnectivityManager.getRestrictBackgroundStatus() == ENABLED`, annuncio `ACTION_RESTRICT_BACKGROUND_CHANGED` | **solo su una rete che costa**: Android limita solo lì |
+| risparmio energetico | `PowerManager.isPowerSaveMode`, annuncio `ACTION_POWER_SAVE_MODE_CHANGED` | sempre |
+| calore | `PowerManager.getCurrentThermalStatus` e il suo ascoltatore (API 29): nessuno e leggero → `Nominal`, moderato → `Fair`, severo → `Serious`, critico e oltre → `Critical` | sotto l'API 29, o dove resta a zero, mai caldo |
+| corrente | `ACTION_BATTERY_CHANGED` (`EXTRA_PLUGGED`), annunci `ACTION_POWER_CONNECTED`/`DISCONNECTED` | sempre |
+
+- **`install` è facoltativo e una volta sola** (le chiamate dopo la prima non fanno niente; `uninstall` per le prove). Costa
+  un callback di rete, un ricevitore e un ascoltatore del calore; tutto fuori dal thread principale. `FluidTransfers.open`
+  di `engine-transfer` lo chiama da sé. Senza `install`, `FluidDeviceConditions` resta `Unknown` e niente si ferma.
+- **Chi legge già da qui**: gli stati pronti offline (`FluidEmptyState(FluidEmptyPreset.Offline)` senza `online` riprova da
+  solo quando la rete torna), la luce del vetro che segue l'inclinazione (`FluidWork.MotionEffects`: si ferma col
+  risparmio energetico, anche in carica, e col telefono caldo), l'aptica continua (`FluidWork.ContinuousHaptics`: col
+  risparmio energetico, anche in carica), la coda dei trasferimenti. Il vetro e il risparmio energetico hanno le loro regole di F7, che restano.
+- Nessun permesso oltre `ACCESS_NETWORK_STATE`; nessuna libreria.
+
+**Apple.** `NWPath.isExpensive` e `isConstrained` (Modalità dati ridotti), `ProcessInfo.isLowPowerModeEnabled` e
+`thermalState`: i nomi e il significato vengono da lì (fiducia alta); quali lavori si fermano per cosa è la regola di
+`FluidWork`, nostra.
 
 ## Token, costanti, Defaults
 
@@ -124,12 +199,21 @@ EngineNetworkState(connected, validated, metered).online    // connected && vali
 
 ## Cosa e' verificato dai test
 
-**Nessun test in `engine-net`** (la cartella `src/test` non esiste): `EngineHttp` non e' coperto, ne' dai test di `engine-update` (che provano `rejectApk` e il checksum senza rete).
-La classe e' `open` proprio per poter fingere la rete altrove. Cio' che e' scritto sopra viene dal sorgente.
+- `EngineNetworkTest` (JVM, tempo delle coroutine): la regola (validata, non validata, portale, sospesa, roaming, la VPN
+  sopra un Wi-Fi con e senza internet, sopra i dati, con Wi-Fi e dati insieme), le reti finte passo per passo, la tenuta
+  (una micro-caduta e il cambio di rete non si vedono, una caduta vera si vede dopo 2,5 s e il ritorno subito, la tenuta
+  conta dalla prima caduta, due raccolte non si pestano).
+- `EngineConditionsTest` (Robolectric): il risparmio dati solo sulle reti che costano, i gradini del calore, i segnali
+  letti da Android (risparmio energetico, calore, risparmio dati, corrente), `install` che riempie il posto solo.
+- `EngineHttp` non ha prove sue (la classe e' `open` per fingere la rete altrove); la coda di `engine-transfer` prova la
+  ripresa con `Range` contro un server vero (MockWebServer).
 
 ## Dove guardare
 
 - `engine-net/src/main/kotlin/dev/antigravity/fluidengine/net/EngineHttp.kt` — `readText`, `download`, i redirect a mano (`openFollowingRedirects`), `DefaultUserAgent`.
+- `…/net/EngineNetwork.kt` — la regola (`EngineNetworkRule`), la tenuta (`steady`), i due callback (`rawStates`), `capsOf`.
+- `…/net/EngineConditions.kt` — la lettura dei segnali (`readSignals`, `signals`), `conditionsOf`, `install`.
+- `…/net/testing/FakeNetworks.kt` — le reti finte.
 - `engine-net/src/main/AndroidManifest.xml` — i permessi che il modulo porta nell'app.
 
 ## Dipendenze e configurazione minima

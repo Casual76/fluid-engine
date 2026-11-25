@@ -92,6 +92,7 @@ $EngineModules = [ordered]@{
   "engine-account"    = @("engine-foundation", "engine-storage")
   "engine-account-host" = @("engine-foundation", "engine-storage", "engine-account", "engine-auth", "engine-vault")
   "engine-account-ui" = @("engine-foundation", "engine-ui", "engine-storage", "engine-account")
+  "engine-transfer"   = @("engine-foundation", "engine-net")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -128,7 +129,10 @@ $EngineModules = [ordered]@{
 # engine-account, engine-account-host ed engine-account-ui (F10.4: l'Account Pampa) idem: engine-account per un'app che usa
 # l'account (porta Bouncy Castle), engine-account-ui per la riga nelle impostazioni, engine-account-host solo per Pampa
 # Store: -Modules ...,engine-account-ui.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui")
+# engine-transfer (F8.20: la coda persistita degli scaricamenti e dei caricamenti lunghi; porta WorkManager e dichiara
+# il servizio in primo piano di tipo dataSync) idem: lo chiede solo un'app che trasferisce file grandi
+# (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-transfer")
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -343,7 +347,8 @@ $notes = @(
   @("engine-notify", "notifiche vere, Live Update di Android 16, promemoria che arrivano davvero (opt-in)"),
   @("engine-account", "l'Account Pampa visto da un'app, attraverso Pampa Store e mai la rete (opt-in)"),
   @("engine-account-host", "il motore dell'account dentro Pampa Store: custodia delle chiavi, sessione (opt-in, solo lo Store)"),
-  @("engine-account-ui", "la riga Account Pampa e l'avatar (opt-in)")
+  @("engine-account-ui", "la riga Account Pampa e l'avatar (opt-in)"),
+  @("engine-transfer", "centro trasferimenti: coda persistita, pausa e ripresa con Range, WorkManager e dataSync (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

@@ -189,6 +189,9 @@ dependencies {
   // F8.19 · Notifiche, promemoria e attività fuori dall'app: le scene usano engine-notify vero (le notifiche e gli allarmi
   // di Android). Si installa solo quando si apre una scena: il primo fotogramma non cambia.
   implementation project(':engine-notify')
+  // F8.20 · Il centro trasferimenti (con engine-net e WorkManager): la scena scarica e carica davvero, da un server sul
+  // loopback della galleria o da quello del PC (`adb reverse`). WorkManager parte su richiesta (`GalleryApplication`).
+  implementation project(':engine-transfer')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

@@ -1,0 +1,61 @@
+// F8.20 · Il centro trasferimenti (`centro-trasferimenti`): una coda sola e persistita per gli scaricamenti e i
+// caricamenti lunghi, che va avanti con l'app chiusa e riprende dopo un riavvio, con pausa e ripresa vere (`Range`), le
+// condizioni (solo Wi-Fi, solo in carica, e la regola di `FluidConditions`), la velocita' e il tempo che manca, un motivo
+// per ogni errore e il nuovo tentativo. Opt-in e senza interfaccia: la pagina «Trasferimenti» e la pillola stanno in
+// engine-ui e leggono il modello di engine-foundation (`FluidTransferItem`).
+//
+//   implementation project(':engine-transfer')
+//
+// Librerie: WorkManager (Apache-2.0) per il lavoro in sottofondo e il servizio in primo piano di tipo `dataSync`, che il
+// manifesto del modulo dichiara; androidx.core per la notifica semplice del servizio (il punto d'aggancio
+// `FluidTransferNotifications`, che `engine-notify` di F8.19 riempie con la sua notifica viva). L'HTTP e' quello della
+// piattaforma (`HttpURLConnection`), come `EngineHttp`: l'engine non impone un client all'app.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.transfer'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // La coda su SQLite e il lavoro di WorkManager si provano in Robolectric.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // Sopra engine-net: la lettura delle condizioni (`EngineConditions`) e, da li', foundation con il modello e la regola.
+  api project(':engine-net')
+  api "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+  // `api`: chi ospita la coda nella sua Application implementa `FluidTransferHost` e vede `ForegroundInfo` nel punto
+  // d'aggancio delle notifiche.
+  api "androidx.work:work-runtime-ktx:${engine.work}"
+  implementation "androidx.core:core-ktx:${engine.coreKtx}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Il server delle prove: pausa, ripresa con Range, un server che non la accetta, errori. Solo nelle prove.
+  testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.work:work-testing:${engine.work}"
+  testImplementation "androidx.test:core:1.7.0"
+}

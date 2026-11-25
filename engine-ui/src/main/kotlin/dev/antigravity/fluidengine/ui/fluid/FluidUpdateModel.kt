@@ -242,6 +242,14 @@ data class FluidUpdateStrings(
   val autoCheck: String = "Controlla all'avvio",
   val autoCheckDetail: String = "Cerca una versione nuova ogni volta che apri l'app.",
   val unknownError: String = "Errore sconosciuto",
+  /**
+   * F8.20: la versione e' un download grande e le condizioni del telefono dicono di aspettare (rete a consumo, roaming,
+   * risparmio dati, batteria, calore: `FluidDeviceConditions`). `%1$s` e' il perche' gia' scritto, nelle parole di
+   * `FluidConnectionLabels.conditions`.
+   */
+  val costlyNetwork: String = "%1\$s: conviene aspettare il Wi-Fi o un momento migliore.",
+  /** Il tasto quando le condizioni direbbero di aspettare: «Fallo comunque», nelle parole dell'aggiornamento. */
+  val installAnyway: String = "Aggiorna comunque",
 ) {
   companion object {
     /**
@@ -303,6 +311,8 @@ data class FluidUpdateStrings(
       lastCheckedDays = { if (it == 1) "Checked yesterday" else "Checked $it days ago" },
       autoCheck = "Check at launch",
       autoCheckDetail = "Look for a new version every time you open the app.",
+      costlyNetwork = "%1\$s: better to wait for Wi-Fi or a better moment.",
+      installAnyway = "Update anyway",
       unknownError = "Unknown error",
     )
   }

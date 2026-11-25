@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassLayerProbe
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassStateDump
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.emptyBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
@@ -2208,7 +2211,15 @@ internal fun Modifier.glassLiquidSurface(
  * salta il disegno e basta.
  */
 private fun Modifier.glassPresence(intensity: () -> Float): Modifier =
-  this.drawWithContent { if (clampGlassUnit(intensity()) > 0.001f) drawContent() }
+  this.drawWithContent {
+    val amount = clampGlassUnit(intensity())
+    if (amount > 0.001f) {
+      drawContent()
+    } else {
+      // F8.10, diagnostica: la lastra salta tutto, vetro e contenuto.
+      GlassFrameDiagnostics.event("presenceSkip", intensity) { "amount=$amount size=$size" }
+    }
+  }
 
 /**
  * Il contenuto di una lastra `Liquid` segue `intensity` come nel vetro di prima: pieno a uno, dissolto in
@@ -2221,8 +2232,16 @@ private fun Modifier.glassPresence(intensity: () -> Float): Modifier =
 private fun Modifier.glassContentFade(intensity: () -> Float): Modifier = this.drawWithCache {
   val paint = Paint()
   val bounds = Rect(0f, 0f, size.width, size.height)
+  // F8.10, diagnostica: la dissolvenza per la fotografia a riposo, solo in un'app debuggable ([GlassStateDump]).
+  val dumpProbe = if (GlassStateDump.active) GlassLayerProbe("contentFade") else null
   onDrawWithContent {
     val amount = clampGlassUnit(intensity())
+    // F8.10, diagnostica: quanto si vede il contenuto della lastra (zero = il glifo non si disegna).
+    GlassFrameDiagnostics.event("contentFade", intensity) { "amount=$amount size=$size" }
+    if (dumpProbe != null) {
+      dumpProbe.values = "amount=$amount size=$size"
+      dumpProbe.recorded()
+    }
     when {
       amount <= 0.001f -> Unit
       amount >= 0.999f -> drawContent()

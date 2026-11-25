@@ -1213,9 +1213,6 @@ class GlassNodeCountTest {
 
     // S4g-bis (b): nei menu col vetro dell'ancora un layer esplicito in piu' per il pannello, lo strato della lente delle voci
     // (`FluidGlassMenuPanel`, `inkLens`) che si sposta dentro la finestra; l'effetto e la sua opacita' stavano sul nodo delle voci.
-    // F8.10: una cattura in piu' a fine corsa in «menu-tasto/chiude», «menu-gruppo/chiude» e «contestuale/apre»: il vetro
-    // delle voci si sposta rispetto al materiale del menu mentre si trasforma, e da fermo rifà una volta la cattura presa in
-    // movimento (`settlesCapture`, la «x» del foglio sul tablet). Una cattura per trasformazione, voluta.
     // Massimi osservati a 800 × 1280 px con il clock della prova. Ordine di Peak.counters:
     // Liquid/nodi/ombre · layer cattura/posa/materiale/ombra · catture/frame e a piena finestra ·
     // cattura L/H · finiture/frame, L/H e a piena finestra · catture totali · layer espliciti e
@@ -1233,17 +1230,17 @@ class GlassNodeCountTest {
       menu-tasto/fermo             1/1/1   1/1/0/1   0/0     0/0        0/0/0/0         0      2/0    0/0
       menu-tasto/apre              3/3/2   3/3/0/2   2/0     652/684    1/652/684/0     41     4/1    800/1280
       menu-tasto/dopo-apre         3/3/2   3/3/0/2   0/0     0/0        0/0/0/0         0      3/1    800/1280
-      menu-tasto/chiude            3/3/2   3/3/0/2   2/0     652/684    1/652/684/0     18     4/1    800/1280
+      menu-tasto/chiude            3/3/2   3/3/0/2   2/0     652/684    1/652/684/0     17     4/1    800/1280
       menu-tasto/dopo-chiude       1/1/1   1/1/0/1   0/0     0/0        0/0/0/0         0      2/1    800/1280
       menu-gruppo/monta            2/4/1   4/4/0/1   2/1     800/1280   0/0/0/0         4      8/0    800/110
       menu-gruppo/fermo            1/2/1   2/2/0/1   0/0     0/0        0/0/0/0         0      6/0    800/110
       menu-gruppo/apre             3/5/2   5/5/0/2   3/0     620/992    1/476/428/0     59     11/1   800/1280
       menu-gruppo/dopo-apre        3/5/2   5/5/0/2   1/0     244/44     0/0/0/0         6      10/1    800/1280
-      menu-gruppo/chiude           3/5/2   5/5/0/2   2/0     476/428    1/476/428/0     18     11/1   800/1280
+      menu-gruppo/chiude           3/5/2   5/5/0/2   2/0     476/428    1/476/428/0     17     11/1   800/1280
       menu-gruppo/dopo-chiude      1/2/1   2/2/0/1   0/0     0/0        0/0/0/0         0      6/0    800/110
       contestuale/monta            1/3/0   3/3/0/0   2/1     800/1280   0/0/0/0         3      6/0    0/0
       contestuale/fermo            0/1/0   1/1/0/0   0/0     0/0        0/0/0/0         0      4/0    0/0
-      contestuale/apre             3/5/1   5/5/0/1   4/1     812/1292   1/812/1292/0    65     9/1    800/1280
+      contestuale/apre             3/5/1   5/5/0/1   4/1     812/1292   1/812/1292/0    64     9/1    800/1280
       contestuale/dopo-apre        3/5/1   5/5/0/1   0/0     0/0        0/0/0/0         0      7/1    800/1280
       contestuale/chiude           3/5/1   5/5/0/1   3/1     812/1292   2/812/1292/0    20     9/1    800/1280
       contestuale/dopo-chiude      0/1/0   1/1/0/0   0/0     0/0        0/0/0/0         0      4/0    760/72

@@ -665,8 +665,13 @@ titolo appena questo viaggia al centro della barra. Un rosso che non si puo' int
 **Comportamento.**
 
 - **Tono** (stesso per i tre): se c'e' `notice` → `Info`; `IDLE` → `Warning` se mai completata, altrimenti `Success`; `SYNCING` →
-  `Info`; `PARTIAL` → `Warning`; altrimenti (`ERROR`, `OFFLINE`) → `Danger`. Un anno che la fonte non ha ancora aperto non e' un
-  guasto: nessuno puo' ripararlo e riportarlo in rosso come una sessione scaduta insegna a ignorare il rosso.
+  `Info`; `PARTIAL` → `Warning`; **`OFFLINE` → `Neutral`** (F8.20: senza rete non e' un guasto, le modifiche aspettano e partono da
+  sole); `ERROR` → `Danger`. Un anno che la fonte non ha ancora aperto non e' un guasto: nessuno puo' ripararlo e riportarlo in rosso
+  come una sessione scaduta insegna a ignorare il rosso.
+- **Offline con modifiche in attesa** (F8.20): con `SyncStatus.pending > 0` il nome dell'indicatore e il titolo dell'avviso dicono
+  «Offline · 3 modifiche in attesa» (`FluidSyncStrings.offlinePending` col segnaposto `%1$d`, e `offlinePendingOne`); l'avviso ha la nuvola sbarrata invece del punto esclamativo.
+  Per dirlo sopra il contenuto, con il ritorno in linea, c'e' la capsula della rete (`FluidConnectionCapsule`,
+  [elementi-dinamici.md](elementi-dinamici.md)).
 - **Glifo** di `FluidSyncIndicator` (26 dp): `notice` → `Info`; `SYNCING` → `FluidSpinner` da 14 dp; `OFFLINE` → nuvola barrata (13 dp);
   `ERROR`/`PARTIAL` → punto esclamativo (13 dp); `IDLE` → un punto (8 dp, 7 se mai completata). **Forma e colore**: dice quale delle quattro
   cose succede anche a chi non distingue i colori. Il nome per TalkBack e' la frase di `FluidLabels.sync`.

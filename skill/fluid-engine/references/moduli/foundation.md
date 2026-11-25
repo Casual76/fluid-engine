@@ -50,6 +50,12 @@ con `fluidAddressCallerTrusted`. La [scheda delle pagine](../componenti/pagine.m
 | le novita' di una versione dal manifest | `manifest.releaseNotesFor(versione)`, `AppRelease.releaseNotes()`, `fluidReleaseNotesFromChangelog(testo)` |
 | lo stato di un permesso e il passo del tasto (F8.11) | `fluidPermissionStatus(…)`, `fluidPermissionAfterRequest(…)`, `fluidPermissionStep(…)` |
 | la memoria della prima volta (interfaccia) | `FluidFirstUseMemory`, le chiavi in `FluidFirstUseKeys`; su disco `EngineFirstUseStore` di `engine-storage` |
+| chiedere il permesso prima di un lavoro pesante (F8.20) | `FluidDeviceConditions.allows(FluidWork.LargeDownload)` → `FluidPermit` (`allowed`, `reasons`, `canForce`); «Fallo comunque»: `allows(…, force = true)` |
+| le condizioni del telefono come dato (rete a consumo, roaming, risparmio dati ed energetico, calore, carica) | `FluidConditions` (le legge `EngineConditions` di [net](net.md)); il posto solo del processo `FluidDeviceConditions` |
+| «Usa pochi dati» dell'app, o simulare le condizioni in una prova o in una galleria | `FluidDeviceConditions.lowData = true`, `FluidDeviceConditions.simulate { it.copy(metered = true) }` |
+| dire perché un lavoro aspetta | `FluidConditionPhrases().reason(motivo)`, `.waitingFor(motivi)` («Aspetto il Wi-Fi») |
+| il modello di un trasferimento per la pagina e la pillola (F8.20) | `FluidTransferItem`, `FluidTransferOverview`, `FluidTransferState`, `FluidTransferFailure`; i comandi `FluidTransferControls` (li implementa `FluidTransfers` di [transfer](transfer.md)) |
+| quante modifiche aspettano la rete | `SyncStatus.pending` (F8.20; lo riempie `FluidSync.status`) |
 
 ## Versioni: `EngineBuild`, `compareVersions`, `isStableVersionNewer`, `EngineCompatibility`
 
@@ -337,6 +343,7 @@ data class SyncStatus(
   val message: String? = null,
   val failedSections: List<String> = emptyList(),
   val notice: String? = null,
+  val pending: Int = 0,          // F8.20: le modifiche che aspettano di partire
 )
 ```
 
@@ -346,6 +353,72 @@ sessione scaduta insegna a ignorare il rosso. **Con `notice` valorizzato** i com
 frase cosi' com'e' e **non offrono il riprova** (riprovare non aiuta). `failedSections` serve a `PARTIAL`: quali parti non sono arrivate.
 
 **Trappola.** Mettere un guasto vero in `notice` per «renderlo meno rosso»: sparisce il tasto riprova e l'utente non ha piu' modo di agire.
+
+**`pending` (F8.20).** Quante modifiche locali aspettano di partire: «Offline · 3 modifiche in attesa». Lo riempie
+`SyncOverview.toSyncStatus` di [sync](sync.md) in ogni stato; un'app con una coda sua lo scrive qui. Lo leggono la capsula
+della rete (`FluidConnectionCapsule`), l'indicatore e l'avviso: con `OFFLINE` dicono «Offline · 3 modifiche in attesa» in
+grigio, con la nuvola sbarrata, invece del rosso di un guasto.
+
+## Le condizioni del telefono (F8.20, 4.0): `FluidConditions`, `FluidWork`, `FluidPermit`, `FluidDeviceConditions`
+
+**Un posto solo** che sa in che condizioni è il telefono, e una regola uguale per tutti (la scheda `pochi-dati-poca-batteria`).
+Qui i tipi e la regola, puri; la lettura di Android è `EngineConditions` di [net](net.md), che pubblica nel posto solo.
+
+```kotlin
+data class FluidConditions(online, connected, metered, roaming, dataSaver, powerSave, thermal: FluidThermal, charging,
+  lowData, known) { val hot; val unmetered; fun allows(work, needs = FluidWorkNeeds.None, force = false): FluidPermit }
+class FluidWork { LargeDownload, LargeUpload, Prefetch, RichMedia, Sync, MotionEffects, ContinuousHaptics, custom(…) }
+data class FluidWorkNeeds(wifiOnly = false, chargingOnly = false)
+class FluidPermit(reasons, forced) { allowed; waiting; canForce; reason }
+class FluidConditionReason { Offline, NoInternet, Roaming, Metered, DataSaver, LowData, PowerSave, Hot, NotWifi, NotCharging }
+class FluidThermal { Nominal, Fair, Serious, Critical }          // i gradini di ProcessInfo.ThermalState
+object FluidDeviceConditions { state; current; measured; lowData; publish(c); simulate(t); allows(…); reset() }
+```
+
+**La regola** (`FluidConditions.allows`), in ordine; i motivi escono tutti, il primo è il principale:
+
+| il lavoro | si ferma per |
+|---|---|
+| serve la rete | senza rete `Offline`, rete senza internet `NoInternet` (**non si forzano**) |
+| `avoidsExpensive` (download e caricamenti grandi, anticipi) | roaming `Roaming`, rete a consumo `Metered` |
+| `avoidsConstrained` (gli stessi, e i media ricchi) | roaming, risparmio dati `DataSaver`, «Usa pochi dati» `LowData` |
+| `FluidWorkNeeds.wifiOnly` | una rete che costa `NotWifi` (non ripetuto se c'è già `Metered`) |
+| `FluidWorkNeeds.chargingOnly` | senza corrente `NotCharging` |
+| `avoidsLowPower` | risparmio energetico **senza corrente** `PowerSave` |
+| `avoidsLowPower` + `lowPowerWhileCharging` (gli effetti) | risparmio energetico **anche in carica** `PowerSave` |
+| `avoidsHeat` (download grandi, luce del vetro) | telefono caldo (`Serious` o oltre) `Hot` |
+
+- **«Fallo comunque»** è `force = true`: passano tutti i motivi tranne la mancanza di rete. `FluidPermit.canForce` dice se
+  il tasto serve. Una regola che ferma in silenzio confonde: chi aspetta dice sempre il perché (`FluidConditionPhrases`).
+- **Senza lettura non si ferma niente**: `FluidConditions.Unknown` (`known = false`) lascia passare tutto. Una simulazione è
+  sempre «saputa».
+- **I lavori di serie**: `LargeDownload`, `LargeUpload`, `Prefetch` evitano tutto; `RichMedia` (video che partono da soli,
+  streaming migliore) evita roaming, risparmio dati e risparmio energetico ma non la rete a consumo, come iOS fuori dalla
+  Modalità dati ridotti; `Sync` vuole solo la rete; `MotionEffects` (la luce del vetro che segue l'inclinazione) si ferma
+  col risparmio energetico e col calore; `ContinuousHaptics` col risparmio energetico. **Gli effetti si fermano col
+  risparmio energetico anche in carica** (`lowPowerWhileCharging`, F8.20b, scelta di Alessio): chi lo accende non li vuole
+  nemmeno col cavo; i lavori grandi invece, attaccati alla corrente, partono.
+- Nessuno di questi è un `enum` (regola 3.11): `FluidWork.custom(…)` fa un lavoro su misura.
+
+**Apple.** `NWPath.isExpensive`/`isConstrained`, `ProcessInfo.isLowPowerModeEnabled`, `ProcessInfo.thermalState` (fiducia
+alta sui significati; la tabella dei lavori è nostra).
+
+## I trasferimenti, il modello (F8.20, 4.0): `FluidTransferItem` e compagni
+
+Pacchetto `dev.antigravity.fluidengine.foundation.transfer`. Il modello che la coda (`engine-transfer`) produce e che la
+pagina «Trasferimenti» e la pillola di `engine-ui` disegnano: sta qui come `SyncStatus`, perché l'interfaccia non deve
+tirarsi dentro il modulo che parla di rete e di WorkManager, e un'app con una coda sua può usare la stessa pagina.
+
+```kotlin
+data class FluidTransferItem(id, title, direction, state, bytesDone, bytesTotal = -1, bytesPerSecond = 0,
+  remainingMillis = null, subtitle, failure, waitingFor, canForce, resumable, attempts, wifiOnly, chargingOnly,
+  createdAtMillis, finishedAtMillis) { val progress: Float? }
+data class FluidTransferOverview(items) { active; running; waiting; failed; paused; progress; bytesPerSecond; remainingMillis }
+class FluidTransferState { Queued, Running, Waiting, Paused, Failed, Completed, Cancelled; active; finished }
+class FluidTransferDirection { Download, Upload }
+class FluidTransferFailure { network(), server(code), notFound(), unauthorized(), storage(), integrity(), unknown(); kind; retryable; code }
+interface FluidTransferControls { pause; resume; retry; force; cancel; clearFinished }
+```
 
 ## Unità e password (F8.3): `FluidUnits`, `FluidUnitFormat`, `FluidPasswordRules`
 
@@ -458,8 +531,12 @@ La parte visibile e' in [../componenti/prima-volta.md](../componenti/prima-volta
   lunedì, l'ultimo giorno feriale, le settimane alterne col loro `WKST`, la fine per data e per conteggio, l'ora legale a
   Roma e a New York, la `RRULE` avanti e indietro, le regole rifiutate, la frase in italiano e in inglese, il primo giorno
   della settimana per lingua, l'intervallo sull'ora legale.
+- `FluidConditionsTest` (17, F8.20): la regola con ogni condizione e tutte insieme, l'ordine dei motivi, «Fallo comunque»
+  (e la rete che non si forza), solo Wi-Fi e solo in carica, il risparmio energetico solo senza corrente per i lavori e
+  anche in carica per gli effetti, il calore, senza
+  lettura non si ferma niente, il posto solo con «Usa pochi dati» e la simulazione, le frasi.
 - **Non verificato dai test:** il confronto fra due pre-release con numeri a due cifre (vedi la trappola), l'override del `killSwitch`,
-  `SyncStatus`, `EngineSettings`.
+  `EngineSettings`.
 
 ## Dove guardare
 
@@ -469,6 +546,8 @@ La parte visibile e' in [../componenti/prima-volta.md](../componenti/prima-volta
 - `.../EngineSettings.kt` — `EngineSettings`, `ThemeMode`, `AccentMode`.
 - `.../AppUpdate.kt` — `AppUpdater`, `UpdateChannel`, `AvailableAppUpdate`, `AppUpdateInstallState`, `AppUpdateErrorKind`.
 - `.../SyncStatus.kt` — `SyncStatus`, `SyncState`.
+- `.../FluidConditions.kt` — le condizioni, i lavori, la regola, i motivi e le loro parole, il posto solo (F8.20).
+- `.../transfer/FluidTransfer.kt` — il modello dei trasferimenti (F8.20).
 - `.../FluidRecurrence.kt`, `.../FluidRecurrenceText.kt`, `.../FluidDates.kt` — la ricorrenza, la sua frase, gli intervalli di giorni (F8.8).
 - `templates/engine-manifest.json`, `manifest.json` (radice) — il modello e il manifest vero di Fluid Glass.
 

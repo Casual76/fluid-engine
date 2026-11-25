@@ -105,6 +105,7 @@ import dev.antigravity.fluidengine.ui.fluid.icons.AutoAwesome
 import dev.antigravity.fluidengine.ui.fluid.icons.Check
 import dev.antigravity.fluidengine.ui.fluid.icons.Close
 import dev.antigravity.fluidengine.ui.fluid.icons.CloudDownload
+import dev.antigravity.fluidengine.ui.fluid.icons.CloudOff
 import dev.antigravity.fluidengine.ui.fluid.icons.CloudUpload
 import dev.antigravity.fluidengine.ui.fluid.icons.Error
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
@@ -211,6 +212,13 @@ class FluidActivityKind private constructor(
     /** Una registrazione: il microfono con la tinta d'allarme e il tempo trascorso. La più importante: deve sempre vedersi. */
     val Recording: FluidActivityKind =
       FluidActivityKind("recording", FluidIcons.Mic, FluidActivityProfile.RecordingImportance, ring = false, alert = true)
+
+    /**
+     * Senza rete (F8.20): la nuvola sbarrata, ferma, senza anello: non e' un lavoro che avanza, e' un lavoro che aspetta
+     * («Offline · 3 modifiche in attesa»). Meno importante di tutto: se c'e' un lavoro vero, la pillola mostra quello.
+     */
+    val Offline: FluidActivityKind =
+      FluidActivityKind("offline", FluidIcons.CloudOff, FluidActivityProfile.SyncImportance - 10, ring = false, alert = false)
 
     /** Un genere su misura. [importance] di serie è quello di [Sync]: non passa davanti a niente. */
     fun custom(
@@ -319,6 +327,25 @@ data class FluidActivity(
       id = id, kind = FluidActivityKind.Sync, progress = progress, title = title ?: labels.sync,
       actions = listOfNotNull(onCancel?.let { FluidActivityAction(labels.cancel, it, FluidIcons.Close, destructive = true) }),
       detail = detail, onOpen = onOpen,
+    )
+
+    /**
+     * Senza rete (F8.20, `stato-rete-e-offline`): la pillola dice «Offline» e, nella card, quante modifiche aspettano
+     * ([pending]); con [onSyncNow] la card offre «Sincronizza ora» (che parte quando torna la rete). Si toglie
+     * ([FluidActivityHostState.remove]) o si chiude con l'esito della sincronizzazione al ritorno della rete
+     * ([FluidActivityHostState.finish]). Per la capsula che galleggia sul contenuto c'e' `FluidConnectionCapsule`.
+     */
+    fun offline(
+      pending: Int = 0,
+      id: String = "sync",
+      onSyncNow: (() -> Unit)? = null,
+      onOpen: (() -> Unit)? = null,
+      labels: FluidActivityLabels = FluidActivityLabels(),
+    ): FluidActivity = FluidActivity(
+      id = id, kind = FluidActivityKind.Offline, title = labels.offline,
+      actions = listOfNotNull(onSyncNow?.let { FluidActivityAction(labels.syncNow, it, FluidIcons.Sync) }),
+      detail = if (pending > 0) labels.pendingChanges(pending) else labels.offlineDetail,
+      onOpen = onOpen,
     )
 
     /** Un trasferimento con la percentuale; [upload] sceglie la freccia in su. In pausa offre «Riprendi», se no «Pausa». */
@@ -511,6 +538,14 @@ data class FluidActivityLabels(
   /** Le altre attività in corso, per TalkBack. */
   val others: (Int) -> String = { count -> if (count == 1) "e un'altra attività" else "e altre $count attività" },
   val percent: (Int) -> String = { "$it%" },
+  /** F8.20: la pillola senza rete ([FluidActivity.offline]). */
+  val offline: String = "Offline",
+  /** Le modifiche che aspettano la rete, nella card. */
+  val pendingChanges: (Int) -> String = { n -> if (n == 1) "Una modifica in attesa" else "$n modifiche in attesa" },
+  /** La card senza modifiche in attesa. */
+  val offlineDetail: String = "Le modifiche restano qui",
+  /** «Sincronizza ora» nella card. */
+  val syncNow: String = "Sincronizza ora",
 ) {
   companion object {
     /** Le parole inglesi. */
@@ -520,6 +555,10 @@ data class FluidActivityLabels(
       succeeded = "Done", failed = "Failed", showDetails = "Show details", alsoRunning = "Also running",
       others = { count -> if (count == 1) "and 1 more activity" else "and $count more activities" },
       percent = { "$it%" },
+      offline = "Offline",
+      pendingChanges = { n -> if (n == 1) "1 change waiting" else "$n changes waiting" },
+      offlineDetail = "Your changes stay here",
+      syncNow = "Sync now",
     )
   }
 }

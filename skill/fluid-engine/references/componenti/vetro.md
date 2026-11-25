@@ -1678,12 +1678,19 @@ popover della capsula della data (19,8 MB) non entrava mai. Quando il tetto è s
 - **mai trasparente**: una cattura negata non lascia mai vetro limpido sopra un testo leggibile. Il corpo `Liquid` si
   disegna su un ingresso pieno, la trasparenza ridotta della ricetta (il velo neutro opaco, verso il nero sul lato
   scuro, o la pellicola piena di una tinta fissa); il vetro di prima disegna nella sagoma il pieno della sua tinta
-  (`GlassTint.fallback`, quello sotto API 31).
+  (`GlassTint.fallback`, quello sotto API 31);
+- **il pannello davanti non aspetta la lettura** (F8.20b): prima di una cattura grande il nodo vuole una lettura della
+  memoria di meno di un secondo, e se è più vecchia la chiede e per un fotogramma disegna senza cattura. Un pannello
+  davanti, nell'attesa, era vetro limpido sopra la pagina leggibile, e se il risveglio non lo ridisegnava restava così
+  (il pannello della capsula della rete sul Tab S9, `F8p20GlassPixelsTest` col tetto pieno: 106 su 255 sotto il pannello).
+  Ora un pannello davanti va subito al tetto con la lettura che c'è (la nuova arriva per la volta dopo) e segue le regole
+  qui sopra fino al pieno. I vetri della pagina aspettano come prima.
 
 Per la prova sul dispositivo, `log.tag.FluidGlassFrame=VERBOSE`: `glassBudgetStart` (RAM, `memoryClass`, disponibile,
 fascia, riga e ottica all'avvio), `glassBudgetLimits` (ogni cambio di riga), `glassBudgetDenied` (con l'uscita, il
 campione e se il vetro sta davanti), `glassFrontDemand` / `glassFrontReleased`, `glassSolid` / `glassDeniedFill` (il
-ripiego pieno) e `glassRelease` (i byte restituiti).
+ripiego pieno), `glassRelease` (i byte restituiti), e da F8.20b `glassAwaitReading` (la lettura della memoria è vecchia),
+`glassReadingRefreshed` (è arrivata quella nuova) e `glassWaitBytes` (si aspetta che si liberino i byte rifiutati).
 
 ### Bilanci F7
 

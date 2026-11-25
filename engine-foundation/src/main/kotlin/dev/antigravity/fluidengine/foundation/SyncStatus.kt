@@ -17,6 +17,10 @@ enum class SyncState {
  * answers "not yet" on purpose. Reporting those in the same red as an expired session teaches
  * people to ignore red. When [notice] is set, the status components switch to an informational
  * tone, show the sentence as-is, and do not offer a retry — because retrying cannot help.
+ *
+ * [pending] (F8.20) is how many local changes are waiting to go out: «Offline · 3 modifiche in attesa». `engine-sync`
+ * fills it (`SyncOverview.toSyncStatus`); an app with its own queue says it here, and the offline capsule, the indicator
+ * and the notice read it. Zero when nothing waits or nobody counts.
  */
 data class SyncStatus(
   val state: SyncState = SyncState.IDLE,
@@ -24,4 +28,5 @@ data class SyncStatus(
   val message: String? = null,
   val failedSections: List<String> = emptyList(),
   val notice: String? = null,
+  val pending: Int = 0,
 )

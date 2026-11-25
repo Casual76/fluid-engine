@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -67,7 +68,11 @@ import dev.antigravity.fluidengine.ui.glass.field.glassPainted
 import dev.antigravity.fluidengine.ui.glass.field.glassPaintedControlSeen
 import dev.antigravity.fluidengine.ui.glass.interaction.GlassTouchHighlight
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassLayerProbe
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassStateDump
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassFrameMarker
 
 internal val FluidGlassIconTouchTargetSize: Dp = FluidMetrics.TouchTarget
 
@@ -463,6 +468,10 @@ internal fun Modifier.glassControlSurfaceInked(
       iconBlur != null -> Modifier.graphicsLayer {
         val scale = fluidPressTransform(press.feedback, press.progress, press.lean, size.width, size.height, density, reducedMotion)
         renderEffect = iconBlurEffect(iconBlur.value * FluidGel.BlurDp * density, scale.scaleX, scale.scaleY)
+        // F8.10, diagnostica: vedi `gelContent`.
+        GlassFrameDiagnostics.event("buttonLayer", press) {
+          "blur=${iconBlur.value} effect=${renderEffect != null} size=$size"
+        }
       }
       else -> Modifier
     })
@@ -547,6 +556,18 @@ internal fun gelTranslation(geometry: FluidGlassPressGeometry): GraphicsLayerSco
   translationY = drift.y
 }
 
+/**
+ * F8.10, diagnostica (solo col log `FluidGlassFrame` acceso): il tasto che si registra di nuovo (`button.lens`) e la sua
+ * pressione in quel momento (`buttonDraw`).
+ */
+private fun Modifier.glassButtonProbe(press: FluidPressState, enabled: Boolean): Modifier =
+  glassFrameMarker("button.lens").drawWithContent {
+    GlassFrameDiagnostics.event("buttonDraw", press) {
+      "progress=${press.progress} held=${press.motion.held} enabled=$enabled size=$size"
+    }
+    drawContent()
+  }
+
 /** La posa agisce sul disegno del layer di contenuto. Anche i gesti aggiunti dal chiamante leggono coordinate di riposo. */
 internal fun Modifier.gelContent(geometry: FluidGlassPressGeometry, iconBlur: State<Float>?, translates: Boolean): Modifier =
   drawWithCache {
@@ -563,6 +584,13 @@ internal fun Modifier.gelContent(geometry: FluidGlassPressGeometry, iconBlur: St
       val pose = geometry.pose(size.width, size.height, density)
       iconBlurEffect(iconBlur.value * FluidGel.BlurDp * density, pose.scaleX, pose.scaleY)
     } else null
+    // F8.10, diagnostica: la sfocatura che lo strato del contenuto del tasto ha davvero adesso.
+    GlassFrameDiagnostics.event("buttonLayer", geometry) {
+      "blur=${iconBlur?.value} effect=${renderEffect != null} size=$size"
+    }
+    if (GlassStateDump.active) {
+      geometry.dumpLayer.applied("blur=${iconBlur?.value} effect=${renderEffect != null} size=$size")
+    }
   }
 
 /**
@@ -938,6 +966,8 @@ internal fun FluidGlassIconButtonCore(
   // Il `modifier` dell'app sta sul riquadro del tocco, fuori dal vetro: gli attributi del piano scritti lì (`fluidGlassId`,
   // …) sono del vetro qui dentro (F3.2).
   val planeAttributes = fluidGlassAttributesOf(modifier)
+  // F8.10, diagnostica: il contenuto del tasto per la fotografia a riposo, solo in un'app debuggable ([GlassStateDump]).
+  val dumpProbe = if (GlassStateDump.active) remember { GlassLayerProbe("button") } else null
   Layout(
     modifier = modifier
       .alpha(if (enabled) 1f else 0.38f)
@@ -959,6 +989,8 @@ internal fun FluidGlassIconButtonCore(
       val lensChain = Modifier.size(lensWidth, lens)
         .then(if (onLensPlaced != null) Modifier.onGloballyPositioned(onLensPlaced) else Modifier)
         .then(lensModifier)
+        // F8.10, diagnostica: il tasto intero (vetro e contenuto) che si registra di nuovo, con la sua pressione.
+        .then(if (GlassFrameDiagnostics.enabled) Modifier.glassButtonProbe(press, enabled) else Modifier)
       Box(
         modifier = if (look.glassless) {
           lensChain.filledButtonFill(look, shape)
@@ -975,7 +1007,21 @@ internal fun FluidGlassIconButtonCore(
             labelAnchor = null,
             blurIcon = FluidGel.BlurIcon,
           )
-        },
+        }
+          // F8.10, diagnostica: il contenuto (il glifo) davvero disegnato, dentro la dissolvenza e lo strato del vetro.
+          .then(if (GlassFrameDiagnostics.enabled) Modifier.glassFrameMarker("button.glyph") else Modifier)
+          .then(
+            if (dumpProbe != null) {
+              Modifier.drawWithContent {
+                // `this.size`: la misura del disegno, non la taglia del tasto (il parametro `size`).
+                dumpProbe.values = "size=${this.size} progress=${press.progress} held=${press.motion.held} enabled=$enabled"
+                dumpProbe.recorded()
+                drawContent()
+              }
+            } else {
+              Modifier
+            },
+          ),
         contentAlignment = Alignment.Center,
       ) {
         // Il tasto dice all'icona quanto e' grande (4.0): 0,6 del vetro. Un'icona con la sua taglia scritta resta com'e'.

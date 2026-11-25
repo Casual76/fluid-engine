@@ -8,7 +8,14 @@
   -->
   <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
 
+  <!--
+    F8.20 · GalleryApplication fa partire WorkManager su richiesta (il suo avvio automatico resta tolto, sotto): il primo
+    fotogramma non cambia, e un trasferimento della scena riprende anche dopo che il processo e' morto. La configurazione
+    di rete permette il testo in chiaro solo verso il loopback (il server di prova della galleria e `adb reverse`).
+  -->
   <application
+      android:name=".GalleryApplication"
+      android:networkSecurityConfig="@xml/network_security_config"
       android:allowBackup="false"
       android:dataExtractionRules="@xml/data_extraction_rules"
       android:fullBackupContent="@xml/backup_rules"

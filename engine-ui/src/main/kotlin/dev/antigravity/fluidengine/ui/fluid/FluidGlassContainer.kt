@@ -106,6 +106,7 @@ import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneMotion
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsPlaneNeckMs
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidPhysicsState
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassLayerProbe
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.recordLayer
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRenderEffectSupported
 import dev.antigravity.fluidengine.ui.fluidphysics.physicsFieldPlan
@@ -1626,6 +1627,9 @@ internal fun fluidGlassPressedSlab(slab: FluidForm.Slab, press: FluidPressTransf
  */
 @Stable
 internal class FluidGlassPressGeometry(private val press: FluidPressState, private val reducedMotion: Boolean? = null) {
+  /** F8.10, diagnostica: lo strato del contenuto del tasto per la fotografia a riposo ([GlassStateDump]). */
+  val dumpLayer = GlassLayerProbe("buttonLayer")
+
   val active by derivedStateOf { press.progress != 0f || (!reduced && (press.lean != Offset.Zero || press.fingerSpeed != Offset.Zero)) }
   fun touch(frame: Rect): PhysicsPlaneTouch? {
     val amount = press.progress.coerceIn(0f, 1f) * if (reduced) 0.4f else 1f

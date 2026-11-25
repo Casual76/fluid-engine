@@ -10,6 +10,11 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import dev.antigravity.fluidengine.foundation.FluidConditionReason
+import dev.antigravity.fluidengine.foundation.FluidDeviceConditions
+import dev.antigravity.fluidengine.foundation.FluidWork
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -87,8 +92,13 @@ fun FluidUpdatePrompt(
 
   val failed = state is FluidUpdateUiState.Failed
   val notes = FluidUpdate.plainNotes(release.notes)
+  // F8.20: il file e' un download grande; se le condizioni del telefono direbbero di aspettare, l'avviso lo dice prima
+  // del tocco e il tasto diventa «Aggiorna comunque». Senza nessuno che legge le condizioni non cambia niente.
+  val waiting = rememberFluidUpdateWaiting(state is FluidUpdateUiState.Available)
+  val reasons = LocalFluidConnectionLabels.current.conditions
   val message = if (state is FluidUpdateUiState.Available) {
-    strings.availableMessage(FluidUpdate.sizeLabel(release.sizeBytes))
+    strings.availableMessage(FluidUpdate.sizeLabel(release.sizeBytes)) +
+      (waiting?.let { " " + String.format(strings.costlyNetwork, reasons.reason(it)) } ?: "")
   } else {
     FluidUpdate.progressText(state, strings)
   }
@@ -138,7 +148,7 @@ fun FluidUpdatePrompt(
             text = when (state) {
               is FluidUpdateUiState.Failed -> strings.retry
               is FluidUpdateUiState.NeedsPermission -> strings.openSettings
-              else -> strings.install
+              else -> if (waiting != null) strings.installAnyway else strings.install
             },
             onClick = onInstall,
             size = FluidButtonSize.Large,
@@ -340,14 +350,20 @@ fun LazyListScope.fluidUpdateSection(
       }
       add {
         if (state.canInstall && release != null) {
+          // F8.20: come nell'avviso, il perche' aspettare prima del tocco (le condizioni del telefono).
+          val waiting = rememberFluidUpdateWaiting(state is FluidUpdateUiState.Available)
+          val reasons = LocalFluidConnectionLabels.current.conditions
           FluidListRow(
             title = when (state) {
               is FluidUpdateUiState.Failed -> strings.retry
               is FluidUpdateUiState.NeedsPermission -> strings.openSettings
-              else -> strings.installVersion(release.version)
+              else -> if (waiting != null) strings.installAnyway else strings.installVersion(release.version)
             },
             subtitle = if (state is FluidUpdateUiState.Available) {
-              FluidUpdate.sizeLabel(release.sizeBytes).orEmpty()
+              listOfNotNull(
+                FluidUpdate.sizeLabel(release.sizeBytes),
+                waiting?.let { String.format(strings.costlyNetwork, reasons.reason(it)) },
+              ).joinToString(" · ")
             } else {
               ""
             },
@@ -496,4 +512,17 @@ private fun FluidUpdateStatusRow(spec: FluidUpdateRowSpec) {
       null
     },
   )
+}
+
+/**
+ * F8.20: il motivo per cui conviene aspettare a scaricare la versione (`FluidWork.LargeDownload` col posto solo delle
+ * condizioni, `FluidDeviceConditions`), o null. Solo i motivi che si possono forzare: senza rete l'installazione dice
+ * gia' da sola che non va. Si legge solo quando [active] (c'e' una versione da scaricare).
+ */
+@Composable
+private fun rememberFluidUpdateWaiting(active: Boolean): FluidConditionReason? {
+  if (!active) return null
+  val conditions by FluidDeviceConditions.state.collectAsState()
+  val permit = conditions.allows(FluidWork.LargeDownload)
+  return if (permit.canForce) permit.reason else null
 }

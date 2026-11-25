@@ -10,6 +10,8 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import dev.antigravity.fluidengine.foundation.FluidDeviceConditions
+import dev.antigravity.fluidengine.foundation.FluidWork
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -243,8 +245,14 @@ class AndroidHapticPort(
   override val systemHapticsEnabled: Boolean
     get() = runCatching { Settings.System.getInt(context.contentResolver, Settings.System.HAPTIC_FEEDBACK_ENABLED, 1) != 0 }.getOrDefault(true)
 
+  /**
+   * Il risparmio energetico, e da F8.20 anche il posto solo delle condizioni del telefono
+   * ([FluidDeviceConditions], `FluidWork.ContinuousHaptics`): la stessa regola, che vale anche per la simulazione della
+   * galleria e delle prove. Senza nessuno che legge le condizioni resta com'era.
+   */
   override val powerSave: Boolean
-    get() = (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
+    get() = (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true ||
+      !FluidDeviceConditions.allows(FluidWork.ContinuousHaptics).allowed
 }
 
 /** `VibrationEffect.createWaveform(timings, repeat)`: -1 e' "suona una volta e basta". */

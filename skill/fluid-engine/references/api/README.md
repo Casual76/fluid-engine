@@ -7,8 +7,8 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | famiglia | file | dichiarazioni |
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
-| [Barre di navigazione e di azione](barre.md) | 19 | 272 |
-| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 52 | 442 |
+| [Barre di navigazione e di azione](barre.md) | 20 | 291 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 53 | 457 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Condivisione: foglio, copia preparata, immagine, PDF e stampa](condivisione.md) | 13 | 165 |
@@ -17,16 +17,16 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
 | [Vetro](vetro.md) | 33 | 258 |
-| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 7 | 95 |
+| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 7 | 96 |
 | [Tema, forma, tipo](tema.md) | 11 | 148 |
 | [Icone (FluidIcons)](icone.md) | 5 | 212 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 21 | 290 |
+| [engine-foundation](foundation.md) | 23 | 351 |
 | [engine-storage](storage.md) | 3 | 19 |
-| [engine-net](net.md) | 2 | 10 |
+| [engine-net](net.md) | 4 | 32 |
 | [engine-config](config.md) | 1 | 10 |
 | [engine-update](update.md) | 2 | 14 |
 | [engine-widget](widget.md) | 4 | 41 |
@@ -45,6 +45,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-account](account.md) | 8 | 194 |
 | [engine-account-host](account-host.md) | 21 | 254 |
 | [engine-account-ui](account-ui.md) | 1 | 7 |
+| [engine-transfer](transfer.md) | 5 | 59 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

@@ -14,7 +14,7 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-foundation` | `foundation` | 6 / 495 | modelli, versioni, manifest remoto, flag, impostazioni — **niente Compose, niente Android UI** | (coroutines, serialization) |
 | `engine-ui` | `ui` | 148 / 55 521 | il design system: tema, componenti, vetro, Fluid-physics, pagine, aptica, tutorial | foundation |
 | `engine-storage` | `storage` | 1 / 128 | DataStore: impostazioni dell'engine e cache del manifest | foundation |
-| `engine-net` | `net` | 1 / 141 | `EngineHttp`: leggi un documento, scarica un file | foundation |
+| `engine-net` | `net` | 4 / 760 | `EngineHttp`: leggi un documento, scarica un file; l'osservatore della rete (`EngineNetwork`, che non lampeggia: Wi-Fi senza internet, VPN, micro-cadute), le condizioni del telefono (`EngineConditions`: rete a consumo e roaming, risparmio dati ed energetico, calore, corrente) e le reti finte per le prove (`testing.FakeNetworks`) — F8.20, `moduli/net.md` | foundation |
 | `engine-config` | `config` | 1 / 112 | `EngineRemoteConfig`: flag, versione minima, avvisi, kill switch | foundation, net, storage |
 | `engine-update` | `update` | 2 / 489 | aggiornamento in-app con PackageInstaller | foundation, net |
 | `engine-widget` | `widget` | 3 / 686 | palette e componenti Glance con lo stesso aspetto dell'app | foundation, **ui** |
@@ -40,6 +40,7 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-account-ui` | `account.ui` | 1 / 130 | la riga «Account Pampa» e l'avatar — **opt-in** (F10.4, `moduli/account-ui.md`) | **account**, **ui** |
 | `engine-revisions` | `revisions` | 2 / 576 | il foglio di vetro della scelta tra versioni in conflitto, i passaggi diversi con il tetto di lavoro — **opt-in**, dalla 4.0 (F8.21, `moduli/revisions.md`) | foundation, **ui** |
 | `engine-notify` | `notify` | 13 / 2 652 | le notifiche vere di Android: canali, notifiche raccolte per filo, risposte rapide, riepilogo programmato, la porta del ritmo, i Live Update di Android 16 (e la notifica con l'avanzamento prima), i promemoria con `AlarmManager` e il loro ripristino, i controlli di «Le notifiche non arrivano?» — **opt-in**, dalla 4.0 (F8.19, `moduli/notify.md`) | foundation |
+| `engine-transfer` | `transfer` | 5 / 1 700 | il centro trasferimenti: coda persistita (SQLite della piattaforma) di scaricamenti e caricamenti lunghi, pausa e ripresa con `Range`/`If-Range` e a pezzi con `Content-Range`, solo Wi-Fi e in carica e la regola delle condizioni, velocità e tempo che manca, errori con motivo e nuovi tentativi, WorkManager col servizio in primo piano `dataSync` e il punto d'aggancio della notifica — **opt-in**, dalla 4.0 (F8.20, `moduli/transfer.md`; la pagina e la pillola in `engine-ui`) | net, foundation |
 | `engine-viewer-all` | — | 0 / 0 | il visore universale: `api` verso `engine-viewer` e tutte le famiglie — **opt-in** | tutte le famiglie |
 | `engine-auth` | `auth` | 11 / 938 | le passkey e il gestore delle password con Credential Manager, senza rete: l'estensione PRF la scrive il modulo, la risposta torna senza il PRF, gli errori come frasi pronte (`AuthResult`, `FluidAuthLabels`) — **opt-in**, dalla 4.0 (la scheda: `moduli/auth.md`) | foundation (+ `androidx.credentials`) |
 | `engine-auth-google` | `auth.google` | 2 / 277 | «Continua con Google» (`FluidGoogleSignIn`) e le concessioni Google (`FluidGoogleAccess`, **spente**): l'unico modulo con librerie Google non libere, col permesso della GPL-3.0 § 7 — **opt-in**, dalla 4.0 | **auth** (+ Play services, `googleid`) |
@@ -64,6 +65,7 @@ engine-foundation  <-  engine-ui  <-  engine-widget
         +-- engine-vault (DataStore, il Keystore)   <-  engine-security  ->  engine-ui     (opt-in, 4.0)
         +-- engine-auth (androidx.credentials)  <-  engine-auth-google (Play services)   (opt-in, tutti e due)
         +-- engine-storage <- engine-sync  (opt-in; WorkManager, coroutines-android; niente Compose)
+        +-- engine-net <- engine-transfer   (opt-in; WorkManager, androidx.core, servizio dataSync; niente Compose)
 engine-ui <- engine-revisions              (opt-in; il foglio della scelta; non conosce engine-sync)
 engine-foundation <- engine-notify         (opt-in; androidx.core; niente Compose: pagine e ponte con la pillola in engine-ui)
 engine-storage <- engine-account <- engine-account-host   (opt-in; Bouncy Castle; l'host solo nello Store, con engine-auth, engine-vault e WorkManager)
@@ -98,6 +100,7 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | avvisa fuori dall'app (notifiche vere, un lavoro lungo che continua come Live Update, promemoria) | + `engine-notify` (**opt-in**: `-Modules …,engine-notify`; porta solo `engine-foundation` e `androidx.core`; le pagine sono già in `engine-ui`) |
 | usa l'Account Pampa (riga nelle impostazioni, token per il suo servizio, chiavi, backup) | + `engine-account-ui` (**opt-in**; porta `engine-account` ed `engine-ui`), o solo `engine-account` senza interfaccia |
 | e' Pampa Store, il custode dell'account | + `engine-account-host` (**opt-in**; porta `engine-account`, `engine-auth`, `engine-vault` e WorkManager) |
+| scarica o carica file grandi che devono finire anche con l'app chiusa (APK, mappe, brani, foto e video) | + `engine-transfer` (**opt-in**: `-Modules …,engine-transfer`; porta `engine-net` e WorkManager e dichiara il servizio in primo piano `dataSync`; la pagina «Trasferimenti» e la pillola sono già in `engine-ui`) |
 | apre anche documenti Office, archivi, Markdown e dati, immagini speciali e font, modelli 3D | + il modulo di ogni famiglia che serve (`-Modules …,engine-viewer-office`), o `engine-viewer-all` per il visore universale. Chi non ne aggiunge uno non ne paga il peso (la tabella dei pesi: `moduli/viewer-famiglie.md`); `engine-viewer-ar` chiede la fotocamera |
 | fa entrare con una passkey o salva un codice nel gestore delle password (oggi solo Pampa Store) | + `engine-auth` (**opt-in**: `-Modules …,engine-auth`; porta `engine-foundation` e `androidx.credentials`, niente Compose). Da Android 9 a 13 serve anche `credentials-play-services-auth`, che porta `engine-auth-google` |
 | fa entrare con Google, o chiederà un token Google (solo Pampa Store) | + `engine-auth-google` (**opt-in**; porta `engine-auth` e le librerie Google non libere, col permesso di `LICENSES/Permesso-librerie-Google.md`) |

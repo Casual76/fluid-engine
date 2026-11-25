@@ -26,7 +26,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import dev.antigravity.fluidengine.foundation.FluidDeviceConditions
+import dev.antigravity.fluidengine.foundation.FluidWork
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidMotionPolicy
 import kotlin.math.abs
 import kotlin.math.cos
@@ -57,7 +63,9 @@ internal fun rememberGlassLightEnvironment(): GlassLightEnvironment? {
     val power = context.getSystemService(PowerManager::class.java)
     fun update() {
       environment.setAvailable(
-        lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && power?.isPowerSaveMode != true,
+        lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && power?.isPowerSaveMode != true &&
+          // F8.20: il posto solo delle condizioni (risparmio energetico, telefono caldo, e la loro simulazione).
+          FluidDeviceConditions.allows(FluidWork.MotionEffects).allowed,
       )
     }
     val powerChanges = object : BroadcastReceiver() {
@@ -70,7 +78,12 @@ internal fun rememberGlassLightEnvironment(): GlassLightEnvironment? {
     )
     lifecycle.addObserver(visibility)
     update()
+    // Le condizioni del telefono cambiano anche senza un annuncio di Android (il calore, la simulazione): si rilegge.
+    val conditions = CoroutineScope(Dispatchers.Main.immediate).launch {
+      FluidDeviceConditions.state.drop(1).collect { update() }
+    }
     onDispose {
+      conditions.cancel()
       lifecycle.removeObserver(visibility)
       context.unregisterReceiver(powerChanges)
       environment.setAvailable(false)

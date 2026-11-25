@@ -1244,7 +1244,7 @@ class GlassNodeCountTest {
       contestuale/dopo-apre        3/5/1   5/5/0/1   0/0     0/0        0/0/0/0         0      7/1    800/1280
       contestuale/chiude           3/5/1   5/5/0/1   3/1     812/1292   2/812/1292/0    20     9/1    800/1280
       contestuale/dopo-chiude      0/1/0   1/1/0/0   0/0     0/0        0/0/0/0         0      4/0    760/72
-      foglio-trascinato/monta      1/2/1   2/2/0/1   2/0     800/486    0/0/0/0         25     6/0    0/0
+      foglio-trascinato/monta      1/2/1   2/2/0/1   2/0     800/486    0/0/0/0         27     6/0    0/0
       foglio-trascinato/fermo      1/2/1   2/2/0/1   0/0     0/0        0/0/0/0         0      6/0    0/0
       foglio-trascinato/su         1/2/1   2/2/0/1   1/0     452/931    0/0/0/0         38     6/0    0/0
       foglio-trascinato/dopo-su    1/2/1   2/2/0/1   0/0     0/0        0/0/0/0         0      6/0    0/0

@@ -54,6 +54,7 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewTreeObserver
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -1058,7 +1059,7 @@ private class DrawBackdropNode(
 
     private val wakeExport: () -> Unit = {
         exportDirty = true
-        if (isAttached) invalidateDraw()
+        requestRedraw("firstReader")
     }
 
     /**
@@ -1085,7 +1086,7 @@ private class DrawBackdropNode(
     private var exportObserver: SnapshotStateObserver? = null
     private val onExportReadChanged: (DrawBackdropNode) -> Unit = { node ->
         node.exportDirty = true
-        if (node.isAttached) node.invalidateDraw()
+        node.requestRedraw("exportRead")
     }
 
     /**
@@ -1192,16 +1193,60 @@ private class DrawBackdropNode(
     private var fastRetries = 0
 
     /**
-     * F7.18: la sveglia del nodo quando il credito torna (o arriva la lettura della memoria). Letta in [draw], scritta dai
-     * `Runnable` qui sotto: è lo stato osservato a rimettere il nodo nel prossimo fotogramma. Il solo `invalidateDraw()`
-     * chiamato da un `Runnable` non bastava: sul Tab S9 (fascia bassa simulata, 25 novembre 2026) il popover della capsula,
-     * ammesso a un quarto d'uscita, trovava lo spazio alla posa ma non si ridisegnava più, e restava a un quarto.
+     * F7.19: ogni ridisegno che il nodo si chiede **fuori dal proprio disegno** passa da qui ([requestRedraw]), mai da
+     * `invalidateDraw()`. Il contatore è letto in cima a [draw] e scritto solo da [requestRedraw].
+     *
+     * Perché `invalidateDraw()` non bastava. Questo nodo è insieme di layout e di disegno e posa il figlio con un layer
+     * (`placeWithLayer`, il layer della posa). Compose esegue il disegno di un nodo di layout nel coordinatore che il nodo
+     * avvolge: [draw] si registra quindi **nel layer della posa**. `invalidateDraw()` invece segna sporco il layer del
+     * coordinatore del nodo stesso, o il primo sopra di lui: quel layer si registra di nuovo e rigioca il layer della
+     * posa com'era, senza chiamare [draw] (Compose 1.10.5, `requireCoordinator(Nodes.Any)` e `NodeCoordinator.head`).
+     * Dentro un fotogramma il difetto non si vede, perché qualcos'altro sporca quasi sempre la posa; da fuori (un
+     * `Runnable`, un ricevitore, l'osservatore degli effetti o del materiale, un lettore nuovo) il disegno non arrivava
+     * più. F7.18 l'aveva visto per il credito (il popover della capsula restava a un quarto d'uscita), F8.10 sul Tab S9
+     * per tutti i vetri (l'app rende due fotogrammi, nessun vetro si disegna). Una lettura di stato nel disegno, invece,
+     * Compose la osserva col layer che la sta registrando: scriverla sporca proprio la posa.
      */
-    private val budgetWake = mutableIntStateOf(0)
+    private val redrawRequests = mutableIntStateOf(0)
 
-    private fun wake() {
-        budgetWake.intValue++
-        invalidateDraw()
+    /** Vero mentre [draw] gira: una richiesta fatta dal disegno stesso è già servita da lui e non chiede un fotogramma in più. */
+    private var drawing = false
+
+    /** F7.19: il ridisegno chiesto da fuori del disegno. [reason] va solo nel log `FluidGlassFrame`. */
+    private fun requestRedraw(reason: String) {
+        if (!isAttached || drawing) return
+        GlassFrameDiagnostics.event("redrawRequest", this) { "reason=$reason" }
+        // Scritto senza leggerlo: una richiesta può partire da dentro un'osservazione del nodo (gli effetti si rifanno in
+        // `observeReads`, anche dal pre-draw), e lì la lettura di `++` farebbe del contatore un ingresso degli effetti. Ogni
+        // richiesta diventerebbe un cambio degli effetti, che chiede un'altra richiesta: un anello senza fine.
+        Snapshot.withoutReadObservation { redrawRequests.intValue++ }
+    }
+
+    /**
+     * F7.19: la richiesta di un `Runnable` del nodo (un messaggio del looper, fuori dal fotogramma e fuori dalle notifiche
+     * degli stati): oltre a scriverla, la **consegna** subito agli osservatori, come fa `GlobalSnapshotManager`. Così il
+     * layer della posa è sporco prima del prossimo fotogramma anche quando il giro del dispatcher di Compose arriverebbe
+     * dopo (nelle prove Robolectric in coda a una suite lunga arrivava dopo il fotogramma: il credito tornava, la richiesta era
+     * scritta, e il vetro restava alla cattura ridotta). Mai da dentro un disegno o una notifica.
+     */
+    private fun requestRedrawFromLooper(reason: String) {
+        if (!isAttached) return
+        requestRedraw(reason)
+        Snapshot.sendApplyNotifications()
+    }
+
+    /** F7.18: la sveglia quando il credito torna o arriva la lettura della memoria (dai `Runnable` qui sotto). */
+    private fun wake() = requestRedrawFromLooper("wake")
+
+    /**
+     * F7.19: un **fotogramma**, non il disegno del vetro. `invalidateDraw()` sporca il layer sopra il nodo (vedi
+     * [redrawRequests]): la finestra rende un fotogramma e il suo pre-draw installa la catena degli effetti
+     * ([beforeFrameListener], F3), senza registrare di nuovo la posa e senza toccare la cattura. È la strada degli effetti
+     * che cambiano a ogni fotogramma (una pressione, una lente che si ispessisce): costa quanto costava, e il disegno del
+     * vetro si chiede solo se il pre-draw non basta.
+     */
+    private fun requestFrame() {
+        if (isAttached) invalidateDraw()
     }
 
     /** F7.18: la pagina cede ([GlassYieldScale]) se il vetro è grande, non sta davanti e un pannello davanti chiede spazio. */
@@ -1441,7 +1486,7 @@ private class DrawBackdropNode(
             } else {
                 recoveryPending = false
                 resolution.reset()
-                if (isAttached) invalidateDraw()
+                requestRedrawFromLooper("resolution")
             }
         }
     }
@@ -1787,7 +1832,13 @@ private class DrawBackdropNode(
      * fa ridisegnare questo nodo (il tablet e Robolectric, 25 novembre), una scrittura di stato fa rifare il blocco.
      */
     private val placementSettle = mutableIntStateOf(0)
-    private val placementSettleCheck = Runnable { if (isAttached) placementSettle.intValue++ }
+    private val placementSettleCheck = Runnable {
+        if (isAttached) {
+            placementSettle.intValue++
+            // F7.19: consegnata subito, come le richieste di ridisegno dei `Runnable` ([requestRedrawFromLooper]).
+            Snapshot.sendApplyNotifications()
+        }
+    }
 
     /** Riscrive lo strato di posa [PlacementSettleMillis] dopo l'ultima cattura in movimento (ognuna sposta l'attesa). */
     private fun settlePlacementLater() {
@@ -1826,6 +1877,18 @@ private class DrawBackdropNode(
     }
 
     override fun ContentDrawScope.draw() {
+        // F7.19: letto prima di ogni uscita anticipata, cosi' una richiesta ([requestRedraw]) sporca sempre il layer della
+        // posa, anche a letture sospese.
+        redrawRequests.intValue
+        drawing = true
+        try {
+            drawGlass()
+        } finally {
+            drawing = false
+        }
+    }
+
+    private fun ContentDrawScope.drawGlass() {
         updateReaderVisibility()
         if (readsSuspended) {
             drawContent()
@@ -1848,7 +1911,6 @@ private class DrawBackdropNode(
         // spazio, si rifà una volta a [GlassYieldScale]; torna alla sua scala quando il pannello se ne va. La lettura dello
         // stato è osservata dal disegno: un cambio ridisegna questi vetri e nessun altro.
         front = currentValueOf(LocalGlassFrontLayer)
-        budgetWake.intValue
         val yieldCap = yieldCap(size.width, size.height)
         // La pagina che cede restituisce subito la cattura grande, prima di prenotare quella piccola: tenere le due insieme
         // chiederebbe proprio lo spazio che il pannello davanti non trova.
@@ -2011,9 +2073,10 @@ private class DrawBackdropNode(
         // del frame, insieme alla luce; nessuna catena intermedia viene installata fra due disegni.
         effectsUpdates.invalidate()
         if (isAttached) {
-            invalidateDraw()
-            // F3 (f3-corpo): il draw chiesto qui può non arrivare (il palco in viaggio su un fondo fermo): la catena si
-            // costruisce comunque prima del fotogramma. Vedi [BackdropEffectsUpdates.beforeFrame].
+            // F3 (f3-corpo): la catena si costruisce prima del fotogramma, nel pre-draw, anche senza il disegno del nodo
+            // ([BackdropEffectsUpdates.beforeFrame]). F7.19: qui si chiede solo il fotogramma; il disegno del vetro lo chiede
+            // il pre-draw quando non basta (lo scope non è corrente, la cornice cambia, il filtro aspetta il credito).
+            requestFrame()
             requestBeforeFrame()
         }
     }
@@ -2028,6 +2091,8 @@ private class DrawBackdropNode(
         if (isAttached) {
             val built = effectsUpdates.beforeFrame(scopeCurrent = effectScopeIsCurrent())
             GlassFrameDiagnostics.event("beforeFrame", this@DrawBackdropNode) { "built=$built" }
+            // F7.19: lo scope non è quello del prossimo disegno (taglia, scala, densità): la catena la può fare solo il draw.
+            if (!built && effectsUpdates.pending) requestRedraw("effects")
         }
         true
     }
@@ -2081,7 +2146,7 @@ private class DrawBackdropNode(
             filterNeedsCredit = effect != null && layer.renderEffect == null && sampled && !residentFiltered &&
                 (residentBytes > 0L || residentSize.width.toLong() * residentSize.height >=
                     LargeCapturePixels.toLong() * 4 / (2 * bytesPerPixel))
-            if (filterNeedsCredit) invalidateDraw()
+            if (filterNeedsCredit) requestRedraw("filterCredit")
             else if (layer.renderEffect !== effect) layer.renderEffect = effect
             // Il clip delimita l'uscita del filtro HWUI, anche quando il layer viene rigiocato nel velo.
             // Senza questo limite Skia può allocare un intermedio grande quanto l'intera finestra.
@@ -2116,6 +2181,8 @@ private class DrawBackdropNode(
         if (newPadding != padding) {
             padding = newPadding
             surfaceDirty = true
+            // F7.19: la cornice nuova vuole una cattura nuova, e la cattura si fa solo nel disegno (dal pre-draw).
+            requestRedraw("padding")
         }
     }
 
@@ -2352,7 +2419,7 @@ private class DrawBackdropNode(
         // La domanda si rifa' al prossimo disegno: chi avvisa puo' essere a meta' di un distacco,
         // e un albero a meta' non e' un posto dove cercare antenati.
         containerDirty = true
-        invalidateDraw()
+        requestRedraw("container")
     }
 
     /**
@@ -2409,7 +2476,7 @@ private class DrawBackdropNode(
             lastCoordinates?.let { coordinates ->
                 if (coordinates.isAttached && next.isCoordinatesDependent) layoutCoordinates = coordinates
             }
-            invalidateDraw()
+            requestRedraw("sampling")
         }
         // Fluid Engine addition (F1A, voce 18): la stessa risposta, per gli effetti che la leggono. Cambia di
         // rado (all'attacco, quando il pannello di sopra compare o se ne va): gli effetti si rifanno solo allora,
@@ -2419,7 +2486,7 @@ private class DrawBackdropNode(
         if (onGlass != standsOnGlass) {
             standsOnGlass = onGlass
             if (onDrawLight != null && effectScope.size.isSpecified) observeEffects()
-            invalidateDraw()
+            requestRedraw("onGlass")
         }
     }
 
@@ -2513,6 +2580,9 @@ internal class BackdropEffectsUpdates(
     private val rebuild: () -> Unit,
 ) {
     private var dirty = true
+
+    /** F7.19: un ingresso è cambiato e la catena non è ancora rifatta. */
+    val pending: Boolean get() = dirty
 
     /** All'attacco, all'aggiornamento del nodo o quando cambia un ingresso; il chiamante chiede il draw e il pre-draw. */
     fun invalidate() {

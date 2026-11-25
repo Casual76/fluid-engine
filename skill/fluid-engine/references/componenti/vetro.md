@@ -1693,16 +1693,27 @@ popover della capsula della data (19,8 MB) non entrava mai. Quando il tetto è s
   (`GlassTint.fallback`, quello sotto API 31);
 - **il pannello davanti non aspetta la lettura** (F8.20b): prima di una cattura grande il nodo vuole una lettura della
   memoria di meno di un secondo, e se è più vecchia la chiede e per un fotogramma disegna senza cattura. Un pannello
-  davanti, nell'attesa, era vetro limpido sopra la pagina leggibile, e se il risveglio non lo ridisegnava restava così
-  (il pannello della capsula della rete sul Tab S9, `F8p20GlassPixelsTest` col tetto pieno: 106 su 255 sotto il pannello).
-  Ora un pannello davanti va subito al tetto con la lettura che c'è (la nuova arriva per la volta dopo) e segue le regole
-  qui sopra fino al pieno. I vetri della pagina aspettano come prima.
+  davanti, in quel fotogramma, è vetro limpido sopra la pagina leggibile (`F8p20GlassPixelsTest` col tetto pieno: 106 su
+  255 sotto il pannello al primo fotogramma, 2 dal secondo; sul Tab S9 il pannello della capsula della rete restava
+  limpido). Ora un pannello davanti va subito al tetto con la lettura che c'è (la nuova arriva per la volta dopo) e segue
+  le regole qui sopra fino al pieno. I vetri della pagina aspettano come prima. Il risveglio dopo la lettura arrivava
+  già (F7.18, uno stato letto nel disegno): la regola toglie proprio quel primo fotogramma, e resta (F7.19).
+- **un ridisegno chiesto da fuori arriva** (F7.19): il nodo del vetro posa il contenuto con un layer e si disegna in
+  quel layer, mentre `invalidateDraw()` sporcava il layer di sopra, che rigiocava il vetro com'era. Il risveglio dopo
+  il credito o la lettura, il primo lettore del materiale, la cornice degli effetti che cambia, il filtro che aspetta
+  il credito, il contenitore cambiato e la risoluzione che risale chiedevano un disegno che non arrivava: per esempio
+  un foglio che si ferma dopo un movimento restava a metà risoluzione. Ora passano tutti da uno stato letto nel
+  disegno (`requestRedraw`). Un ingresso degli effetti a cornice ferma resta com'era: un fotogramma, e la catena nel
+  pre-draw, senza ridisegnare il vetro. La regola per chi tocca il nodo è in [regole.md](../regole.md), «Un nodo di
+  layout che disegna si ridisegna da uno stato letto nel disegno».
 
 Per la prova sul dispositivo, `log.tag.FluidGlassFrame=VERBOSE`: `glassBudgetStart` (RAM, `memoryClass`, disponibile,
 fascia, riga e ottica all'avvio), `glassBudgetLimits` (ogni cambio di riga), `glassBudgetDenied` (con l'uscita, il
 campione e se il vetro sta davanti), `glassFrontDemand` / `glassFrontReleased`, `glassSolid` / `glassDeniedFill` (il
 ripiego pieno), `glassRelease` (i byte restituiti), e da F8.20b `glassAwaitReading` (la lettura della memoria è vecchia),
-`glassReadingRefreshed` (è arrivata quella nuova) e `glassWaitBytes` (si aspetta che si liberino i byte rifiutati).
+`glassReadingRefreshed` (è arrivata quella nuova) e `glassWaitBytes` (si aspetta che si liberino i byte rifiutati), e da
+F7.19 `redrawRequest` (un ridisegno chiesto da fuori del disegno, col motivo: `wake`, `firstReader`, `exportRead`,
+`effects`, `padding`, `filterCredit`, `container`, `sampling`, `onGlass`, `resolution`).
 
 ### Bilanci F7
 

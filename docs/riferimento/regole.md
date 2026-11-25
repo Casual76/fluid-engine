@@ -1191,3 +1191,42 @@ gruppo, una capsula di comandi) si scrive `Modifier.fluidGlassId(id, ns).fluidGl
 è una sagoma sola anche ferma. Non per tasti di significato diverso accostati, né per gruppi lontani o diversi (12 dp):
 fusi, sembrerebbero un comando solo. Esempio e casi: [componenti/piano-flottante.md](componenti/piano-flottante.md),
 «L'unione».
+
+## Un nodo di layout che disegna si ridisegna da uno stato letto nel disegno (4.0, F7.19)
+
+`DrawBackdropNode` è insieme `LayoutModifierNode` e `DrawModifierNode`, e posa il figlio con un layer
+(`placeWithLayer`). In Compose il disegno di un nodo di layout gira nel coordinatore che il nodo **avvolge**:
+il vetro si registra nel layer della posa. `invalidateDraw()` invece segna sporco il layer del coordinatore
+**del nodo** (o il primo sopra): quel layer si registra di nuovo e rigioca la posa com'era, senza chiamare il
+disegno del vetro (Compose 1.10.5, `requireCoordinator(Nodes.Any)` contro `NodeCoordinator.head`). Dentro un
+fotogramma non si vede, perché qualcos'altro sporca quasi sempre la posa; da fuori (un `Runnable`, un
+ricevitore, l'osservatore degli effetti o del materiale, un lettore nuovo) il ridisegno **non arriva**. Sul
+Tab S9 l'app rendeva due fotogrammi e nessuno dei sette vetri si disegnava (F8.10); il popover della capsula
+restava a un quarto d'uscita (F7.18); la catena degli effetti aveva bisogno del pre-draw (F3).
+
+Quindi nel nodo del vetro **un ridisegno chiesto da fuori passa da `requestRedraw(reason)`**: scrive un
+contatore che il disegno legge in cima, prima di ogni uscita anticipata, senza leggerlo mentre lo scrive (una
+richiesta può partire da dentro l'osservazione degli effetti, e la lettura ne farebbe un ingresso: un anello).
+Compose osserva la lettura del disegno col layer che la sta registrando, e la scrittura sporca proprio la posa.
+Una richiesta fatta dal disegno stesso non chiede un fotogramma in più. Una richiesta che parte da un
+`Runnable` del nodo (il credito che torna, la lettura della memoria, la risoluzione che risale) la consegna
+anche subito agli osservatori (`requestRedrawFromLooper`, cioè `Snapshot.sendApplyNotifications()`, come fa
+`GlobalSnapshotManager`): senza, la consegna aspetta il giro del dispatcher di Compose, e in coda a una suite
+Robolectric lunga arrivava dopo il fotogramma (il credito tornava e il vetro restava alla cattura ridotta). Lo
+stesso vale per lo stato `placementSettle` di F8.10, letto nel blocco del layer della posa. `invalidateDraw()` nel nodo resta solo
+in `requestFrame()`, per **un fotogramma senza il disegno del vetro**: un ingresso degli effetti che cambia
+(una pressione, una lente che si ispessisce) si installa nel pre-draw, sul layer della cattura, e ridisegnare
+la posa a ogni fotogramma costerebbe una cattura in più dove la cattura segue il disegno. Il disegno lo chiede
+il pre-draw solo quando non basta: lo scope non è quello del prossimo disegno, la cornice cambia (`padding`), il
+filtro aspetta il credito. Vale per ogni nodo nuovo che sia insieme
+di layout e di disegno e posi il figlio con un layer: o fa lo stesso, o lascia il disegno a un nodo di solo
+disegno dopo di lui nella catena (il suo `invalidateDraw()` va al layer giusto).
+
+**Come si verifica.** `F7p19RedrawFromOutsideTest` disegna la finestra su un `RenderNode` come in un
+fotogramma vero e chiede il ridisegno da un `Handler`: senza la correzione il primo lettore del materiale lascia
+il pannello fermo (nessun export) e il vetro fermo dopo un calo di risoluzione resta alla cattura ridotta; con la
+correzione il pannello registra il materiale e il vetro torna a scala piena, poi resta fermo. Un ingresso degli effetti a cornice ferma arriva dal pre-draw **senza** ridisegnare
+il vetro. Nel log `FluidGlassFrame` ogni richiesta è un `redrawRequest` con il motivo. Nel codice:
+`grep -n "invalidateDraw()" engine-ui/…/DrawBackdropModifier.kt` trova solo `requestFrame` e i commenti. **Se la violi.** Il vetro resta col disegno di prima finché qualcos'altro non lo
+sporca: il materiale non si registra per il lettore nuovo, la cattura non si rifà col credito tornato, il
+filtro non si installa, la sfocatura cambiata non allarga la cornice.

@@ -81,8 +81,9 @@ import org.robolectric.annotation.GraphicsMode
  * cattura negata non deve mai lasciare vetro limpido (F7.18). Le immagini finiscono in `sample/build/f8p20-pixels/`.
  *
  * **Cosa ha trovato** (prima della correzione): col tetto pieno il pannello della capsula lasciava 106 su 255 (il testo
- * nitido sotto un velo, come sul tablet). Il nodo del pannello trovava la lettura della memoria vecchia, aspettava senza
- * cattura e senza pieno, e restava cosi'. Ora un pannello davanti non aspetta la lettura (`DrawBackdropNode`): 2.
+ * nitido sotto un velo, come sul tablet). Il nodo del pannello trovava la lettura della memoria vecchia e aspettava senza
+ * cattura e senza pieno. Ora un pannello davanti non aspetta la lettura (`DrawBackdropNode`): 2. F7.19: senza la regola la
+ * fotografia dopo (100 ms) dava gia' 2, anche prima di F7.19; quindi qui era il solo primo fotogramma, e la regola lo toglie.
  *
  * La capsula sta nell'`overlay` della schermata e rifrange la pagina, come la consiglia la scheda; e la capsula di serie
  * (posata in un `Box` sopra il contenuto, senza un fondale) e' piena. Per la capsula, piccola e con le estremita' tonde, la

@@ -46,6 +46,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.Density
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRecordedByDrawBackdropNode
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.InverseLayerScope
 import java.lang.ref.WeakReference
@@ -139,14 +140,19 @@ class LayerBackdrop internal constructor(
     internal var onFirstReader: (() -> Unit)? = null
 
     internal fun addReader() {
-        if (readers.add()) {
+        val first = readers.add()
+        // F8.10, diagnostica: chi guarda un layer su richiesta (il materiale di un pannello, la scena di un foglio).
+        GlassFrameDiagnostics.event("readerAdd", this) { "lettori=${readers.count} primo=$first onDemand=$onDemand" }
+        if (first) {
             updatePageDemand()
             onFirstReader?.invoke()
         }
     }
 
     internal fun removeReader() {
-        if (readers.remove()) updatePageDemand()
+        val last = readers.remove()
+        GlassFrameDiagnostics.event("readerRemove", this) { "lettori=${readers.count} ultimo=$last onDemand=$onDemand" }
+        if (last) updatePageDemand()
     }
 
     /** Se chi esporta in questo layer deve registrarlo a questo fotogramma. */

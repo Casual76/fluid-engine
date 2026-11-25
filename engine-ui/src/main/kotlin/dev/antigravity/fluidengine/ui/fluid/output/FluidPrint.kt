@@ -2,7 +2,6 @@ package dev.antigravity.fluidengine.ui.fluid.output
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
@@ -17,6 +16,7 @@ import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintJob
 import android.print.PrintManager
+import dev.antigravity.fluidengine.ui.fluid.share.FluidImageSample
 import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
 import java.io.FileOutputStream
 import kotlin.math.min
@@ -179,12 +179,9 @@ internal fun fluidDrawImageOnPage(canvas: Canvas, bitmap: Bitmap, size: FluidPdf
   canvas.drawBitmap(bitmap, null, RectF(left, top, left + w, top + h), Paint(Paint.FILTER_BITMAP_FLAG))
 }
 
-/** L'immagine di [uri] ridotta a non piu' di 3508 pixel di lato (un A4 a 300 dpi). */
-internal fun fluidDecodeForPrint(resolver: android.content.ContentResolver, uri: Uri, maxSide: Int = 3508): Bitmap? {
-  val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-  resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
-  var sample = 1
-  while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
-  val options = BitmapFactory.Options().apply { inSampleSize = sample }
-  return resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
-}
+/**
+ * L'immagine di [uri] ridotta a non piu' di [maxSide] pixel di lato (3508: un A4 a 300 dpi), letta a campioni da
+ * [FluidImageSample]. Prima la lettura delle misure faceva uscire sempre null, e la stampa di un'immagine non partiva.
+ */
+internal fun fluidDecodeForPrint(resolver: android.content.ContentResolver, uri: Uri, maxSide: Int = 3508): Bitmap? =
+  FluidImageSample.atMost(resolver, uri, maxSide)

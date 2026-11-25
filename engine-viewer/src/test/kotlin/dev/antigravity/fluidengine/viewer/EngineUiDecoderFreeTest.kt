@@ -22,22 +22,19 @@ class EngineUiDecoderFreeTest {
     "androidx.pdf.", "coil.", "coil3.", "com.bumptech.glide.", "com.facebook.fresco.", "dev.antigravity.fluidengine.viewer.",
   )
 
-  // Le eccezioni ammesse, una per una, con l'import esatto (F8.10). Scrivere un PDF non è decodificarlo
-  // (`PdfDocument` crea, `PdfRenderer` resta vietato), e la miniatura del foglio di condivisione e la stampa di una
-  // foto leggono l'immagine a campioni, mai intera e mai per mostrarla come un visore.
-  private val allowedImports = setOf(
-    "output/FluidPdf.kt" to "android.graphics.pdf.PdfDocument",
-    "output/FluidPrint.kt" to "android.graphics.pdf.PdfDocument",
-    "output/FluidPrint.kt" to "android.graphics.BitmapFactory",
-    "share/FluidShareSheet.kt" to "android.graphics.BitmapFactory",
-  )
-
-  private fun allowed(file: File, line: String): Boolean = allowedImports.any { (suffix, api) ->
-    file.invariantSeparatorsPath.endsWith("/fluid/$suffix") && line.trim() == "import $api"
-  }
-
   // Un nome di pacchetto intero, non un pezzo di parola: `coil.` non deve prendere `FluidRecoil.Default`.
   private val apiPatterns = forbiddenApis.map { Regex("(?<![A-Za-z0-9_.])" + Regex.escape(it)) }
+
+  /**
+   * Le sole eccezioni, per file e per import esatto (F8.10). Scrivere un PDF non e' decodificarlo: `PdfDocument` in
+   * `FluidPdf` e `FluidPrint`. La lettura a campioni di un'immagine (la miniatura del foglio di condivisione,
+   * l'immagine da stampare) sta in un file solo, `FluidImageSample`, e non legge mai l'immagine intera.
+   */
+  private val allowed = setOf(
+    "src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/share/FluidImageSample.kt: import android.graphics.BitmapFactory",
+    "src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/output/FluidPdf.kt: import android.graphics.pdf.PdfDocument",
+    "src/main/kotlin/dev/antigravity/fluidengine/ui/fluid/output/FluidPrint.kt: import android.graphics.pdf.PdfDocument",
+  )
 
   private val forbiddenCoordinates = listOf(
     "androidx.media3", "com.google.android.exoplayer", "androidx.pdf", "io.coil-kt", "com.github.bumptech.glide",
@@ -69,9 +66,20 @@ class EngineUiDecoderFreeTest {
       file.readLines().withIndex()
         .filter { (_, line) -> !line.trimStart().startsWith("//") && !line.trimStart().startsWith("*") }
         .filter { (_, line) -> apiPatterns.any { it.containsMatchIn(line) } }
-        .filter { (_, line) -> !allowed(file, line) }
+        .filter { (_, line) -> "${file.relativeTo(engineUi).invariantSeparatorsPath}: ${line.trim()}" !in allowed }
         .map { (n, line) -> "${file.relativeTo(engineUi)}:${n + 1}: ${line.trim()}" }
     }
     assertEquals("API di decodifica nei sorgenti di engine-ui", emptyList<String>(), found)
+  }
+
+  @Test
+  fun `every exception is still used, so none outlives its reason`() {
+    val unused = allowed.filter { entry ->
+      val path = entry.substringBefore(": ")
+      val line = entry.substringAfter(": ")
+      val file = engineUi.resolve(path)
+      !file.isFile || file.readLines().none { it.trim() == line }
+    }
+    assertEquals("eccezioni che non servono piu'", emptyList<String>(), unused)
   }
 }

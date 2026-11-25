@@ -40,6 +40,7 @@ import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.recordLayer
 
 fun Modifier.layerBackdrop(
@@ -126,6 +127,8 @@ private class LayerBackdropNode(
             layer.compositingStrategy = backdrop.graphicsLayer.compositingStrategy
             page = LayerBackdrop(layer, backdrop.onDraw).also { it.layerCoordinates = coordinates }
             recorded = false
+            // F8.10, diagnostica: una pagina privata nuova per i lettori di un layer su richiesta.
+            GlassFrameDiagnostics.event("pageNew", backdrop) { "page=${System.identityHashCode(page)} layer=${System.identityHashCode(layer)}" }
         } else {
             if (page == null) return
             retirePage()
@@ -135,6 +138,7 @@ private class LayerBackdropNode(
 
     private fun retirePage() {
         page?.let {
+            GlassFrameDiagnostics.event("pageRetire", backdrop) { "page=${System.identityHashCode(it)} layer=${System.identityHashCode(it.graphicsLayer)}" }
             page = null
             it.layerCoordinates = null
             requireGraphicsContext().releaseGraphicsLayer(it.graphicsLayer)

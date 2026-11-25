@@ -497,6 +497,10 @@ internal const val FluidShareInSolidFill: Float = 0.97f
  * La finestra dell'attivita' che riceve (4.0, F8.10): trasparente sopra l'app di partenza, da bordo a bordo, con la
  * sfocatura di sistema dietro (Android 12 e oltre, `FLAG_BLUR_BEHIND`) quando il dispositivo la permette. Da chiamare
  * in `onCreate`, prima di `setContent`, in un'attivita' col tema `Theme.FluidShareIn`.
+ *
+ * La barra di navigazione resta trasparente, come nella finestra principale delle app dell'engine: il foglio ci passa
+ * sotto col suo materiale e tiene i tasti sopra coi margini della barra. Niente velo di contrasto: il velo bianco al 90%
+ * che Android stende sotto la maniglia dei gesti su una barra chiara era una fascia sopra il foglio.
  */
 object FluidShareInWindow {
   /** Il raggio della sfocatura dietro, a occhio (24 novembre 2026): quanto basta perche' il testo dietro non si legga. */
@@ -504,8 +508,15 @@ object FluidShareInWindow {
 
   fun install(activity: Activity) {
     val window = activity.window
+    // La decorazione si costruisce adesso. Costruita dopo, da `setContent`, rileggerebbe dal tema il velo di contrasto
+    // (`enforceNavigationBarContrast`, vero di serie) e rimetterebbe la fascia spenta qui sotto: il tablet il 25 novembre
+    // 2026, una fascia a 251 (il velo al 90% sopra il foglio a 215) su tutta la larghezza.
+    window.decorView
     WindowCompat.setDecorFitsSystemWindows(window, false)
-    if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+    if (Build.VERSION.SDK_INT >= 29) {
+      window.isNavigationBarContrastEnforced = false
+      window.isStatusBarContrastEnforced = false
+    }
     if (Build.VERSION.SDK_INT >= 31 && blurAvailable(activity)) {
       window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
       window.attributes = window.attributes.also {

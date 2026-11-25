@@ -814,6 +814,38 @@ internal fun holdsCaptureOfGoneSource(
 ): Boolean = !ready && sampled && notReadyForMillis < SourceGoneGraceMillis
 
 /**
+ * Fluid Engine addition (4.0.0, F8.10): quanto dopo l'ultima cattura presa in movimento il vetro controlla se si e'
+ * fermato, per rifarla una volta a riposo ([settlesCapture]). Due fotogrammi a 60 Hz e un margine: un movimento che
+ * continua ricattura comunque a ogni fotogramma, e il controllo non trova niente da fare.
+ */
+internal const val SettleRecaptureMillis = 50L
+
+/**
+ * Fluid Engine addition (4.0.0, F8.10): se un vetro fermo deve rifare **una volta** la cattura presa mentre si muoveva
+ * rispetto alle sue sorgenti.
+ *
+ * Il tablet, 25 novembre 2026: la «x» di un foglio nato da un tasto, alla prima apertura dopo l'avvio, restava un disco
+ * sfocato senza glifo per sempre. La sua cattura era l'ultima presa durante lo zoom; a riposo la superficie si
+ * ridisegnava a ogni fotogramma con le stesse decisioni e le stesse sorgenti vive (il materiale del foglio, registrato
+ * di nuovo a ogni fotogramma), ma i pixel che la cattura conservava erano rimasti quelli di meta' zoom. Ridisegnare la
+ * colonna del foglio non la rimetteva a posto; una cattura nuova si' (l'andata e ritorno dalle opzioni). Al PC, dove
+ * ogni fotogramma si rende da capo, non si vede.
+ *
+ * Quindi la cattura presa in movimento e' provvisoria: al primo disegno da fermo si rifa', e solo quella volta. Non
+ * vale per chi campiona una volta sola ([sampleOnce]: il movimento non e' una sua ragione), ne' senza una cattura
+ * valida o senza sorgente pronta (lo gestiscono gia' le altre regole). E vale solo per il vetro su vetro, che campiona il
+ * materiale di un pannello, e per uno spostamento vero rispetto alle stesse sorgenti (non la prima cattura): e' li' che il
+ * pannello cambia mentre il vetro dentro si sposta, e il conto delle catture del resto (`GlassNodeCountTest`) non cambia.
+ */
+internal fun settlesCapture(
+    capturedMoving: Boolean,
+    moved: Boolean,
+    sampled: Boolean,
+    ready: Boolean,
+    sampleOnce: Boolean,
+): Boolean = capturedMoving && !moved && sampled && ready && !sampleOnce
+
+/**
  * Fluid Engine addition (4.0.0, F2.3): se questo layer lo registra un nodo del vetro (un export, il materiale di un
  * pannello). Per [LayerBackdrop.announcesRevisions]: quei layer avvisano quando si registrano di nuovo. Qui perche'
  * `DrawBackdropNode` e' privato a questo file.
@@ -960,11 +992,38 @@ private class DrawBackdropNode(
         }
     }
 
+    /**
+     * F8.10, diagnostica: le sorgenti che questa superficie campiona adesso. Per ognuna l'identita' scritta nel fondale,
+     * quella che legge davvero (la pagina privata di un layer su richiesta), il suo layer, chi la registra, quanti
+     * lettori ha e la sua revisione. Solo per il log `FluidGlassFrame`: serve a vedere una cattura rimasta legata a una
+     * sorgente che non si registra piu' o che e' stata sostituita.
+     */
+    private fun describeSources(): String {
+        val reader = layoutCoordinates?.takeIf { it.isAttached }
+        return sampledBackdrop.layerSources.joinToString(separator = ";", prefix = "[", postfix = "]") { layer ->
+            val raw = layer as? LayerBackdrop ?: return@joinToString "altro:${layer.javaClass.simpleName}"
+            val source = reader?.let { raw.sourceFor(it) }
+            val graphics = source?.graphicsLayer
+            "raw=${System.identityHashCode(raw)} src=${source?.let { System.identityHashCode(it) }}" +
+                " layer=${graphics?.let { System.identityHashCode(it) }}${if (graphics?.isReleased == true) "(rilasciato)" else ""}" +
+                " owner=${(source?.ownerNode ?: raw.ownerNode)?.let { "${it.javaClass.simpleName}@${System.identityHashCode(it)}" }}" +
+                " onDemand=${raw.onDemand} lettori=${raw.readerCount} rev=${source?.revision}"
+        }
+    }
+
     /** Quando e' stata presa l'ultima cattura valida, per [resampleIntervalMillis]. */
     private var lastRecordedAt = 0L
 
     /** Se il fotogramma prima si stava tenendo ferma la cattura. Vedi [frozen]. */
     private var wasHolding = false
+
+    /** F8.10: l'ultima cattura valida e' stata presa mentre questo vetro si muoveva rispetto alle sorgenti. */
+    private var capturedMoving = false
+
+    /** F8.10: il controllo dopo l'ultima cattura in movimento. Vedi [settlesCapture]. */
+    private val settleCheck = Runnable {
+        if (isAttached && capturedMoving) invalidateDraw()
+    }
 
     /** Da quando il fondale non e' pronto, o zero se lo e'. Vedi [holdsCaptureOfGoneSource]. */
     private var notReadySince = 0L
@@ -1577,7 +1636,25 @@ private class DrawBackdropNode(
                 renderState.optics == GlassOptics.Protected && !sampleOnce && moved && ready -> true
                 holding -> false
                 refreshAfterHold -> true
+                // F8.10: la cattura presa in movimento si rifa' una volta da fermi. Vedi [settlesCapture].
+                settlesCapture(capturedMoving, moved, sampled, ready, sampleOnce) -> true
                 else -> wanted && !tooSoon
+            }
+            // Questa cattura, se si fa, e' presa in movimento: da rifare a riposo. Solo uno spostamento vero (le stesse
+            // sorgenti, posizioni relative diverse: non la prima cattura, non un fondale che non sa dire cosa contiene) e
+            // solo per il vetro su vetro, che campiona il materiale di un pannello (la «x» del foglio): e' li' che il
+            // pannello cambia mentre il vetro dentro si sposta, e il conto delle catture del resto non cambia.
+            val recordingMoving = needsRecord && !sampleOnce && containerMaterial != null &&
+                currentOffsets.valid && sameSources && !currentOffsets.offsets.contentEquals(recordedSourceOffsets.offsets)
+            // F8.10: perché la cattura si rifà o no, per leggere sul dispositivo un vetro rimasto a un fotogramma vecchio
+            // (`adb shell setprop log.tag.FluidGlassFrame VERBOSE`, prima di aprire l'app).
+            GlassFrameDiagnostics.event("decide", this@DrawBackdropNode) {
+                "needs=$needsRecord wanted=$wanted dirty=$surfaceDirty size=$recordSize recorded=$recordedSize moved=$moved " +
+                    "settle=${capturedMoving && !moved} " +
+                    "same=$sameSources sampled=$sampled ready=$ready gone=$sourceGone holding=$holding tooSoon=$tooSoon " +
+                    "region=$region recordedRegion=$recordedRegion lostLoan=$lostLoan at=${layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()}" +
+                    " container=${container?.let { System.identityHashCode(it) }} material=${containerMaterial?.let { System.identityHashCode(it) }}" +
+                    " src=${describeSources()}"
             }
 
             if (filterNeedsCredit && !needsRecord) {
@@ -1627,7 +1704,8 @@ private class DrawBackdropNode(
                         // F6B.15: anche dove sta il vetro (nella radice), per riconoscerlo sul dispositivo.
                         "scale=$contentScale previous=${if (sampled) recordedScale else null} size=$recordSize window=$region at=${layoutCoordinates?.takeIf { it.isAttached }?.positionInRoot()}" +
                             " optics=${renderState.optics} sample=${activeSample?.sampleScale ?: contentScale} bytes=$residentBytes" +
-                            " owner=${this@DrawBackdropNode.glassFrameOwner()} travel=${activeSample?.travelling == true}"
+                            " owner=${this@DrawBackdropNode.glassFrameOwner()} travel=${activeSample?.travelling == true}" +
+                            " src=${describeSources()}"
                     }
                     recordedPipeline = activeSample
                     recordedSampleScale = activeSample?.sampleScale ?: 0f
@@ -1640,6 +1718,12 @@ private class DrawBackdropNode(
                     surfaceDirty = false
                     sampled = true
                     lastRecordedAt = now
+                    // F8.10: una cattura presa in movimento resta provvisoria. Se il movimento continua, il fotogramma
+                    // dopo ricattura comunque; se si ferma, il controllo qui sotto chiede il disegno che la rifa' a
+                    // riposo, anche quando nient'altro ridisegnerebbe questo vetro.
+                    capturedMoving = recordingMoving
+                    MainHandler.removeCallbacks(settleCheck)
+                    if (recordingMoving) MainHandler.postDelayed(settleCheck, SettleRecaptureMillis)
                     FluidGlassDiagnostics.onCapture()
                 }
             }
@@ -2097,6 +2181,8 @@ private class DrawBackdropNode(
         desiredBytes = 0L
         MainHandler.removeCallbacks(awaitBudget)
         MainHandler.removeCallbacks(refreshAllocationReading)
+        MainHandler.removeCallbacks(settleCheck)
+        capturedMoving = false
         refreshPosted = false
         if (budgetDenied) resources.visibleCaptureDenied(window, false)
         budgetDenied = false

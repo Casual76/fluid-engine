@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
   <!--
     F8.10 · Il tema dell'attivita' che riceve una condivisione: una finestra trasparente sopra l'app di partenza, senza
-    l'animazione di sistema (il foglio sale da se'), con le barre trasparenti. Il velo e la sfocatura dietro li mette
-    FluidShareInWindow.
+    l'animazione di sistema (il foglio sale da se'), con le barre trasparenti e senza il velo di contrasto sotto la barra
+    di navigazione (su una barra chiara e' un bianco al 90%, una fascia sopra il foglio). Il velo e la sfocatura dietro li
+    mette FluidShareInWindow, che spegne il velo di contrasto anche con un tema dell'app.
   -->
   <style name="Theme.FluidShareIn" parent="android:Theme.Material.NoActionBar">
     <item name="android:windowIsTranslucent">true</item>
@@ -13,6 +14,8 @@
     <item name="android:backgroundDimEnabled">false</item>
     <item name="android:statusBarColor">@android:color/transparent</item>
     <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
+    <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
     <item name="android:windowContentOverlay">@null</item>
   </style>
 </resources>

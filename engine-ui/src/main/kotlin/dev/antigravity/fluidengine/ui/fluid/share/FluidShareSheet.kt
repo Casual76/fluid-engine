@@ -4,7 +4,6 @@ import android.content.ActivityNotFoundException
 import android.content.ClipboardManager
 import android.content.ContentResolver
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -924,19 +923,9 @@ internal fun fluidPrintItem(context: Context, item: FluidShareItem): Boolean {
   }
 }
 
-/** Una miniatura di lato almeno [px] da un'immagine, letta a campioni (mai l'immagine intera in memoria). */
-internal fun fluidLoadThumbnail(resolver: ContentResolver, uri: Uri, px: Int): ImageBitmap? {
-  val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-  // Con `inJustDecodeBounds` la lettura torna sempre null: le misure stanno in [bounds]. (Prima un `?: return null` sulla
-  // lettura usciva sempre, e la miniatura di un Uri non arrivava mai: il tablet il 25 novembre.)
-  val head = resolver.openInputStream(uri) ?: return null
-  head.use { BitmapFactory.decodeStream(it, null, bounds) }
-  if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-  var sample = 1
-  while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= px) sample *= 2
-  val options = BitmapFactory.Options().apply { inSampleSize = sample }
-  return resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }?.asImageBitmap()
-}
+/** Una miniatura di lato almeno [px] da un'immagine, letta a campioni (mai l'immagine intera in memoria): [FluidImageSample]. */
+internal fun fluidLoadThumbnail(resolver: ContentResolver, uri: Uri, px: Int): ImageBitmap? =
+  FluidImageSample.atLeast(resolver, uri, px)?.asImageBitmap()
 
 /** «Salva in File» di un oggetto solo: copia i byte (o il testo) nel documento scelto. */
 internal fun fluidSaveInto(resolver: ContentResolver, item: FluidShareItem, target: Uri) {

@@ -75,7 +75,12 @@ salvato».
   può (Android 12 e oltre, sfocatura fra finestre accesa). Dove non può, il film è pieno.
 - **Sotto il bordo.** Il foglio continua 48 dp sotto il bordo dello schermo, come i fogli dell'engine: il bordo in basso
   del vetro, che campiona oltre se stesso, resta fuori vista, e la barra di navigazione sta dentro il materiale. Il
-  contenuto resta sopra la barra (sul tablet, il 25 novembre, al suo posto c'era una fascia bianca).
+  contenuto resta sopra la barra coi suoi margini.
+- **La barra di navigazione trasparente.** Come nella finestra principale delle app dell'engine: niente velo di contrasto
+  (su una barra chiara Android stende un bianco al 90% sotto la maniglia dei gesti, sul tablet il 25 novembre una fascia
+  sopra il foglio). Lo spengono il tema `Theme.FluidShareIn` (`enforceNavigationBarContrast`) e
+  `FluidShareInWindow.install`, che costruisce la decorazione della finestra prima di spegnerlo: costruita dopo, da
+  `setContent`, la rileggerebbe dal tema. Con un tema dell'app, chiama `install` prima di `setContent` e basta.
 - **Il movimento.** Sale dal basso con la molla dei fogli (`FluidMotion.PopoverOpenY`) e scende con una molla critica; il
   dito lo porta giù e lo chiude oltre 110 dp o con un colpo oltre 900 dp/s, come `FluidGlassSheet`. Con «Riduci
   movimento» è fermo al suo posto dal primo fotogramma.

@@ -336,6 +336,11 @@ private class GlassMaterialRecordingNode(
     }
 
     override fun ContentDrawScope.draw() {
+        // F8.10, diagnostica: quando il pannello registra il materiale che il vetro dentro di lui campiona.
+        GlassFrameDiagnostics.event("materialRecord", this@GlassMaterialRecordingNode) {
+            "material=${System.identityHashCode(material)} layer=${System.identityHashCode(material.graphicsLayer)}" +
+                " registra=${material.wantsRecording} lettori=${material.readerCount} size=$size"
+        }
         if (!material.wantsRecording) {
             drawContent()
             return

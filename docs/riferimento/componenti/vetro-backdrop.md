@@ -142,6 +142,12 @@ fun Modifier.drawBackdrop(
 5. **Sorgente sparita.** Ricatturare senza sorgente non registra niente (`LayerBackdrop.drawBackdrop` esce senza coordinate): una cattura vuota sotto una tinta traslucida è la pagina cruda e **nitida**
    dentro la sagoma del vetro, un fotogramma di testo leggibile sotto la barra. Quindi si tiene la cattura vecchia fino a **400 ms** (`SourceGoneGraceMillis`: il caso vero dura un fotogramma — un cambio pagina smonta
    la sorgente vecchia e monta la nuova — ma un fotogramma che compone una pagina intera può durare 80 ms), poi basta: tenere un'immagine ormai falsa a tempo indeterminato è peggio di un vetro vuoto.
+6. **La cattura presa in movimento è provvisoria** (4.0, F8.10). Se l'ultima cattura è stata presa mentre il pannello si muoveva rispetto alle sorgenti, al primo disegno da fermo si rifà, **una
+   volta** (`settlesCapture`); un controllo 50 ms dopo l'ultima cattura in movimento (`SettleRecaptureMillis`) chiede quel disegno anche se niente ridisegnerebbe il pannello. Vale solo per il
+   vetro su vetro (che campiona il materiale di un pannello) e per uno spostamento vero rispetto alle stesse sorgenti; non con `sampleOnce`.
+   Sul Tab S9 la «x» di un foglio nato da un tasto, alla prima apertura dopo l'avvio, restava per sempre il disco sfocato di metà zoom: stesse decisioni e stesse sorgenti vive del caso buono, ma i
+   pixel della cattura erano quelli di allora; li rimetteva a posto solo una cattura nuova. Al PC ogni fotogramma si rende da capo e non si vede: la regola la prova `SettleRecaptureTest`
+   (al JVM), l'effetto si guarda sul tablet.
 
 **Il padding è l'unica cosa che invalida la catena.** `updateEffects` rifà il `RenderEffect` ogni volta che i numeri cambiano, ma dirty-a la cattura **solo** se cambia il *padding* (il margine di registrazione che
 serve alla sfocatura perché i bordi non si sporchino). Una sfocatura che sale con uno scorrimento o una lente che si ispessisce all'arrivo di un modale non costano altro che ricostruire l'effetto. Il
@@ -342,6 +348,12 @@ E dice **quale vetro c'è in scena e quanto costa tenerlo** (4.0; la scheda [vet
 - `simulateApiLevel(context, level)` e `simulatedApiLevel`: solo in un'app `debuggable`, il vetro risponde come Android 12 o 11 e l'engine disegna i propri ripieghi sul dispositivo vero.
 
 I conteggi costano solo con `enabled` acceso, e contano ciò che nasce **dopo** l'accensione: un nodo nato a diagnostica spenta non toglie niente quando se ne va, e i numeri non scendono mai sotto zero.
+
+**Il log dei fotogrammi del vetro** (sul dispositivo: `adb shell setprop log.tag.FluidGlassFrame VERBOSE` prima di avviare l'app, poi `logcat -s FluidGlassFrame`; di serie
+spento, costo zero). Ogni evento ha l'istante, il tipo e l'identità di chi lo scrive. `draw` e `capture` (con misura, scala, posizione nella radice), `decide` (perché la cattura si rifà o
+no: `needs`, `wanted`, `moved`, `same`, `ready`, `gone`, `holding`, `settle`…), e da F8.10 in `capture` e `decide` le **sorgenti** campionate (`src=`: quella scritta nel fondale, quella letta
+davvero, il suo layer, chi la registra, i lettori, la revisione); `materialRecord` (il pannello che registra il materiale per il vetro dentro di lui), `readerAdd`/`readerRemove` (chi guarda
+un layer su richiesta), `pageNew`/`pageRetire` (la pagina privata di un layer su richiesta), `glassBudgetReserve`/`glassBudgetDenied` (la memoria del vetro).
 
 ## Cosa è verificato dai test
 

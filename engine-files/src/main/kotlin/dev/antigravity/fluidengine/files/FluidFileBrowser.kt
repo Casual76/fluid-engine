@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,6 +71,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidSearchSpec
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionFootnote
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
+import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidSelectionMark
 import dev.antigravity.fluidengine.ui.fluid.FluidSelectionState
 import dev.antigravity.fluidengine.ui.fluid.FluidSkeletonLeading
@@ -84,7 +86,6 @@ import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Folder
 import dev.antigravity.fluidengine.ui.fluid.icons.FormatListBulleted
 import dev.antigravity.fluidengine.ui.fluid.icons.GridView
-import dev.antigravity.fluidengine.ui.fluid.icons.History
 import dev.antigravity.fluidengine.ui.fluid.icons.MoreHoriz
 import dev.antigravity.fluidengine.ui.fluid.icons.Share
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassNamespace
@@ -132,7 +133,6 @@ import java.util.Locale
 data class FluidFileBrowserStrings(
   val browse: String = "Sfoglia",
   val recents: String = "Recenti",
-  val recentCount: (Int) -> String = { if (it == 1) "1 file" else "$it file" },
   val locations: String = "Posizioni",
   val addLocation: String = "Aggiungi una posizione…",
   val addLocationDetail: String = "Una cartella del telefono o di un'app, come Drive",
@@ -263,8 +263,12 @@ fun rememberFluidFileBrowserState(
 
 /** I tag delle prove (e delle riprese). */
 object FluidFileBrowserTags {
+  /** La scheda «Sfoglia»: le posizioni. */
   const val Browse = "fluid-files:sfoglia"
+  /** La scheda «Recenti»: i file aperti, dal più recente. */
   const val Recents = "fluid-files:recenti"
+  /** Il segmentato «Recenti | Sfoglia» in cima alla prima pagina (F8.18b). */
+  const val Tabs = "fluid-files:schede"
   const val AddLocation = "fluid-files:aggiungi"
   const val Folder = "fluid-files:cartella"
   fun location(id: String) = "fluid-files:posizione:$id"
@@ -276,9 +280,12 @@ object FluidFileBrowserTags {
  * iOS 26 (`UIDocumentBrowserViewController`; per scegliere, `fileImporter` di SwiftUI). Una pagina intera con le sue
  * rotte, da mettere dove l'app vuole (una scheda, una rotta, un foglio): tutto si muove con le pagine di `FluidNavHost`.
  *
- * - **Sfoglia**: «Recenti» in cima, poi le **posizioni**: le sorgenti dell'app ([sources]: la sua cartella, un cloud,
- *   gli allegati) e le cartelle concesse dall'utente ([locations], col selettore di sistema: il telefono e le app con un
- *   `DocumentsProvider`), con «Aggiungi una posizione…» in fondo. Come la barra laterale di File sull'iPad.
+ * - **Recenti | Sfoglia** in alto (F8.18b, scelta di Alessio): un segmentato sotto il titolo, come le schede di File
+ *   sull'iPhone. Si apre sui **Recenti** se ce n'è almeno uno, se no su **Sfoglia**, e la scheda scelta resta tornando
+ *   indietro. **Recenti** è una cartella come le altre (griglia o elenco, ricerca, selezione) con i file aperti, dal più
+ *   recente. **Sfoglia** sono le **posizioni**: le sorgenti dell'app ([sources]: la sua cartella, un cloud, gli
+ *   allegati) e le cartelle concesse dall'utente ([locations], col selettore di sistema: il telefono e le app con un
+ *   `DocumentsProvider`), con «Aggiungi una posizione…» in fondo.
  * - **Una cartella**: il nome in alto (il titolo grande che si ritira), **Icone** (la griglia con le miniature vere di
  *   `engine-viewer`) o **Elenco**, l'ordine (nome, tipo, data, dimensione, il secondo tocco inverte) e «Seleziona» nel
  *   menu «•••», «Cerca in …» sotto il titolo, lo scorrimento rapido per le cartelle lunghe. Le cartelle stanno prima dei
@@ -296,8 +303,8 @@ object FluidFileBrowserTags {
  *
  * @param sources le sorgenti dell'app, in cima alle posizioni.
  * @param locations le cartelle concesse ([rememberFluidFileLocations]); null: niente «Aggiungi una posizione…».
- * @param recents i recenti ([rememberFluidFileRecents]); null: niente «Recenti».
- * @param onBack il tasto indietro della pagina «Sfoglia»; null se è la radice dell'app.
+ * @param recents i recenti ([rememberFluidFileRecents]); null: niente «Recenti» e niente schede, solo «Sfoglia».
+ * @param onBack il tasto indietro della prima pagina (Recenti o Sfoglia); null se è la radice dell'app.
  * @param onPick la scelta dei file (il modo `fileImporter`): un tocco su un file lo consegna, la selezione ne consegna
  *   più d'uno; null, lo sfoglia-file apre i file nel visore.
  * @param selectionActions le azioni dell'app sui file scelti (Sposta, Elimina…), nella barra della selezione.
@@ -375,15 +382,31 @@ fun FluidFileBrowser(
 
   FluidNavHost(nav, BrowseRoute, modifier.fillMaxSize()) {
     composable(BrowseRoute) {
-      BrowsePage(
-        sources = currentSources,
-        locations = currentLocations,
-        recents = currentRecents,
-        strings = currentStrings,
-        onBack = currentBack,
-        hint = addLocationHint,
-        onOpen = { source -> nav.navigate(folderRoute(source.id, null, source.title)) },
-      )
+      val recents = currentRecents
+      // F8.18b: «Recenti | Sfoglia» in alto, come le schede di File sull'iPhone. Si apre sui Recenti se ce n'è uno; la
+      // scheda resta tornando da una cartella o da un file (è salvata con la pagina).
+      var tab by rememberSaveable { mutableStateOf(if (recents?.entries?.isNotEmpty() == true) TabRecents else TabBrowse) }
+      val tabs: (LazyListScope.() -> Unit)? = if (recents == null) null else ({
+        item(key = "schede") { RootTabs(tab, { tab = it }, currentStrings) }
+      })
+      if (recents != null && tab == TabRecents) {
+        val folder = remember(recents, state) { state.folder(recents.source, null, currentStrings.recents) }
+        FolderPage(folder, state, namespace, currentStrings, onBack = currentBack, header = tabs,
+          modifier = Modifier.testTag(FluidFileBrowserTags.Recents),
+          onOpen = { open(folder, it) }, onPick = currentPick, selectionActions = currentActions,
+          share = { items -> currentShare?.invoke(items) ?: shareItems(context, items) },
+          canShare = { items -> currentShare != null || items.all { it.uri?.scheme == "content" } })
+      } else {
+        BrowsePage(
+          sources = currentSources,
+          locations = currentLocations,
+          strings = currentStrings,
+          onBack = currentBack,
+          hint = addLocationHint,
+          header = tabs,
+          onOpen = { source -> nav.navigate(folderRoute(source.id, null, source.title)) },
+        )
+      }
     }
     composable(FolderRoutePattern, arguments = listOf(
       navArgument(ArgSource) { type = NavType.StringType },
@@ -426,28 +449,33 @@ fun FluidFileBrowser(
   }
 }
 
+/** Il segmentato «Recenti | Sfoglia» della prima pagina (F8.18b), sotto il titolo grande. */
+@Composable
+private fun RootTabs(tab: String, onTab: (String) -> Unit, strings: FluidFileBrowserStrings) {
+  FluidSegmentedControl(
+    options = listOf(TabRecents, TabBrowse),
+    selected = tab,
+    onSelect = onTab,
+    modifier = Modifier.fillMaxWidth().testTag(FluidFileBrowserTags.Tabs),
+    label = { if (it == TabRecents) strings.recents else strings.browse },
+  )
+}
+
 @Composable
 private fun BrowsePage(
   sources: List<FluidFileSource>,
   locations: FluidFileLocations?,
-  recents: FluidFileRecents?,
   strings: FluidFileBrowserStrings,
   onBack: (() -> Unit)?,
   hint: Uri?,
+  header: (LazyListScope.() -> Unit)?,
   onOpen: (FluidFileSource) -> Unit,
 ) {
   val scope = rememberCoroutineScope()
   val add = if (locations != null) rememberFluidAddLocation(locations, hint, onAdded = onOpen) else null
   val granted = locations?.sources.orEmpty()
   FluidScreen(title = strings.browse, onBack = onBack, modifier = Modifier.testTag(FluidFileBrowserTags.Browse)) {
-    if (recents != null) item(key = "recenti") {
-      FluidListGroup {
-        val count = recents.entries.size
-        FluidListRow(strings.recents, strings.recentCount(count), modifier = Modifier.testTag(FluidFileBrowserTags.Recents),
-          leading = { FluidIcon(FluidIcons.History, null, tint = MaterialTheme.colorScheme.primary) }, leadingTile = false,
-          onClick = { onOpen(recents.source) })
-      }
-    }
+    header?.invoke(this)
     item(key = "posizioni") {
       Column {
         FluidSectionHeader(strings.locations)
@@ -486,12 +514,15 @@ private fun FolderPage(
   state: FluidFileBrowserState,
   namespace: dev.antigravity.fluidengine.ui.fluid.FluidGlassNamespace,
   strings: FluidFileBrowserStrings,
-  onBack: () -> Unit,
+  onBack: (() -> Unit)?,
   onOpen: (FluidFileItem) -> Unit,
   onPick: ((List<FluidFileItem>) -> Unit)?,
   selectionActions: (FluidToolbarScope.(List<FluidFileItem>) -> Unit)?,
   share: (List<FluidFileItem>) -> Unit,
   canShare: (List<FluidFileItem>) -> Boolean,
+  /** F8.18b: le schede «Recenti | Sfoglia», quando la cartella è la scheda Recenti della prima pagina. */
+  header: (LazyListScope.() -> Unit)? = null,
+  modifier: Modifier = Modifier.testTag(FluidFileBrowserTags.Folder),
 ) {
   LaunchedEffect(folder) { folder.start() }
   LaunchedEffect(folder) { folder.source.changes(folder.folder).collect { folder.refresh() } }
@@ -511,7 +542,7 @@ private fun FolderPage(
       listState = folder.listState,
       // In elenco le righe stanno in un gruppo solo (i pezzi del gruppo si toccano); in griglia lo spazio fra le file.
       itemSpacing = if (grid) GridSpacing else 0.dp,
-      modifier = Modifier.testTag(FluidFileBrowserTags.Folder),
+      modifier = modifier,
       toolbar = {
         if (selecting) {
           selection(selection, count = items.count { selection.isSelected(it.id) }, onSelectAll = {
@@ -538,6 +569,7 @@ private fun FolderPage(
         }, backdrop = backdrop, contentDescription = strings.scrubber)
       },
     ) {
+      header?.invoke(this)
       when {
         items.isEmpty() && folder.failure != null -> item(key = "errore") {
           FluidEmptyState(strings.failedTitle, strings.failedDetail, strings.retry, folder::retry)
@@ -910,3 +942,7 @@ private val GridSpacing: Dp = 12.dp
 private val RowThumbnail: Dp = 44.dp
 /** Da quanti elementi compare lo scorrimento rapido. */
 private const val FastScrollFrom = 60
+
+/** Le due schede della prima pagina (F8.18b), salvate con lei. */
+private const val TabRecents = "recenti"
+private const val TabBrowse = "sfoglia"

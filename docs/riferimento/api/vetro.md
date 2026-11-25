@@ -374,6 +374,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `class FluidGlassResources private constructor(private val app: Application)` — Limiti condivisi dai moduli Fluid nello stesso processo. Accessibile anche prima del primo Composable.
   - `val uiVisible: StateFlow<Boolean>` — Il trim UI_HIDDEN sospende i lettori fino al prossimo ingresso in primo piano.
   - `val thumbnailParallelism: Int @Synchronized get()` — Posti condivisi dalle miniature secondo il profilo effettivo del processo.
+  - `val viewerHardwarePages: Boolean get()` — F8.18b · Se le pagine dei documenti vanno nella memoria grafica, secondo la fascia del processo adesso: la regola è [viewerHardwarePagesFor], con la riga di memoria e il livello ottico più basso fra le finestre in vista. Cambia con la fascia (una pressione, una termica severa la accendono); il PDF la legge a ogni pagina resa, senza lock.
   - `val budget` — Un solo registro per tutti i layer e i decoder, comprese finestre simultanee.
   - `val prefetchAllowed: StateFlow<Boolean>` — Controllare il valore prima di accodare. I produttori in vita possono osservare anche lo stop.
   - `fun observeTrim(onTrim: (Int) -> Unit): Closeable` — Registrarsi mentre il modulo possiede cache o lavoro. Chiudere sul main thread alla disattivazione.

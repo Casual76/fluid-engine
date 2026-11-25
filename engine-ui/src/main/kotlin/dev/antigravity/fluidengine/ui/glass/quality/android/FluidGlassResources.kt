@@ -58,6 +58,9 @@ class FluidGlassResources private constructor(private val app: Application) {
   private val windows = LinkedHashMap<Window, GlassWindow>()
   private var row = initial.decision.memoryProfile
   private var heap = initial.decision.heapReferenceBytes
+  /** F8.18b: la regola delle pagine nella memoria grafica, rifatta a ogni [publish]; letta senza lock dal PDF. */
+  @Volatile private var hardwarePages =
+    viewerHardwarePagesFor(initial.decision.memoryProfile, initial.decision.optics)
   @Volatile private var lastReadingNs = System.nanoTime()
   /**
    * La stessa lettura sull'orologio di sistema ([android.os.SystemClock.elapsedRealtimeNanos]): da qui si misura se
@@ -88,6 +91,12 @@ class FluidGlassResources private constructor(private val app: Application) {
     GlassMemoryProfile.Reduced -> 1
     GlassMemoryProfile.Protected -> 2
   }
+  /**
+   * F8.18b · Se le pagine dei documenti vanno nella memoria grafica, secondo la fascia del processo adesso: la regola è
+   * [viewerHardwarePagesFor], con la riga di memoria e il livello ottico più basso fra le finestre in vista. Cambia con
+   * la fascia (una pressione, una termica severa la accendono); il PDF la legge a ogni pagina resa, senza lock.
+   */
+  val viewerHardwarePages: Boolean get() = hardwarePages
   private var hidden = false
 
   /** Un solo registro per tutti i layer e i decoder, comprese finestre simultanee. */
@@ -370,6 +379,7 @@ class FluidGlassResources private constructor(private val app: Application) {
     var active = false
     var nextRow = GlassMemoryProfile.Full
     var nextHeap = Long.MAX_VALUE
+    var nextOptics = GlassOptics.Full
     var prefetch = sessionCeiling == GlassOptics.Full && !pressured && !hidden
     initialRender.optics = initial.decision.optics
     for (window in windows.values) {
@@ -378,16 +388,19 @@ class FluidGlassResources private constructor(private val app: Application) {
       if (!window.visible) continue
       nextRow = minOf(nextRow, decision.memoryProfile)
       nextHeap = minOf(nextHeap, decision.heapReferenceBytes)
+      nextOptics = minOf(nextOptics, decision.optics)
       prefetch = prefetch && decision.allowPrefetch
       active = true
     }
     if (!active) {
       nextRow = initial.decision.memoryProfile
       nextHeap = initial.decision.heapReferenceBytes
+      nextOptics = initial.decision.optics
       thread?.quitSafely()
       thread = null
       handler = null
     }
+    hardwarePages = viewerHardwarePagesFor(nextRow, nextOptics)
     if (row != nextRow || heap != nextHeap) {
       budget.updateLimits(nextRow.limits().forHeap(nextHeap))
       row = nextRow
@@ -421,3 +434,25 @@ private fun GlassMemoryProfile.limits() = when (this) {
   GlassMemoryProfile.Reduced -> FluidMemoryLimits.Reduced
   GlassMemoryProfile.Protected -> FluidMemoryLimits.Protected
 }
+
+/**
+ * F8.18b · **Le pagine nella memoria grafica, per fascia del dispositivo.** Le pagine di un documento per lo schermo (il
+ * PDF di engine-viewer) passano nella memoria grafica (`Bitmap.Config.HARDWARE`) sul thread del documento solo sui
+ * dispositivi più deboli: così lì il primo disegno di una pagina non carica la texture dentro il fotogramma. Scelta di
+ * Alessio del 25 novembre 2026; la fascia è quella che il vetro calcola già (F7), senza una nuova.
+ *
+ * - **Accese** se la riga di memoria del processo non è Piena ([GlassMemoryProfile.Reduced] o
+ *   [GlassMemoryProfile.Protected]: RAM fino a 6 GiB, heap fino a 256 MiB, `isLowRamDevice`, una lettura incompleta, una
+ *   pressione vera o un'uscita per memoria della sessione prima), oppure se il vetro è sceso a [GlassOptics.Protected]
+ *   (termica severa, fotogrammi persi di fila, una pressione critica): il dispositivo fatica, e la copia fatta prima
+ *   toglie lavoro al fotogramma.
+ * - **Spente** altrimenti: riga Piena e vetro almeno Ridotto, come il Tab S9 e il Galaxy S25 di Alessio. Sul Tab S9 non
+ *   c'era un guadagno misurabile (25 novembre 2026, 120 Hz, slot saltati 6,0 e 6,7 % accese contro 3,2 e 7,7 % spente),
+ *   e senza la copia il thread del documento lavora meno e non tiene due copie della pagina nel momento della copia.
+ *
+ * Il limite, detto chiaro: la fascia di F7 guarda la memoria e il vetro, non la GPU. Un telefono con 8 GB e heap da
+ * 512 MiB (il Galaxy S22) conta come alto finché il vetro non scende a Protetto; separarlo davvero vuole un segnale della
+ * GPU o dei fotogrammi del visore, ed è lavoro della fase delle prestazioni (F7).
+ */
+internal fun viewerHardwarePagesFor(memory: GlassMemoryProfile, optics: GlassOptics): Boolean =
+  memory != GlassMemoryProfile.Full || optics == GlassOptics.Protected

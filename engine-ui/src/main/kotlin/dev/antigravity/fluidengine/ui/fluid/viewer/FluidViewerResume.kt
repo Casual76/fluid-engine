@@ -8,12 +8,12 @@ import androidx.compose.runtime.compositionLocalOf
 import java.util.Locale
 
 // F8.18 · Riprendi dallo stesso punto (`riprendi-dallo-stesso-punto`). Un file riaperto torna dove l'utente era: la pagina
-// e il punto della pagina di un documento, lo zoom, la riga di un testo, il secondo di un audio o di un video. Come i
-// Libri e l'Anteprima di Apple, che riaprono in silenzio all'ultima pagina letta, e come Podcast e TV, che riprendono
-// dal secondo lasciato (riferimento: la posizione che Handoff riporta su un altro dispositivo, `NSUserActivity`;
-// fiducia media, nessuna misura pubblica). Il telaio sa solo leggere e scrivere la posizione: dove si salva lo decide
-// chi la dà (di serie `FluidViewerResumeStore` di engine-viewer, salvato in modo leggero e cancellato quando il file
-// non c'è più).
+// e il punto della pagina di un documento, lo zoom, la riga di un testo. Come i Libri e l'Anteprima di Apple, che
+// riaprono in silenzio all'ultima pagina letta (riferimento: la posizione che Handoff riporta su un altro dispositivo,
+// `NSUserActivity`; fiducia media, nessuna misura pubblica). Solo documenti e testi (scelta di Alessio del 25 novembre
+// 2026, F8.18b): un audio o un video riaperto riparte dall'inizio, come un brano in Musica. Il telaio sa solo leggere e
+// scrivere la posizione: dove si salva lo decide chi la dà (di serie `FluidViewerResumeStore` di engine-viewer, salvato
+// in modo leggero e cancellato quando il file non c'è più).
 
 /**
  * Dove l'utente era in un file. I campi che un preset non usa restano al valore di serie.
@@ -22,27 +22,24 @@ import java.util.Locale
  * - [offset]: quanto di quella pagina era già passato sopra il bordo in alto, da 0 a 1. Una frazione e non i pixel, così
  *   la posizione vale anche con un'altra larghezza (il telefono girato, un altro dispositivo).
  * - [zoom]: lo zoom della colonna delle pagine (1 = adatta alla larghezza).
- * - [mediaMillis]: il punto di un audio o di un video, in millisecondi; null se il file non suona.
  *
- * [encode] e [decode] la scrivono in una riga corta (`p=41;o=0.25;z=1.5;m=93000`), per chi la porta su un altro
- * dispositivo: è il formato del negozio di serie, e un campo nuovo in coda non rompe le righe di prima.
+ * [encode] e [decode] la scrivono in una riga corta (`p=41;o=0.25;z=1.5`), per chi la porta su un altro dispositivo: è
+ * il formato del negozio di serie, e un campo sconosciuto si ignora (una riga di prima con `m=…` si legge lo stesso).
  */
 @Immutable
 data class FluidViewerPosition(
   val page: Int = 0,
   val offset: Float = 0f,
   val zoom: Float = 1f,
-  val mediaMillis: Long? = null,
 ) {
-  /** Vero se non c'è niente da riprendere: la prima pagina dall'alto, senza zoom, senza un secondo. */
-  val isStart: Boolean get() = page <= 0 && offset <= 0f && zoom == 1f && (mediaMillis ?: 0L) <= 0L
+  /** Vero se non c'è niente da riprendere: la prima pagina dall'alto, senza zoom. */
+  val isStart: Boolean get() = page <= 0 && offset <= 0f && zoom == 1f
 
-  /** La riga corta del formato: `p=…;o=…;z=…`, e `m=…` solo per i file che suonano. */
+  /** La riga corta del formato: `p=…;o=…;z=…`. */
   fun encode(): String = buildString {
     append("p=").append(page.coerceAtLeast(0))
     append(";o=").append(String.format(Locale.ROOT, "%.4f", offset.coerceIn(0f, 1f)))
     append(";z=").append(String.format(Locale.ROOT, "%.3f", zoom))
-    mediaMillis?.let { append(";m=").append(it.coerceAtLeast(0L)) }
   }
 
   companion object {
@@ -52,7 +49,6 @@ data class FluidViewerPosition(
       var page = 0
       var offset = 0f
       var zoom = 1f
-      var media: Long? = null
       var known = false
       for (part in text.split(';')) {
         val name = part.substringBefore('=', "").trim()
@@ -61,10 +57,9 @@ data class FluidViewerPosition(
           "p" -> value.toIntOrNull()?.let { page = it.coerceAtLeast(0); known = true }
           "o" -> value.toFloatOrNull()?.takeIf { it.isFinite() }?.let { offset = it.coerceIn(0f, 1f); known = true }
           "z" -> value.toFloatOrNull()?.takeIf { it.isFinite() && it > 0f }?.let { zoom = it; known = true }
-          "m" -> value.toLongOrNull()?.let { media = it.coerceAtLeast(0L); known = true }
         }
       }
-      return if (known) FluidViewerPosition(page, offset, zoom, media) else null
+      return if (known) FluidViewerPosition(page, offset, zoom) else null
     }
   }
 }
@@ -113,21 +108,6 @@ internal val LocalViewerResumeSlot = compositionLocalOf<FluidViewerResumeSlot?> 
 data class FluidViewerResumeStrings(
   val page: (page: Int) -> String = { "Riprendi da pagina $it" },
   val line: (line: Int) -> String = { "Riprendi dalla riga $it" },
-  val time: (clock: String) -> String = { "Riprendi da $it" },
   val changed: String = "Il file è cambiato dall'ultima lettura",
   val dismiss: String = "Ignora",
 )
-
-/** Un audio o un video si riprende solo lontano dai bordi: i primi 5 s e gli ultimi 5 s ripartono dall'inizio. */
-internal object ViewerResumeMedia {
-  /**
-   * 5 s, a occhio (25 novembre 2026): Podcast riprende dal punto anche dopo pochi secondi, ma un brano lasciato a fine
-   * corsa riparte da capo (come la riproduzione di Musica dopo la fine).
-   */
-  const val EdgeMillis: Long = 5_000L
-
-  fun resumable(position: Long?, duration: Long?): Boolean {
-    if (position == null || position < EdgeMillis) return false
-    return duration == null || position < duration - EdgeMillis
-  }
-}

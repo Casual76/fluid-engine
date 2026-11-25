@@ -648,9 +648,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/fluid/viewer/FluidViewerResume.kt`
 
-- `data class FluidViewerPosition(val page: Int = 0, val offset: Float = 0f, val zoom: Float = 1f, val mediaMillis: Long? = null)` — Dove l'utente era in un file. I campi che un preset non usa restano al valore di serie.
-  - `val isStart: Boolean get()` — Vero se non c'è niente da riprendere: la prima pagina dall'alto, senza zoom, senza un secondo.
-  - `fun encode(): String` — La riga corta del formato: `p=…;o=…;z=…`, e `m=…` solo per i file che suonano.
+- `data class FluidViewerPosition(val page: Int = 0, val offset: Float = 0f, val zoom: Float = 1f)` — Dove l'utente era in un file. I campi che un preset non usa restano al valore di serie.
+  - `val isStart: Boolean get()` — Vero se non c'è niente da riprendere: la prima pagina dall'alto, senza zoom.
+  - `fun encode(): String` — La riga corta del formato: `p=…;o=…;z=…`.
   - `companion object`
     - `fun decode(text: String?): FluidViewerPosition?` — La posizione scritta da [encode]; null se la riga non ne è una. I campi sconosciuti si ignorano.
 - `interface FluidViewerResumeSlot` — Il posto di un file per la sua posizione, che il telaio dà al preset della pagina.
@@ -660,7 +660,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun dismissStale()`
 - `@Composable fun FluidViewerResumeProvider(resume: (index: Int) -> FluidViewerResumeSlot?, content: @Composable () -> Unit)` — Dà a [FluidFileViewer] il posto della posizione di ogni pagina, come [FluidViewerInfoProvider] dà il pannello. Il telaio lo chiede una volta per pagina composta; null per una pagina che non si riprende. Di serie, con engine-viewer: `FluidViewerResumeProvider(rememberFluidViewerResume(files)) { FluidFileViewer(…) }`.
 - `@Composable fun currentFluidViewerResume(): FluidViewerResumeSlot?` — Il posto della posizione della pagina che si sta disegnando, per un preset dell'app ([FluidViewerContent.Custom], un suo visore a tasselli): null fuori dal telaio o senza [FluidViewerResumeProvider].
-- `data class FluidViewerResumeStrings(val page: (page: Int) -> String = { "Riprendi da pagina $it" }, val line: (line: Int) -> String = { "Riprendi dalla riga $it" }, val time: (clock: String) -> String = { "Riprendi da $it" }, val changed: String = "Il file è cambiato dall'ultima lettura", val dismiss: String = "Ignora")` — Le parole della capsula «Riprendi da…» (F8.18). I numeri sono già da uno.
+- `data class FluidViewerResumeStrings(val page: (page: Int) -> String = { "Riprendi da pagina $it" }, val line: (line: Int) -> String = { "Riprendi dalla riga $it" }, val changed: String = "Il file è cambiato dall'ultima lettura", val dismiss: String = "Ignora")` — Le parole della capsula «Riprendi da…» (F8.18). I numeri sono già da uno.
 
 ## `engine-ui/ui/fluid/viewer/FluidViewerTypeActions.kt`
 

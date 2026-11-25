@@ -16,10 +16,11 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * F8.18 · Il bilancio del PDF nella coda delle pagine: la resa per lo schermo ([FluidPageDisplay]) passa dalla
  * conversione (nel PDF vero, la memoria grafica) sul thread del documento, ha la sua voce in cache e non arriva mai a
- * chi rende per la stampa; le misure di migliaia di pagine restano (256) senza rileggere il documento.
+ * chi rende per la stampa; le misure di migliaia di pagine restano (256) senza rileggere il documento. F8.18b: la memoria
+ * grafica la sceglie la fascia del dispositivo, e una prova la può forzare.
  */
 class FluidPageDisplayTest {
-  private class Policy : ViewerPolicy {
+  private class Policy(override val hardwarePages: Boolean = false) : ViewerPolicy {
     override val budget = FluidMemoryBudget(FluidMemoryLimits.Full)
     override val uiVisible = MutableStateFlow(true)
     override val prefetchAllowed = MutableStateFlow(true)
@@ -95,5 +96,22 @@ class FluidPageDisplayTest {
     assertEquals(301, document.sizeReads.get())
     assertEquals(256, FluidPageRenderQueue.MaxSizes)
     queue.close()
+  }
+
+  @Test
+  fun `the pdf follows the device tier unless a comparison forces it`() {
+    val high = Policy(hardwarePages = false)
+    val weak = Policy(hardwarePages = true)
+    try {
+      FluidPdfPageSource.hardwareDisplay = null
+      assertFalse("un dispositivo alto: spente", pdfHardwarePages(high))
+      assertTrue("un dispositivo più debole: accese", pdfHardwarePages(weak))
+      FluidPdfPageSource.hardwareDisplay = true
+      assertTrue("forzate dalla prova di confronto", pdfHardwarePages(high))
+      FluidPdfPageSource.hardwareDisplay = false
+      assertFalse("spente dalla prova di confronto", pdfHardwarePages(weak))
+    } finally {
+      FluidPdfPageSource.hardwareDisplay = null
+    }
   }
 }

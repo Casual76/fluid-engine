@@ -108,6 +108,8 @@ internal interface ViewerPolicy {
   val prefetchAllowed: StateFlow<Boolean>
   val trimGeneration: Long
   val thumbnailParallelism: Int
+  /** F8.18b: le pagine per lo schermo nella memoria grafica, secondo la fascia del dispositivo. Di serie no. */
+  val hardwarePages: Boolean get() = false
   fun refreshBeforeAllocation()
   fun visibleBudgetDenied(denied: Boolean)
 }
@@ -118,6 +120,7 @@ private class ProcessViewerPolicy(val process: FluidGlassResources) : ViewerPoli
   override val prefetchAllowed get() = process.prefetchAllowed
   override val trimGeneration get() = process.trimGeneration
   override val thumbnailParallelism get() = process.thumbnailParallelism
+  override val hardwarePages get() = process.viewerHardwarePages
   override fun refreshBeforeAllocation() = process.refreshBeforeAllocation()
   override fun visibleBudgetDenied(denied: Boolean) = process.visibleBudgetDenied(null, denied)
 }

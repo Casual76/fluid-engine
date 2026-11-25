@@ -38,6 +38,7 @@ import dev.antigravity.fluidengine.files.FluidFileBrowser
 import dev.antigravity.fluidengine.files.FluidFileBrowserState
 import dev.antigravity.fluidengine.files.FluidFileBrowserTags
 import dev.antigravity.fluidengine.files.FluidFileLayout
+import dev.antigravity.fluidengine.files.FluidFileItem
 import dev.antigravity.fluidengine.files.FluidFileRecents
 import dev.antigravity.fluidengine.files.FluidFileSortKey
 import dev.antigravity.fluidengine.files.FluidFileSources
@@ -179,6 +180,16 @@ class F8p18FilesUiTest {
     advance(32)
   }
 
+  /** Un tocco del dito su una scheda di «Recenti | Sfoglia». */
+  private fun tapTab(label: String) {
+    val at = compose.onNode(hasText(label) and hasAnyAncestor(hasTestTag(FluidFileBrowserTags.Tabs)))
+      .fetchSemanticsNode().boundsInRoot.center
+    finger.down(at)
+    advance(48)
+    finger.up(at)
+    advance(400)
+  }
+
   private fun clickDescription(text: String) {
     // Il menu che si chiude ridà il vetro al suo tasto: si aspetta che il tasto ci sia di nuovo.
     waitFor("il tasto «$text»") {
@@ -231,7 +242,10 @@ class F8p18FilesUiTest {
 
   @Test fun `sfoglia - la cartella in griglia, in elenco, ordinata e cercata`() {
     show()
-    assertTrue(has(FluidFileBrowserTags.Recents))
+    // F8.18b: «Recenti | Sfoglia» in alto; senza recenti si apre su Sfoglia.
+    assertTrue(has(FluidFileBrowserTags.Tabs))
+    assertTrue(has(FluidFileBrowserTags.Browse))
+    assertFalse(has(FluidFileBrowserTags.Recents))
     openAppFolder()
     // Le cartelle prima dei file; ogni tessera dice a TalkBack nome, tipo e data, una cartella quanti elementi ha.
     val folder = compose.onNodeWithTag(FluidFileBrowserTags.item("Bozze"), useUnmergedTree = true).fetchSemanticsNode()
@@ -285,6 +299,41 @@ class F8p18FilesUiTest {
     assertEquals("prova", recents.entries.first().sourceId)
     compose.activity.onBackPressedDispatcher.onBackPressed()
     waitFor("di nuovo la cartella") { has(FluidFileBrowserTags.item("alfa.txt")) && has(FluidFileBrowserTags.Folder) }
+    // F8.18b: tornando alla prima pagina la scheda resta Sfoglia; la scheda Recenti ha il file, e si riapre da lì.
+    settle()
+    compose.activity.onBackPressedDispatcher.onBackPressed()
+    waitFor("la prima pagina, su Sfoglia") { has(FluidFileBrowserTags.Browse) && has(FluidFileBrowserTags.location("prova")) }
+    settle()
+    tapTab("Recenti")
+    waitFor("la scheda Recenti col file") {
+      has(FluidFileBrowserTags.Recents) && has(FluidFileBrowserTags.item("alfa.txt")) && !has(FluidFileBrowserTags.Browse)
+    }
+    advance(400)
+    tap(FluidFileBrowserTags.item("alfa.txt"))
+    waitFor("il file riaperto dai Recenti") {
+      compose.onAllNodes(hasText("Prima riga di alfa", substring = true), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    }
+    assertEquals("la provenienza resta la cartella", "prova", recents.entries.first().sourceId)
+    settle()
+    compose.activity.onBackPressedDispatcher.onBackPressed()
+    waitFor("di nuovo la scheda Recenti") { has(FluidFileBrowserTags.Recents) && has(FluidFileBrowserTags.Tabs) }
+  }
+
+  @Test fun `schede - con dei recenti si apre su Recenti, e Sfoglia ha le posizioni`() {
+    val alfa = File(root, "alfa.txt")
+    FluidFileRecents.get(compose.activity).record("prova", FluidFileItem("alfa.txt", "alfa.txt", mimeType = "text/plain",
+      sizeBytes = alfa.length(), modifiedAtMillis = alfa.lastModified(), uri = Uri.fromFile(alfa)))
+    show()
+    waitFor("la scheda Recenti") { has(FluidFileBrowserTags.Recents) && has(FluidFileBrowserTags.item("alfa.txt")) }
+    assertTrue(has(FluidFileBrowserTags.Tabs))
+    assertFalse(has(FluidFileBrowserTags.location("prova")))
+    // La scheda scelta si annuncia come scheda, con lo stato «selezionata».
+    assertTrue(compose.onAllNodes(hasText("Recenti") and hasAnyAncestor(hasTestTag(FluidFileBrowserTags.Tabs)) and
+      SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)).fetchSemanticsNodes().isNotEmpty())
+    settle()
+    tapTab("Sfoglia")
+    waitFor("la scheda Sfoglia") { has(FluidFileBrowserTags.Browse) && has(FluidFileBrowserTags.location("prova")) }
+    assertFalse(has(FluidFileBrowserTags.Recents))
   }
 
   @Test fun `sfoglia - una cartella lunga arriva a pagine e lo scorrimento rapido la percorre tutta`() {

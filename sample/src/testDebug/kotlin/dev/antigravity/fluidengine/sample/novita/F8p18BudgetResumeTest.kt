@@ -34,7 +34,6 @@ import dev.antigravity.fluidengine.viewer.FluidViewerRaster
 import java.util.Collections
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -81,8 +80,8 @@ private class FakeSession(duration: Long) : FluidMediaSession {
  * F8.18 · Il bilancio dei documenti grandi, **automatico e invisibile**, su un documento di 5000 pagine con le bitmap del
  * registro della memoria vero (le stesse mani di F7.13): la barra di scorrimento è di tutto il documento (anche per
  * TalkBack), si rendono solo le pagine su cui la lista si ferma, la memoria resta sotto il tetto. E la ripresa dallo
- * stesso punto nei tre preset: pagine (pagina e zoom), testo (riga), audio (secondo), con la posizione offerta quando il
- * file è cambiato.
+ * stesso punto: pagine (pagina e zoom) e testo (riga), con la posizione offerta quando il file è cambiato; un audio
+ * riparte dall'inizio (F8.18b).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -238,9 +237,12 @@ class F8p18BudgetResumeTest {
     compose.waitUntil(10_000) { compose.onAllNodes(hasContentDescription("Riprendi dalla riga 270")).fetchSemanticsNodes().isEmpty() }
   }
 
-  @Test fun `riprendi - un audio riparte dal secondo salvato e salva alla pausa`() {
+  @Test fun `riprendi - un audio riparte dall'inizio e non salva il punto`() {
     val session = FakeSession(duration = 120_000)
-    val slot = FakeSlot(position = FluidViewerPosition(mediaMillis = 60_000))
+    // F8.18b: audio e video non riprendono. Una riga salvata prima, col secondo di un audio, si legge come l'inizio;
+    // anche una posizione da offrire resta ferma: il preset dei media non legge il posto.
+    val slot = FakeSlot(position = FluidViewerPosition.decode("p=0;o=0;z=1;m=60000"), stale = FluidViewerPosition(page = 3))
+    assertTrue(slot.position!!.isStart)
     var shown by mutableStateOf(true)
     compose.setContent {
       FluidTheme(EngineSettings()) {
@@ -248,19 +250,19 @@ class F8p18BudgetResumeTest {
         if (shown) FluidViewerResumeProvider(resume = { slot }) { FluidFileViewer(1, content = { content }) }
       }
     }
-    compose.waitUntil(10_000) { session.seeks.isNotEmpty() }
-    assertEquals(listOf(60_000L), session.seeks)
+    compose.waitForIdle()
     compose.runOnIdle {
       session.play()
       session.positionMillis = 75_000
     }
-    compose.waitForIdle()
+    compose.mainClock.advanceTimeBy(6_000)
     compose.runOnIdle { session.pause() }
-    compose.waitUntil(10_000) { slot.saved.any { it.mediaMillis == 75_000L } }
-    // Vicino alla fine si riparte da capo: la posizione salvata è l'inizio.
-    compose.runOnIdle { session.positionMillis = 118_000 }
+    compose.waitForIdle()
+    assertTrue(compose.onAllNodes(hasContentDescription("Riprendi da pagina 4")).fetchSemanticsNodes().isEmpty())
     compose.runOnIdle { shown = false }
-    compose.waitUntil(10_000) { slot.saved.lastOrNull()?.mediaMillis == 0L }
-    assertNull(slot.saved.last().mediaMillis?.takeIf { it > 0 })
+    compose.waitForIdle()
+    assertEquals(emptyList<Long>(), session.seeks)
+    assertEquals(emptyList<FluidViewerPosition>(), slot.saved.toList())
+    assertTrue(!slot.dismissed)
   }
 }

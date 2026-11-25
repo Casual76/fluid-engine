@@ -69,15 +69,16 @@ class FluidPdfPageSource private constructor(
     const val DefaultMaxCopyBytes: Long = 512L * 1024 * 1024
 
     /**
-     * F8.18 · Le pagine per lo schermo passano nella memoria grafica (`Bitmap.Config.HARDWARE`) sul thread del PDF, di
-     * serie sì: il primo disegno di una pagina non carica la texture dentro il fotogramma del RenderThread, e a 120 Hz
-     * non c'è lo scatto all'arrivo di ogni pagina. Solo per le prove di confronto sul dispositivo (la galleria in
-     * debug): spento, ogni pagina si carica al primo disegno, come prima di F8.18.
+     * F8.18 · Le pagine per lo schermo nella memoria grafica (`Bitmap.Config.HARDWARE`), portate lì sul thread del PDF:
+     * il primo disegno di una pagina non carica la texture dentro il fotogramma del RenderThread. Di serie (null)
+     * **secondo la fascia del dispositivo** (F8.18b): accese sui più deboli, spente su quelli alti, con la regola di
+     * `viewerHardwarePages` di engine-ui (la riga di memoria non Piena, o il vetro sceso a Protetto). Vero o falso le
+     * forza, solo per le prove di confronto sul dispositivo (la galleria in debug e la bench).
      */
     @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
     @Volatile
     @JvmStatic
-    var hardwareDisplay: Boolean = true
+    var hardwareDisplay: Boolean? = null
 
     /**
      * Apre un PDF da un descrittore, che passa al sorgente (lo chiude lui, anche se l'apertura fallisce). Il
@@ -145,7 +146,7 @@ class FluidPdfPageSource private constructor(
           descriptor.closeQuietly()
           temporary?.delete()
         },
-        display = ::pdfDisplayBitmap,
+        display = { page -> pdfDisplayBitmap(page, pdfHardwarePages(memory.resources)) },
       )
       try {
         queue.start()
@@ -227,12 +228,20 @@ class FluidPdfPageSource private constructor(
 }
 
 /**
- * F8.18 · La pagina resa per lo schermo, portata nella memoria grafica sul thread del PDF (la copia la fa
- * l'uploader della piattaforma, fuori dal RenderThread). Se la copia non riesce resta la bitmap normale. La bitmap
- * software si ricicla subito: la prenotazione della resa contava già le due copie (8 byte per pixel).
+ * F8.18b · Se le pagine di un PDF per lo schermo vanno nella memoria grafica: la scelta della prova
+ * ([FluidPdfPageSource.hardwareDisplay]) se c'è, se no la fascia del dispositivo ([ViewerPolicy.hardwarePages]). Letta a
+ * ogni pagina resa: se la fascia cambia (una termica severa, una pressione), cambiano le pagine dopo.
  */
-internal fun pdfDisplayBitmap(page: ImageBitmap): ImageBitmap {
-  if (!FluidPdfPageSource.hardwareDisplay) return page
+internal fun pdfHardwarePages(policy: ViewerPolicy): Boolean = FluidPdfPageSource.hardwareDisplay ?: policy.hardwarePages
+
+/**
+ * F8.18 · La pagina resa per lo schermo, portata nella memoria grafica sul thread del PDF se [hardware] (la fascia del
+ * dispositivo, o la scelta della prova): la copia la fa l'uploader della piattaforma, fuori dal RenderThread. Se la
+ * copia non riesce resta la bitmap normale. La bitmap software si ricicla subito: la prenotazione della resa contava già
+ * le due copie (8 byte per pixel).
+ */
+internal fun pdfDisplayBitmap(page: ImageBitmap, hardware: Boolean): ImageBitmap {
+  if (!hardware) return page
   val software = page.asAndroidBitmap()
   val hardware = try {
     software.copy(Bitmap.Config.HARDWARE, false)

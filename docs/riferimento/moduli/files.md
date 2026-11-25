@@ -13,7 +13,7 @@ Modello mentale: **le sorgenti danno i file, il browser li sfoglia, i visori li 
 
 | ho bisogno di… | uso |
 |---|---|
-| la pagina intera, con Sfoglia, Recenti, le cartelle e il visore | `FluidFileBrowser(sources = listOf(…), onBack = …)` |
+| la pagina intera, con le schede Recenti e Sfoglia, le cartelle e il visore | `FluidFileBrowser(sources = listOf(…), onBack = …)` |
 | la cartella dei file dell'app fra le posizioni | `FluidFileSources.appFolder(dir, id, titolo)` |
 | una cartella concessa dall'utente (il telefono, Drive, un'app con un `DocumentsProvider`) | di serie: «Aggiungi una posizione…» (`rememberFluidFileLocations`, `rememberFluidAddLocation`); un albero che ho già: `FluidFileSources.documentTree(context, treeUri, titolo)` |
 | un cloud, gli allegati di una casella, i file di una conversazione | una mia `FluidFileSource` (a pagine, sospendibile, che può fallire) |
@@ -26,7 +26,9 @@ Modello mentale: **le sorgenti danno i file, il browser li sfoglia, i visori li 
 
 `FluidFileBrowser` è una pagina intera con le sue rotte (un `FluidNavHost` dentro): si mette dove l'app vuole (una scheda, una rotta, un foglio). Tutto si muove con le pagine di sempre, il back col dito compreso.
 
-- **Sfoglia** ha «Recenti» in cima e poi le **posizioni**: le sorgenti dell'app (`sources`), le cartelle concesse (`locations`) e «Aggiungi una posizione…». È la barra laterale di File sull'iPad. Una cartella concessa si toglie tenendola premuta («Togli dalle posizioni»): il permesso torna al sistema, i file restano dove sono.
+- **Recenti | Sfoglia** (F8.18b, scelta di Alessio): la prima pagina ha un segmentato sotto il titolo, come le schede di File sull'iPhone (`FluidFileBrowserTags.Tabs`). Si apre su **Recenti** se c'è almeno un file recente, se no su **Sfoglia**; la scheda scelta resta tornando da una cartella o da un file. Il titolo grande è il nome della scheda. Con `recents = null` non ci sono schede: solo Sfoglia.
+- **Recenti** è una cartella come le altre (Icone o Elenco, «Cerca in Recenti», «Seleziona»), con i file aperti dal più recente.
+- **Sfoglia** sono le **posizioni**: le sorgenti dell'app (`sources`), le cartelle concesse (`locations`) e «Aggiungi una posizione…». Una cartella concessa si toglie tenendola premuta («Togli dalle posizioni»): il permesso torna al sistema, i file restano dove sono.
 - **Una cartella** ha il nome in alto (il titolo grande che si ritira), «Cerca in …» sotto, il menu «•••» con «Seleziona», **Icone** e **Elenco**, e l'ordine: **Nome, Tipo, Data, Dimensione**, come il menu di File; il secondo tocco sulla voce scelta inverte il verso, la data e la dimensione partono dal più recente e dal più grande. Le cartelle stanno prima dei file.
   - **Icone**: la griglia con le **miniature vere** di `engine-viewer` (`rememberFluidFileThumbnail`), il nome su due righe, la data e il peso (o quanti elementi ha una cartella). Tre colonne sul telefono (la tessera è di almeno 112 dp), fino a otto sul tablet.
   - **Elenco**: righe raggruppate (`FluidListRow` nei gruppi a segmenti) con la miniatura da 44 dp, «data · peso» sotto il nome, la freccia sulle cartelle.
@@ -66,7 +68,7 @@ interface FluidFileSource {
 
 ## I recenti
 
-`FluidFileRecents` tiene gli ultimi 60 file aperti, il più recente in cima, una volta sola; un file riaperto torna su. Si salvano in un file corto in `noBackupFilesDir`, scritto in sottofondo. **Un file che non c'è più esce**: alla prima apertura dello sfoglia-file si chiede a ogni indirizzo se esiste (`resumeTargetExists` di `engine-viewer`), e il visore toglie un file che non riesce più a leggere. `source` è la sorgente della pagina «Recenti» (con «Data» è l'ordine d'apertura); `sourceOf(item)` dice da quale posizione veniva.
+`FluidFileRecents` tiene gli ultimi 60 file aperti, il più recente in cima, una volta sola; un file riaperto torna su. Si salvano in un file corto in `noBackupFilesDir`, scritto in sottofondo. **Un file che non c'è più esce**: alla prima apertura dello sfoglia-file si chiede a ogni indirizzo se esiste (`resumeTargetExists` di `engine-viewer`), e il visore toglie un file che non riesce più a leggere. `source` è la sorgente della scheda «Recenti» (con «Data» è l'ordine d'apertura); `sourceOf(item)` dice da quale posizione veniva.
 
 ## Lo stato di una cartella
 
@@ -83,7 +85,7 @@ interface FluidFileSource {
 
 - `FluidFileSourcesTest` (Robolectric): l'ordine di File (cartelle prima, la lingua, i versi di serie), la ricerca senza accenti, la cartella dell'app a pagine e dentro la sua radice, un albero letto da un provider finto con gli indirizzi di Android (una richiesta sola per cartella, i documenti sull'albero, il permesso tolto), le posizioni col permesso persistente preso e restituito.
 - `FluidFileFolderStateTest`: le pagine che arrivano, l'errore con «Riprova» dal punto giusto, la ricerca su tutta la cartella, l'ordine in memoria e quello chiesto alla sorgente; i recenti in ordine, una volta sola, salvati, ripuliti dai file spariti.
-- Nella galleria, `F8p18FilesUiTest` col dito vero: Sfoglia, la cartella in griglia e in elenco, l'ordine, la ricerca, i nomi per TalkBack, la cartella lunga a pagine con lo scorrimento rapido, il file aperto nel visore e nei recenti, la cartella concessa col selettore di sistema simulato, «Riduci movimento».
+- Nella galleria, `F8p18FilesUiTest` col dito vero: le schede Recenti e Sfoglia (si apre su Recenti quando ce n'è uno, la scheda resta tornando indietro, un file si riapre dai Recenti), la cartella in griglia e in elenco, l'ordine, la ricerca, i nomi per TalkBack, la cartella lunga a pagine con lo scorrimento rapido, il file aperto nel visore e nei recenti, la cartella concessa col selettore di sistema simulato, «Riduci movimento».
 
 ## Dove guardare
 

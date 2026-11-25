@@ -33,15 +33,17 @@ class FluidViewerResumeStoreTest {
 
   @Test
   fun `the position line survives a round trip and ignores unknown fields`() {
-    val position = FluidViewerPosition(page = 41, offset = 0.25f, zoom = 1.5f, mediaMillis = 93_000)
-    assertEquals("p=41;o=0.2500;z=1.500;m=93000", position.encode())
+    val position = FluidViewerPosition(page = 41, offset = 0.25f, zoom = 1.5f)
+    assertEquals("p=41;o=0.2500;z=1.500", position.encode())
     assertEquals(position, FluidViewerPosition.decode(position.encode()))
     assertEquals(FluidViewerPosition(page = 3), FluidViewerPosition.decode("p=3;x=qualcosa"))
+    // F8.18b: una riga scritta prima, col secondo di un audio, si legge lo stesso e il secondo si ignora.
+    assertEquals(FluidViewerPosition(page = 2), FluidViewerPosition.decode("p=2;o=0;z=1;m=93000"))
+    assertTrue(FluidViewerPosition.decode("p=0;o=0;z=1;m=93000")!!.isStart)
     assertNull(FluidViewerPosition.decode("niente"))
     assertNull(FluidViewerPosition.decode(""))
     assertTrue(FluidViewerPosition().isStart)
     assertFalse(FluidViewerPosition(page = 1).isStart)
-    assertFalse(FluidViewerPosition(mediaMillis = 6_000).isStart)
   }
 
   @Test

@@ -89,6 +89,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidTone
 import dev.antigravity.fluidengine.viewer.FluidFileThumbnailImage
 import dev.antigravity.fluidengine.viewer.FluidMedia3Session
 import dev.antigravity.fluidengine.viewer.FluidPdfPageSource
+import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
 import dev.antigravity.fluidengine.viewer.FluidViewerFile
 import dev.antigravity.fluidengine.viewer.FluidViewerPreset
 import dev.antigravity.fluidengine.viewer.FluidViewerResumeStore
@@ -112,8 +113,9 @@ import kotlin.math.sin
 
 // F8.18 · File: lo sfoglia-file (engine-files), il bilancio dei documenti grandi (automatico e invisibile, nota di
 // Alessio) e la ripresa dallo stesso punto. Tre scene; i file di prova li crea la galleria nella sua cartella, la prima
-// volta che servono: il PDF di 3000 pagine (PdfDocument della piattaforma), una lezione registrata di due minuti (WAV) e
-// degli appunti lunghi (testo).
+// volta che servono: il PDF di 3000 pagine (PdfDocument della piattaforma), una lezione registrata di due minuti (WAV,
+// nella Musica dello sfoglia-file) e degli appunti lunghi (testo). F8.18b: le schede «Recenti | Sfoglia» in cima, la
+// ripresa solo per documenti e testi, le pagine nella memoria grafica secondo la fascia del dispositivo.
 
 /** Le scene di F8.18. */
 internal val F8p18Section = NewElementSection(
@@ -122,8 +124,8 @@ internal val F8p18Section = NewElementSection(
   scenes = listOf(
     NewElementScene(
       "sfoglia-file", "Sfoglia i file",
-      "Universal Converter · Recenti e posizioni, cartelle in griglia o in elenco, ordine, ricerca, e ogni file che si " +
-        "apre dalla sua miniatura e ci torna",
+      "Universal Converter · Le schede Recenti e Sfoglia, cartelle in griglia o in elenco, ordine, ricerca, e ogni file " +
+        "che si apre dalla sua miniatura e ci torna",
     ) { onBack -> F8p18BrowserScene(onBack) },
     NewElementScene(
       "pdf-gigante", "Un PDF di 3000 pagine",
@@ -131,7 +133,7 @@ internal val F8p18Section = NewElementSection(
     ) { onBack -> F8p18GiantScene(onBack) },
     NewElementScene(
       "riprendi", "Riprendi dallo stesso punto",
-      "Un PDF, una lezione e degli appunti si riaprono dove li avevi lasciati; se il file cambia, la posizione si offre",
+      "Un PDF e degli appunti si riaprono dove li avevi lasciati; se il file cambia, la posizione si offre",
     ) { onBack -> F8p18ResumeScene(onBack) },
   ),
   detail = "Lo sfoglia-file, i documenti enormi senza scatti e la ripresa dal punto lasciato",
@@ -141,15 +143,15 @@ internal val F8p18Section = NewElementSection(
 internal val F8p18TryItems = listOf(
   TryItem(
     "f8-18-sfoglia", TryArea.Pages, "Sfoglia i file",
-    "Apri «In Fluid Glass» e poi «Documenti» (le miniature sono il contenuto vero), da «•••» passa a «Elenco» e ordina " +
-      "per «Data» (un secondo tocco inverte), cerca «quaderno» e apri il PDF: nasce dalla sua miniatura e, chiudendolo " +
-      "col dito, ci torna.",
+    "Nella scheda «Sfoglia» apri «In Fluid Glass» e poi «Documenti» (le miniature sono il contenuto vero), da «•••» " +
+      "passa a «Elenco» e ordina per «Data» (un secondo tocco inverte), cerca «quaderno» e apri il PDF: nasce dalla sua " +
+      "miniatura, chiudendolo col dito ci torna, e da allora la scheda «Recenti» lo mostra per primo.",
     TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Sfoglia i file"),
   ),
   TryItem(
     "f8-18-posizioni", TryArea.Pages, "Aggiungi una posizione",
-    "In «Sfoglia» tocca «Aggiungi una posizione…» e scegli una cartella del telefono o di Drive: resta fra le posizioni " +
-      "anche chiudendo l'app, la togli tenendola premuta, e un file aperto da lì compare in «Recenti».",
+    "Nella scheda «Sfoglia» tocca «Aggiungi una posizione…» e scegli una cartella del telefono o di Drive: resta fra le " +
+      "posizioni anche chiudendo l'app, la togli tenendola premuta, e un file aperto da lì compare in «Recenti».",
     TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Sfoglia i file"),
   ),
   TryItem(
@@ -160,8 +162,8 @@ internal val F8p18TryItems = listOf(
   ),
   TryItem(
     "f8-18-riprendi", TryArea.Pages, "Riprendi dallo stesso punto",
-    "Apri il PDF, scendi a pagina 40 e ingrandisci, chiudi e riapri (torna lì); fai lo stesso con la lezione fermata a " +
-      "un minuto e con gli appunti, poi «Cambia gli appunti» e riaprili: in basso c'è «Riprendi dalla riga…».",
+    "Apri il PDF, scendi a pagina 40 e ingrandisci, chiudi e riapri (torna lì); fai lo stesso con gli appunti, poi " +
+      "«Cambia gli appunti» e riaprili: in basso c'è «Riprendi dalla riga…».",
     TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Riprendi dallo stesso punto"),
   ),
 )
@@ -471,16 +473,17 @@ private fun F8p18GiantScene(onBack: () -> Unit) {
   }
   val debuggable = remember(context) { context.isDebuggableApp() }
   val scope = rememberCoroutineScope()
-  // Il confronto sul dispositivo: spento, le pagine si caricano nella texture al primo disegno. L'extra vale anche nella
-  // bench (le misure si fanno lì); l'interruttore si vede solo in debug.
-  var hardware by remember {
-    val extra = context.activity()?.intent?.takeIf { it.hasExtra(GiantHardwareExtra) }
-      ?.getBooleanExtra(GiantHardwareExtra, true)
-    mutableStateOf(extra ?: FluidPdfPageSource.hardwareDisplay)
+  // F8.18b: di serie le pagine nella memoria grafica le sceglie la fascia del dispositivo (accese sui più deboli). Il
+  // confronto sul dispositivo le forza finché la scena è aperta: l'extra vale anche nella bench (le misure si fanno lì),
+  // l'interruttore si vede solo in debug.
+  val tier = remember(context) { FluidGlassResources.get(context).viewerHardwarePages }
+  var forced by remember {
+    mutableStateOf(context.activity()?.intent?.takeIf { it.hasExtra(GiantHardwareExtra) }
+      ?.getBooleanExtra(GiantHardwareExtra, true))
   }
-  DisposableEffect(hardware) {
-    FluidPdfPageSource.hardwareDisplay = hardware
-    onDispose { FluidPdfPageSource.hardwareDisplay = true }
+  DisposableEffect(forced) {
+    FluidPdfPageSource.hardwareDisplay = forced
+    onDispose { FluidPdfPageSource.hardwareDisplay = null }
   }
   val files = remember(pdf) { pdf?.let { listOf(F8p18Files.viewerFile(it, "application/pdf")) }.orEmpty() }
   F8p18Documents(
@@ -497,9 +500,10 @@ private fun F8p18GiantScene(onBack: () -> Unit) {
     }
     if (debuggable) item {
       FluidListGroup {
-        FluidToggleRow("Pagine nella memoria grafica", hardware, { hardware = it },
+        FluidToggleRow("Pagine nella memoria grafica", forced ?: tier, { forced = it },
           modifier = Modifier.testTag(F8p18Tags.Hardware),
-          subtitle = "Solo per il confronto: spento, ogni pagina si carica nella texture dentro il fotogramma, come prima")
+          subtitle = if (forced == null) "Le sceglie la fascia del dispositivo: qui ${if (tier) "accese" else "spente"}"
+          else "Forzate per il confronto, finché la scena è aperta")
       }
     }
     item {
@@ -542,7 +546,6 @@ private fun F8p18ResumeScene(onBack: () -> Unit) {
       buildList {
         if (deps.giant == null) add(F8p18Files.viewerFile(F8p18Files.giantPdf(context, pages = deps.giantPages) { progress = it },
           "application/pdf"))
-        add(F8p18Files.viewerFile(F8p18Files.lesson(F8p18Files.music(context)), "audio/wav"))
         add(F8p18Files.viewerFile(F8p18Files.notes(F8p18Files.code(context)), "text/plain"))
       }
     }
@@ -561,7 +564,7 @@ private fun F8p18ResumeScene(onBack: () -> Unit) {
   val scope = rememberCoroutineScope()
   F8p18Documents(
     title = "Riprendi dallo stesso punto",
-    subtitle = "Pagina, zoom, secondo e riga",
+    subtitle = "Pagina, zoom e riga",
     files = list,
     fake = deps.giant?.let { listOf(it) },
     onBack = onBack,
@@ -590,7 +593,7 @@ private fun F8p18ResumeScene(onBack: () -> Unit) {
             }
           })
         FluidListDivider()
-        FluidListRow("Dimentica le posizioni", "I tre file ripartono dall'inizio",
+        FluidListRow("Dimentica le posizioni", "Il PDF e gli appunti ripartono dall'inizio",
           modifier = Modifier.testTag(F8p18Tags.Forget), leading = { FluidIcon(FluidIcons.Delete, null) },
           tone = FluidTone.Danger, disclosure = false, onClick = {
             list.forEach { store.forget(FluidViewerResumeStore.keyOf(it)) }
@@ -601,16 +604,10 @@ private fun F8p18ResumeScene(onBack: () -> Unit) {
   }
 }
 
-private fun describePosition(position: FluidViewerPosition): String = when {
-  position.mediaMillis != null -> {
-    val seconds = (position.mediaMillis ?: 0L) / 1000
-    "al minuto %d:%02d".format(seconds / 60, seconds % 60)
-  }
-  else -> buildString {
-    append("pagina o riga ").append(position.page + 1)
-    if (position.offset > 0f) append(", ").append((position.offset * 100).roundToInt()).append("% più giù")
-    if (position.zoom != 1f) append(", zoom ").append((position.zoom * 100).roundToInt()).append("%")
-  }
+private fun describePosition(position: FluidViewerPosition): String = buildString {
+  append("pagina o riga ").append(position.page + 1)
+  if (position.offset > 0f) append(", ").append((position.offset * 100).roundToInt()).append("% più giù")
+  if (position.zoom != 1f) append(", zoom ").append((position.zoom * 100).roundToInt()).append("%")
 }
 
 // --- La pagina con le tessere e il visore ----------------------------------------------------------------------------

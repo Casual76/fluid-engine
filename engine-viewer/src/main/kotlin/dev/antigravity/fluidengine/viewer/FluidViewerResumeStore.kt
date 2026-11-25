@@ -28,8 +28,9 @@ import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
 /**
- * F8.18 · **Riprendi dallo stesso punto**: dove l'utente era in ogni file (la pagina e il punto della pagina, lo zoom, la
- * riga, il secondo di un audio o di un video), salvato **in modo leggero** e **cancellato quando il file non c'è più**.
+ * F8.18 · **Riprendi dallo stesso punto**: dove l'utente era in ogni documento e testo (la pagina e il punto della
+ * pagina, lo zoom, la riga), salvato **in modo leggero** e **cancellato quando il file non c'è più**. Un audio o un video
+ * riparte dall'inizio (F8.18b): il suo preset non legge il posto.
  *
  * - **Leggero.** Le posizioni stanno in memoria; il disco si scrive una volta sola, [DefaultSaveDelayMillis] dopo
  *   l'ultima modifica, e subito quando l'app va in background (`TRIM_MEMORY_UI_HIDDEN`). Un file di testo di poche

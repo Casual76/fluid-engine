@@ -21,7 +21,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
 | [Vetro](vetro.md) | 33 | 264 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 7 | 96 |
-| [Tema, forma, tipo](tema.md) | 11 | 148 |
+| [Tema, forma, tipo](tema.md) | 11 | 149 |
 | [Icone (FluidIcons)](icone.md) | 5 | 212 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
@@ -57,6 +57,8 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-audio](audio.md) | 4 | 43 |
 | [engine-playback](playback.md) | 3 | 42 |
 | [engine-transcript](transcript.md) | 2 | 27 |
+| [engine-search](search.md) | 8 | 152 |
+| [engine-search-semantic](search-semantic.md) | 2 | 9 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

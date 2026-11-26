@@ -1,0 +1,72 @@
+// F8.22 · Ricerca (`indice-ricerca`, `ricerca-in-tutte-le-app`). L'indice sul telefono, come Core Spotlight, e «Cerca in
+// Pampa». Opt-in: un'app che non cerca nei suoi dati non lo include.
+//
+//   implementation project(':engine-search')
+//
+// Dentro:
+// - **l'indice** (`FluidSearchIndex`): SQLite FTS4 del telefono (niente librerie, niente pesi nativi), l'italiano
+//   dell'engine (accenti, apostrofi, plurali), gli errori di battitura, gli inizi di parola, l'ordine BM25F coi pesi dei
+//   campi, i pezzi di testo con le parole evidenziate, la cifratura con la cassaforte (`engine-vault`) per i dati
+//   sensibili, i vettori del significato;
+// - **l'aggiornamento a pezzi** (`FluidSearchIndexer`, `FluidSemanticIndexer`) e il lavoro pesante solo in carica
+//   (`FluidSearchWork`, WorkManager);
+// - **l'aggancio al campo di ricerca** che c'e' gia' (`FluidSearchSpec`): suggerimenti, gettoni, recenti, i risultati per
+//   tipo;
+// - **«Cerca in Pampa»** (`FluidPampaSearch`) col ponte firmato di PampAI (`engine-ai-bridge`): il tool della ricerca di
+//   ogni app e i risultati per app.
+//
+// Il modello del significato (LiteRT-LM e EmbeddingGemma 2) e' a parte, in `engine-search-semantic`: pesa.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.search'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // L'indice e' SQLite FTS4 vero e il ponte un ContentProvider vero: si provano in Robolectric.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: il campo (`FluidSearchSpec`), le righe e il vetro di engine-ui stanno nelle firme.
+  api project(':engine-ui')
+  // `api`: il tool della ricerca e' un `AiTool` del registry dell'app, e «Cerca in Pampa» parla `BridgeCalls`.
+  api project(':engine-ai-bridge')
+  // `api`: `FluidSearchCipher.vault(VaultSection)`.
+  api project(':engine-vault')
+  // `api`: chi ospita gli indici nella sua Application implementa `FluidSearchHost`; il lavoro e' `FluidSearchWorker`.
+  api "androidx.work:work-runtime-ktx:${engine.work}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove: SQLite FTS4 vero, il provider del ponte e WorkManager, mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+  testImplementation "androidx.work:work-testing:${engine.work}"
+}

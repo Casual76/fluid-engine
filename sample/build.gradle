@@ -143,6 +143,15 @@ android {
 
 // F6C.15 · La pagina «Pesi» della galleria legge la lista ammessa dei moduli dei visori, la stessa che leggono
 // checkViewerFamilies e tools/engine-install.ps1: la si copia negli asset a ogni build, mai una copia scritta a mano.
+// F8.22 · La libreria nativa del modello del significato (LiteRT-LM: 22 MB in arm64-v8a e 26 MB in x86_64, non compressi)
+// entra solo nella build di debug, dove la scena «Per significato» la prova col modello copiato a mano. Fluid Glass
+// pubblicata e la bench restano leggere (+48,7 MB misurati nella bench con la libreria): la scena lo dice, e la ricerca
+// va per parole. E' la domanda 5 di F8.22.
+androidComponents {
+  onVariants(selector().withBuildType('release')) { variant -> variant.packaging.jniLibs.excludes.add('**/liblitertlm_jni.so') }
+  onVariants(selector().withBuildType('bench')) { variant -> variant.packaging.jniLibs.excludes.add('**/liblitertlm_jni.so') }
+}
+
 def visoriFamiliesAssets = layout.buildDirectory.dir('generated/visori-families/assets')
 def copyVisoriFamilies = tasks.register('copyVisoriFamilies', Copy) {
   from(rootProject.file('engine-viewer/families.json'))
@@ -206,6 +215,11 @@ dependencies {
   implementation "androidx.media3:media3-session:${viewerMedia3}"
   // F8.16 · Il disegno e le annotazioni (engine-ink, sopra androidx.ink): lo schizzo, la foto e il PDF annotati, la firma.
   implementation project(':engine-ink')
+  // F8.22 · Ricerca: l'indice sul telefono e «Cerca in Pampa» (engine-search, col ponte firmato), e il modello del
+  // significato con LiteRT-LM (engine-search-semantic). Il modello (157 MB) non entra nell'APK: la scena lo legge dalla
+  // cartella dell'app se c'e'. La libreria nativa di LiteRT-LM si' (la misura e' nel rapporto di F8.22).
+  implementation project(':engine-search')
+  implementation project(':engine-search-semantic')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

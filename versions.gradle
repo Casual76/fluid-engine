@@ -86,4 +86,8 @@ ext.engine = [
   // La predizione del dito (MotionEventPredictor) e' la stessa libreria che usa androidx.ink.
   ink            : '1.0.0',
   motionPrediction: '1.0.1',
+  // engine-search-semantic (F8.22): il motore del modello del significato, LiteRT-LM (Apache-2.0), la stessa versione di
+  // MyCloud Gallery 2 (la 0.18.1 corregge un difetto ABI proprio di EmbeddingGemma 2). Compilata con Kotlin 2.4: il modulo
+  // la legge con -Xskip-metadata-version-check e toglie kotlin-reflect e le coroutine che porta.
+  litertlm       : '0.18.1',
 ]

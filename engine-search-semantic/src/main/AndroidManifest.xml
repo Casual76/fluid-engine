@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- F8.22 · Nessun permesso e nessuna rete: il modello lo da' l'app (un file), e tutto resta sul telefono. -->
+</manifest>

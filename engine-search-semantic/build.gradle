@@ -1,0 +1,51 @@
+// F8.22 · La ricerca per significato sul telefono (`ricerca-in-tutte-le-app`): il modello EmbeddingGemma 2 Text 270M con
+// LiteRT-LM, lo stesso motore e lo stesso modello di MyCloud Gallery 2 (stesso spazio di vettori). Opt-in e a parte da
+// engine-search perche' pesa: la libreria nativa (liblitertlm_jni.so, 22 MB in arm64-v8a e 26 MB in x86_64, non compressa
+// nell'APK) e il modello (157 MiB, che NON sta qui: lo porta l'app o un'altra app Pampa, la scheda del modulo dice come).
+//
+//   implementation project(':engine-search-semantic')
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.search.semantic'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+    // L'AAR di LiteRT-LM non porta regole: la parte nativa chiama per nome classi e membri di Kotlin.
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+    // litertlm-android 0.18.1 e' compilata con Kotlin 2.4, l'engine col 2.2.20: i suoi metadati si leggono saltando il
+    // controllo della versione. SOLO qui, come in MyCloud Gallery 2 (core-ai): nessun altro modulo vede quella libreria.
+    freeCompilerArgs += ['-Xskip-metadata-version-check']
+  }
+}
+
+dependencies {
+  api project(':engine-search')
+  // LiteRT-LM (Apache-2.0). Porta a runtime kotlin-reflect 2.4.0 (che tirerebbe kotlin-stdlib 2.4.0 per tutta l'app, e
+  // il compilatore 2.2.20 non ne legge i metadati) e coroutines 1.11.0: tutte e due TOLTE. kotlin-reflect serve solo agli
+  // strumenti dei modelli di linguaggio (ReflectionTool), che qui non si usano; delle coroutine la libreria usa solo cio'
+  // che c'e' gia' nella 1.8.1 dell'engine (withContext, Dispatchers.Default, callbackFlow). E' la scelta di MyCloud
+  // Gallery 2, provata li' sul telefono.
+  implementation("com.google.ai.edge.litertlm:litertlm-android:${engine.litertlm}") {
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
+    exclude group: 'org.jetbrains.kotlinx'
+  }
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+}

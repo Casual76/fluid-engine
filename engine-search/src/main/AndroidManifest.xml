@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F8.22 · Nessun permesso. L'indice sta nella cartella privata dell'app (noBackupFilesDir), il lavoro in carica e'
+    WorkManager (che porta da se' cio' che gli serve).
+
+    La sola cosa che il modulo dichiara e' la visibilita' delle altre app Pampa per «Cerca in Pampa» (Android 11+): chi
+    cerca deve vedere i provider del ponte che rispondono alla ricerca. Chi risponde aggiunge al suo provider del ponte
+    l'intent-filter con l'azione dev.antigravity.fluidengine.search.SEARCH (la scheda del modulo, «Cerca in Pampa»).
+  -->
+  <queries>
+    <intent>
+      <action android:name="dev.antigravity.fluidengine.search.SEARCH" />
+    </intent>
+  </queries>
+</manifest>

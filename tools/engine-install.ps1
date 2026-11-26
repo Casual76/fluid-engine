@@ -101,6 +101,8 @@ $EngineModules = [ordered]@{
   "engine-playback"   = @("engine-foundation", "engine-ui")
   "engine-transcript" = @("engine-foundation", "engine-ui")
   "engine-ink"        = @("engine-foundation", "engine-ui")
+  "engine-search"     = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai", "engine-ai-bridge")
+  "engine-search-semantic" = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai", "engine-ai-bridge", "engine-search")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -148,7 +150,7 @@ $EngineModules = [ordered]@{
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
 # engine-files (F8.18: lo sfoglia-file, sopra engine-viewer) idem: lo chiede un'app che fa sfogliare o scegliere file
 # (-Modules ...,engine-files). Nessun permesso: le cartelle arrivano dal selettore di sistema.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink")
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic")
 # engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
 # nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
 # l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
@@ -163,6 +165,13 @@ $OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-view
 # engine-ink (F8.16: il disegno e le annotazioni, sopra androidx.ink, Apache-2.0; porta la libreria nativa libink.so per
 # le ABI di Android, circa 1,3 MB per ABI) idem: lo chiede solo un'app che disegna o annota (-Modules ...,engine-ink).
 # Nessun permesso. I crediti: FluidInkLicenses in fluidLicensesSection.
+# engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
+# nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
+# l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
+# engine-search (F8.22: l'indice sul telefono in SQLite FTS4, la ricerca con gli errori di battitura e i pezzi
+# evidenziati, "Cerca in Pampa" col ponte firmato; porta engine-ui, engine-ai-bridge, engine-vault e WorkManager) idem:
+# -Modules ...,engine-search. engine-search-semantic (il modello del significato con LiteRT-LM: 22 MB di libreria
+# nativa in arm64-v8a; il modello di 157 MiB lo porta l'app) si chiede a parte: -Modules ...,engine-search-semantic.
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -386,7 +395,9 @@ $notes = @(
   @("engine-audio", "registratore: microfono, pausa e ripresa, AAC o WAV, onda dal vivo, taglio dei silenzi (opt-in)"),
   @("engine-playback", "riproduzione di sistema con Media3: notifica, schermata di blocco, cuffie, timer (opt-in)"),
   @("engine-transcript", "ascolto dal paragrafo: tempi per parola e paragrafo, salto, la pagina che segue la voce (opt-in)"),
-  @("engine-ink", "disegno e annotazioni: foglio, tavolozza di vetro, penna dello stilo, forme, foto e PDF annotati (opt-in)")
+  @("engine-ink", "disegno e annotazioni: foglio, tavolozza di vetro, penna dello stilo, forme, foto e PDF annotati (opt-in)"),
+  @("engine-search", "ricerca: indice sul telefono (FTS4, errori di battitura, pezzi evidenziati, cassaforte), Cerca in Pampa col ponte (opt-in)"),
+  @("engine-search-semantic", "ricerca per significato: EmbeddingGemma 2 con LiteRT-LM, il modello lo porta l'app (opt-in; peso: 22 MB nativi arm64)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

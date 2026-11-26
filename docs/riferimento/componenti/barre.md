@@ -152,6 +152,11 @@ tab bar: non va sommato a `ContentInset`.
 
 ## La ricerca
 
+**Cercare nei dati dell'app** (un indice con gli errori di battitura, gli accenti, i plurali, i pezzi evidenziati e i
+risultati per tipo, anche per significato; «Cerca in Pampa» fra le app) e' il modulo opt-in `engine-search`
+([../moduli/search.md](../moduli/search.md)): `rememberFluidSearchState(index).spec(…)` da' questo campo gia' agganciato,
+coi gettoni dei tipi, le recenti e le parole che completano. Qui sotto il campo da solo.
+
 ### Dichiarata, dal tasto al campo
 
 La pagina dichiara la ricerca una volta, `search(FluidSearchSpec(…))` nella toolbar o `FluidScreen(search = …)`; la

@@ -24,5 +24,22 @@
     chiede solo al tasto rosso.
   -->
   <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="replace" />
+  <application>
+    <!--
+      F8.22 · «Cerca in Pampa»: le cinque app finte della scena, un ospite del ponte firmato ciascuna (AiToolHostProvider
+      col tool della ricerca). Solo nella build di debug e non esportati: rispondono solo alla galleria stessa, e senza
+      il meta-data TOOL_HOST nessun assistente del telefono (PampAI) li trova.
+    -->
+    <provider android:name="dev.antigravity.fluidengine.sample.novita.F8p22NotesHost"
+        android:authorities="${applicationId}.f8p22.notes" android:exported="false" />
+    <provider android:name="dev.antigravity.fluidengine.sample.novita.F8p22MailHost"
+        android:authorities="${applicationId}.f8p22.mail" android:exported="false" />
+    <provider android:name="dev.antigravity.fluidengine.sample.novita.F8p22SchoolHost"
+        android:authorities="${applicationId}.f8p22.classeviva" android:exported="false" />
+    <provider android:name="dev.antigravity.fluidengine.sample.novita.F8p22GalleryHost"
+        android:authorities="${applicationId}.f8p22.gallery" android:exported="false" />
+    <provider android:name="dev.antigravity.fluidengine.sample.novita.F8p22AssistantHost"
+        android:authorities="${applicationId}.f8p22.pampai" android:exported="false" />
+  </application>
 
 </manifest>

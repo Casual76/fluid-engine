@@ -88,6 +88,10 @@ include ':engine-transcript'
 // F8.16 · Il disegno e le annotazioni (engine-ink, sopra androidx.ink): il foglio, la tavolozza di vetro, la penna dello
 // stilo, le forme, annulla e ripristina, l'annotazione di una foto o di un PDF che consegna un file nuovo. Opt-in.
 include ':engine-ink'
+// F8.22 · Ricerca: l'indice sul telefono come Core Spotlight e «Cerca in Pampa» col ponte firmato (engine-search), e il
+// modello del significato con LiteRT-LM (engine-search-semantic, a parte perche' pesa). Opt-in tutti e due.
+include ':engine-search'
+include ':engine-search-semantic'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

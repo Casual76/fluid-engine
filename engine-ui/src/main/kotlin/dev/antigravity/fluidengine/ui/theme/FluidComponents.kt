@@ -1473,11 +1473,62 @@ fun FluidListRow(
  * La riga di un gruppo, con un titolo che puo' portare stili propri — per esempio le parole che
  * sono cambiate dall'ultima volta.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FluidListRow(
   title: AnnotatedString,
   subtitle: String,
+  modifier: Modifier = Modifier,
+  eyebrow: String? = null,
+  meta: String? = null,
+  tone: FluidTone = FluidTone.Neutral,
+  badge: (@Composable () -> Unit)? = null,
+  labels: (@Composable () -> Unit)? = null,
+  titleMaxLines: Int = Int.MAX_VALUE,
+  leading: (@Composable () -> Unit)? = null,
+  onClick: (() -> Unit)? = null,
+  onLongClick: (() -> Unit)? = null,
+  contextActions: (() -> List<FluidContextAction>)? = null,
+  animatePress: Boolean = true,
+  animateContent: Boolean = false,
+  selected: Boolean = false,
+  disclosure: Boolean = true,
+  leadingTile: Boolean = true,
+  subtitleMaxLines: Int = Int.MAX_VALUE,
+  customActions: List<CustomAccessibilityAction> = emptyList(),
+) {
+  FluidListRow(
+    title = title,
+    subtitle = AnnotatedString(subtitle),
+    modifier = modifier,
+    eyebrow = eyebrow,
+    meta = meta,
+    tone = tone,
+    badge = badge,
+    labels = labels,
+    titleMaxLines = titleMaxLines,
+    leading = leading,
+    onClick = onClick,
+    onLongClick = onLongClick,
+    contextActions = contextActions,
+    animatePress = animatePress,
+    animateContent = animateContent,
+    selected = selected,
+    disclosure = disclosure,
+    leadingTile = leadingTile,
+    subtitleMaxLines = subtitleMaxLines,
+    customActions = customActions,
+  )
+}
+
+/**
+ * La riga di un gruppo con titolo **e sottotitolo** che portano stili propri (F8.22): i risultati di una ricerca, con le
+ * parole trovate in evidenza nel titolo e nel pezzo di testo (`engine-search`). Per il resto e' la stessa riga.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun FluidListRow(
+  title: AnnotatedString,
+  subtitle: AnnotatedString,
   modifier: Modifier = Modifier,
   eyebrow: String? = null,
   meta: String? = null,

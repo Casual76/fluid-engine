@@ -230,6 +230,9 @@ DIR_FAMILY = {
     "media": "media",
     # il disegno e le annotazioni sopra androidx.ink (F8.16)
     "ink": "ink",
+    # la ricerca: l'indice sul telefono e «Cerca in Pampa» (F8.22), e il modello del significato a parte
+    "search": "search",
+    "search/semantic": "search-semantic",
 }
 
 FAMILY_TITLES = {
@@ -281,6 +284,8 @@ FAMILY_TITLES = {
     "audio": "engine-audio",
     "playback": "engine-playback",
     "transcript": "engine-transcript",
+    "search": "engine-search",
+    "search-semantic": "engine-search-semantic",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

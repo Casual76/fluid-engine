@@ -649,7 +649,8 @@ FluidRulerDial(value = { stato.valore }, onValueChange = { stato.valore = it }, 
   `value: () -> Float` non si ricompone niente, nemmeno il chiamante: è quella da usare quando il valore cambia a ogni
   fotogramma. Chi scrive un controllo simile: anche una lettura dentro `remember { }` in composizione è osservata e fa
   ricomporre (il valore di partenza si legge con `Snapshot.withoutReadObservation`). `FluidRulerDialDiagnostics`
-  (contatori per le prove, non API per le app) conta le composizioni del corpo e della scritta.
+  (contatori per le prove, non API per le app) conta le composizioni del corpo e della scritta. Da F7.24 anche la scritta sopra
+  l'indice si disegna (non si ricompone), e la semantica aspetta la fine del gesto (`fluidSettledSemantics`).
 - **Il valore è del chiamante**: `onValueChange` arriva durante il gesto e l'inerzia, già al passo; `onValueChangeFinished`
   quando si ferma (un tocco da solo non lo chiama): ~0,13 s dopo che sembra ferma, perché l'ultimo pixel lo chiude la
   molla come nella ruota (F8.2c). Il valore scritto si ricompone solo quando cambia la scritta.
@@ -731,6 +732,32 @@ FluidVoiceRecorder(
 solo salto e il tocco; TalkBack (lo stato a voce, le due azioni, `setProgress`); l'onda che scorre col dito, il lancio che va
 oltre il dito, il pizzico, niente lancio con le animazioni ridotte, niente tocco mentre registra; il pannello nelle sue fasi;
 il registratore vero di engine-audio dietro il pannello, con un microfono finto.
+
+## La semantica a gesto finito (fluidSettledSemantics e FluidValueText, F7.24)
+
+Con un servizio di accessibilità acceso (TalkBack, ma anche «Collegamento a Windows» o un'app che legge lo schermo: sul
+Tab S9 di Alessio c'è sempre) **ogni semantica che cambia fa ricontrollare a Compose tutta la pagina**
+(`checkForSemanticsChanges`, fuori dal fotogramma, 1,3–4,4 ms sul thread dell'interfaccia). Un `Text` che scrive il valore
+di un righello e un `semantics { stateDescription = … }` lo fanno a ogni tacca, anche dentro un `clearAndSetSemantics`.
+
+- **`Modifier.fluidSettledSemantics(mergeDescendants = false) { … }`** si usa come `semantics { }`. Il blocco può leggere
+  stati (non ricompone: le letture si osservano nel nodo). Mentre un dito muove un valore (il gesto e l'inerzia, quello
+  che i controlli dell'engine dicono a `FluidFingerDrive`) la semantica **resta ferma**: si aggiorna quando il gesto
+  finisce, o al più una volta al secondo in un gesto lungo (`FluidSettledSemanticsLook.SlowPaceMillis`). Un valore cambiato
+  da TalkBack («aumenta», «imposta») o dall'app arriva subito. La usano `FluidSlider`, `FluidRangeSlider`, `FluidScrubber`,
+  `FluidWheelPicker`, `FluidRulerDial` e il numero di `FluidNumericText`.
+- **`FluidValueText(text = { … }, style, color, textAlign)`**: un testo su una riga che cambia col dito («Rotazione: 12°»,
+  il numero in un tasto). Si legge nel disegno: **non si ricompone, non si rimisura**, ha uno strato suo, e TalkBack lo
+  legge con `fluidSettledSemantics`. Occupa la larghezza che riceve e l'altezza di una riga; non va a capo. Al pixel è
+  il `Text` di prima (stesse posizioni arrotondate).
+- Un `pointerInput` di un'app che muove un valore non lo dice a `FluidFingerDrive`: la sua semantica resta immediata.
+- **Il vetro vicino**: un contenuto che si ridisegna a ogni fotogramma (una foto regolata dal righello, un numero) e la
+  **sorgente di un vetro** (`glassBackdropSource`) nello stesso strato fanno ricatturare tutti i vetri a ogni fotogramma:
+  la sorgente si riregistra ogni volta che si riregistra lo strato in cui sta (`LayerBackdropNode`). Si dà uno strato
+  suo (`Modifier.graphicsLayer()`) a chi si ridisegna, o alla sorgente. Nell'editor delle foto (F7.24): cinque vetri
+  ricatturati a ogni fotogramma del righello, ~19 passate di disegno a fotogramma sul RenderThread.
+- `FluidSettledSemanticsDiagnostics` (`publishes`, `deferred`) conta le semantiche date e quelle tenute ferme: **non è API
+  per le app**.
 
 ## Licenze dei port
 

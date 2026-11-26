@@ -13,6 +13,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,20 +32,12 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
-import androidx.compose.ui.node.ModifierNodeElement
-import androidx.compose.ui.node.ObserverModifierNode
-import androidx.compose.ui.node.SemanticsModifierNode
-import androidx.compose.ui.node.invalidateSemantics
-import androidx.compose.ui.node.observeReads
-import androidx.compose.ui.platform.InspectorInfo
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -237,6 +235,9 @@ private fun RulerDialBody(
   val haptics = LocalFluidHaptics.current
   val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
   val labels = LocalFluidLabels.current.dateTime
+  val increase = labels.increase
+  val decrease = labels.decrease
+  val description = contentDescription
   val scope = rememberCoroutineScope()
   val spacingPx = with(density) { FluidRulerLook.TickSpacing.toPx() }
   // Il valore di partenza si legge senza farsi osservare: una lettura qui, anche dentro `remember`, ricomporrebbe la
@@ -265,12 +266,28 @@ private fun RulerDialBody(
     modifier
       .alpha(if (enabled) 1f else 0.5f)
       .fillMaxWidth()
-      .then(
-        RulerSemanticsElement(
-          value = value, valueText = valueText, scale = scale, driver = driver, description = contentDescription,
-          enabled = enabled, increase = labels.increase, decrease = labels.decrease,
-        ),
-      )
+      // TalkBack legge il valore scritto, la posizione nell'intervallo, «imposta», «aumenta» e «diminuisci». La semantica
+      // si legge qui (non ricompone) e, mentre il dito muove il righello, aspetta la fine del gesto (F7.24).
+      .fluidSettledSemantics {
+        val s = scale
+        val v = value.value()
+        description?.let { this.contentDescription = it }
+        valueText.value?.let { stateDescription = it(s.quantize(v)) }
+        progressBarRangeInfo = ProgressBarRangeInfo(
+          current = v.coerceIn(s.start, s.end),
+          range = s.start..s.end,
+          steps = if (s.ticks in 2..1000) s.ticks - 1 else 0,
+        )
+        if (enabled) {
+          setProgress { target -> driver.set(target) }
+          customActions = listOf(
+            CustomAccessibilityAction(increase) { driver.nudge(1) },
+            CustomAccessibilityAction(decrease) { driver.nudge(-1) },
+          )
+        } else {
+          disabled()
+        }
+      }
       .then(if (enabled) Modifier.rulerGesture(driver) else Modifier),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.spacedBy(FluidRulerLook.LabelGap),
@@ -315,7 +332,13 @@ private fun RulerDialBody(
   }
 }
 
-/** Il valore scritto sopra l'indice: si ricompone quando cambia la scritta, non a ogni fotogramma. */
+/**
+ * Il valore scritto sopra l'indice: **disegnato**, non composto (F7.24). Si legge la posizione nel disegno e si misura la
+ * scritta solo quando cambia (la cache del misuratore): niente ricomposizione, niente nuova misura della pagina e,
+ * con l'accessibilità accesa, nessun controllo della semantica a ogni tacca (la scritta non ha semantica: il valore lo
+ * dice la ghiera). Ha uno strato suo: il ridisegno a ogni fotogramma resta qui. Le posizioni sono quelle del `Text`
+ * centrato di prima, al pixel.
+ */
 @Composable
 private fun RulerLabel(
   driver: FluidRulerDriver,
@@ -324,86 +347,34 @@ private fun RulerLabel(
   accent: Color,
   neutralInk: Color,
 ) {
-  val text by remember(driver, scale) {
-    derivedStateOf { valueText.value?.invoke(scale.valueOf(fluidDetentRound(driver.position))).orEmpty() }
-  }
-  val atNeutral by remember(driver, scale) { derivedStateOf { scale.isNeutral(fluidDetentRound(driver.position).roundToInt()) } }
+  val measurer = rememberTextMeasurer(cacheSize = 8)
+  val density = LocalDensity.current
+  val style = FluidTextStyles.numeric
+  // Una riga dello stile numerico (interlinea fissa): l'altezza di ogni scritta.
+  val heightPx = remember(measurer, density) { measurer.measure("0", style, maxLines = 1).size.height }
   SideEffect { FluidRulerDialDiagnostics.labelCompositions++ }
-  Box(Modifier.fillMaxWidth().clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
-    Text(
-      text = text,
-      style = FluidTextStyles.numeric,
-      color = if (atNeutral) neutralInk else accent,
-      textAlign = TextAlign.Center,
-    )
-  }
-}
-
-/**
- * La semantica della ghiera senza ricomporre (F8.15c): un nodo che osserva il valore (la tacca) e si invalida da solo
- * quando la tacca cambia, invece di un blocco `semantics { }` ricreato dalla composizione a ogni valore. TalkBack legge
- * il valore scritto, la posizione nell'intervallo, «imposta», «aumenta» e «diminuisci».
- */
-private data class RulerSemanticsElement(
-  val value: State<() -> Float>,
-  val valueText: State<((Float) -> String)?>,
-  val scale: FluidRulerScale,
-  val driver: FluidRulerDriver,
-  val description: String?,
-  val enabled: Boolean,
-  val increase: String,
-  val decrease: String,
-) : ModifierNodeElement<RulerSemanticsNode>() {
-  override fun create() = RulerSemanticsNode(this)
-
-  override fun update(node: RulerSemanticsNode) {
-    node.element = this
-    node.watch()
-    node.invalidateSemantics()
-  }
-
-  override fun InspectorInfo.inspectableProperties() {
-    name = "fluidRulerSemantics"
-  }
-}
-
-private class RulerSemanticsNode(var element: RulerSemanticsElement) :
-  Modifier.Node(), SemanticsModifierNode, ObserverModifierNode {
-  private var shown = Float.NaN
-
-  override fun onAttach() = watch()
-
-  fun watch() {
-    observeReads { shown = element.scale.quantize(element.value.value()) }
-  }
-
-  override fun onObservedReadsChanged() {
-    val before = shown
-    watch()
-    if (shown != before) invalidateSemantics()
-  }
-
-  override fun SemanticsPropertyReceiver.applySemantics() {
-    val e = element
-    val s = e.scale
-    val v = e.value.value()
-    e.description?.let { contentDescription = it }
-    e.valueText.value?.let { stateDescription = it(s.quantize(v)) }
-    progressBarRangeInfo = ProgressBarRangeInfo(
-      current = v.coerceIn(s.start, s.end),
-      range = s.start..s.end,
-      steps = if (s.ticks in 2..1000) s.ticks - 1 else 0,
-    )
-    if (e.enabled) {
-      setProgress { target -> e.driver.set(target) }
-      customActions = listOf(
-        CustomAccessibilityAction(e.increase) { e.driver.nudge(1) },
-        CustomAccessibilityAction(e.decrease) { e.driver.nudge(-1) },
-      )
-    } else {
-      disabled()
-    }
-  }
+  Spacer(
+    Modifier
+      .fillMaxWidth()
+      .height(with(density) { heightPx.toDp() })
+      .clearAndSetSemantics {}
+      .graphicsLayer()
+      .drawBehind {
+        FluidRulerDialDiagnostics.labelDraws++
+        val tick = fluidDetentRound(driver.position)
+        val text = valueText.value?.invoke(scale.valueOf(tick)).orEmpty()
+        val ink = if (scale.isNeutral(tick.roundToInt())) neutralInk else accent
+        val layout = measurer.measure(
+          text, style.copy(color = ink, textAlign = TextAlign.Center), softWrap = false, maxLines = 1,
+          constraints = Constraints(maxWidth = size.width.toInt().coerceAtLeast(0)), layoutDirection = layoutDirection,
+          density = this,
+        )
+        // Come `Alignment.Center` del Box di prima: arrotondato al pixel.
+        val x = ((size.width - layout.size.width) / 2f).roundToInt().toFloat()
+        val y = ((size.height - layout.size.height) / 2f).roundToInt().toFloat()
+        drawText(layout, topLeft = Offset(x, y))
+      },
+  )
 }
 
 /**
@@ -416,8 +387,12 @@ object FluidRulerDialDiagnostics {
   var compositions: Int = 0
     internal set
 
-  /** Le composizioni della scritta sopra l'indice: una per scritta nuova, non per fotogramma. */
+  /** Le composizioni della scritta sopra l'indice: da F7.24 la scritta si disegna, e non si ricompone più. */
   var labelCompositions: Int = 0
+    internal set
+
+  /** I disegni della scritta sopra l'indice (F7.24): uno per fotogramma in cui il righello si muove. */
+  var labelDraws: Int = 0
     internal set
 
   /** I disegni delle tacche: uno per fotogramma in cui il righello si muove. */
@@ -427,6 +402,7 @@ object FluidRulerDialDiagnostics {
   fun resetForTesting() {
     compositions = 0
     labelCompositions = 0
+    labelDraws = 0
     tickDraws = 0
   }
 }

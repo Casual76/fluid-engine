@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
@@ -127,6 +128,8 @@ private class PhotoHolder {
   var keyFrozen: CropView? = null
   var keyArea: ScreenRect? = null
   var settleJob: Job? = null
+  /** F7.24: lo strato a meta' risoluzione dell'anteprima mentre il dito muove il righello (da Android 13). */
+  var light: android.graphics.RenderNode? = null
 }
 
 /**
@@ -325,6 +328,9 @@ internal fun EditorPhoto(state: FluidImageEditorState, strings: FluidImageEditor
   Box(
     modifier
       .fillMaxSize()
+      // F7.24: la foto ha uno strato suo. Mentre il righello gira si ridisegna a ogni valore, e senza strato faceva
+      // riregistrare tutta la pagina dell'editor a ogni fotogramma.
+      .graphicsLayer()
       .clipToBounds()
       .onSizeChanged {
         holder.area = ScreenRect(0f, 0f, it.width.toFloat(), it.height.toFloat())
@@ -390,14 +396,12 @@ internal fun EditorPhoto(state: FluidImageEditorState, strings: FluidImageEditor
         val frame = holder.frame
         drawIntoCanvas { canvas ->
           val nc = canvas.nativeCanvas
-          nc.save()
-          if (turnAngle.value != 0f || turnScale.value != 1f) {
-            nc.rotate(turnAngle.value, frame.centerX, frame.centerY)
-            nc.scale(turnScale.value, turnScale.value, frame.centerX, frame.centerY)
-          }
-          if (flipScale.value != 1f) nc.scale(flipScale.value, 1f, frame.centerX, frame.centerY)
-          nc.save()
-          nc.concat(holder.matrix)
+          // F7.24: mentre il dito muove una regolazione, la foto dello shader si disegna a meta' risoluzione (un quarto
+          // dei pixel) in uno strato suo, poi si allarga; al rilascio torna piena e nitida. «Dito nitido» vale per il
+          // controllo, non per l'anteprima.
+          val light = shader != null && state.interacting && state.mode == FluidEditorMode.Adjust &&
+            FluidImageEditorDiagnostics.lightPreview && nc.isHardwareAccelerated &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
           if (shader != null) {
             if (holder.outKey !== g) {
               holder.toOut = img.toOutputFraction(g)
@@ -405,6 +409,34 @@ internal fun EditorPhoto(state: FluidImageEditorState, strings: FluidImageEditor
               holder.outKey = g
             }
             shader.update(edit.adjustments, holder.toOut, holder.radius)
+          }
+          if (light) {
+            val node = holder.light ?: android.graphics.RenderNode("FluidEditorLightPreview").also { holder.light = it }
+            val w = kotlin.math.ceil(size.width * EditorRendering.LightScale).toInt().coerceAtLeast(1)
+            val h = kotlin.math.ceil(size.height * EditorRendering.LightScale).toInt().coerceAtLeast(1)
+            node.setPosition(0, 0, w, h)
+            node.setUseCompositingLayer(true, null)
+            val rc = node.beginRecording(w, h)
+            try {
+              rc.scale(EditorRendering.LightScale, EditorRendering.LightScale)
+              drawPhotoTransforms(rc, frame, turnAngle.value, turnScale.value, flipScale.value)
+              rc.concat(holder.matrix)
+              shader!!.draw(rc)
+            } finally {
+              node.endRecording()
+            }
+            nc.save()
+            nc.scale(1f / EditorRendering.LightScale, 1f / EditorRendering.LightScale)
+            nc.drawRenderNode(node)
+            nc.restore()
+          }
+          nc.save()
+          drawPhotoTransforms(nc, frame, turnAngle.value, turnScale.value, flipScale.value)
+          nc.save()
+          nc.concat(holder.matrix)
+          if (light) {
+            // Gia' disegnata sopra, a meta' risoluzione.
+          } else if (shader != null) {
             shader.draw(nc)
           } else {
             val bitmap = cpuState?.value
@@ -532,9 +564,21 @@ private fun zoomBy(state: FluidImageEditorState, scale: Float) {
 }
 
 /** Le scelte del disegno. */
+/** Il giro (a due dita o di 90°) e lo specchio della foto attorno al centro della cornice: uguali piena o leggera. */
+private fun drawPhotoTransforms(c: android.graphics.Canvas, frame: ScreenRect, turnAngle: Float, turnScale: Float, flip: Float) {
+  if (turnAngle != 0f || turnScale != 1f) {
+    c.rotate(turnAngle, frame.centerX, frame.centerY)
+    c.scale(turnScale, turnScale, frame.centerX, frame.centerY)
+  }
+  if (flip != 1f) c.scale(flip, 1f, frame.centerX, frame.centerY)
+}
+
 internal object EditorRendering {
   /** L'anteprima della CPU mentre il dito muove: a meta' risoluzione (un quarto dei pixel). */
   const val CpuMovingScale = 0.5f
+
+  /** F7.24: l'anteprima dello shader mentre il dito muove una regolazione: meta' risoluzione, come quella della CPU. */
+  const val LightScale = 0.5f
 
   /** Falso nelle prove che vogliono la strada della CPU anche su Android 13 e oltre. */
   @Volatile

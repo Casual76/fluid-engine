@@ -20,6 +20,8 @@ import dev.antigravity.fluidengine.foundation.EngineSettings
  * | `gallery.reduced` | `true` per il movimento ridotto                                  |
  * | `gallery.lang`    | `it`, `en`                                                       |
  * | `gallery.data`    | `content`, `empty`, `loading`, `error`                           |
+ * | `gallery.haptics` | `off` per spegnere l'aptica (F8.15d: le misure col dito senza vibrazioni), `on` |
+ * | `gallery.editorPreview` | `full` per la foto piena anche mentre il dito muove una regolazione (F7.24), `light` |
  *
  * Pura e senza Android attorno: la regola e' tutta qui e si prova sul computer.
  */
@@ -30,11 +32,14 @@ internal data class GalleryLaunch(
   val reducedMotion: Boolean? = null,
   val language: MatrixLanguage? = null,
   val data: MatrixData? = null,
+  val haptics: Boolean? = null,
+  /** F7.24: l'anteprima leggera dell'editor mentre il dito muove (vero), o sempre piena (falso). */
+  val editorLightPreview: Boolean? = null,
 ) {
   /** Niente di tutto questo e' stato chiesto: la galleria parte com'e' sempre. */
   val isEmpty: Boolean
     get() = page == null && theme == null && textScale == null && reducedMotion == null &&
-      language == null && data == null
+      language == null && data == null && haptics == null && editorLightPreview == null
 
   /**
    * La pila di partenza. Una pagina si apre **sopra Chrome**, la scheda da cui si arriva a tutte le demo, cosi'
@@ -46,8 +51,11 @@ internal data class GalleryLaunch(
     else -> listOf(GalleryEntry.Tab(RouteChrome), GalleryEntry.Page(page))
   }
 
-  /** Le impostazioni di partenza: quelle di [base], col tema chiesto se c'e'. */
-  fun settings(base: EngineSettings = EngineSettings()): EngineSettings = theme?.applyTo(base) ?: base
+  /** Le impostazioni di partenza: quelle di [base], col tema e l'aptica chiesti se ci sono. */
+  fun settings(base: EngineSettings = EngineSettings()): EngineSettings {
+    val themed = theme?.applyTo(base) ?: base
+    return haptics?.let { themed.copy(hapticsEnabled = it) } ?: themed
+  }
 
   /** La matrice di partenza, di serie per gli assi che non sono stati chiesti. */
   fun matrix(): GalleryMatrix = GalleryMatrix(
@@ -64,6 +72,8 @@ internal data class GalleryLaunch(
     const val ExtraReduced = "gallery.reduced"
     const val ExtraLanguage = "gallery.lang"
     const val ExtraData = "gallery.data"
+    const val ExtraHaptics = "gallery.haptics"
+    const val ExtraEditorPreview = "gallery.editorPreview"
 
     /** Nessuna richiesta. */
     val None = GalleryLaunch()
@@ -89,6 +99,20 @@ internal data class GalleryLaunch(
           }
         },
         data = value(ExtraData)?.let { name -> MatrixData.entries.firstOrNull { it.name.lowercase() == name } },
+        haptics = value(ExtraHaptics)?.let { name ->
+          when (name) {
+            "off", "false", "0", "no" -> false
+            "on", "true", "1", "yes" -> true
+            else -> null
+          }
+        },
+        editorLightPreview = value(ExtraEditorPreview)?.let { name ->
+          when (name) {
+            "full", "piena" -> false
+            "light", "leggera" -> true
+            else -> null
+          }
+        },
       )
     }
 

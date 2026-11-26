@@ -76,7 +76,6 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
@@ -397,7 +396,8 @@ fun FluidSlider(
       .fillMaxWidth()
       // Alto quanto un dito: la pista e' di 6 dp, ma il bersaglio no.
       .height(SliderHeight)
-      .semantics {
+      // F7.24: il valore si dice a TalkBack quando il dito si ferma (vedi fluidSettledSemantics).
+      .fluidSettledSemantics {
         if (contentDescription != null) this.contentDescription = contentDescription
         if (stateDescription != null) this.stateDescription = stateDescription
         // Uno slider, per chi lo ascolta: il valore dentro il suo intervallo, e l'azione per

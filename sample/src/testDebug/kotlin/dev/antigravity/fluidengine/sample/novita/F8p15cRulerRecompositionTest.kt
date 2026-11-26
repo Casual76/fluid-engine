@@ -44,7 +44,7 @@ import org.robolectric.annotation.GraphicsMode
  * valore (l'effetto che segue il valore ripartiva, la catena dei modificatori e la semantica si rifacevano). Qui un
  * trascinamento di dieci tacche col dito vero, contando:
  * - le composizioni del corpo della ghiera, che restano **ferme** (con la forma col numero e con quella con la lambda);
- * - le composizioni della scritta sopra l'indice, una per scritta nuova (non per fotogramma);
+ * - le composizioni della scritta sopra l'indice: zero (da F7.24 la scritta si disegna, F8.15c ne contava una per scritta);
  * - le composizioni del chiamante che passa la lambda: **zero**;
  * - e TalkBack, che legge il valore nuovo anche senza ricomposizione.
  */
@@ -148,9 +148,8 @@ class F8p15cRulerRecompositionTest {
     assertTrue("a fine gesto", finished >= 1)
     // Il corpo della ghiera non si ricompone: ne' per il dito, ne' per l'inerzia, ne' per la posa.
     assertEquals("composizioni della ghiera durante il trascinamento", 0, FluidRulerDialDiagnostics.compositions)
-    // La scritta si ricompone una volta per scritta nuova: al piu' undici (0…10), non una per fotogramma (~60).
-    val labels = FluidRulerDialDiagnostics.labelCompositions
-    assertTrue("scritta ricomposta $labels volte", labels in 1..12)
+    // F7.24: la scritta sopra l'indice si disegna (si legge la posizione nel disegno): non si ricompone mai.
+    assertEquals("composizioni della scritta", 0, FluidRulerDialDiagnostics.labelCompositions)
     // TalkBack legge il valore nuovo anche se niente si e' ricomposto.
     assertEquals("10", stateDescription())
     if (lambda) assertEquals("il chiamante con la lambda non si ricompone", callerBefore, callerCompositions)

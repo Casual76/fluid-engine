@@ -340,7 +340,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `@Composable fun FluidRulerDial(value: () -> Float, onValueChange: (Float) -> Unit, modifier: Modifier = Modifier, valueRange: ClosedFloatingPointRange<Float> = -45f..45f, step: Float = 1f, majorEvery: Int = 10, neutralValue: Float? = 0f, enabled: Boolean = true, onValueChangeFinished: (() -> Unit)? = null, valueText: ((Float) -> String)? = { fluidRulerDefaultText(it) }, contentDescription: String? = null)` — La ghiera col valore letto da [value] solo dove serve (F8.15c): chi la usa non legge il valore in composizione, e mentre il dito la muove **non si ricompone niente**, ne' il chiamante ne' la ghiera. Cambiano il disegno delle tacche, la scritta sopra l'indice (che si ricompone da sola, quando cambia la scritta) e la semantica (quando cambia la tacca).
 - `object FluidRulerDialDiagnostics` — I contatori delle prove della ghiera (F8.15c): **non sono API per le app**, come `FluidChartDiagnostics`. Contano sempre (un intero in piu' per composizione o disegno); le prove li azzerano con [resetForTesting] e guardano quanto crescono mentre il dito muove il righello.
   - `var compositions: Int` — Le composizioni del corpo della ghiera: non devono crescere a ogni valore.
-  - `var labelCompositions: Int` — Le composizioni della scritta sopra l'indice: una per scritta nuova, non per fotogramma.
+  - `var labelCompositions: Int` — Le composizioni della scritta sopra l'indice: da F7.24 la scritta si disegna, e non si ricompone più.
+  - `var labelDraws: Int` — I disegni della scritta sopra l'indice (F7.24): uno per fotogramma in cui il righello si muove.
   - `var tickDraws: Int` — I disegni delle tacche: uno per fotogramma in cui il righello si muove.
   - `fun resetForTesting()`
 
@@ -360,6 +361,17 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val Remaining: FluidScrubberFormat` — Quanto manca, «−2:15», con il meno tipografico.
   - `val Total: FluidScrubberFormat` — La durata intera, «3:20».
   - `val Spoken: FluidScrubberFormat` — Il valore a voce, «1:05 di 3:20»: il default di [FluidScrubber].
+
+## `engine-ui/ui/fluid/FluidSettledSemantics.kt`
+
+- `fun Modifier.fluidSettledSemantics(mergeDescendants: Boolean = false, properties: SemanticsPropertyReceiver.() -> Unit): Modifier` — F7.24 · La semantica di qualcosa che il dito cambia (il valore di un cursore, di un righello, di una ruota, il numero scritto accanto): **ferma finché un dito muove un valore**, aggiornata quando il gesto finisce (il dito alzato e l'inerzia ferma) o, in un gesto lungo, al più una volta ogni [FluidSettledSemanticsLook.SlowPaceMillis].
+- `object FluidSettledSemanticsLook` — Le misure di [fluidSettledSemantics].
+  - `const val SlowPaceMillis: Long` — In un gesto lungo, la semantica si aggiorna al più ogni secondo (a occhio, F7.24): un controllo della pagina al secondo non si vede, e chi esplora col dito giù sente che il valore cambia.
+- `object FluidSettledSemanticsDiagnostics` — I contatori delle prove di [fluidSettledSemantics] (F7.24): **non sono API per le app**, come `FluidRulerDialDiagnostics`. [publishes] conta le semantiche date al sistema, [deferred] quelle tenute ferme perché un dito muoveva un valore.
+  - `var publishes: Int`
+  - `var deferred: Int`
+  - `fun resetForTesting()`
+- `@Composable fun FluidValueText(text: () -> String, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current, color: Color = Color.Unspecified, textAlign: TextAlign = TextAlign.Start)` — F7.24 · Un testo su una riga che cambia col dito (un valore scritto accanto a un righello, «Rotazione: 12°», il numero nel tasto di una regolazione): **si disegna senza ricomporre e senza rimisurare** ([text] si legge nel disegno), e TalkBack lo legge con [fluidSettledSemantics], quando il gesto finisce.
 
 ## `engine-ui/ui/fluid/FluidSlider.kt`
 

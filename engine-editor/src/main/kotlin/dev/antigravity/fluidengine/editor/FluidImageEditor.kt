@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -187,8 +188,10 @@ internal fun EditorScaffold(
   }
   Box(modifier.fillMaxSize()) {
     // Il fondo e' la sola cosa che il vetro della testata rifrange: la foto che cambia a ogni fotogramma non e' una
-    // sorgente del vetro (F7: niente sorgenti a schermo intero sempre registrate).
-    Box(Modifier.fillMaxSize().background(scheme.background).glassBackdropSource(backdrop))
+    // sorgente del vetro (F7: niente sorgenti a schermo intero sempre registrate). F7.24: e ha uno strato suo. La sorgente
+    // si riregistra (e i cinque vetri ricatturano) ogni volta che si riregistra lo strato in cui sta: senza, la foto che
+    // cambia a ogni valore del righello la trascinava con se' a ogni fotogramma.
+    Box(Modifier.fillMaxSize().graphicsLayer().background(scheme.background).glassBackdropSource(backdrop))
     CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
       Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
         if (embedded) {

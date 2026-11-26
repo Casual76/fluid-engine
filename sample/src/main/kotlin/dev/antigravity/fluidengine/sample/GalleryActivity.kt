@@ -146,6 +146,8 @@ class GalleryActivity : ComponentActivity() {
     // tablet, e la galleria pubblicata non ha scorciatoie nascoste. Decide `isDebuggableApp()`, un punto solo.
     val debuggable = isDebuggableApp()
     val launch = if (debuggable) GalleryLaunch.parse { intent?.getStringExtra(it) } else GalleryLaunch.None
+    // F7.24: l'anteprima dell'editor, leggera o piena mentre il dito muove (per le misure sul tablet).
+    launch.editorLightPreview?.let { dev.antigravity.fluidengine.editor.FluidImageEditorDiagnostics.lightPreview = it }
     // Gli interruttori del vetro per tutta la galleria (F1A.9: `gallery.model`, `gallery.api`, `gallery.warmup`,
     // `gallery.tune`), solo nella build di debug. Livello simulato, riscaldamento e manopole valgono per cio' che entra
     // in composizione dopo: si applicano qui, prima del contenuto, e una volta sola (una rotazione non rimette quelli
@@ -179,13 +181,16 @@ class GalleryActivity : ComponentActivity() {
           // Il tema e le superfici leggono la stessa policy, anche quando la scala di sistema cambia.
           FluidMotionPolicyProvider {
             FluidTheme(settings = settings) {
-              Gallery(
-                settings = settings,
-                onSettingsChange = { settings = it },
-                nav = nav,
-                matrix = matrix,
-                onGlassMotionLightChange = { glassMotionLight = it },
-              )
+              // F8.15d: nella bench l'aptica ha le sue sezioni nella traccia di Perfetto.
+              BenchHapticsTrace {
+                Gallery(
+                  settings = settings,
+                  onSettingsChange = { settings = it },
+                  nav = nav,
+                  matrix = matrix,
+                  onGlassMotionLightChange = { glassMotionLight = it },
+                )
+              }
             }
           }
         }

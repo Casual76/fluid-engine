@@ -34,6 +34,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidDurationWheel
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.FluidRangeSlider
 import dev.antigravity.fluidengine.ui.fluid.FluidRulerDial
+import dev.antigravity.fluidengine.ui.fluid.FluidValueText
 import dev.antigravity.fluidengine.ui.fluid.FluidScreen
 import dev.antigravity.fluidengine.ui.fluid.FluidScreenDefaults
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionFootnote
@@ -162,9 +163,13 @@ private fun Modifier.edgeToEdge(): Modifier = layout { measurable, constraints -
   layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
 }
 
+/**
+ * Il valore scritto sotto il controllo. F7.24: un [FluidValueText], che si legge nel disegno: mentre il dito gira la
+ * ruota o il righello non si ricompone e non si rimisura, e TalkBack lo legge quando il gesto finisce.
+ */
 @Composable
-private fun Readout(text: String) {
-  Text(
+private fun Readout(text: () -> String) {
+  FluidValueText(
     text = text,
     style = FluidTextStyles.numeric,
     color = MaterialTheme.colorScheme.onSurface,
@@ -202,7 +207,7 @@ private fun TimerWheelScene(onBack: () -> Unit) {
       showSeconds = withSeconds,
       modifier = Modifier.testTag(F8p2Tags.Wheel),
     )
-    Readout("Durata: ${seconds / 3600}:${(seconds % 3600 / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}")
+    Readout { "Durata: ${seconds / 3600}:${(seconds % 3600 / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}" }
     Caption("Ferma la ruota su 0 ore 0 min 0 s: la colonna piu' piccola sale da sola al minimo, come in iOS.")
   }
 }
@@ -228,7 +233,7 @@ private fun TimeWheelScene(onBack: () -> Unit) {
       minuteInterval = 5,
       modifier = Modifier.testTag(F8p2Tags.Wheel),
     )
-    Readout("Lezione alle ${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}")
+    Readout { "Lezione alle ${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}" }
     Caption("Minuti a passi di 5 (`minuteInterval`). In 12 ore porta le ore da 11 a 12: AM e PM girano da soli.")
   }
 }
@@ -288,7 +293,7 @@ private fun DateWheelScene(onBack: () -> Unit) {
       ),
       modifier = Modifier.testTag(F8p2Tags.Wheel),
     )
-    Readout("$day ${java.time.Month.of(month).getDisplayName(TextStyle.FULL, Locale.ITALY)} $year")
+    Readout { "$day ${java.time.Month.of(month).getDisplayName(TextStyle.FULL, Locale.ITALY)} $year" }
     FluidSectionHeader(title = "Ogni quanto aggiornare")
     FluidWheelPicker(
       count = Frequencies.size,
@@ -322,13 +327,13 @@ private fun StraightenScene(onBack: () -> Unit) {
       )
     }
     FluidRulerDial(
-      value = degrees,
+      value = { degrees },
       onValueChange = { degrees = it },
       contentDescription = "Raddrizza",
       valueText = { "${fluidSceneDegrees(it)}°" },
       modifier = Modifier.padding(horizontal = 16.dp).testTag(F8p2Tags.Dial),
     )
-    Readout("Rotazione: ${fluidSceneDegrees(degrees)}°")
+    Readout { "Rotazione: ${fluidSceneDegrees(degrees)}°" }
     Caption("Trascina il righello o lancialo: si ferma su un grado, sulle principali ogni 10°, e lo zero attira.")
   }
 }
@@ -345,7 +350,7 @@ private fun DialValuesScene(onBack: () -> Unit) {
   F8p2Screen("ghiera-valori", "Velocita' e decibel", onBack) {
     FluidSectionHeader(title = "Velocita' (Fluidify)")
     FluidRulerDial(
-      value = speed,
+      value = { speed },
       onValueChange = { speed = it },
       valueRange = 0.5f..2f,
       step = 0.05f,
@@ -357,7 +362,7 @@ private fun DialValuesScene(onBack: () -> Unit) {
     )
     FluidSectionHeader(title = "Calibrazione (Pampa Sounds)")
     FluidRulerDial(
-      value = decibel,
+      value = { decibel },
       onValueChange = { decibel = it },
       valueRange = -12f..12f,
       step = 0.1f,
@@ -367,7 +372,7 @@ private fun DialValuesScene(onBack: () -> Unit) {
       valueText = { "${"%+.1f".format(Locale.ITALY, it).replace('-', '−')} dB" },
       modifier = Modifier.padding(horizontal = 16.dp),
     )
-    Readout("${"%.2f".format(Locale.ITALY, speed)}× · ${"%+.1f".format(Locale.ITALY, decibel)} dB")
+    Readout { "${"%.2f".format(Locale.ITALY, speed)}× · ${"%+.1f".format(Locale.ITALY, decibel)} dB" }
   }
 }
 
@@ -392,7 +397,7 @@ private fun RangeScene(onBack: () -> Unit) {
       endStateDescription = clock(to),
       modifier = Modifier.padding(horizontal = 16.dp).testTag(F8p2Tags.Range),
     )
-    Readout("Da ${clock(from)} a ${clock(to)}")
+    Readout { "Da ${clock(from)} a ${clock(to)}" }
     FluidSectionHeader(title = "Peso delle foto (MyCloud Gallery)")
     FluidRangeSlider(
       value = lightest..heaviest,
@@ -406,7 +411,7 @@ private fun RangeScene(onBack: () -> Unit) {
       endStateDescription = "${heaviest.roundToInt()} MB",
       modifier = Modifier.padding(horizontal = 16.dp),
     )
-    Readout("Da ${lightest.roundToInt()} MB a ${heaviest.roundToInt()} MB")
+    Readout { "Da ${lightest.roundToInt()} MB a ${heaviest.roundToInt()} MB" }
     FluidSectionFootnote(text = "Le maniglie non si scavalcano: quella che trascini si ferma sull'altra, con un colpo.")
   }
 }

@@ -1,5 +1,9 @@
 package dev.antigravity.fluidengine.editor
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.graphicsLayer
+import dev.antigravity.fluidengine.ui.fluid.fluidSettledSemantics
+import dev.antigravity.fluidengine.ui.fluid.FluidValueText
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -34,7 +37,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -196,7 +198,8 @@ private fun StripItem(state: FluidImageEditorState, a: FluidAdjustment?, strings
       .size(EditorStripLook.Item)
       .testTag(FluidImageEditorTags.item(a?.id ?: FluidImageEditorState.AutoId))
       .fluidPressable(onClick = onClick, role = Role.Button)
-      .semantics {
+      // F7.24: il valore si dice a TalkBack quando il righello si ferma; uno strato suo per l'arco che cambia.
+      .fluidSettledSemantics {
         contentDescription = name
         this.selected = selected
         role = Role.Button
@@ -206,6 +209,7 @@ private fun StripItem(state: FluidImageEditorState, a: FluidAdjustment?, strings
           valueState.value.roundToInt().toString()
         }
       }
+      .graphicsLayer()
       .drawBehind {
         val stroke = EditorStripLook.Ring.toPx()
         val r = size.minDimension / 2f - stroke
@@ -239,20 +243,27 @@ private fun StripItem(state: FluidImageEditorState, a: FluidAdjustment?, strings
   }
 }
 
-/** Il valore dentro il tasto scelto: si ricompone solo quando cambia il numero, non a ogni fotogramma. */
+/**
+ * Il valore dentro il tasto scelto (F7.24): **disegnato** mentre il righello gira ([FluidValueText]), senza ricomporre a
+ * ogni numero; si ricompone solo passando per lo zero, dove torna l'icona.
+ */
 @Composable
 private fun SelectedValue(state: FluidImageEditorState, a: FluidAdjustment, accent: androidx.compose.ui.graphics.Color,
   ink: androidx.compose.ui.graphics.Color) {
-  val value by remember(state, a) { derivedStateOf { state.edit.adjustments[a].roundToInt() } }
-  if (value == 0) {
+  val zero by remember(state, a) { derivedStateOf { state.edit.adjustments[a].roundToInt() == 0 } }
+  if (zero) {
     FluidIcon(adjustmentIcon(a), contentDescription = null, tint = accent, size = EditorStripLook.Icon)
   } else {
-    Text(
-      text = if (value < 0) "−${-value}" else value.toString(),
+    FluidValueText(
+      text = {
+        val value = state.edit.adjustments[a].roundToInt()
+        if (value < 0) "−${-value}" else value.toString()
+      },
+      style = MaterialTheme.typography.labelLarge.copy(
+        fontFeatureSettings = "tnum", fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+      ),
       color = accent,
-      fontSize = 15.sp,
-      fontWeight = FontWeight.SemiBold,
-      style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+      textAlign = TextAlign.Center,
     )
   }
 }

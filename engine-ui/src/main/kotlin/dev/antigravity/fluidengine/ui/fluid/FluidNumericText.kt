@@ -26,7 +26,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -132,7 +131,8 @@ fun FluidNumericText(
   Layout(
     content = {},
     modifier = modifier
-      .semantics { this.contentDescription = spoken }
+      // F7.24: il numero che cambia col dito si dice a TalkBack quando il gesto finisce.
+      .fluidSettledSemantics { this.contentDescription = spoken }
       .drawBehind {
         val transition = roll.transition
         // Letto sempre, anche prima della partenza: è la lettura che iscrive il disegno ai passi dell'animazione.
@@ -208,13 +208,26 @@ internal object FluidFingerDrive {
   /** L'istante (`SystemClock.uptimeMillis`) in cui il conto è tornato a zero. */
   private var releasedAtMillis = Long.MIN_VALUE / 2
 
+  /**
+   * Cresce ogni volta che il conto torna a zero (F7.24): uno **stato**, letto da chi aspetta la fine del gesto (la
+   * semantica di [fluidSettledSemantics]). Scritto solo qui, sul thread principale, fuori dalla composizione.
+   */
+  private val idleCount = androidx.compose.runtime.mutableIntStateOf(0)
+  val idleGeneration: Int get() = idleCount.intValue
+
+  /** Un dito muove un valore, o una corsa partita dal dito non si è fermata (senza la coda di [LingerMillis]). */
+  val holding: Boolean get() = active > 0
+
   fun begin() {
     active++
   }
 
   fun end() {
     if (active > 0) active--
-    if (active == 0) releasedAtMillis = SystemClock.uptimeMillis()
+    if (active == 0) {
+      releasedAtMillis = SystemClock.uptimeMillis()
+      idleCount.intValue++
+    }
   }
 
   /** Vero mentre il dito muove un valore, o una corsa partita dal dito non si è fermata, e per [LingerMillis] dopo. */

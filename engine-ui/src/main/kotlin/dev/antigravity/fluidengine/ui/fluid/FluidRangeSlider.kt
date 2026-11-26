@@ -47,7 +47,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.IntOffset
@@ -434,7 +433,8 @@ fun FluidRangeSlider(
             IntOffset(x.roundToInt(), 0)
           }
           .size(nodeSize)
-          .semantics {
+          // F7.24: il valore si dice a TalkBack quando il dito si ferma (vedi fluidSettledSemantics).
+          .fluidSettledSemantics {
             contentDescription = name
             if (state != null) stateDescription = state
             progressBarRangeInfo = ProgressBarRangeInfo(current.coerceIn(lower, max(lower, upper)), lower..max(lower, upper))

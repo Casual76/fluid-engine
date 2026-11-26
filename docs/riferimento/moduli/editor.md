@@ -156,7 +156,17 @@ non per il passaggio.
   mostra (`derivedStateOf`): la voce della ruota il suo valore, il righello di «Raddrizza» l'angolo, la seconda riga «la
   cornice è cambiata?». Spostare o pizzicare la foto ridisegna la foto, non la testata.
 - **Il vetro** della testata e delle schede rifrange **solo il fondo**: la foto, che cambia a ogni fotogramma, non è una
-  sorgente del vetro.
+  sorgente del vetro. **F7.24**: il fondo e la foto hanno anche uno strato loro (`graphicsLayer`). Senza, la foto
+  ridisegnata a ogni valore del righello faceva riregistrare lo strato in cui stava anche la sorgente, e i cinque vetri
+  ricatturavano a ogni fotogramma (sul Tab S9 ~19 passate di disegno a fotogramma sul RenderThread).
+- **L'anteprima leggera** (F7.24, **spenta di serie**): se accesa, mentre il dito muove una regolazione, da Android 13
+  la foto dello shader si disegna a metà risoluzione (un quarto dei pixel) in uno strato suo e si allarga; al rilascio
+  torna piena e nitida. Ferma è quella di sempre, al pixel. `FluidImageEditorDiagnostics.lightPreview` (non API per le
+  app) la accende per le misure: si terrà accesa solo se il tablet mostra un guadagno, perché la foto meno nitida sotto
+  il dito si vede.
+- **La semantica** della ruota e del numero nel tasto aspetta la fine del gesto (`fluidSettledSemantics` e
+  `FluidValueText`, scheda `componenti/controlli-gesto.md`): con l'accessibilità accesa niente controllo della pagina a ogni
+  tacca.
 - **Il salvataggio** tiene in memoria il file che esce più una striscia (4 megapixel) e una fascia di righe.
 
 ## Trappole

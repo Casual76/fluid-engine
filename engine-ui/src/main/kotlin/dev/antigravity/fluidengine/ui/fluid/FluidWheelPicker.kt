@@ -60,7 +60,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextLayoutResult
@@ -1043,7 +1042,8 @@ private fun Modifier.wheelSemantics(
   enabled: Boolean,
   increaseLabel: String,
   decreaseLabel: String,
-): Modifier = semantics {
+  // F7.24: la voce si dice a TalkBack quando il dito e la ruota si fermano (vedi fluidSettledSemantics).
+): Modifier = fluidSettledSemantics {
   val count = column.count
   val selected = column.selected.coerceIn(0, max(0, count - 1))
   column.contentDescription?.let { contentDescription = it }

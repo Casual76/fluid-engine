@@ -15,7 +15,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Condivisione: foglio, copia preparata, immagine, PDF e stampa](condivisione.md) | 13 | 165 |
-| [Controlli](controlli.md) | 28 | 347 |
+| [Controlli](controlli.md) | 29 | 356 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 18 | 122 |
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
@@ -46,7 +46,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-share-in](share-in.md) | 3 | 51 |
 | [engine-media](media.md) | 13 | 179 |
 | [engine-ink](ink.md) | 12 | 179 |
-| [engine-editor](editor.md) | 13 | 143 |
+| [engine-editor](editor.md) | 14 | 145 |
 | [engine-notify](notify.md) | 9 | 65 |
 | [engine-account](account.md) | 11 | 267 |
 | [engine-account-host](account-host.md) | 25 | 302 |

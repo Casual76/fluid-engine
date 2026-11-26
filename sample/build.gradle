@@ -137,6 +137,17 @@ android {
     unitTests {
       // Robolectric legge manifest e risorse dell'app (i font del tema, l'attivita' di prova).
       includeAndroidResources = true
+      // F7.24 · La memoria delle prove: con i 512 MB di serie di Gradle le 1 831 prove del sample in una JVM sola
+      // finivano la memoria (`F8p15CapturesTest`, OutOfMemoryError nel lotto). Misurato il 26/11 (tutte le 1 834–1 838
+      // prove, `--rerun`): 1536 MB in una JVM sola 24,4 min, verde; 1024 MB con una JVM nuova ogni 80 classi 24,0 min,
+      // verde. Si tiene la seconda: lo stesso tempo, e la memoria di una JVM non cresce col numero delle prove.
+      // Le proprieta' servono a misurare senza toccare il file: `-PsampleTestHeap=…`, `-PsampleTestForkEvery=…`
+      // (0 = una JVM sola).
+      all { test ->
+        test.maxHeapSize = project.findProperty('sampleTestHeap') ?: '1024m'
+        def every = (project.findProperty('sampleTestForkEvery') ?: '80') as long
+        if (every > 0) test.forkEvery = every
+      }
     }
   }
 }

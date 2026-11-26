@@ -121,6 +121,9 @@ class AiAssistHost(
   /** Le domande in corso di [packageName]. */
   fun inFlight(packageName: String): Int = synchronized(lock) { sessions.values.count { it.caller.packageName == packageName && !it.finished } }
 
+  /** Le domande che l'ospite tiene ancora: in corso, o finite da meno di `keepMillis` (per `assist_poll`). Per le prove. */
+  internal fun retained(): Int = synchronized(lock) { sessions.size }
+
   /** Ferma tutte le domande in corso (PampAI chiude, l'utente spegne l'assistenza). */
   fun cancelAll() {
     val all = synchronized(lock) { sessions.values.filter { !it.finished } }

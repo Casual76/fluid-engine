@@ -1,6 +1,9 @@
 package dev.antigravity.fluidengine.ai.bridge.assist
 
 import dev.antigravity.fluidengine.ai.bridge.BridgeProtocol
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -35,6 +38,36 @@ class AiAssistCostTest {
     println("MISURA invio di 5 pezzi: ${String.format(java.util.Locale.ITALY, "%.2f", micros)} µs scrivere+rileggere, ${text.length} caratteri, $bytes byte nel Parcel; domanda con la pagina piena ${ask.length} caratteri, ${ask.toByteArray(Charsets.UTF_16LE).size} byte")
     assertTrue("$micros µs", micros < 2_000)
     assertTrue("la domanda con la pagina piena resta lontana da 1 MB: ${ask.length}", ask.length < 3_000)
+  }
+
+  /**
+   * F9.1d: la memoria che l'ospite tiene dopo tante domande, contata e non stimata dal processo. Sul tablet la misura col
+   * PSS del processo `:pampai` (F9.1) era caduta sul limite di 30 domande al minuto; qui le 48 domande stanno nel limite
+   * (una ogni 2,1 s di tempo virtuale) e dopo un minuto di quiete l'ospite tiene solo la domanda nuova, piu' le voci di
+   * «Dalle app» (che restano finche' l'utente non le toglie, F9.1c): testo, non strutture che crescono.
+   */
+  @Test fun `la memoria dell'ospite - dopo 48 domande restano solo le voci di Dalle app`() = runTest {
+    val answer = "La media scende perché il cinque pesa quanto gli altri voti messi insieme. ".repeat(4)
+    val history = InMemoryAiAssistHistory()
+    val host = host(ScriptedExecutor { _, sink -> sink.status("Controllo i voti", Apps.School); sink.text(answer) }, history = history)
+    var refused = 0
+    repeat(48) { i ->
+      val response = host.ask(Apps.school, askJson(AiAssistRequest(AiAssistTask.answer("Perché questo voto abbassa la media? $i"))), null).response
+      if (response.errorCode() != null) refused++
+      advanceTimeBy(2_100)
+    }
+    advanceUntilIdle()
+    assertEquals("nessuna domanda rifiutata: una ogni 2,1 s sta nel limite", 0, refused)
+    val lastMinute = host.retained()
+    assertTrue("tenute solo quelle dell'ultimo minuto, per assist_poll: $lastMinute", lastMinute <= 29)
+    advanceTimeBy(61_000)
+    host.ask(Apps.school, askJson(AiAssistRequest(AiAssistTask.answer("e adesso?"))), null)
+    advanceUntilIdle()
+    assertEquals("dopo un minuto di quiete l'ospite tiene solo la domanda nuova", 1, host.retained())
+    assertEquals(49, history.entries().size)
+    val chars = history.entries().sumOf { it.question.length + it.answer.length + (it.pageTitle?.length ?: 0) + it.appName.length }
+    println("MISURA memoria dell'ospite dopo 48 domande: $lastMinute domande tenute per assist_poll, poi 1; «Dalle app» 49 voci, $chars caratteri (circa ${chars * 2 / 1024} kB di testo)")
+    assertTrue("le voci sono testo, qualche decina di kB: $chars", chars < 40_000)
   }
 
   @Test fun `i tool restano alla 1 e alla 2 - la negoziazione dei tool non cambia`() {

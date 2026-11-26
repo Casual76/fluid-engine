@@ -70,7 +70,12 @@ class X25519Key private constructor(private val private: X25519PrivateKeyParamet
     val agreement = X25519Agreement()
     agreement.init(private)
     val shared = ByteArray(agreement.agreementSize)
-    agreement.calculateAgreement(X25519PublicKeyParameters(peerPublic, 0), shared, 0)
+    try {
+      agreement.calculateAgreement(X25519PublicKeyParameters(peerPublic, 0), shared, 0)
+    } catch (e: IllegalStateException) {
+      // R2 · Una pubblica di ordine piccolo dà un segreto tutto zero, e Bouncy Castle lo rifiuta: è un rifiuto pulito.
+      throw PeopleDetected("chiave di cifratura debole")
+    }
     return shared
   }
 
@@ -83,6 +88,25 @@ class X25519Key private constructor(private val private: X25519PrivateKeyParamet
     }
 
     fun random(): X25519Key = X25519Key(X25519PrivateKeyParameters(SecureRandom()))
+
+    private val PROBE = X25519PrivateKeyParameters(ByteArray(32) { 0x5a }, 0)
+
+    /**
+     * R2 · La pubblica è di ordine piccolo (tutta zero, `1`, i punti d'ordine 8, e le loro scritture non canoniche)?
+     * Con lei ogni accordo dà un segreto tutto zero, noto a chiunque. Si prova un accordo con una privata qualunque:
+     * la privata «schiacciata» è multipla di 8, quindi il segreto è zero **solo** per quei punti.
+     */
+    internal fun isWeak(publicKey: ByteArray): Boolean {
+      if (publicKey.size != 32) return true
+      val agreement = X25519Agreement()
+      agreement.init(PROBE)
+      return try {
+        agreement.calculateAgreement(X25519PublicKeyParameters(publicKey, 0), ByteArray(agreement.agreementSize), 0)
+        false
+      } catch (_: IllegalStateException) {
+        true
+      }
+    }
   }
 }
 
@@ -102,7 +126,12 @@ internal object PeopleHpke {
     require(recipient.size == 32) { "la pubblica X25519 è di 32 byte" }
     val hpke = suite()
     val pk = runCatching { hpke.deserializePublicKey(recipient) }.getOrElse { throw PampaCryptoException("pubblica illeggibile", it) }
-    val ctx = hpke.setupBaseS(pk, info)
+    // R2 · Verso una pubblica di ordine piccolo l'accordo fallisce (IllegalStateException): un rifiuto, non un guasto.
+    val ctx = try {
+      hpke.setupBaseS(pk, info)
+    } catch (e: IllegalStateException) {
+      throw PeopleDetected("chiave di cifratura debole")
+    }
     return ctx.encapsulation + ctx.seal(aad, plaintext)
   }
 

@@ -13,6 +13,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -36,14 +37,20 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.map.icons.Directions
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
+import dev.antigravity.fluidengine.ui.fluid.FluidButtonDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidButtonLabelPlacement
 import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSheet
@@ -71,6 +78,9 @@ object FluidMapSheetDefaults {
 
   /** Quanto tempo resta «Coordinate copiate» al posto delle coordinate. A occhio, 26/11/2026. */
   const val CopiedMillis: Long = 1_600
+
+  /** Lo spazio fra i tasti della scheda del luogo: 8 dp. */
+  val ActionGap: Dp = 8.dp
 }
 
 /**
@@ -185,6 +195,10 @@ object FluidMapPlaceTags {
  * - **Copia** (per TalkBack «Copia coordinate»): «43.77310, 11.25560» negli appunti, e «Coordinate copiate» per un momento al posto delle
  *   coordinate (detto anche da TalkBack).
  *
+ * **Le etichette non si spezzano mai.** Se una non sta accanto alla sua icona (i tre tasti sul telefono), in tutti e tre
+ * l'icona sale e l'etichetta le sta sotto, su una riga, come in Mappe ([FluidButtonLabelPlacement.Below]); sul tablet
+ * restano accanto. Fino alla F8.26b sul telefono si leggeva «Indicaz|ioni» e «Condiv|idi».
+ *
  * Ogni tasto si puo' sostituire (l'app ha il suo navigatore o il suo foglio di condivisione).
  */
 @Composable
@@ -209,37 +223,52 @@ fun FluidMapPlaceCard(
     place.subtitle?.let {
       Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
     }
-    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      FluidButton(
-        text = labels.directions,
-        onClick = { onDirections?.invoke() ?: FluidMapActions.directions(context, place) },
-        modifier = Modifier.weight(1f).testTag(FluidMapPlaceTags.Directions),
-        style = FluidButtonStyle.Filled,
-        fillWidth = true,
-        leading = { FluidIcon(FluidIcons.Directions, contentDescription = null) },
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+      val placement = FluidButtonDefaults.labelPlacement(
+        listOf(labels.directions, labels.share, labels.copyShort),
+        buttonWidth = (maxWidth - FluidMapSheetDefaults.ActionGap * 2) / 3,
       )
-      FluidButton(
-        text = labels.share,
-        onClick = { onShare?.invoke() ?: FluidMapActions.share(context, place, labels) },
-        modifier = Modifier.weight(1f).testTag(FluidMapPlaceTags.Share),
-        style = FluidButtonStyle.Tinted,
-        fillWidth = true,
-        leading = { FluidIcon(FluidIcons.IosShare, contentDescription = null) },
-      )
-      FluidButton(
-        text = labels.copyShort,
-        onClick = {
+      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FluidMapSheetDefaults.ActionGap)) {
+        FluidButton(
+          text = labels.directions,
+          onClick = { onDirections?.invoke() ?: FluidMapActions.directions(context, place) },
+          modifier = Modifier.weight(1f).testTag(FluidMapPlaceTags.Directions),
+          style = FluidButtonStyle.Filled,
+          fillWidth = true,
+          labelPlacement = placement,
+          leading = { FluidIcon(FluidIcons.Directions, contentDescription = null) },
+        )
+        FluidButton(
+          text = labels.share,
+          onClick = { onShare?.invoke() ?: FluidMapActions.share(context, place, labels) },
+          modifier = Modifier.weight(1f).testTag(FluidMapPlaceTags.Share),
+          style = FluidButtonStyle.Tinted,
+          fillWidth = true,
+          labelPlacement = placement,
+          leading = { FluidIcon(FluidIcons.IosShare, contentDescription = null) },
+        )
+        val copy = {
           if (onCopy != null) onCopy() else FluidMapActions.copyCoordinates(context, place)
           copied = true
-        },
-        modifier = Modifier
-          .weight(1f)
-          .testTag(FluidMapPlaceTags.Copy)
-          .semantics { contentDescription = labels.copyCoordinates },
-        style = FluidButtonStyle.Tinted,
-        fillWidth = true,
-        leading = { FluidIcon(FluidIcons.ContentCopy, contentDescription = null) },
-      )
+        }
+        FluidButton(
+          text = labels.copyShort,
+          onClick = copy,
+          modifier = Modifier
+            .weight(1f)
+            .testTag(FluidMapPlaceTags.Copy)
+            // TalkBack dice solo «Copia coordinate»: la scritta corta sul tasto non si aggiunge (prima: «Copia coordinate, Copia»).
+            .clearAndSetSemantics {
+              contentDescription = labels.copyCoordinates
+              role = Role.Button
+              onClick { copy(); true }
+            },
+          style = FluidButtonStyle.Tinted,
+          fillWidth = true,
+          labelPlacement = placement,
+          leading = { FluidIcon(FluidIcons.ContentCopy, contentDescription = null) },
+        )
+      }
     }
     Text(
       if (copied) labels.copied else FluidGeoFormat.display(place.point),

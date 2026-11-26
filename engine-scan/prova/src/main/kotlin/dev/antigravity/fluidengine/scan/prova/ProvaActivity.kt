@@ -56,6 +56,8 @@ class ProvaActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    // R1: il velo di contrasto della barra a tre tasti, spento come in ogni app dell'engine.
+    if (android.os.Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
     val step = intent.getStringExtra("passo")
     // Il fondo e il colore del testo del tema (chiaro o scuro): senza una superficie il testo restava nero sul fondo
     // scuro della finestra (visto sul tablet il 26/11, F8.17c).

@@ -76,8 +76,10 @@ class StoreBackupJob(
       return Outcome.Locked
     }
     val pkg = content()
-    val fingerprint = PampaBase64.encode(PampaBackupFormat.fingerprint(pkg))
-    if (fingerprintFile.exists() && fingerprintFile.readText() == fingerprint) return Outcome.Unchanged
+    // R2 · L'impronta vale per **un** conto e **un'**epoca: sullo stesso telefono un altro account (lo stesso contenuto,
+    // le stesse app) non ha ancora nessun backup, e dopo un «perso o rubato» il backup si richiude con la chiave nuova.
+    val fingerprint = "$account|${keys.current}|" + PampaBase64.encode(PampaBackupFormat.fingerprint(pkg))
+    if (fingerprintFile.exists() && runCatching { fingerprintFile.readText() }.getOrNull() == fingerprint) return Outcome.Unchanged
     val token = when (val t = session.appToken(storePackage, "sync", setOf("sync.backup"))) {
       is TokenOutcome.Ok -> t.token
       TokenOutcome.Offline -> return Outcome.Offline
@@ -103,10 +105,12 @@ class StoreBackupJob(
     /** `GET /v1/backups`: lo Store vede l'elenco di tutte le app dell'account, senza il contenuto. */
     suspend fun list(client: AccountServerClient, token: String): List<Pair<String, BackupInfo>> {
       val r = client.call("GET", "/v1/backups", token = token)
-      return (r["backups"] as? JsonArray)?.map {
-        val o = it as JsonObject
-        (o["package"] as JsonPrimitive).content to BackupInfo(
-          n = (o["n"] as JsonPrimitive).longOrNull ?: 0,
+      // R2 · Una voce di forma strana si salta, non fa cadere il lavoro.
+      return (r["backups"] as? JsonArray)?.mapNotNull {
+        val o = it as? JsonObject ?: return@mapNotNull null
+        val pkg = (o["package"] as? JsonPrimitive)?.takeIf { p -> p.isString }?.content ?: return@mapNotNull null
+        pkg to BackupInfo(
+          n = (o["n"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
           createdAt = (o["createdAt"] as? JsonPrimitive)?.longOrNull ?: 0,
           size = (o["size"] as? JsonPrimitive)?.longOrNull ?: 0,
           epoch = (o["epoch"] as? JsonPrimitive)?.intOrNull ?: 0,

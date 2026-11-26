@@ -147,6 +147,8 @@ class PersonCard private constructor(
       fun wstr(k: String) = (w[k] as? JsonPrimitive)?.content ?: throw PeopleDetected("chiavi di lavoro incomplete")
       val work = WorkPublic(epoch, b64(wstr("enc"), 32), b64(wstr("sign"), 32), b64(wstr("sig"), 64))
       if (!work.signedBy(root)) throw PeopleDetected("chiavi di lavoro non firmate dalla radice")
+      // R2 · Una chiave di cifratura di ordine piccolo farebbe cadere le parole, la vicinanza e gli invii verso di lui.
+      if (X25519Key.isWeak(work.enc)) throw PeopleDetected("chiave di cifratura debole")
       val at = (o["at"] as? JsonPrimitive)?.longOrNull?.takeIf { it > 0 } ?: throw PeopleDetected("scheda senza ora")
       return PersonCard(code, name, b64(str("mineral"), 16), root, mailbox, work, at, raw, sig)
     }

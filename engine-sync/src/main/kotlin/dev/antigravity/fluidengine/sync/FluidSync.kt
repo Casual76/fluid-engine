@@ -24,12 +24,20 @@ data class SyncConfig(
   val tombstoneRetentionMillis: Long = 90L * 24 * 60 * 60 * 1000,
   /** Il tetto di lavoro per fondere un testo lungo; oltre, si chiede la scelta ([FluidTextDiff.DefaultMaxEdits]). */
   val maxMergeEdits: Int = FluidTextDiff.DefaultMaxEdits,
+  /**
+   * R2 · Quante sincronizzazioni di fila si fermano su una riga che non si apre (la chiave di un'epoca che non c'è
+   * ancora, un formato più nuovo, un contenuto rovinato) prima di metterla da parte ([SyncSpaceState.unreadable]) e
+   * andare avanti. Tre, a occhio (26/11/2026): il tempo perché una chiave in ritardo arrivi da sola. La riga messa da
+   * parte si riprova a ogni sincronizzazione, e si applica quando si apre.
+   */
+  val unreadableRetries: Int = 3,
 ) {
   init {
     require(pageSize in 1..500) { "pageSize fra 1 e 500: $pageSize" }
     require(pushBatchSize in 1..1000) { "pushBatchSize fra 1 e 1000: $pushBatchSize" }
     require(maxPushRounds >= 1) { "almeno un giro di invio" }
     require(tombstoneRetentionMillis > 0) { "le pietre tombali restano per un tempo positivo" }
+    require(unreadableRetries >= 1) { "almeno un tentativo prima di mettere da parte una riga" }
   }
 }
 

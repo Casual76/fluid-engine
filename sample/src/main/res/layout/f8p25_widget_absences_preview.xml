@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  F8.25c · L'anteprima delle assenze di prova per il launcher (android:previewLayout, da Android 12): il titolo, il valore
+  e il limite. L'anello del quadrante vero e' una bitmap disegnata dal widget: qui basta il numero.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/f8p25_widget_preview_background"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+  <TextView
+      android:id="@+id/f8p25_preview_absences_title"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="@string/f8p25_preview_absences"
+      android:textColor="@color/f8p25_widget_text"
+      android:textSize="15sp"
+      android:textStyle="bold" />
+
+  <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:text="@string/f8p25_preview_absences_value"
+      android:textColor="@color/f8p25_widget_accent"
+      android:textSize="30sp"
+      android:textStyle="bold" />
+
+  <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="@string/f8p25_preview_absences_limit"
+      android:textColor="@color/f8p25_widget_secondary"
+      android:textSize="12sp" />
+</LinearLayout>

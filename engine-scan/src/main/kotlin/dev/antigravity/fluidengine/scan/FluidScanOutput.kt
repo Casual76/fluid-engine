@@ -10,6 +10,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.Immutable
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.OutputStream
@@ -75,6 +78,12 @@ internal object ScanFiles {
   const val Directory = "fluid-scan"
 
   fun root(context: Context): File = File(context.cacheDir, Directory).apply { mkdirs() }
+
+  /**
+   * R1: le cancellazioni dei file delle scansioni («Butta», una pagina tolta). Non dipendono dalla schermata: lo scope
+   * della composizione si chiude con lei, anche subito dopo «Butta», e una pulizia lì poteva non partire mai.
+   */
+  val cleanup: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
   /**
    * L'indirizzo `content://` di [file] nel FileProvider del modulo, nella stessa forma che dà

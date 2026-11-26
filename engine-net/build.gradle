@@ -38,4 +38,6 @@ dependencies {
   // Solo per le prove della lettura di Android (F8.20), mai in un'app.
   testImplementation "org.robolectric:robolectric:${engine.robolectric}"
   testImplementation "androidx.test:core:1.7.0"
+  // R2 · Il server delle prove di EngineHttp (rinvii, credenziali, corpi enormi): solo in locale, mai la rete vera.
+  testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }

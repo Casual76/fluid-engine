@@ -59,4 +59,17 @@ class EngineWidgetLayoutTest {
     )
     assertEquals(2, resolveEngineWidgetLayout(DpSize(300.dp, 900.dp), maxRows = 2).rowLimit)
   }
+
+  @Test
+  fun `F8_25c, the small size stacks its rows like a small iOS widget`() {
+    // Il piccolo di iPhone (158) e il 2x2 piu' stretto di Android (130): righe impilate, nome intero, meno righe.
+    val small = resolveEngineWidgetLayout(DpSize(158.dp, 158.dp))
+    assertTrue(small.stacked)
+    assertEquals(2, small.rowLimit)
+    assertTrue(resolveEngineWidgetLayout(DpSize(130.dp, 220.dp)).stacked)
+    // Da 170 dp in su nome e valore stanno sulla stessa riga, come prima.
+    assertFalse(resolveEngineWidgetLayout(DpSize(EngineWidgetMetrics.StackedWidth, 180.dp)).stacked)
+    assertFalse(resolveEngineWidgetLayout(DpSize(180.dp, 180.dp)).stacked)
+    assertFalse(resolveEngineWidgetLayout(DpSize(300.dp, 240.dp)).stacked)
+  }
 }

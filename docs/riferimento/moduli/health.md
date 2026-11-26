@@ -145,8 +145,9 @@ L'app dichiara solo ciò che usa (Sounds: solo la scrittura del sonno):
   sfocato quando arriva (è l'app che lo cambia), e sotto la fonte.
 - **La card di una misura** (`FluidHealthCard`), come quelle di Salute: il simbolo e il nome nel colore della misura
   (passi arancio, sonno indaco, battito rosa, allenamenti verdi, peso viola, acqua blu: `FluidHealthColors`), l'ora, il
-  valore grande con l'unità, **la fonte** («Da Pampa Sounds · telefono», «Da Orologio e Telefono», «Da 3 fonti») e i
-  buchi. Senza valore dice «Nessun dato».
+  valore grande con l'unità, **la fonte** («Da Pampa Sounds · telefono», «Da Ritmo e Pampa Sounds», «Da 3 fonti») e i
+  buchi. Senza valore dice «Nessun dato». L'apparecchio non si ripete quando il nome dell'app lo dice già: «Da Orologio»,
+  non «Da Orologio · orologio» (F8.26c).
 - **La settimana** (`FluidHealthWeek`): sette barre fino all'obiettivo tratteggiato; un giorno **senza dati** non ha la
   barra ma un trattino, e TalkBack dice «Nessun dato».
 - **Le parole** (`FluidHealthLabels`, italiano di serie e `English`) e i formati (`FluidHealthFormat`: «7.412», «7 h e

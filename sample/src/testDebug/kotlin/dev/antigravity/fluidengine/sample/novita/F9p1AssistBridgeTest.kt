@@ -314,6 +314,30 @@ class F9p1AssistBridgeTest {
     assertEquals(listOf(e.requestId), F9p1FakePampai.history.entries().map { it.requestId })
   }
 
+  @Test fun `la misura della memoria sta nel limite - aspetta quanto dice PampAI e rifa' la domanda`() = runBlocking {
+    // F9.1d: sul tablet la misura faceva 50 domande di fila e dalla trentesima PampAI rispondeva «limite raggiunto».
+    var calls = 0
+    val limit = AiAssistProgress(error = AiAssistError(AiAssistError.LimitReached, retryAfterMillis = 150))
+    val done = AiAssistProgress(text = "pss=1234", done = true)
+    val start = System.nanoTime()
+    assertEquals(done, f9p1WithinLimit { calls++; if (calls == 1) limit else done })
+    val waited = (System.nanoTime() - start) / 1_000_000
+    assertEquals(2, calls)
+    assertTrue("ha aspettato quanto diceva PampAI: $waited ms", waited >= 140)
+    // Un altro errore torna subito, senza rifare la domanda.
+    calls = 0
+    val timeout = AiAssistProgress(error = AiAssistError(AiAssistError.Timeout))
+    assertEquals(timeout, f9p1WithinLimit { calls++; timeout })
+    assertEquals(1, calls)
+    // Un limite che non passa: tre attese, poi l'ultima risposta com'e'.
+    calls = 0
+    val stuck = AiAssistProgress(error = AiAssistError(AiAssistError.LimitReached, retryAfterMillis = 1))
+    assertEquals(stuck, f9p1WithinLimit { calls++; stuck })
+    assertEquals(4, calls)
+    assertTrue(F9p1Measures(LongArray(0), true, DoubleArray(0), 0, DoubleArray(0), 0, 100, 101, 1, 48, 61_400).summary()
+      .contains("dopo 48 domande (in 61 s, col limite di 30 al minuto) 101 kB"))
+  }
+
   private suspend fun waitUntil(condition: () -> Boolean) {
     repeat(500) {
       if (condition()) return

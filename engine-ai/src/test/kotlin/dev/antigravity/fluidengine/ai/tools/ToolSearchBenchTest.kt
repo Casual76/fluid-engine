@@ -299,6 +299,15 @@ class ToolSearchBenchTest {
     "fluidify" to "spotify ascoltati ascolti storia playlist artisti brani",
   )
 
+  /**
+   * Le parole di un gruppo solo (F9.2b, visto sul tablet): "che tempo fa sabato" non ha parole in comune con "I prossimi
+   * giorni", e un'espansione generica nel motore ("sabato" -> "giorno") faceva vincere "Crea evento" su "Eventi" nel
+   * calendario. Il posto giusto sono le parole del gruppo dei giorni, che l'app conosce (il piano per PampAI, punto 1).
+   */
+  private val groupWords = mapOf(
+    "meteo_giornaliero" to "lunedi martedi mercoledi giovedi venerdi sabato domenica domani dopodomani weekend settimana",
+  )
+
   private val homePrompt: String by lazy { resource("prompt-sistema.txt") }
 
   /** Il prompt di dopo: "App e aree" con le sole aree di PampAI, e una riga per le altre (il piano per PampAI, F9.2). */
@@ -322,7 +331,9 @@ class ToolSearchBenchTest {
   private fun registry(setup: Setup): ToolRegistry<Unit> {
     if (setup == Setup.BEFORE) return ToolRegistry(catalog.tools, catalog.groups)
     val deferred = catalog.groups.filter { it.app != "pampai" }.toSet()
-    val terms: Map<AiToolGroup, List<String>> = deferred.associateWith { g -> tradeWords[(g as BenchGroup).app]?.split(' ').orEmpty() }
+    val terms: Map<AiToolGroup, List<String>> = deferred.associateWith { g ->
+      tradeWords[(g as BenchGroup).app]?.split(' ').orEmpty() + groupWords[g.id]?.split(' ').orEmpty()
+    }
     return ToolRegistry(catalog.tools, catalog.groups, deferred = deferred, searchTerms = terms)
   }
 
@@ -426,6 +437,18 @@ class ToolSearchBenchTest {
     assertTrue("prima $before, dopo $after", after < before * 0.92)
     val plan = summary["dopo_piano_k"]!!.jsonObject["caratteri_cinque_tipo"]!!.jsonPrimitive.content.toInt()
     assertTrue("prima $before, piano $plan", plan < before * 0.65)
+  }
+
+  @Test
+  fun `un giorno della settimana trova le previsioni dei giorni, con le parole del gruppo (visto sul tablet)`() {
+    val search = registry(Setup.AFTER).search
+    val sabato = search.find("che tempo fa sabato").map { it.tool.name }
+    assertTrue(sabato.toString(), "meteo_previsione_giorni" in sabato)
+    val domani = search.find("che tempo fa domani").map { it.tool.name }
+    assertTrue(domani.toString(), domani.any { it == "meteo_previsione_giorni" || it == "meteo_giorno_dettaglio" })
+    // Senza un giorno la domanda resta com'era: nessuna parola in piu'.
+    val adesso = search.find("che tempo fa adesso").map { it.tool.name }
+    assertTrue(adesso.toString(), "meteo_adesso" in adesso)
   }
 
   @Test

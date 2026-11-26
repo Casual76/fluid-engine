@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -169,7 +170,11 @@ class PampaAccountClient(
     }
     val s = call(AccountProtocol.METHOD_STATE) ?: return@withContext _state.value.also { _ready.value = true }
     cache?.write(CACHE_STATE, s.toString())
-    publish(stateFrom(s))
+    val state = publish(stateFrom(s))
+    // R2 · Un'uscita da remoto confermata dallo Store e non ancora finita qui (l'app è morta a metà, o un lavoro è
+    // caduto) si riprende alla prima lettura: è lo Store che lo dice, non un avviso.
+    if (wipeHandlers.isNotEmpty()) wipeIfConfirmed(s)
+    state
   }
 
   private fun publish(state: AccountState): AccountState {
@@ -178,11 +183,13 @@ class PampaAccountClient(
     return state
   }
 
-  /** Un avviso `CHANGED` dello Store: non ci si fida del contenuto, si rilegge. `wiped` si conferma con lo Store. */
+  /**
+   * Un avviso `CHANGED` dello Store: non ci si fida del contenuto, si rilegge. `wiped` si conferma con lo Store: è la
+   * rilettura ([refresh]) a guardare se lo Store dice «uscita da remoto, nessuno dentro» (R2).
+   */
   suspend fun onChanged(what: List<String>) {
     refresh()
     if (AccountProtocol.What.GRANTS in what) refreshGrants()
-    if (AccountProtocol.What.WIPED in what) confirmWiped()
     if (what.isEmpty() || what.any { it == AccountProtocol.What.PLACES || it == AccountProtocol.What.STATE || it == AccountProtocol.What.WIPED }) {
       placesVersion.value = placesVersion.value + 1
     }
@@ -203,19 +210,44 @@ class PampaAccountClient(
 
   /**
    * `wiped` arriva dopo un'uscita **da remoto** (`b\chiavi.md` § 4.4): l'app cancella le copie sincronizzate e le sue
-   * chiavi. Un broadcast falso potrebbe chiederlo, quindi si cancella solo se lo Store conferma: non c'è più
-   * nessuno dentro e c'è un'uscita da remoto più nuova dell'ultima già gestita.
+   * chiavi. Un broadcast falso potrebbe chiederlo, quindi si cancella solo se lo Store conferma (lo stato letto dal
+   * provider, non l'avviso): non c'è più nessuno dentro e c'è un'uscita da remoto più nuova dell'ultima già gestita.
+   *
+   * R2 · L'uscita si segna «gestita» solo **dopo** che tutti i lavori di [onWiped] sono finiti senza errori: sono
+   * cancellazioni, rifarle non fa danni. Se l'app muore a metà, o un lavoro lancia, il segno non c'è, e la prossima
+   * lettura dallo Store ([refresh], a ogni avvio e a ogni avviso) li rifà tutti. Un giro alla volta: chi arriva
+   * mentre un giro è in corso non aspetta (un lavoro che rilegge lo stato non si blocca su sé stesso).
    */
-  private suspend fun confirmWiped() {
-    val s = call(AccountProtocol.METHOD_STATE) ?: return
+  private suspend fun wipeIfConfirmed(s: JsonObject) {
+    if (!wipeMutex.tryLock()) return
+    try {
+      wipeLocked(s)
+    } finally {
+      wipeMutex.unlock()
+    }
+  }
+
+  private suspend fun wipeLocked(s: JsonObject) {
     val signedIn = (s["signedIn"] as? JsonPrimitive)?.booleanOrNull == true
     val at = (s["remoteExitAt"] as? JsonPrimitive)?.longOrNull ?: return
     val handled = maxOf(wipedHandled, cache?.read(CACHE_WIPED)?.toLongOrNull() ?: 0L)
     if (signedIn || at <= handled) return
+    var failed = false
+    for (h in wipeHandlers) {
+      try {
+        h()
+      } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+      } catch (_: Exception) {
+        failed = true
+      }
+    }
+    if (failed) return
     wipedHandled = at
     cache?.write(CACHE_WIPED, at.toString())
-    for (h in wipeHandlers) runCatching { h() }
   }
+
+  private val wipeMutex = Mutex()
 
   /** Un lavoro da fare quando lo Store conferma l'uscita da remoto: di solito cancellare le copie di `engine-sync`. */
   fun onWiped(handler: suspend () -> Unit) {
@@ -231,7 +263,9 @@ class PampaAccountClient(
     }) ?: return@withContext TokenResult.Unavailable("no_store")
     if ((r["ok"] as? JsonPrimitive)?.booleanOrNull == true) {
       val expires = (r["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 0
-      return@withContext TokenResult.Ok((r["token"] as JsonPrimitive).content, elapsed() + expires * 1000)
+      // R2 · Uno Store che risponde in una forma che non capisco: «non disponibile», non un crash.
+      val token = (r["token"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return@withContext TokenResult.Unavailable("risposta illeggibile")
+      return@withContext TokenResult.Ok(token, elapsed() + expires * 1000)
     }
     when ((r["reason"] as? JsonPrimitive)?.content) {
       "signed_out" -> TokenResult.SignedOut
@@ -248,12 +282,8 @@ class PampaAccountClient(
     if ("appKey" !in capabilities) return@withContext AppKeyResult.NoStore
     val r = call(AccountProtocol.METHOD_APP_KEY, buildJsonObject { put("purpose", purpose.wire) }) ?: return@withContext AppKeyResult.NoStore
     if ((r["ok"] as? JsonPrimitive)?.booleanOrNull == true) {
-      val keys = TreeMap<Int, ByteArray>()
-      for (k in (r["keys"] as JsonArray)) {
-        val o = k as JsonObject
-        keys[(o["epoch"] as JsonPrimitive).intOrNull!!] = PampaBase64.decode((o["key"] as JsonPrimitive).content)
-      }
-      return@withContext AppKeyResult.Ok((r["current"] as JsonPrimitive).intOrNull!!, keys)
+      // R2 · Una forma che non capisco (uno Store più nuovo o più vecchio): come senza Store, mai un crash.
+      return@withContext keysFrom(r) ?: AppKeyResult.NoStore
     }
     when ((r["reason"] as? JsonPrimitive)?.content) {
       "no_e2e" -> AppKeyResult.NoE2e
@@ -269,7 +299,8 @@ class PampaAccountClient(
     if (host == null && refresh() is AccountState.NoStore) return@withContext PlacesResult.NoStore
     val r = call(AccountProtocol.METHOD_PLACES_LIST) ?: return@withContext PlacesResult.NoStore
     if ((r["ok"] as? JsonPrimitive)?.booleanOrNull != true) return@withContext PlacesResult.NotAllowed
-    PlacesResult.Ok((r["places"] as JsonArray).map { AccountJson.place(it as JsonObject) }, (r["canWrite"] as? JsonPrimitive)?.booleanOrNull == true)
+    val list = runCatching { (r["places"] as JsonArray).map { AccountJson.place(it as JsonObject) } }.getOrNull() ?: return@withContext PlacesResult.NoStore
+    PlacesResult.Ok(list, (r["canWrite"] as? JsonPrimitive)?.booleanOrNull == true)
   }
 
   /**
@@ -319,8 +350,8 @@ class PampaAccountClient(
   suspend fun availableBackups(): List<BackupInfo> = withContext(Dispatchers.IO) {
     if (host == null && refresh() is AccountState.NoStore) return@withContext emptyList()
     val r = call(AccountProtocol.METHOD_BACKUP_AVAILABLE) ?: return@withContext emptyList()
-    (r["items"] as? JsonArray)?.map {
-      val o = it as JsonObject
+    (r["items"] as? JsonArray)?.mapNotNull {
+      val o = it as? JsonObject ?: return@mapNotNull null
       BackupInfo(o.long("n"), o.long("createdAt"), o.long("size"), (o["epoch"] as? JsonPrimitive)?.intOrNull ?: 0)
     }.orEmpty()
   }
@@ -330,7 +361,8 @@ class PampaAccountClient(
     if (host == null && refresh() is AccountState.NoStore) return@withContext GoogleTokenResult.NoStore
     val r = call(AccountProtocol.METHOD_GOOGLE, buildJsonObject { put("service", service) }) ?: return@withContext GoogleTokenResult.NoStore
     if ((r["ok"] as? JsonPrimitive)?.booleanOrNull == true) {
-      return@withContext GoogleTokenResult.Ok((r["accessToken"] as JsonPrimitive).content, elapsed() + ((r["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 0) * 1000)
+      val token = (r["accessToken"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return@withContext GoogleTokenResult.NoStore
+      return@withContext GoogleTokenResult.Ok(token, elapsed() + ((r["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 0) * 1000)
     }
     when ((r["reason"] as? JsonPrimitive)?.content) {
       "needs_consent" -> GoogleTokenResult.NeedsConsent
@@ -344,7 +376,7 @@ class PampaAccountClient(
   /** Le concessioni Google di quest'app. */
   suspend fun refreshGrants(): Set<String> = withContext(Dispatchers.IO) {
     val r = call(AccountProtocol.METHOD_GRANTS) ?: return@withContext emptySet()
-    val set = (r["grants"] as? JsonArray)?.mapNotNull { g -> (g as? JsonObject)?.takeIf { (it["state"] as? JsonPrimitive)?.content == "granted" }?.let { (it["service"] as JsonPrimitive).content } }?.toSet().orEmpty()
+    val set = (r["grants"] as? JsonArray)?.mapNotNull { g -> (g as? JsonObject)?.takeIf { (it["state"] as? JsonPrimitive)?.content == "granted" }?.let { (it["service"] as? JsonPrimitive)?.content } }?.toSet().orEmpty()
     _grants.value = set
     set
   }
@@ -404,5 +436,19 @@ class PampaAccountClient(
       .joinToString("") { it.substring(0, it.offsetByCodePoints(0, 1)).uppercase() }
 
     private fun JsonObject.long(k: String) = (this[k] as? JsonPrimitive)?.longOrNull ?: 0L
+
+    /** R2 · Le chiavi della risposta di `appKey`, o `null` se la forma non è quella del protocollo. */
+    internal fun keysFrom(r: JsonObject): AppKeyResult.Ok? {
+      val current = (r["current"] as? JsonPrimitive)?.intOrNull ?: return null
+      val keys = TreeMap<Int, ByteArray>()
+      for (k in r["keys"] as? JsonArray ?: return null) {
+        val o = k as? JsonObject ?: return null
+        val epoch = (o["epoch"] as? JsonPrimitive)?.intOrNull ?: return null
+        val key = (o["key"] as? JsonPrimitive)?.takeIf { it.isString }?.content?.let { runCatching { PampaBase64.decode(it) }.getOrNull() } ?: return null
+        keys[epoch] = key
+      }
+      if (current !in keys) return null
+      return AppKeyResult.Ok(current, keys)
+    }
   }
 }

@@ -18,6 +18,13 @@ data class EngineWidgetLayout(
   val rowLimit: Int,
   val showSubtitle: Boolean,
   val showFooter: Boolean,
+  /**
+   * La taglia piccola, come i widget piccoli di iOS (F8.25c): la cella e' piu' stretta di
+   * [EngineWidgetMetrics.StackedWidth], quindi in una riga il valore a destra scende **sotto** il titolo, il titolo ha
+   * tutta la larghezza (niente «Mat…» accanto a un orario) e le righe sono meno ([EngineWidgetMetrics.StackedRowHeight]).
+   * Niente tessera dell'icona: in una cella cosi' ruberebbe il posto al nome.
+   */
+  val stacked: Boolean = false,
 )
 
 object EngineWidgetMetrics {
@@ -36,6 +43,17 @@ object EngineWidgetMetrics {
 
   /** Beyond four rows a home-screen widget stops being glanceable and becomes a bad list. */
   const val MaxRows: Int = 4
+
+  /**
+   * Sotto questa larghezza le righe si impilano ([EngineWidgetLayout.stacked]): 170 dp. Un 2×2 su un telefono va da
+   * 130 dp (la griglia a 5 colonne: (73·2 − 16) dp, documentazione Android «App widget layouts») a circa 170 dp (One UI a
+   * 4 colonne su un telefono da 411 dp); il piccolo di iPhone e' 158 pt (HIG «Widgets»). Sopra, nome e valore stanno
+   * sulla stessa riga anche coi nomi lunghi. A occhio fra queste misure, 26/11/2026.
+   */
+  val StackedWidth: Dp = 170.dp
+
+  /** Una riga impilata: il titolo a 13 sp sopra il valore a 11 sp, col padding verticale della riga compatta. */
+  val StackedRowHeight: Dp = 44.dp
 }
 
 /**
@@ -48,9 +66,14 @@ fun resolveEngineWidgetLayout(
   maxRows: Int = EngineWidgetMetrics.MaxRows,
 ): EngineWidgetLayout {
   val compact = size.width < 240.dp || size.height < 150.dp
+  val stacked = size.width < EngineWidgetMetrics.StackedWidth
   val padding = if (compact) EngineWidgetMetrics.CompactPadding else EngineWidgetMetrics.Padding
   val header = if (compact) EngineWidgetMetrics.CompactHeaderHeight else EngineWidgetMetrics.HeaderHeight
-  val rowHeight = if (compact) EngineWidgetMetrics.CompactRowHeight else EngineWidgetMetrics.RowHeight
+  val rowHeight = when {
+    stacked -> EngineWidgetMetrics.StackedRowHeight
+    compact -> EngineWidgetMetrics.CompactRowHeight
+    else -> EngineWidgetMetrics.RowHeight
+  }
 
   var available = size.height - padding * 2 - header - EngineWidgetMetrics.Gap
   val showFooter = hasFooter &&
@@ -70,5 +93,6 @@ fun resolveEngineWidgetLayout(
     rowLimit = rowLimit,
     showSubtitle = !compact,
     showFooter = showFooter,
+    stacked = stacked,
   )
 }

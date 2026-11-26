@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.25c · L'immagine d'anteprima delle assenze per i launcher prima di Android 12 (android:previewImage). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="158dp"
+    android:height="158dp">
+  <item android:drawable="@drawable/f8p25_widget_preview_background" />
+  <item android:left="12dp" android:top="14dp" android:right="86dp" android:bottom="132dp">
+    <shape android:shape="rectangle">
+      <solid android:color="@color/f8p25_widget_text" />
+      <corners android:radius="6dp" />
+    </shape>
+  </item>
+  <item android:left="40dp" android:top="44dp" android:right="40dp" android:bottom="36dp">
+    <shape android:shape="oval">
+      <stroke android:width="8dp" android:color="@color/f8p25_widget_accent" />
+    </shape>
+  </item>
+</layer-list>

@@ -61,6 +61,9 @@ vetro che cambia per sostituzione sfocata (R7): «Inquadra un documento», «Avv
   F1B: nasce dal foglio, finisce nella pila). Col movimento ridotto niente lampo e niente volo.
 - **La fotocamera che non c'è**: senza il permesso la pagina dice «Per scansionare serve la fotocamera» con «Consenti la
   fotocamera» (il permesso chiesto dal tasto, F8.11); senza fotocamera «La fotocamera non è disponibile».
+- **Gli avvisi** (R1): uno scatto non riuscito («Scatto non riuscito, riprova») e la fila piena («Hai raggiunto il
+  massimo di 100 pagine»: lo scatto non parte) prendono per 2,5 s il posto della scritta che guida, e TalkBack li dice.
+  Dopo uno scatto TalkBack dice «Pagina 3 scansionata» col numero della pagina, anche dopo «Riprendi».
 
 **La revisione** (tocco sulla pila, o `openReview = true` con pagine già fatte): le pagine una per volta, «2 di 5» in una
 capsula, «Salva»; in basso **la fila delle miniature** e la capsula dei comandi.
@@ -71,6 +74,9 @@ capsula, «Salva»; in basso **la fila delle miniature** e la capsula dei comand
 - **Ritaglia** apre il ritaglio; **Ruota** gira la pagina di un quarto; **Filtro** apre le quattro anteprime della pagina
   (Documento, Scala di grigi, Bianco e nero, Foto, come VisionKit); **Riprendi** torna alla fotocamera e rifà quella
   pagina allo stesso posto; **Elimina** la toglie (l'ultima torna alla fotocamera).
+- Lo scatto di **Riprendi** prende il posto della foto solo quando la pagina nuova è pronta: tornando indietro mentre si
+  scrive resta la pagina di prima, foto compresa (R1). Una pagina che non si è potuta pulire (una foto rotta, il disco
+  pieno) dice «Pagina non leggibile»: Riprendi la rifà, Elimina la toglie.
 - Niente sfocature su pagine e fila: le muove il dito (F8).
 
 **Il ritaglio**: la foto intera, il foglio con un velo scuro fuori, **i quattro angoli da trascinare** (cerchi da 22 dp
@@ -87,6 +93,8 @@ quattro azioni.
 ```
 
 «Annulla» con pagine già fatte chiede «Eliminare le 3 scansioni?» («Elimina» in rosso, «Continua a scansionare»).
+L'attività del contratto (`FluidScanActivity`) disegna fino al bordo e spegne il velo di contrasto della barra a tre
+tasti, anche dopo una rotazione (R1, la regola delle app dell'engine).
 
 ## La consegna: `FluidScanResult`
 
@@ -107,6 +115,10 @@ data class FluidScanResult(val pdf: Uri?, val images: List<Uri>, val pageCount: 
   PdfRenderer (i visori), Anteprima e Acrobat lo leggono.
 - Il titolo di serie è «Scansione 25 nov 2026, 14.32» nella lingua del telefono (`FluidScanOptions.title` lo cambia).
 - I file restano finché l'app chiama `state.clear()` o Android svuota la cache: chi li vuole tenere li copia.
+  `clear()` li cancella in sottofondo anche se la schermata si è già chiusa, dopo le pagine che si stavano scrivendo (R1).
+- **«Salva» che non riesce** (R1): una pagina che non si legge o il documento che non si scrive (il disco pieno) non
+  chiudono lo scanner: un avviso dice quali pagine rifare. `state.export()` rifà una volta le pagine fallite e lancia
+  `IOException`, col numero delle pagine nel messaggio; la scansione resta com'è.
 
 **Universal Converter** apre il PDF (o le immagini) con l'URI che riceve, come oggi da «Apri con…». **Pampa Notes** mette
 le immagini (`FluidScanOutput.Images`) nella nota, o il PDF come allegato.
@@ -118,7 +130,9 @@ scatto. Due di serie:
 
 - **`rememberFluidCameraXScanCamera()`**: CameraX 1.6, la fotocamera posteriore, **4:3** per anteprima, analisi
   (640 × 480, l'ultimo fotogramma) e scatto (al più 8 MP, qualità massima). L'anteprima è una `TextureView`
-  (`PreviewView` in modo `COMPATIBLE`): il vetro dei comandi la campiona.
+  (`PreviewView` in modo `COMPATIBLE`): il vetro dei comandi la campiona. Stacca **solo le sue sorgenti**
+  (`unbind(preview, analysis, still)`, R1): il provider di CameraX è uno per processo, e l'anteprima dell'app ospite
+  resta. Se l'app tiene già la fotocamera e le sorgenti insieme non ci stanno, `problem` dice «non disponibile».
 - **`FluidStillScanCamera(sheets, table)`**: foto di fogli già scattate, una per volta, con la mano che trema un poco e
   si ferma, e il tavolo vuoto fra un foglio e l'altro. Per le prove, la galleria (che non chiede la fotocamera) e un
   telefono senza fotocamera.
@@ -198,6 +212,9 @@ lifecycle e view), uguali per ogni architettura; nessuna libreria nativa e nessu
   diagonali), il bordo della pagina senza il filo del tavolo.
 - `ScanOutputTest` di `engine-scan`: il PDF con la tabella xref giusta, lo scatto automatico una volta per foglio e mai
   con la mano che trema.
+- `ScanStateR1Test`, `ScanScannerR1UiTest` e `ScanActivityR1Test` (R1): «Riprendi» annullato a metà, «Butta» con la
+  schermata chiusa o una pagina che si scrive, la pagina che non si legge, `working` dopo una pagina tolta, gli avvisi
+  sulla fotocamera e l'annuncio dopo «Riprendi», «Salva» con una pagina rotta, il velo della barra, le sorgenti di CameraX.
 - `FluidDocumentScannerUiTest` (Robolectric, Compose): due fogli scattati da soli dalla fotocamera finta, la fila
   riordinata **col dito** (tieni premuto e trascina), un angolo ritagliato, il filtro e la rotazione, il PDF consegnato
   per URI; in manuale niente scatti da soli, col movimento ridotto, e le etichette di TalkBack.

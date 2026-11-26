@@ -2,6 +2,9 @@ package dev.antigravity.fluidengine.sample.novita
 
 import android.content.Context
 import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import dev.antigravity.fluidengine.ai.keys.KeystoreCipher
 import dev.antigravity.fluidengine.ai.keys.SecretCipher
 import dev.antigravity.fluidengine.ai.mcp.FluidConnectorsPage
 import dev.antigravity.fluidengine.ai.mcp.McpCallResult
@@ -56,10 +58,13 @@ import dev.antigravity.fluidengine.ui.fluid.FluidChartSeries
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -126,7 +131,7 @@ internal object F9p2Tags {
 }
 
 /**
- * Le misure di F9.2 (26/11/2026), col tokenizer di Qwen3 sulle richieste registrate dal banco (`ToolSearchBenchTest`):
+ * Le misure di F9.2 (26/11/2026, rifatte in F9.2b con le parole del gruppo dei giorni), col tokenizer di Qwen3 sulle richieste registrate dal banco (`ToolSearchBenchTest`):
  * gettoni d'ingresso per domanda, sommando tutte le richieste (router e giri). "Prima" e' PampAI di oggi (il suo
  * pre-router e un router perfetto: il caso migliore); "dopo" l'engine 4.0 col solo cambio minimo in PampAI (le altre
  * app differite); "col piano" anche il prompt di sistema corto e senza router (il piano per PampAI). Il rapporto di F9.2
@@ -135,13 +140,22 @@ internal object F9p2Tags {
 internal data class F9p2Row(val question: String, val before: Int, val after: Int, val plan: Int, val requests: String)
 
 internal val F9p2Measured: List<F9p2Row> = listOf(
-  F9p2Row("Meteo", 10_050, 9_252, 6_718, "2 · 2 · 2 richieste"),
+  F9p2Row("Meteo", 10_050, 9_272, 6_738, "2 · 2 · 2 richieste"),
   F9p2Row("Voti", 11_782, 10_488, 7_954, "2 · 2 · 2 richieste"),
   F9p2Row("Musica", 14_223, 13_831, 10_030, "3 · 3 · 3 richieste"),
   F9p2Row("Una mail", 11_613, 9_347, 7_280, "3 · 3 · 2 richieste"),
   F9p2Row("Generica", 5_808, 4_008, 1_752, "2 · 2 · 1 richieste"),
-  F9p2Row("E sabato?", 14_282, 11_416, 7_850, "3 · 3 · 2 richieste"),
+  F9p2Row("E sabato?", 14_282, 11_438, 7_872, "3 · 3 · 2 richieste"),
 )
+
+/** Un numero di gettoni col punto delle migliaia, come lo scrive il rapporto ("10.050"), in ogni lingua del telefono. */
+internal fun f9p2Thousands(value: Int): String = String.format(java.util.Locale.ITALIAN, "%,d", value)
+
+/**
+ * Quanto si risparmia, in percento arrotondato (F9.2b, visto sul tablet: prima si troncava la parte rimasta, e il 33,2%
+ * del meteo diventava "−34%").
+ */
+internal fun f9p2Saved(before: Int, after: Int): Int = kotlin.math.round((before - after) * 100.0 / before).toInt()
 
 @Composable
 private fun F9p2TokensScene(onBack: () -> Unit) {
@@ -153,7 +167,7 @@ private fun F9p2TokensScene(onBack: () -> Unit) {
           FluidBarChart(
             groups = F9p2Measured.map { FluidBarGroup(it.question, listOf(it.before.toFloat(), it.after.toFloat(), it.plan.toFloat())) },
             series = listOf(FluidChartSeries("Prima"), FluidChartSeries("Dopo"), FluidChartSeries("Col piano")),
-            valueText = { v -> "%,d".format(v.toInt()).replace(',', '.') },
+            valueText = { v -> f9p2Thousands(v.toInt()) },
             scaleLabel = "gettoni d'ingresso",
             selectedIndex = selected,
             onSelectedChange = { selected = it },
@@ -167,11 +181,12 @@ private fun F9p2TokensScene(onBack: () -> Unit) {
       FluidListGroup(glass = true) {
         F9p2Measured.forEachIndexed { index, row ->
           if (index > 0) FluidListDivider()
-          val saved = 100 - row.after * 100 / row.before
-          val planned = 100 - row.plan * 100 / row.before
+          val saved = f9p2Saved(row.before, row.after)
+          val planned = f9p2Saved(row.before, row.plan)
           FluidListRow(
             title = row.question,
-            subtitle = "prima ${row.before} · dopo ${row.after} (−$saved%) · col piano ${row.plan} · ${row.requests}",
+            subtitle = "prima ${f9p2Thousands(row.before)} · dopo ${f9p2Thousands(row.after)} (−$saved%) · " +
+              "col piano ${f9p2Thousands(row.plan)} · ${row.requests}",
             meta = "−$planned%",
             selected = selected == index,
             disclosure = false,
@@ -184,7 +199,7 @@ private fun F9p2TokensScene(onBack: () -> Unit) {
       Text(
         "Il conto: le richieste vere registrate dall'orchestratore, contate col tokenizer pubblico di Qwen3 (quello dei " +
           "modelli Qwen su Groq); il tokenizer di Gemma 3, il piu' vicino a Gemini, ne conta il 9% in meno. Sulle 59 " +
-          "domande del banco: −34% dopo, −52% col piano. I dettagli sono nel rapporto di F9.2.",
+          "domande del banco: −35% dopo, −52% col piano. I dettagli sono nel rapporto di F9.2.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 4.dp),
@@ -231,8 +246,15 @@ internal object F9p2Catalog {
     }
     val used = groups.filter { g -> tools.any { it.group === g } }
     val deferred = used.filter { it.app != "pampai" }.toSet()
-    return ToolRegistry(tools, used, deferred = deferred, searchTerms = deferred.associateWith { g -> TradeWords[(g as DemoGroup).app]?.split(' ').orEmpty() })
+    return ToolRegistry(tools, used, deferred = deferred, searchTerms = deferred.associateWith { g ->
+      TradeWords[(g as DemoGroup).app]?.split(' ').orEmpty() + GroupWords[g.id]?.split(' ').orEmpty()
+    })
   }
+
+  /** Le parole di un gruppo solo (F9.2b): i giorni per le previsioni dei giorni, come nel banco di engine-ai. */
+  private val GroupWords = mapOf(
+    "meteo_giornaliero" to "lunedi martedi mercoledi giovedi venerdi sabato domenica domani dopodomani weekend settimana",
+  )
 
   /** Le parole del mestiere di PampAI (RegistryBuilder.DOMAIN_WORDS), dalle regex alle parole: il piano per PampAI. */
   private val TradeWords = mapOf(
@@ -317,9 +339,31 @@ private class DemoAuth : McpHttpJson {
   override suspend fun postJson(url: String, body: JsonObject) = McpHttpReply(201, buildJsonObject { put("client_id", "galleria") })
 }
 
-/** I due server finti e il gestore, uno per processo (DataStore vuole un'istanza sola per file). */
+/**
+ * Un DataStore di preferenze **in memoria**: la galleria non lascia file (sul tablet niente `run-as … rm`), e l'elenco
+ * dei connettori finti riparte da capo a ogni avvio. Un'app vera usa `McpConnectorStore(context)` e `McpTokenStore(context)`.
+ */
+private class MemoryPreferences : DataStore<Preferences> {
+  private val state = MutableStateFlow(emptyPreferences())
+  private val lock = Mutex()
+  override val data: Flow<Preferences> = state
+  override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = lock.withLock {
+    transform(state.value).also { state.value = it }
+  }
+}
+
+/**
+ * La cifratura della galleria: finta e reversibile, perche' i gettoni sono quelli del NAS finto e una chiave nuova nel
+ * Keystore del telefono resterebbe dopo la prova. Un'app vera usa `KeystoreCipher` (il valore di serie di `McpTokenStore`).
+ */
+private object DemoCipher : SecretCipher {
+  override fun encrypt(plain: String): String = "galleria:" + plain.reversed()
+  override fun decrypt(blob: String): String? = if (blob.startsWith("galleria:")) blob.removePrefix("galleria:").reversed() else null
+}
+
+/** I due server finti e il gestore, uno per processo, tutto in memoria: niente file, niente chiavi nel Keystore. */
 internal object F9p2Demo {
-  /** Le prove in Robolectric, dove il Keystore non c'e', passano una cifratura loro. */
+  /** Le prove possono passare una cifratura loro. */
   @Volatile var cipher: SecretCipher? = null
 
   @Volatile private var instance: McpConnectors? = null
@@ -358,11 +402,9 @@ internal object F9p2Demo {
 
   fun connectors(context: Context): McpConnectors = instance ?: synchronized(this) {
     instance ?: run {
-      val dir = File(context.cacheDir, "f9p2").apply { mkdirs() }
-      val cipher = cipher ?: KeystoreCipher("fluidengine.sample.mcp")
       McpConnectors(
-        store = McpConnectorStore.open(File(dir, "connettori.preferences_pb")),
-        tokens = McpTokenStore.open(File(dir, "gettoni.preferences_pb"), cipher),
+        store = McpConnectorStore(MemoryPreferences()),
+        tokens = McpTokenStore(MemoryPreferences(), cipher ?: DemoCipher),
         oauth = McpOAuth(DemoAuth(), redirectUri = "dev.antigravity.fluidglass:/mcp", clientName = "Galleria Fluid"),
         transport = { url -> transportFor(url) },
       ).also { instance = it }

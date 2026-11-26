@@ -77,6 +77,14 @@ l'elemento resta com'era (stato `ERROR`, codice `unreadable`). Se il sigillo non
 c'e' ancora) le modifiche aspettano sul telefono e lo stato lo dice (codice `seal`). Il registro sul telefono e' la verita' locale dell'app,
 come il suo database; chi lo vuole cifrato anche li' passa un `SyncStore` che cifra (`engine-vault`, F8.23).
 
+**Una riga che non si apre non ferma lo spazio per sempre (R2).** Una riga che questo dispositivo non sa aprire (la
+chiave di un'epoca che non ha ancora, un engine piu' nuovo, un contenuto rovinato) ferma il ritiro per qualche giro
+(`SyncConfig.unreadableRetries`, tre di serie: il tempo perche' una chiave in ritardo arrivi da sola, con lo stato
+`unreadable`). Poi resta da parte, col suo contenuto sigillato, e il cursore la passa: le altre righe arrivano e le
+modifiche partono. L'elemento sta in `SyncSpaceState.unreadable` (e in `SyncSpaceReport.unreadable`); a ogni
+sincronizzazione si riprova, e quando si apre si applica ed esce da li'. Una versione nuova dello stesso elemento la
+supera, e una riga che il relay, riletto tutto, non ha piu' se ne va. Resta da parte anche dopo un riavvio.
+
 ## Usarlo in un'app
 
 ```kotlin
@@ -116,6 +124,8 @@ verso il relay, un contenuto spostato non si apre), il processo che muore con un
 La prova generativa (`SyncPropertyTest`, 160 corse) controlla che **tutti convergano, nessuna modifica si perda e
 nessuna si applichi due volte**. In Robolectric: il registro su SQLite e il lavoro di WorkManager.
 - `BlobSyncStoreTest` (F10.8): il blob che torna uguale a un avvio dopo, la transazione annullata se il salvataggio cade.
+- `SyncUnreadableR2Test` (R2): la riga che non si apre ferma lo spazio per tre giri, poi resta da parte e le altre passano;
+  si apre quando arriva la chiave, resta da parte dopo un riavvio, e una versione nuova la supera.
 
 ## File
 

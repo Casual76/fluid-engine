@@ -238,6 +238,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val OutcomeFailed`
 - `data class AiAssistError(val code: String, val retryAfterMillis: Long? = null, val reason: String? = null, val needs: Set<String> = emptySet())` — Un errore dell'assistenza: un **codice fisso**, mai il testo di un'eccezione o di un fornitore (che potrebbe portare una chiave). Le parole le mette l'engine ([message]).
   - `fun message(language: String = "it"): String` — Le parole per l'utente, in italiano o in inglese.
+  - `val retryable: Boolean` — Se ha senso offrire «Riprova» con la stessa domanda (F9.1d). Sì quando la stessa domanda puo' andare dopo: [Timeout], [Interrupted], [Failed] (e ogni codice sconosciuto), [Busy] e [LimitReached] (dopo [retryAfterMillis]), [ConsentRequired] (riprovare riapre il foglio del sì).
   - `companion object`
     - `const val NotInstalled`
     - `const val NeedsUpdate`

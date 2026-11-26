@@ -92,12 +92,24 @@ class AndroidKeystoreDeviceKey(
   var strongBoxBacked: Boolean = false
     private set
 
-  private fun keyPair(): Pair<PrivateKey, ECPublicKey> {
-    val existing = runCatching { keyStore.getEntry(alias, null) as? KeyStore.PrivateKeyEntry }.getOrNull()
-    if (existing != null) return existing.privateKey to (existing.certificate.publicKey as ECPublicKey)
-    val pair = generate(strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE))
-    return pair.private to (pair.public as ECPublicKey)
+  /**
+   * Cerca la chiave, o la crea. R2 · Sotto un lucchetto, come `KeystoreCustodyVault.seal`: due fili insieme (la
+   * pagina d'accesso che chiede [publicJwk] e un rinnovo che chiede [sign]) farebbero nascere due chiavi con lo stesso
+   * alias, e il Keystore terrebbe la seconda mentre il server registra la prima. E dopo averla creata la si **rilegge**
+   * dal Keystore: si usa sempre quella che c'è davvero, mai quella appena tenuta in mano.
+   */
+  private fun keyPair(): Pair<PrivateKey, ECPublicKey> = synchronized(lock) {
+    stored()?.let { return it }
+    generate(strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE))
+    stored() ?: throw IllegalStateException("la chiave del dispositivo non si rilegge dal Keystore")
   }
+
+  private fun stored(): Pair<PrivateKey, ECPublicKey>? {
+    val entry = runCatching { keyStore.getEntry(alias, null) as? KeyStore.PrivateKeyEntry }.getOrNull() ?: return null
+    return entry.privateKey to (entry.certificate.publicKey as ECPublicKey)
+  }
+
+  private val lock = Any()
 
   private fun generate(useStrongBox: Boolean): KeyPair {
     val builder = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN)
@@ -132,7 +144,7 @@ class AndroidKeystoreDeviceKey(
   }
 
   override fun destroy() {
-    runCatching { keyStore.deleteEntry(alias) }
+    synchronized(lock) { runCatching { keyStore.deleteEntry(alias) } }
   }
 }
 

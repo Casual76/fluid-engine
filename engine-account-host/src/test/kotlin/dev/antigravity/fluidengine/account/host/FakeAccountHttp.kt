@@ -57,6 +57,18 @@ class FakeAccountHttp(val keys: FakeKeysServer = FakeKeysServer()) : Dispatcher(
   var refreshes = 0
   var appTokens = 0
 
+  /**
+   * R2 · Il server fa il lavoro ma la risposta non arriva (la rete cade dopo): `"POST /v1/recovery"`. Vale finché la
+   * prova non lo toglie, perché `HttpURLConnection` del JDK ripete da sé un POST rimasto senza risposta.
+   */
+  val dropping: MutableSet<String> = java.util.Collections.synchronizedSet(mutableSetOf())
+  /** R2 · Risponde con questo errore una volta, senza fare niente: `"POST /v1/recovery" to (401 to "reauth_required")`. */
+  val refuseOnce: MutableMap<String, Pair<Int, String>> = java.util.Collections.synchronizedMap(mutableMapOf())
+  /** R2 · L'attesa di sicurezza (Q8): `POST /v1/recovery` risponde 202 `waiting` e per ora non cambia niente. */
+  @Volatile var waitingRecovery = false
+  /** R2 · Chiamata col «metodo percorso» dopo il lavoro e prima della risposta: per fermare una risposta a metà. */
+  @Volatile var beforeReply: ((String) -> Unit)? = null
+
   /** La risposta d'ingresso che darebbe `login/verify`: la sessione nuova, con la pubblica del dispositivo. */
   fun login(deviceKey: JsonObject): JsonObject {
     deviceJwk = deviceKey
@@ -85,12 +97,17 @@ class FakeAccountHttp(val keys: FakeKeysServer = FakeKeysServer()) : Dispatcher(
     val path = request.path ?: ""
     recorded += Recorded(request.method ?: "", path, request.headers.toString(), body)
     if (down) return error(503, "unavailable")
+    val key = "${request.method} $path"
+    refuseOnce.remove(key)?.let { (status, code) -> return error(status, code) }
     val json = runCatching { Json.parseToJsonElement(body) as JsonObject }.getOrNull()
-    return try {
+    val response = try {
       if (path.startsWith("/v1/backups")) backupsRoute(request, request.method ?: "", path, raw) else route(request, request.method ?: "", path, json)
     } catch (e: FakeKeysServer.Refused) {
       error(409, "conflict", e.reason)
     }
+    beforeReply?.invoke(key)
+    if (key in dropping) return MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AFTER_REQUEST)
+    return response
   }
 
   private fun route(request: RecordedRequest, method: String, path: String, json: JsonObject?): MockResponse {
@@ -106,6 +123,8 @@ class FakeAccountHttp(val keys: FakeKeysServer = FakeKeysServer()) : Dispatcher(
         ok(JsonObject(emptyMap()))
       }
       method == "GET" && path == "/v1/keys" -> ok(keys.view().toJson())
+      method == "POST" && path == "/v1/recovery" && waitingRecovery -> MockResponse().setResponseCode(202).setHeader("content-type", "application/json")
+        .setBody(buildJsonObject { put("pendingId", "pnd_1"); put("action", "recovery.replace"); put("executeAt", 86_400_000) }.toString())
       method == "POST" && path == "/v1/recovery" -> {
         val door = (json!!["door"] as? JsonObject)?.let { parseDoor(it) }
         keys.postRecovery((json["auth"] as JsonPrimitive).content, door)

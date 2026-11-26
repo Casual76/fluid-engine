@@ -1,0 +1,45 @@
+Il registro dei bilanci (F7.28). Una riga per elemento, scena e fase: i tetti di quello che l'elemento può costare.
+
+File e proprietari
+  vetro.bilancio      i componenti del vetro e le scene di «Misure» (F7; lo misura GlassBalanceScenesTest)
+  banco.bilancio      il banco delle allocazioni sul percorso caldo (GlassHotPathAllocationTest)
+  f8p<n>.bilancio     un frammento per pacchetto di F8: lo possiede il pacchetto (lo misura F8BalanceTest)
+  attesi.bilancio     gli elementi che non ci sono ancora («atteso»)
+
+Una riga
+  <id> <fase> <nodi> <layer> <cat/f> <catture> <pixel> <KiB> <fab> <fx> <rid> <alloc/f> <ver> <prova> | <motivo>
+  <id> atteso <ver> | <motivo>
+  @margine <id> <px>                 il margine ottico per lato delle catture di <id> (di serie 0)
+  # ...                              un commento (solo righe intere)
+
+Le fasi: entrata, moto (o moto:<tratto>), posa (o posa:<tratto>), uscita, rilascio. Ogni elemento disponibile le ha
+tutte e cinque; un elemento senza moto proprio ha la riga moto con «-» e il motivo.
+
+Le colonne
+  nodi, layer  i nodi e i layer del vetro vivi, al massimo nella fase (nel rilascio: quelli rimasti rispetto a prima)
+  cat/f        le catture in un fotogramma, al massimo
+  catture      le catture della fase (nella posa: fra i due campioni separati da 2 s)
+  pixel        la cattura o la finitura più grande (larghezza × altezza)
+  KiB          i byte del vetro residenti e in volo, al massimo, rispetto a prima dell'elemento (nel rilascio: rimasti)
+  fab          layer, bitmap e programmi AGSL nuovi: totale in entrata e uscita, massimo per fotogramma del tratto
+               stabile nel moto (deve essere 0), totale fra i due campioni nella posa
+  fx           i filtri (RenderEffect) nuovi, con le stesse finestre di fab
+  rid          le registrazioni di layer nella posa, fra i due campioni (un elemento fermo non ridisegna: 0, o la cadenza)
+  alloc/f      i byte allocati per fotogramma di moto stabile sul filo principale, meno il banco vuoto (solo banco.bilancio)
+Un numero è un tetto; «-» vuol dire che in quella fase la colonna non si misura; «NV» che al PC non si può verificare
+(il motivo dice dove si verifica, per esempio sul tablet).
+
+Un difetto vero trovato da una invariante (che non ha un tetto da alzare) si scrive così, finché non si corregge:
+  @difetto <id> <fase> <chiave> | <motivo>   la violazione di <id> in <fase> che contiene <chiave> si stampa e non cade
+
+Le invarianti, senza colonna (rosse sempre, salvo un @difetto scritto): nessun layer registrato due volte nello stesso fotogramma, nessun vetro che
+cattura due volte nello stesso fotogramma, nessuna cattura più grande del vetro (o della sua finestra) alla scala
+scelta più il margine ottico, due campioni della posa uguali (nodi, layer, byte).
+
+Se una riga diventa rossa
+  1. Leggere il messaggio: dice elemento, fase, colonna, misura e tetto (e la riga misurata intera nell'uscita della
+     prova, «Bilancio misurato | ...»).
+  2. Se il costo in più non è voluto, è un difetto: si corregge il codice, non la riga.
+  3. Se è voluto (un componente che fa di più), si alza il tetto **in quella riga sola**, si mette la sigla del
+     pacchetto in <ver> e nel motivo il costo (quanto, in che fase) e la ragione. Mai alzare un tetto senza scriverlo.
+  4. Un tetto più alto della misura si può abbassare: la prova lo stampa («sotto il tetto»).

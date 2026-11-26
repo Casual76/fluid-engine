@@ -19,6 +19,8 @@ import org.bytedeco.tesseract.global.tesseract.PSM_AUTO
 import org.bytedeco.tesseract.global.tesseract.RIL_BLOCK
 import org.bytedeco.tesseract.global.tesseract.RIL_TEXTLINE
 import org.bytedeco.tesseract.global.tesseract.RIL_WORD
+import org.bytedeco.tesseract.global.tesseract.TessDeleteText
+import org.bytedeco.tesseract.global.tesseract.TessResultIteratorDelete
 import java.io.File
 import java.util.concurrent.Executors
 import kotlin.math.max
@@ -61,15 +63,15 @@ class FluidTesseractRecognizer(
   override val available: Boolean
     get() = TesseractHost.available(app, languages)
 
-  override suspend fun recognize(image: Bitmap): FluidRecognizedText {
+  override suspend fun recognize(image: Bitmap): FluidRecognizedText = withContext(TesseractHost.dispatcher) {
+    // R1: anche la copia dei pixel sul filo di Tesseract (a 12 MP sono 48 MB): il contratto dice «fuori dal filo
+    // principale», e chi chiama da una coroutine dell'interfaccia non deve pagarla lì.
     val w = image.width
     val h = image.height
     val pixels = IntArray(w * h)
     image.getPixels(pixels, 0, w, 0, 0, w, h)
-    return withContext(TesseractHost.dispatcher) {
-      val gray = OcrImage.prepare(pixels, w, h, targetLongSide)
-      TesseractHost.read(app, languages, gray)
-    }
+    val gray = OcrImage.prepare(pixels, w, h, targetLongSide)
+    TesseractHost.read(app, languages, gray)
   }
 
   companion object {
@@ -83,6 +85,11 @@ internal class OcrGray(val bytes: ByteArray, val width: Int, val height: Int, va
 
 /** La preparazione dell'immagine, senza Android (si prova sul computer). */
 internal object OcrImage {
+  /**
+   * L'immagine in grigio con la luce della carta pareggiata, ridotta o ingrandita verso [targetLongSide]. [pixels] (ARGB)
+   * si riusa e alla fine non contiene più i colori: R2 (n. 11), prima c'erano altre due mappe intere (la luminanza e la
+   * luce, 4 byte per pixel ognuna: a 8 MP 64 MB in più). I byte che escono sono gli stessi.
+   */
   fun prepare(pixels: IntArray, w: Int, h: Int, targetLongSide: Int): OcrGray {
     val long = max(w, h)
     // Ingrandire fino al doppio il testo piccolo, ridurre oltre 1,3 volte il lato lungo voluto.
@@ -93,11 +100,13 @@ internal object OcrImage {
     }
     val ow = max(1, (w * scale).roundToInt())
     val oh = max(1, (h * scale).roundToInt())
-    val luma = FloatArray(w * h) { i ->
+    // La luminanza prende il posto del colore nello stesso array (i bit di un Float), poi la luminanza divisa per la
+    // luce della carta: le stesse operazioni di prima, nello stesso ordine.
+    for (i in 0 until w * h) {
       val c = pixels[i]
-      (0.299f * (c shr 16 and 0xFF) + 0.587f * (c shr 8 and 0xFF) + 0.114f * (c and 0xFF))
+      pixels[i] = (0.299f * (c shr 16 and 0xFF) + 0.587f * (c shr 8 and 0xFF) + 0.114f * (c and 0xFF)).toRawBits()
     }
-    val light = paperLight(luma, w, h)
+    divideByPaperLight(pixels, w, h)
     val out = ByteArray(ow * oh)
     for (y in 0 until oh) {
       val sy = ((y + 0.5f) / scale - 0.5f).coerceIn(0f, (h - 1).toFloat())
@@ -106,16 +115,20 @@ internal object OcrImage {
         val sx = ((x + 0.5f) / scale - 0.5f).coerceIn(0f, (w - 1).toFloat())
         val x0 = sx.toInt(); val x1 = min(w - 1, x0 + 1); val tx = sx - x0
         val i00 = y0 * w + x0; val i01 = y0 * w + x1; val i10 = y1 * w + x0; val i11 = y1 * w + x1
-        val v = (luma[i00] / light[i00]) * (1 - tx) * (1 - ty) + (luma[i01] / light[i01]) * tx * (1 - ty) +
-          (luma[i10] / light[i10]) * (1 - tx) * ty + (luma[i11] / light[i11]) * tx * ty
+        val v = Float.fromBits(pixels[i00]) * (1 - tx) * (1 - ty) + Float.fromBits(pixels[i01]) * tx * (1 - ty) +
+          Float.fromBits(pixels[i10]) * (1 - tx) * ty + Float.fromBits(pixels[i11]) * tx * ty
         out[y * ow + x] = (v * 255f).roundToInt().coerceIn(0, 255).toByte()
       }
     }
     return OcrGray(out, ow, oh, scale, w, h)
   }
 
-  /** La luce della carta: il 90° percentile su una griglia di 32 × 32 celle, allargato e sfumato (vedi lo scanner). */
-  fun paperLight(luma: FloatArray, w: Int, h: Int): FloatArray {
+  /**
+   * La luce della carta: il 90° percentile su una griglia di 32 × 32 celle, allargato e sfumato (vedi lo scanner). In
+   * [luma] (i bit dei Float della luminanza) ogni pixel diventa la sua luminanza divisa per la luce, calcolata lì dalla
+   * griglia: niente mappa intera della luce.
+   */
+  fun divideByPaperLight(luma: IntArray, w: Int, h: Int) {
     val cell = max(8, max(w, h) / 32)
     val gw = (w + cell - 1) / cell
     val gh = (h + cell - 1) / cell
@@ -127,7 +140,7 @@ internal object OcrImage {
       var y = gy * cell
       while (y < min(h, (gy + 1) * cell)) {
         var x = gx * cell
-        while (x < min(w, (gx + 1) * cell)) { histogram[(luma[y * w + x].toInt() shr 2).coerceIn(0, 63)]++; count++; x += 2 }
+        while (x < min(w, (gx + 1) * cell)) { histogram[(Float.fromBits(luma[y * w + x]).toInt() shr 2).coerceIn(0, 63)]++; count++; x += 2 }
         y += 2
       }
       val target = (count * 0.9f).toInt()
@@ -151,7 +164,6 @@ internal object OcrImage {
         s / 9f
       }
     }
-    val light = FloatArray(w * h)
     for (y in 0 until h) {
       val fy = ((y + 0.5f) / cell - 0.5f).coerceIn(0f, (gh - 1).toFloat())
       val y0 = fy.toInt(); val y1 = min(gh - 1, y0 + 1); val ty = fy - y0
@@ -160,10 +172,10 @@ internal object OcrImage {
         val x0 = fx.toInt(); val x1 = min(gw - 1, x0 + 1); val tx = fx - x0
         val a = smooth[y0 * gw + x0] * (1 - tx) + smooth[y0 * gw + x1] * tx
         val b = smooth[y1 * gw + x0] * (1 - tx) + smooth[y1 * gw + x1] * tx
-        light[y * w + x] = max(32f, a * (1 - ty) + b * ty)
+        val i = y * w + x
+        luma[i] = (Float.fromBits(luma[i]) / max(32f, a * (1 - ty) + b * ty)).toRawBits()
       }
     }
-    return light
   }
 }
 
@@ -248,29 +260,40 @@ internal object TesseractHost {
     // La risoluzione dichiarata evita l'avviso «Invalid resolution» e regola le misure minime: 300 dpi equivalenti.
     tess.SetSourceResolution(300)
     if (tess.Recognize(null) != 0) return FluidRecognizedText(emptyList(), gray.sourceWidth, gray.sourceHeight, languages)
-    val words = ArrayList<OcrWordBox>()
-    val iterator = tess.GetIterator()
-    if (iterator != null) {
-      val left = IntPointer(1); val top = IntPointer(1); val right = IntPointer(1); val bottom = IntPointer(1)
-      try {
-        do {
-          val raw: BytePointer? = iterator.GetUTF8Text(RIL_WORD)
-          val text = raw?.getString(Charsets.UTF_8) ?: ""
-          raw?.deallocate()
-          if (!iterator.BoundingBox(RIL_WORD, left, top, right, bottom)) continue
-          words += OcrWordBox(text, left.get(), top.get(), right.get(), bottom.get(), iterator.Confidence(RIL_WORD),
-            iterator.IsAtBeginningOf(RIL_BLOCK), iterator.IsAtBeginningOf(RIL_TEXTLINE))
-        } while (iterator.Next(RIL_WORD))
-      } finally {
-        left.close(); top.close(); right.close(); bottom.close()
-        iterator.close()
-      }
-    }
+    val words = words(tess)
     tess.Clear()
     return OcrAssembler.assemble(words, gray, languages)
   }
 
-  private fun engine(context: Context, languages: String): TessBaseAPI {
+  /** Le parole dell'ultima lettura di [tess] (sul filo di [dispatcher]), coi riquadri e la fiducia. */
+  internal fun words(tess: TessBaseAPI): List<OcrWordBox> {
+    val words = ArrayList<OcrWordBox>()
+    val iterator = tess.GetIterator() ?: return words
+    val left = IntPointer(1); val top = IntPointer(1); val right = IntPointer(1); val bottom = IntPointer(1)
+    try {
+      do {
+        // R1: il testo della parola e l'iteratore li alloca Tesseract (new[] e new), e i loro oggetti JavaCPP non hanno
+        // chi li libera: deallocate() e close() non facevano niente, e ogni lettura lasciava memoria nativa. Si liberano
+        // con le funzioni C di Tesseract.
+        val raw: BytePointer? = iterator.GetUTF8Text(RIL_WORD)
+        val text = try {
+          raw?.getString(Charsets.UTF_8) ?: ""
+        } finally {
+          if (raw != null && !raw.isNull) TessDeleteText(raw)
+        }
+        if (!iterator.BoundingBox(RIL_WORD, left, top, right, bottom)) continue
+        words += OcrWordBox(text, left.get(), top.get(), right.get(), bottom.get(), iterator.Confidence(RIL_WORD),
+          iterator.IsAtBeginningOf(RIL_BLOCK), iterator.IsAtBeginningOf(RIL_TEXTLINE))
+      } while (iterator.Next(RIL_WORD))
+    } finally {
+      left.close(); top.close(); right.close(); bottom.close()
+      TessResultIteratorDelete(iterator)
+    }
+    return words
+  }
+
+  /** Il Tesseract del processo per [languages], caricato alla prima lettura (sul filo di [dispatcher]). */
+  internal fun engine(context: Context, languages: String): TessBaseAPI {
     broken?.let { throw IllegalStateException("Tesseract non disponibile", it) }
     api?.let { if (loaded == languages) return it }
     try {

@@ -70,7 +70,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun remove(id: String)` — Toglie [id] dalla lista: annulla se e' in giro (e cancella il file a meta').
   - `fun item(id: String): FluidTransferItem?` — Il trasferimento [id] adesso, o null.
   - `suspend fun settle()` — Aspetta che i comandi gia' chiesti siano arrivati alla coda (per le prove e per chi deve leggere subito dopo).
-  - `fun close()` — Ferma tutto (per le prove): i trasferimenti in corso si fermano dove sono.
+  - `fun close()` — Ferma tutto (per le prove): i trasferimenti in corso si fermano dove sono. Se era la coda dell'app, il prossimo [open] ne apre una nuova (dalla stessa coda salvata) invece di restituire questa, che non lavora piu'.
   - `suspend fun runQueue(onProgress: suspend (FluidTransferOverview) -> Unit = {}): FluidTransferRunResult` — Fa girare la coda: uno alla volta, nell'ordine d'arrivo, ogni trasferimento che puo' partire; quelli che non possono restano in attesa col loro perche'. Torna quando non c'e' piu' niente da fare adesso. Un giro alla volta.
   - `fun plan(replace: Boolean = !runMutex.isLocked): FluidTransferPlan` — Il piano per il prossimo giro, dato lo stato della coda (lo chiama il lavoro di WorkManager alla fine del suo giro).
   - `val id: String,`
@@ -80,7 +80,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
     - `fun open(context: Context, authorizer: FluidTransferAuthorizer = FluidTransferAuthorizer.None, config: FluidTransferConfig = FluidTransferConfig(), notifications: FluidTransferNotifications? = null): FluidTransfers` — La coda dell'app, una per processo: su disco ([SqliteFluidTransferStore]), con WorkManager ([FluidTransferWork.scheduler]) e le condizioni del telefono lette da `engine-net` ([EngineConditions.install]). La prima chiamata decide le opzioni; le altre restituiscono la stessa coda.
     - `fun from(context: Context): FluidTransfers` — La coda per il lavoro in sottofondo: quella dell'`Application` se e' un [FluidTransferHost], se no [open].
-    - `fun partFile(target: File): File` — Il file a meta' di uno scaricamento verso [target].
+    - `fun partFile(request: FluidTransferRequest): File` — Il file a meta' dello scaricamento [request]: accanto al file, col nome del file e un'impronta del suo id (`notes.apk.3f2a9c41d07b.part`). Ogni trasferimento ha il suo: due richieste verso lo stesso file non si cuciono.
 
 ## `engine-transfer/transfer/LiveTransferNotifications.kt`
 

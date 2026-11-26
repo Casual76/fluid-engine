@@ -154,7 +154,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val store: StoreHost? get()` — Lo Store trovato all'ultima lettura, per aprirlo ([storeIntent]).
   - `suspend fun restoreCache()` — Rimette la copia locale (all'avvio, prima che lo Store risponda).
   - `suspend fun refresh(): AccountState` — Rilegge tutto dallo Store: lo trova, controlla la firma, negozia, legge stato e aspetto. Lo chiama [PampaAccount] all'avvio, quando l'app torna in primo piano, e a ogni avviso `CHANGED`.
-  - `suspend fun onChanged(what: List<String>)` — Un avviso `CHANGED` dello Store: non ci si fida del contenuto, si rilegge. `wiped` si conferma con lo Store.
+  - `suspend fun onChanged(what: List<String>)` — Un avviso `CHANGED` dello Store: non ci si fida del contenuto, si rilegge. `wiped` si conferma con lo Store: è la rilettura ([refresh]) a guardare se lo Store dice «uscita da remoto, nessuno dentro» (R2).
   - `val storeCapabilities: Set<String> get()` — Le capacità che lo Store ha annunciato all'ultima lettura.
   - `fun onWiped(handler: suspend () -> Unit)` — Un lavoro da fare quando lo Store conferma l'uscita da remoto: di solito cancellare le copie di `engine-sync`.
   - `suspend fun token(audience: String, scopes: Set<String>): TokenResult` — Un token per il servizio di quest'app (`audience`) con gli ambiti dati. Sta solo in memoria.

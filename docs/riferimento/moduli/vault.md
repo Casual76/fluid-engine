@@ -101,6 +101,8 @@ le chiavi dei provider già salvate si riaprono, e una versione di prima rilegge
 
 ## Le regole che non si vedono
 
+- **I nomi.** Cassaforti e sezioni: lettere minuscole, cifre, `.`, `-` e `_`, fino a 64 caratteri, mai di soli punti
+  (R2): `..` sarebbe la cartella di sopra, e `reset()` la cancellerebbe.
 - **Niente va in backup.** Tutto sta in `noBackupFilesDir/fluid-vault/<nome>`, che Android non copia né nel cloud né nel
   passaggio fra telefoni. Le chiavi del Keystore non si copiano comunque: un backup che porta via dei dati li decifra e
   li ricifra con la sua chiave (quella dell'account, `K_bak`).

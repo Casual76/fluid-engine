@@ -32,18 +32,20 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -109,11 +111,16 @@ fun FluidLiveTextOverlay(
   val veil by animateFloatAsState(if (state.active) 1f else 0f, if (motion.reducedMotion) tween(0) else tween(VeilMillis), label = "LiveTextVeil")
   val accent = MaterialTheme.colorScheme.primary
   val longPress = LocalViewConfiguration.current.longPressTimeoutMillis
+  // I buchi del velo (le righe), riusati a ogni disegno: niente oggetti nuovi per fotogramma mentre lo zoom cambia.
+  val holes = remember { Path() }
   BoxWithConstraints(modifier.fillMaxSize().testTag(FluidLiveTextTags.Overlay)) {
     val w = constraints.maxWidth.toFloat()
     val h = constraints.maxHeight.toFloat()
     val size = Size(w, h)
-    Canvas(Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    // R1 (D3): niente strato fuori schermo. Dentro lo zoom del visore uno strato si disegna alla misura del suo nodo (1×)
+    // e poi si ingrandisce: a 4× selezione e maniglie, che muove il dito, erano sfocate. Il velo ora si stende fuori dalle
+    // righe con un ritaglio, e tutto si disegna alla scala dello schermo.
+    Canvas(Modifier.fillMaxSize()
       .pointerInput(text, w, h) {
         awaitEachGesture {
           val down = awaitFirstDown(requireUnconsumed = false)
@@ -151,7 +158,7 @@ fun FluidLiveTextOverlay(
         }
       }) {
       val scale = zoom?.scale ?: 1f
-      drawLiveText(state, text, veil, accent, scale)
+      drawLiveText(state, text, veil, accent, scale, holes)
     }
     if (state.active) LiveTextLines(state, text, strings, w, h)
     val selection = state.selection
@@ -159,16 +166,18 @@ fun FluidLiveTextOverlay(
   }
 }
 
-private fun DrawScope.drawLiveText(state: FluidLiveTextState, text: FluidRecognizedText, veil: Float, accent: Color, scale: Float) {
+private fun DrawScope.drawLiveText(state: FluidLiveTextState, text: FluidRecognizedText, veil: Float, accent: Color, scale: Float, holes: Path) {
   val pad = 3.dp.toPx() / scale
   val radius = CornerRadius(4.dp.toPx() / scale)
   if (veil > 0f) {
-    // Il velo di Testo attivo: tutto si scurisce, le righe restano chiare con un contorno bianco leggero.
-    drawRect(Color.Black.copy(alpha = VeilAlpha * veil))
+    // Il velo di Testo attivo: tutto si scurisce fuori dalle righe (l'unione delle righe, tutte nello stesso verso),
+    // le righe restano chiare con un contorno bianco leggero.
+    holes.rewind()
+    for (line in text.lines) addQuad(holes, line.quad.scaled(size), radius, pad)
+    clipPath(holes, ClipOp.Difference) { drawRect(Color.Black.copy(alpha = VeilAlpha * veil)) }
     val stroke = Stroke(1.dp.toPx() / scale)
     for (line in text.lines) {
       val q = line.quad.scaled(size)
-      drawQuad(q, Color.Black, radius, pad, blendMode = BlendMode.Clear)
       drawQuad(q, Color.White.copy(alpha = 0.10f * veil), radius, pad)
       drawQuad(q, Color.White.copy(alpha = 0.75f * veil), radius, pad, stroke)
     }
@@ -203,11 +212,10 @@ private fun DrawScope.drawQuad(
   radius: CornerRadius,
   pad: Float,
   style: androidx.compose.ui.graphics.drawscope.DrawStyle = androidx.compose.ui.graphics.drawscope.Fill,
-  blendMode: BlendMode = BlendMode.SrcOver,
 ) {
   if (q.isUpright) {
     val r = q.bounds.inflate(pad)
-    drawRoundRect(color, r.topLeft, r.size, radius, style = style, blendMode = blendMode)
+    drawRoundRect(color, r.topLeft, r.size, radius, style = style)
     return
   }
   val c = Offset((q.topLeft.x + q.topRight.x + q.bottomRight.x + q.bottomLeft.x) / 4f,
@@ -219,7 +227,32 @@ private fun DrawScope.drawQuad(
     for (p in listOf(q.topRight, q.bottomRight, q.bottomLeft)) out(p).let { lineTo(it.x, it.y) }
     close()
   }
-  drawPath(path, color, style = style, blendMode = blendMode)
+  drawPath(path, color, style = style)
+}
+
+/**
+ * Lo stesso quadrilatero di [drawQuad] aggiunto a [path], **sempre in senso orario** sullo schermo: con la regola di
+ * riempimento di serie le righe che si toccano si sommano (l'unione), invece di annullarsi dove si sovrappongono.
+ */
+private fun addQuad(path: Path, q: FluidTextQuad, radius: CornerRadius, pad: Float) {
+  if (q.isUpright) {
+    val r = q.bounds.inflate(pad)
+    path.addRoundRect(RoundRect(r, radius), Path.Direction.Clockwise)
+    return
+  }
+  val c = Offset((q.topLeft.x + q.topRight.x + q.bottomRight.x + q.bottomLeft.x) / 4f,
+    (q.topLeft.y + q.topRight.y + q.bottomRight.y + q.bottomLeft.y) / 4f)
+  fun out(p: Offset) = p + (p - c).unit() * (pad * 1.41f)
+  val a = out(q.topLeft); val b = out(q.topRight); val d = out(q.bottomRight); val e = out(q.bottomLeft)
+  // L'area con segno (y verso il basso): positiva in senso orario sullo schermo; un quadrilatero rovesciato si gira.
+  val area = (a.x * b.y - b.x * a.y) + (b.x * d.y - d.x * b.y) + (d.x * e.y - e.x * d.y) + (e.x * a.y - a.x * e.y)
+  path.moveTo(a.x, a.y)
+  if (area >= 0f) {
+    path.lineTo(b.x, b.y); path.lineTo(d.x, d.y); path.lineTo(e.x, e.y)
+  } else {
+    path.lineTo(e.x, e.y); path.lineTo(d.x, d.y); path.lineTo(b.x, b.y)
+  }
+  path.close()
 }
 
 /**
@@ -345,7 +378,28 @@ private fun SelectionMenu(state: FluidLiveTextState, text: FluidRecognizedText, 
       val above = top - gap - visualH
       // Il layer scala attorno al centro: la posizione si corregge di metà della differenza.
       val y = if (above >= 0f) above - (menu.height - visualH) / 2f else bottom + gap - (menu.height - visualH) / 2f
-      val x = (center - menu.width / 2f).coerceIn(-(menu.width - menu.width / scale) / 2f, w - menu.width + (menu.width - menu.width / scale) / 2f)
+      // Il menu si vede largo visualW (il layer lo rimpicciolisce attorno al centro) e resta almeno MenuEdgeMargin dentro
+      // l'immagine e dentro lo schermo: R1, dal tablet (sulla foto della lettera arrivava a 3 px dal bordo).
+      val visualW = menu.width / scale
+      val margin = MenuEdgeMargin.toPx() / scale
+      val here = coordinates
+      val root = here?.findRootCoordinates()
+      // Lo schermo visto da qui, con lo zoom del visore: dove cadono i suoi due bordi nelle coordinate dell'immagine.
+      val screenLeft = if (here != null && root != null) here.localPositionOf(root, Offset.Zero).x else Float.NEGATIVE_INFINITY
+      val screenRight = if (here != null && root != null) here.localPositionOf(root, Offset(root.size.width.toFloat(), 0f)).x else Float.POSITIVE_INFINITY
+      val lo = maxOf(margin, screenLeft + margin)
+      val hi = minOf(w - margin, screenRight - margin) - visualW
+      val visualLeft = if (hi >= lo) {
+        (center - visualW / 2f).coerceIn(lo, hi)
+      } else {
+        // R1: più largo dell'immagine (uno scontrino lungo sul telefono): l'intervallo era vuoto e coerceIn faceva cadere
+        // l'app alla prima parola selezionata. Al centro dell'immagine, e dentro lo schermo se ci sta.
+        val middle = w / 2f - visualW / 2f
+        val screenLo = screenLeft + margin
+        val screenHi = screenRight - margin - visualW
+        if (screenHi >= screenLo) middle.coerceIn(screenLo, screenHi) else middle
+      }
+      val x = visualLeft - (menu.width - visualW) / 2f
       menu.place(x.roundToInt(), y.roundToInt())
     }
   }
@@ -389,5 +443,10 @@ private const val VeilAlpha = 0.45f
 private const val VeilMillis = 250
 private val HandleSlop = 28.dp
 private val WordSlop = 12.dp
+/**
+ * Il menu della selezione resta almeno 8 dp dentro l'immagine e lo schermo, e si sposta invece di tagliarsi: come il menu
+ * di modifica di iOS, che sta sempre almeno 8 punti dentro lo schermo (dalle catture di Foto, fiducia media; R1).
+ */
+private val MenuEdgeMargin = 8.dp
 private val MatchCurrent = Color(0xFFFFC400)
 private val MatchOther = Color(0xFFFFE680)

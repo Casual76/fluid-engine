@@ -12,16 +12,19 @@ import dev.antigravity.fluidengine.foundation.FluidConditions
 import dev.antigravity.fluidengine.foundation.FluidDeviceConditions
 import dev.antigravity.fluidengine.foundation.FluidThermal
 import java.util.concurrent.Executor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
 
 /**
@@ -61,6 +64,8 @@ internal data class EngineDeviceSignals(
  * a zero, il telefono non risulta mai caldo, e niente si ferma per quello.
  */
 object EngineConditions {
+  private const val RetryMillis = 1_000L
+  private const val MaxRetryMillis = 60_000L
   private val installLock = Any()
   private var installed: Job? = null
 
@@ -89,7 +94,17 @@ object EngineConditions {
       val app = context.applicationContext
       // Tutto fuori dal thread principale: la prima lettura arriva qualche millisecondo dopo, e intanto vale `Unknown`.
       installed = CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
-        states(app).collect { FluidDeviceConditions.publish(it) }
+        states(app)
+          .retryWhen { cause, attempt ->
+            // Android puo' rifiutare un callback o un ricevitore (un'app con troppe richieste aperte riceve
+            // `TooManyRequestsException`): non e' un motivo per far cadere l'app. Si riprova con pause crescenti, da
+            // un secondo a un minuto; intanto vale l'ultima lettura.
+            if (cause is CancellationException) return@retryWhen false
+            runCatching { android.util.Log.w("EngineConditions", "lettura delle condizioni rifiutata, si riprova", cause) }
+            delay((RetryMillis shl attempt.coerceAtMost(6L).toInt()).coerceAtMost(MaxRetryMillis))
+            true
+          }
+          .collect { FluidDeviceConditions.publish(it) }
       }
     }
   }

@@ -38,6 +38,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -50,6 +52,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ai.bridge.ReadyState
 import dev.antigravity.fluidengine.ai.bridge.assist.AiAssistCall
@@ -78,9 +81,9 @@ import dev.antigravity.fluidengine.ai.bridge.assist.InMemoryAiAssistConsentStore
 import dev.antigravity.fluidengine.ai.bridge.assist.SharedPreferencesAiAssistConsentStore
 import dev.antigravity.fluidengine.aiui.chat.FluidComposer
 import dev.antigravity.fluidengine.aiui.chat.FluidComposerPagePill
-import dev.antigravity.fluidengine.aiui.chat.FluidComposerPill
 import dev.antigravity.fluidengine.aiui.chat.fluidComposerAction
 import dev.antigravity.fluidengine.aiui.chat.rememberFluidComposerState
+import dev.antigravity.fluidengine.aiui.overlay.FluidChipPill
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.GalleryPage
 import dev.antigravity.fluidengine.sample.TryArea
@@ -191,8 +194,9 @@ internal val F9p1TryItems: List<TryItem> = listOf(
   ),
   TryItem(
     "f9-1-misure", TryArea.Pages, "Le misure del ponte",
-    "Tocca «Misura» e aspetta la fine: un giro di call fra i due processi sotto il millisecondo, i pezzi col canale più " +
-      "svelti di quelli con assist_poll, e la memoria del PampAI finto che non cresce dopo cinquanta domande.",
+    "Tocca «Misura» e aspetta la fine, circa un minuto e mezzo perché le domande stanno nel limite di PampAI: un giro di " +
+      "call fra i due processi sotto il millisecondo, i pezzi col canale più svelti di quelli con assist_poll, e la memoria " +
+      "del PampAI finto che non cresce dopo quarantotto domande.",
     TryTarget.Page(GalleryPage.NewElements, "Elementi nuovi › Le misure del ponte"),
   ),
 )
@@ -218,6 +222,9 @@ internal object F9p1Tags {
   const val InstallSheet = "f9p1:installa"
   const val DisabledEntry = "f9p1:tasto-spento"
   const val EntryAction = "f9p1:tasto-spento-azione"
+  const val Retry = "f9p1:riprova"
+  const val PampaiSection = "f9p1:sezione-pampai"
+  const val BottomSpace = "f9p1:spazio-in-fondo"
 
   fun suggestion(index: Int) = "f9p1:suggerimento-$index"
 
@@ -626,11 +633,14 @@ private fun F9p1PageScene(onBack: () -> Unit, absent: Boolean) {
   }
 
   val busy = progress?.finished == false
+  // F9.1d: lo spazio in fondo alla pagina segue l'altezza di quello che le sta sopra (la risposta aperta, le pillole, il
+  // composer), cosi' scorrendo fino in fondo l'ultima riga esce da sotto. Si scrive quando l'overlay cambia misura e si
+  // legge nella misura dell'ultimo elemento della lista: la risposta che cresce riga per riga non ricompone la pagina.
+  val overlayHeight = remember { mutableIntStateOf(0) }
   FluidScreen(
     title = "Matematica",
     subtitle = if (absent) "F9.1 · pampai-assente · ClasseViva finta, senza PampAI" else "F9.1 · pampai-chiedi · ClasseViva finta",
     onBack = onBack,
-    extraBottomPadding = 280.dp,
     overlay = { pageGlass ->
       Column(
         Modifier
@@ -638,6 +648,8 @@ private fun F9p1PageScene(onBack: () -> Unit, absent: Boolean) {
           .fillMaxWidth()
           .navigationBarsPadding()
           .imePadding()
+          // Dentro i margini del sistema: quelli la lista li ha gia' in fondo (FluidScreenDefaults.bottomContentPadding).
+          .onSizeChanged { if (overlayHeight.intValue != it.height) overlayHeight.intValue = it.height }
           .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
@@ -673,8 +685,10 @@ private fun F9p1PageScene(onBack: () -> Unit, absent: Boolean) {
                 onShowContents = { showPage = true },
                 modifier = Modifier.testTag(F9p1Tags.PagePill),
               )
+              // F9.1d: i suggerimenti sono capsule di vetro (il chip dell'assistente, che rifrange la pagina): sopra il
+              // testo della pagina una pillola senza fondo si confondeva con le righe dietro.
               F9p1Suggestions.forEachIndexed { index, s ->
-                FluidComposerPill(FluidIcons.AutoAwesome, s, onClick = { send(s) }, removable = false, modifier = Modifier.testTag(F9p1Tags.suggestion(index)))
+                FluidChipPill(s, backdrop = pageGlass, onClick = { send(s) }, modifier = Modifier.testTag(F9p1Tags.suggestion(index)))
               }
             },
           )
@@ -694,7 +708,7 @@ private fun F9p1PageScene(onBack: () -> Unit, absent: Boolean) {
       }
     }
     item(key = "pampai") {
-      Column {
+      Column(Modifier.testTag(F9p1Tags.PampaiSection)) {
         FluidSectionHeader(title = if (absent) "Senza PampAI" else "PampAI finto", detail = status?.let { pampaiLine(it) } ?: "Lo cerco…")
         if (!absent) {
           FluidListGroup {
@@ -711,6 +725,19 @@ private fun F9p1PageScene(onBack: () -> Unit, absent: Boolean) {
           else "La prima volta PampAI chiede se la galleria può usarla e, con la pagina, anche quella: un foglio solo. Le chiavi e i modelli restano in PampAI.",
         )
       }
+    }
+    item(key = "sotto-pampai") {
+      // Alto quanto l'overlay, letto qui nella misura (F9.1d).
+      Spacer(
+        Modifier
+          .fillMaxWidth()
+          .testTag(F9p1Tags.BottomSpace)
+          .layout { measurable, constraints ->
+            val height = overlayHeight.intValue
+            val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
+            layout(placeable.width, height) { placeable.place(0, 0) }
+          },
+      )
     }
   }
 
@@ -809,7 +836,8 @@ private fun F9p1AnswerCard(question: String?, progress: AiAssistProgress, onRetr
         FluidIcon(FluidIcons.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(e.message(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-        if (e.code != AiAssistError.Cancelled) FluidButton("Riprova", onClick = onRetry, style = FluidButtonStyle.Plain)
+        // F9.1d: «Riprova» solo dove la stessa domanda puo' andare; mai per «non autorizzata» (il tasto e' gia' spento).
+        if (e.retryable) FluidButton("Riprova", onClick = onRetry, style = FluidButtonStyle.Plain, modifier = Modifier.testTag(F9p1Tags.Retry))
       }
     }
   }
@@ -923,13 +951,16 @@ internal class F9p1Measures(
   val hostPssBeforeKb: Long?,
   val hostPssAfterKb: Long?,
   val appPssKb: Long,
+  val asks: Int = F9p1MemoryAsks,
+  val asksMillis: Long? = null,
 ) {
   fun summary(): String = buildString {
     append("Un giro di call (${if (crossProcess) "fra due processi" else "nello stesso processo"}, ${roundTripMicros.size} volte): ")
     append("p50 ${pct(roundTripMicros, 50)} µs, p95 ${pct(roundTripMicros, 95)} µs, p99 ${pct(roundTripMicros, 99)} µs, max ${roundTripMicros.maxOrNull() ?: 0} µs.\n")
     append("Pezzi col canale: ritardo p50 ${fmt(pctD(pushedLagMillis, 50))} ms, p95 ${fmt(pctD(pushedLagMillis, 95))} ms, $pushedUpdates aggiornamenti.\n")
     append("Pezzi con assist_poll ogni 50 ms: p50 ${fmt(pctD(polledLagMillis, 50))} ms, p95 ${fmt(pctD(polledLagMillis, 95))} ms, $polledUpdates aggiornamenti.\n")
-    append("Memoria del PampAI finto: ${hostPssBeforeKb ?: "?"} kB, dopo 50 domande ${hostPssAfterKb ?: "?"} kB. La galleria: $appPssKb kB.")
+    val took = asksMillis?.let { " (in ${(it + 500) / 1000} s, col limite di 30 al minuto)" }.orEmpty()
+    append("Memoria del PampAI finto: ${hostPssBeforeKb ?: "?"} kB, dopo $asks domande$took ${hostPssAfterKb ?: "?"} kB. La galleria: $appPssKb kB.")
   }
 
   companion object {
@@ -971,7 +1002,26 @@ internal suspend fun f9p1StreamLags(client: AiAssistClient, count: Int, stepMill
 }
 
 private suspend fun f9p1HostPss(client: AiAssistClient): Long? =
-  Regex("pss=(\\d+)").find(client.run(AiAssistRequest(AiAssistTask.answer(F9p1FakePampai.AskMemory), tools = AiAssistRequest.ToolsNone)).text)?.groupValues?.get(1)?.toLongOrNull()
+  Regex("pss=(\\d+)").find(f9p1WithinLimit { client.run(AiAssistRequest(AiAssistTask.answer(F9p1FakePampai.AskMemory), tools = AiAssistRequest.ToolsNone)) }.text)?.groupValues?.get(1)?.toLongOrNull()
+
+/** Le domande fra le due letture della memoria del PampAI finto. */
+internal const val F9p1MemoryAsks = 48
+
+/**
+ * Una domanda della misura **nel limite di PampAI** (30 al minuto per app), come deve fare un'app vera (F9.1d): se torna
+ * «limite raggiunto» aspetta quanto dice PampAI ([AiAssistError.retryAfterMillis]) e la rifà. Prima la misura le faceva
+ * tutte di fila: dalla trentesima PampAI le rifiutava, compresa quella che legge la memoria («dopo 50 domande ? kB»).
+ * Adesso le domande dopo la trentesima aspettano che il minuto passi: la misura dura un minuto in piu'.
+ */
+internal suspend fun f9p1WithinLimit(ask: suspend () -> AiAssistProgress): AiAssistProgress {
+  repeat(3) {
+    val progress = ask()
+    val error = progress.error ?: return progress
+    if (error.code != AiAssistError.LimitReached) return progress
+    delay((error.retryAfterMillis ?: 1_000L).coerceIn(100L, 61_000L))
+  }
+  return ask()
+}
 
 @Composable
 private fun F9p1MeasureScene(onBack: () -> Unit) {
@@ -986,7 +1036,8 @@ private fun F9p1MeasureScene(onBack: () -> Unit) {
         FluidSectionFootnote(
           "Il PampAI finto sta nel processo «:pampai»: ogni chiamata è un vero Binder fra due processi, come fra un'app e PampAI. " +
             "La misura fa 500 giri di call, due risposte di 200 parole (una ogni 5 ms) col canale di ritorno e con assist_poll, " +
-            "e legge la memoria del PampAI finto prima e dopo 50 domande.",
+            "e legge la memoria del PampAI finto prima e dopo $F9p1MemoryAsks domande. Le domande stanno nel limite di PampAI " +
+            "(30 al minuto): quando lo raggiungono aspettano, e la misura dura circa un minuto e mezzo.",
         )
         FluidButton(if (running) "Misuro…" else "Misura", onClick = {
           if (running) return@FluidButton
@@ -998,9 +1049,13 @@ private fun F9p1MeasureScene(onBack: () -> Unit) {
               val before = f9p1HostPss(client)
               val (pushed, pushedUpdates) = withContext(Dispatchers.Main) { f9p1StreamLags(client, 200, 5) }
               val (polled, polledUpdates) = withContext(Dispatchers.Main) { f9p1StreamLags(F9p1FakePampai.client(context, pollMillis = 50), 200, 5) }
-              repeat(48) { client.run(AiAssistRequest(AiAssistTask.answer("Perché questo voto abbassa la media?"), tools = AiAssistRequest.ToolsNone, timeoutMillis = 30_000)) }
+              val askStart = SystemClock.elapsedRealtime()
+              repeat(F9p1MemoryAsks) {
+                f9p1WithinLimit { client.run(AiAssistRequest(AiAssistTask.answer("Perché questo voto abbassa la media?"), tools = AiAssistRequest.ToolsNone, timeoutMillis = 30_000)) }
+              }
+              val askMillis = SystemClock.elapsedRealtime() - askStart
               val after = f9p1HostPss(client)
-              F9p1Measures(trips, cross, pushed, pushedUpdates, polled, polledUpdates, before, after, Debug.getPss()).summary()
+              F9p1Measures(trips, cross, pushed, pushedUpdates, polled, polledUpdates, before, after, Debug.getPss(), F9p1MemoryAsks, askMillis).summary()
             }
             Log.i(F9p1LogTag, "MISURE ${text.replace('\n', ' ')}")
             result = text

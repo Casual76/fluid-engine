@@ -119,6 +119,24 @@ data class GivenInvite(val token: String, val kind: String, val group: String? =
 data class OutboxItem(val id: String, val envelope: OutEnvelope, val group: Boolean, val attempts: Int, val notBefore: Long, val createdAt: Long, val label: String)
 
 /**
+ * Un'impronta da aggiungere ([add]) o togliere nella mia casella, in coda come le buste (R2, regola R6 «prima
+ * offline»): bloccare, togliere, un gettone nuovo valgono subito sul telefono, e il server lo sa appena torna la rete.
+ * La coda le manda **prima** delle buste, così un gettone è già nella casella quando l'altro lo usa.
+ */
+internal data class PrintOp(val add: Boolean, val kind: String, val print: String)
+
+/**
+ * Una PMX1 arrivata prima della sua chiave (R2): un contatto o un membro di un gruppo ha scritto con un'epoca della
+ * conversazione che non ho ancora, perché la busta «chiave-chat» (o lo stato del gruppo) è in ritardo. È già cifrata:
+ * resta così finché la chiave arriva, al massimo [PeopleState.WAITING_DAYS] giorni.
+ */
+internal data class WaitingMessage(val n: Long, val from: String, val data: String, val at: Long)
+
+/** La scheda più nuova fra due della stessa persona: epoca di lavoro più alta, a pari epoca l'ora più recente (R2). */
+internal fun fresherCard(kept: PersonCard, incoming: PersonCard): PersonCard =
+  if (incoming.work.epoch > kept.work.epoch || (incoming.work.epoch == kept.work.epoch && incoming.at > kept.at)) incoming else kept
+
+/**
  * Una cosa arrivata per un'app (`share.received`): già aperta dallo Store, con chi la manda e quando. [app] è il
  * pacchetto che la deve mostrare; [payload] è quello che l'app ha preparato (link, copia, oggetto vivo).
  */
@@ -166,6 +184,18 @@ class PeopleState {
   val undispatched = ArrayList<PeopleEvent>()
   /** Gli spazi condivisi di cui ho la chiave (`SharedSpaces`), così come arrivano: id → stato. */
   val spaces = TreeMap<String, JsonObject>()
+  /** Le impronte della casella ancora da dire al server, nell'ordine (R2). */
+  internal val pendingPrints = ArrayList<PrintOp>()
+  /**
+   * Le lapidi dei contatti tolti (R2): codice → quando l'ho tolto. Una rubrica di un altro mio dispositivo, o una copia
+   * del server, non fa tornare un contatto aggiunto prima di quell'ora; uno aggiunto di nuovo dopo sì. Restano
+   * [TOMBSTONE_DAYS] giorni, come le pietre tombali della sincronizzazione.
+   */
+  internal val removedContacts = TreeMap<String, Long>()
+  /** Le PMX1 che aspettano la loro chiave (R2), dalla più vecchia. */
+  internal val waitingMessages = ArrayList<WaitingMessage>()
+  /** La versione dell'ultima copia della rubrica ripresa dal server: una più vecchia non si riprende (R2). */
+  internal var importedRubrica: Long = 0
   var cursor: Long = 0
   var rubricaVersion: Long = 0
   /** Un nome casuale di questo dispositivo: le buste a me stesso che ho mandato io non le riapplico. */
@@ -193,6 +223,10 @@ class PeopleState {
     putJsonArray("seen") { seenMessages.toList().takeLast(SEEN_KEEP).forEach { add(JsonPrimitive(it)) } }
     putJsonArray("muted") { mutedInApps.forEach { add(JsonPrimitive(it)) } }
     putJsonArray("undispatched") { undispatched.takeLast(UNDISPATCHED_KEEP).forEach { e -> eventJson(e)?.let { add(it) } } }
+    putJsonArray("prints") { pendingPrints.forEach { p -> add(buildJsonObject { put("add", p.add); put("kind", p.kind); put("print", p.print) }) } }
+    putJsonObject("removed") { removedContacts.forEach { (k, v) -> put(k, v) } }
+    putJsonArray("waiting") { waitingMessages.forEach { w -> add(buildJsonObject { put("n", w.n); put("from", w.from); put("data", w.data); put("at", w.at) }) } }
+    put("importedRubrica", importedRubrica)
   }
 
   companion object {
@@ -200,6 +234,14 @@ class PeopleState {
 
     /** Un tetto per chi ritira senza mai smistare (le prove, un client senza `PeopleDispatcher`). */
     private const val UNDISPATCHED_KEEP = 500
+
+    /** Quanto resta la lapide di un contatto tolto: 90 giorni, come le pietre tombali di `engine-sync` e del server. */
+    internal const val TOMBSTONE_DAYS = 90L
+
+    /** Le PMX1 in attesa della chiave: al massimo 100, 1 MiB in tutto, 30 giorni (quanto la casella tiene una busta). */
+    internal const val WAITING_MAX = 100
+    internal const val WAITING_MAX_BYTES = 1 shl 20
+    internal const val WAITING_DAYS = 30L
 
     fun fromJson(o: JsonObject): PeopleState = PeopleState().apply {
       cursor = o.long("cursor")
@@ -222,6 +264,10 @@ class PeopleState {
       o.arr("muted").forEach { mutedInApps += (it as JsonPrimitive).content }
       // Dopo le richieste: una richiesta da annunciare si ritrova lì.
       o.arr("undispatched").forEach { e -> event(this, e.jsonObject)?.let { undispatched += it } }
+      o.arr("prints").forEach { val p = it.jsonObject; pendingPrints += PrintOp(p.bool("add"), p.str("kind"), p.str("print")) }
+      (o["removed"] as? JsonObject)?.forEach { (k, v) -> removedContacts[k] = (v as? JsonPrimitive)?.longOrNull ?: 0L }
+      o.arr("waiting").forEach { val w = it.jsonObject; waitingMessages += WaitingMessage(w.long("n"), w.str("from"), w.str("data"), w.long("at")) }
+      importedRubrica = o.long("importedRubrica")
     }
 
     private fun eventJson(e: PeopleEvent): JsonObject? = when (e) {

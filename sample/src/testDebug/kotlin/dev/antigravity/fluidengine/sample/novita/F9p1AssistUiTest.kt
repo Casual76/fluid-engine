@@ -1,6 +1,9 @@
 package dev.antigravity.fluidengine.sample.novita
 
+import android.graphics.Bitmap
+import android.os.Handler
 import android.os.Looper
+import android.view.PixelCopy
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,9 +20,15 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollToKeyAction
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ai.bridge.assist.AiAssistConsent
@@ -35,7 +44,9 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
+import java.io.File
 import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -53,6 +64,10 @@ import org.robolectric.annotation.GraphicsMode
  * F9.1 · Le parti d'interfaccia nuove: il chip «Questa pagina» (TalkBack: un nodo, lo stato, le azioni; il bersaglio da
  * 48 dp) e la scena «Chiedi da una pagina» col PampAI finto vero (la risposta che arriva sfocata, poi ferma; con «Riduci
  * movimento» ferma da subito; le righe che cambiano lette da TalkBack).
+ *
+ * F9.1d, dalle riprese del tablet: i suggerimenti sono capsule di vetro, lo spazio in fondo segue la risposta aperta
+ * (la sezione di PampAI finto esce da sotto), e «non autorizzata» non ha «Riprova». Le catture (vetro di ripiego,
+ * `Balanced`: col materiale `Liquid` Robolectric non compila le lastre) finiscono in `sample/build/f9p1d-pixels/`.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -150,8 +165,14 @@ class F9p1AssistUiTest {
   private fun arriving(): List<Boolean> = compose.onAllNodes(SemanticsMatcher.keyIsDefined(F9p1Arriving), useUnmergedTree = true)
     .fetchSemanticsNodes().map { it.config[F9p1Arriving] }
 
+  /**
+   * Tocca un suggerimento. F9.1d: e' un `FluidChipPill`, che mette il `modifier` (e il tag) sul contenitore di vetro e il
+   * tocco sul tasto dentro: si cerca il nodo che si tocca, sotto il tag.
+   */
   private fun ask(index: Int) {
-    compose.onNodeWithTag(F9p1Tags.suggestion(index), useUnmergedTree = true).performSemanticsAction(SemanticsActions.OnClick)
+    val tag = F9p1Tags.suggestion(index)
+    compose.onNode(hasClickAction() and (hasTestTag(tag) or hasAnyAncestor(hasTestTag(tag))), useUnmergedTree = true)
+      .performSemanticsAction(SemanticsActions.OnClick)
     advance(64)
   }
 
@@ -206,6 +227,92 @@ class F9p1AssistUiTest {
     waitFor("la risposta con la pagina") {
       has(F9p1Tags.AnswerText) && compose.onNodeWithTag(F9p1Tags.AnswerText, useUnmergedTree = true).fetchSemanticsNode()
         .config.getOrNull(SemanticsProperties.Text)?.joinToString { it.text }.orEmpty().contains(F9p1Page.title)
+    }
+  }
+
+  private fun bounds(tag: String) = compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+
+  /** Fino in fondo alla pagina: l'ultimo elemento e' lo spazio sotto la sezione di PampAI. */
+  private fun toEnd() {
+    compose.onNode(hasScrollToKeyAction()).performScrollToKey("sotto-pampai")
+    advance(400)
+  }
+
+  private fun allowed() {
+    F9p1FakePampai.host(compose.activity).setAppConsent(pkg, AiAssistConsentState.Allowed)
+    F9p1FakePampai.host(compose.activity).setPageConsent(pkg, AiAssistConsentState.Allowed)
+  }
+
+  private fun capture(name: String) {
+    val window = compose.activity.window
+    val image = Bitmap.createBitmap(window.decorView.width, window.decorView.height, Bitmap.Config.ARGB_8888)
+    var result = -1
+    compose.runOnUiThread { PixelCopy.request(window, image, { result = it }, Handler(Looper.getMainLooper())) }
+    shadowOf(Looper.getMainLooper()).idle()
+    assertEquals("PixelCopy", PixelCopy.SUCCESS, result)
+    val dir = File("build/f9p1d-pixels").apply { mkdirs() }
+    File(dir, "$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+  }
+
+  @Test fun `lo spazio in fondo segue la risposta aperta - fino in fondo la sezione di PampAI esce da sotto`() {
+    allowed()
+    open(reduced = true)
+    waitFor("il PampAI finto trovato") { has(F9p1Tags.OpenPampai) }
+    advance(800)
+    toEnd()
+    val before = bounds(F9p1Tags.BottomSpace).height
+    assertTrue("lo spazio c'e' gia' per il composer e le pillole: $before", before > with(compose.density) { 150.dp.toPx() })
+    ask(0)
+    waitFor("la fine") { has(F9p1Tags.AnswerText) && !has(F9p1Tags.Status) }
+    advance(400)
+    toEnd()
+    val answer = bounds(F9p1Tags.Answer)
+    val after = bounds(F9p1Tags.BottomSpace).height
+    assertTrue("lo spazio e' cresciuto con la risposta: $before -> $after, risposta ${answer.height}", after - before >= with(compose.density) { 100.dp.toPx() })
+    val row = bounds(F9p1Tags.OpenPampai)
+    val section = bounds(F9p1Tags.PampaiSection)
+    assertTrue("«Apri PampAI finto» sopra la risposta: ${row.bottom} <= ${answer.top}", row.bottom <= answer.top + 0.5f)
+    assertTrue("la nota della sezione sopra la risposta: ${section.bottom} <= ${answer.top}", section.bottom <= answer.top + 0.5f)
+  }
+
+  @Test fun `Non consentire - la risposta dice non autorizzata senza Riprova, e il tasto si spegne`() {
+    val host = F9p1FakePampai.host(compose.activity)
+    host.forget(pkg)
+    open(reduced = true)
+    waitFor("lo stato di PampAI finto, con la galleria da chiedere") {
+      compose.onAllNodes(hasText("la galleria: da chiedere", substring = true), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    }
+    ask(0)
+    waitFor("il foglio di PampAI") { shadowOf(compose.activity).peekNextStartedActivityForResult() != null }
+    val started = shadowOf(compose.activity).nextStartedActivityForResult
+    val step = AiAssistConsent(host).begin(pkg, withPage = true) as AiAssistConsent.Step.Ask
+    val decided = AiAssistConsent(host).answer(step, step.choices.single { !it.allowApp })
+    compose.runOnUiThread { shadowOf(compose.activity).receiveResult(started.intent, android.app.Activity.RESULT_OK, AiAssistConsent.resultIntent(decided)) }
+    waitFor("la risposta che dice non autorizzata, e il tasto spento") { has(F9p1Tags.Error) && has(F9p1Tags.DisabledEntry) }
+    assertTrue(compose.onAllNodes(hasTestTag(F9p1Tags.Error) and hasAnyDescendant(hasText("non ha autorizzato", substring = true)), useUnmergedTree = true)
+      .fetchSemanticsNodes().isNotEmpty())
+    repeat(10) { assertFalse("niente «Riprova» per non autorizzata", has(F9p1Tags.Retry)); advance(48) }
+  }
+
+  @Test fun `i suggerimenti sono capsule di vetro da 40 dp, con le catture per il rapporto`() {
+    FluidGlassDiagnostics.resetForTesting()
+    FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = false)
+    try {
+      allowed()
+      open(reduced = true)
+      waitFor("il PampAI finto trovato") { has(F9p1Tags.OpenPampai) }
+      advance(800)
+      val min = with(compose.density) { 40.dp.toPx() } - 1f
+      repeat(3) { i -> bounds(F9p1Tags.suggestion(i)).height.let { assertTrue("il suggerimento $i e' alto $it", it >= min) } }
+      capture("pillole-sopra-la-pagina")
+      ask(0)
+      waitFor("la fine") { has(F9p1Tags.AnswerText) && !has(F9p1Tags.Status) }
+      advance(400)
+      capture("risposta-in-cima")
+      toEnd()
+      capture("risposta-fino-in-fondo")
+    } finally {
+      FluidGlassDiagnostics.resetForTesting()
     }
   }
 

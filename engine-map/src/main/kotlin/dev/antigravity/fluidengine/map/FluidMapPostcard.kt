@@ -133,15 +133,16 @@ fun FluidMapPostcard(
     Box(Modifier.align(Alignment.Center).offset(y = -(FluidMapPinDefaults.Balloon + FluidMapPinDefaults.Tail) / 2)) {
       PostcardPin(markerTint)
     }
+    // I crediti interi anche sulla cartolina piccola di una riga: vanno a capo fra un nome e l'altro (al piu' due righe).
     BasicText(
       style.attribution.short,
-      modifier = Modifier.align(Alignment.BottomStart).padding(start = 6.dp, bottom = 4.dp),
+      modifier = Modifier.align(Alignment.BottomStart).padding(start = 6.dp, end = 6.dp, bottom = 4.dp),
       style = TextStyle(
         color = if (dark) Color.White.copy(alpha = 0.78f) else Color.Black.copy(alpha = 0.62f),
         fontSize = 9.sp,
         fontWeight = FontWeight.Medium,
       ),
-      maxLines = 1,
+      maxLines = 2,
     )
   }
 }

@@ -53,12 +53,22 @@ dati»). Con l'app viva un cambio delle condizioni rimette in coda subito chi pu
 da fare (chi aspettava è stato annullato o tolto) il piano vuoto (`idle`) toglie anche il giro rimandato da WorkManager:
 nessun lavoro resta in coda a girare a vuoto.
 
-**Lo scaricamento.** Scrive in `<file>.part` e rinomina alla fine (un file mezzo scritto col nome giusto è indistinguibile
-da uno completo). Alla ripresa chiede `Range: bytes=N-` con `If-Range` (l'`ETag` forte o il `Last-Modified` del primo
-scaricamento): `206` col `Content-Range` giusto → continua; `200` → il server non riprende (o il file è cambiato): ricomincia
-da capo, e la riga lo dice («Ricomincia da capo dopo una pausa»); `416` con il file già intero → finito. `Accept-Encoding:
-identity` sempre (con gzip la lunghezza e i `Range` sarebbero del contenuto compresso); i rinvii si seguono a mano, anche
-quelli che cambiano protocollo. Alla fine: il peso atteso e l'impronta SHA-256, se l'app li dà.
+**Lo scaricamento.** Scrive in un file a metà suo, accanto al file (`FluidTransfers.partFile(request)`:
+`notes.apk.3f2a9c41d07b.part`, col nome del file e un'impronta dell'id; due richieste verso lo stesso file non si cuciono), e
+rinomina alla fine (un file mezzo scritto col nome giusto è indistinguibile da uno completo). Alla ripresa chiede
+`Range: bytes=N-` con `If-Range` (l'`ETag` forte o il `Last-Modified` del primo scaricamento): `206` col `Content-Range` giusto,
+lo stesso validatore e lo stesso totale → continua; `206` con un altro validatore o un altro totale (un server che ignora
+`If-Range`) → ricomincia da capo; `200` → il server non riprende (o il file è cambiato): ricomincia da capo, e la riga lo dice
+(«Ricomincia da capo dopo una pausa»); `416` con il file già intero → finito. `Accept-Encoding: identity` sempre (con gzip la
+lunghezza e i `Range` sarebbero del contenuto compresso). Alla fine: il peso atteso e l'impronta SHA-256, se l'app li dà. Una
+pausa o un annullamento arrivati con l'ultima lettura valgono: il parziale non diventa il file.
+
+**I rinvii** si seguono a mano, fino a cinque, anche quelli che cambiano protocollo (un host di release che passa al suo CDN),
+relativi compresi; il `308` è un rinvio come gli altri, tranne per i pezzi dei caricamenti (`Content-Range`), dove è la conferma.
+**Le credenziali dell'authorizer (tutte le sue intestazioni) vanno solo allo stesso server**: un rinvio verso un'altra origine
+(schema, host o porta: «release → CDN con l'indirizzo firmato») le lascia indietro e non tornano nei salti dopo, come fanno i
+browser e OkHttp. Un rinvio da https a http, o verso un protocollo che non è http, non si segue: è un errore del server, senza
+nuovi tentativi.
 
 **Il caricamento.** Di serie un invio solo (`PUT` o `POST`): dopo una pausa ricomincia. Con `resumable = true` a pezzi da 2 MiB
 (multipli di 256 KiB) con `Content-Range: bytes a-b/N`; ogni pezzo riceve `308` con il `Range` confermato; dopo una pausa o un
@@ -74,8 +84,10 @@ il tempo che manca compare dopo 2 s di misure. All'interfaccia arrivano quattro 
 la pagina li mostra una volta al secondo.
 
 **Gli errori.** `FluidTransferFailure`: la rete (`network`, si riprova), il server (`server(code)`: 5xx, 429 e 408 si riprovano),
-il file che non c'è (`notFound`), l'accesso negato (`unauthorized`), il disco (`storage`), il file diverso da quello atteso
-(`integrity`). Chi si riprova da solo lo fa fino a `maxAutoRetries` (3) con le pause crescenti di WorkManager (30 s
+il file che non c'è (`notFound`), l'accesso negato (`unauthorized`), il disco (`storage`: anche **il disco pieno a metà**, che non
+è la rete e non si riprova da solo; il file a metà resta e «Riprova» riprende da lì), il file diverso da quello atteso
+(`integrity`). Un trasferimento non riuscito ha l'ora di fine (`finishedAtMillis`), come uno completato o annullato: l'esito del
+giro lo conta. Chi si riprova da solo lo fa fino a `maxAutoRetries` (3) con le pause crescenti di WorkManager (30 s
 esponenziali), restando «In coda · Nuovo tentativo fra poco (2 di 3)»; poi `Failed` con «Riprova». Una caduta di rete
 mentre le condizioni dicono «senza rete» non è un errore: è un'attesa.
 
@@ -129,24 +141,39 @@ servizio gira lo stesso e il sistema lo mostra fra le app attive.
 - **Un server che non accetta `Range` ricomincia da capo** a ogni ripresa: è corretto (mai cucire due versioni), ma un APK
   da 100 MB su una rete che cade spesso non finisce mai. Pampa Store usa GitHub Releases, che li accetta.
 - **Il testo in chiaro** (`http://`) vale solo dove la configurazione di rete dell'app lo permette (la galleria: solo il
-  loopback).
+  loopback). Un rinvio da https a http non si segue mai.
+- **Una credenziale per un CDN** non passa per i rinvii: se anche il CDN la vuole, l'indirizzo dev'essere suo (firmato) o la
+  richiesta va fatta direttamente al CDN.
+- **Una coda salvata che non scrive** (SQLite pieno o rotto) non ferma la coda: il trasferimento si vede e va avanti, e
+  l'errore va nel registro di Android (`FluidTransfers`); si perderebbe solo se il processo muore.
 - **Le condizioni** vengono di serie da `FluidDeviceConditions`: `open` chiama `EngineConditions.install`. Una simulazione
   attiva (la galleria) ferma anche la coda: è voluto.
 
 ## Cosa è verificato dai test
 
-- `FluidTransfersTest` (17, JVM contro MockWebServer): lo scaricamento intero con velocità, tempo che manca, impronta e
+- `FluidTransfersTest` (31, JVM contro MockWebServer): lo scaricamento intero con velocità, tempo che manca, impronta e
   `identity`; **pausa e ripresa** con `Range` e `If-Range` giusti e il file a metà della misura giusta; un server **senza
   `Range`** che ricomincia, giusto; **un file cambiato** sul server che non si cuce a metà; **il processo che muore a metà** e
   una coda nuova che riprende con `Range`; un errore che passa riprovato da solo e poi «Riprova»; un 404 che non si riprova;
   un file diverso da quello atteso; la rete a consumo che fa aspettare, il piano coi vincoli, **«Fallo comunque»**; solo
   Wi-Fi e senza rete (che non si forza); **il Wi-Fi che se ne va a metà** (attesa e ripresa da lì); annulla che toglie il
   file a metà; l'avanzamento che non si scrive a ogni pezzo; **il caricamento a pezzi** con pausa, domanda al server e
-  ripresa; la media della velocità; le intestazioni; la coda vuota che toglie il giro rimandato.
+  ripresa; la media della velocità; le intestazioni; la coda vuota che toglie il giro rimandato. R2, contro server scorretti:
+  **le credenziali che non seguono un rinvio verso un altro host** (un CDN su `127.0.0.1` dietro un server su `localhost`) e
+  restano su un rinvio allo stesso server; **un rinvio da https a http rifiutato** (un server https finto col certificato
+  fatto al volo da `keytool`, `LocalTls`) senza toccare il server in chiaro; il `308` seguito; **il disco pieno a metà**
+  (`storage`, nessun nuovo tentativo, «Riprova» riprende dal parziale); un server che ignora `If-Range`, uno senza validatori
+  che cambia misura; due trasferimenti sullo stesso file; l'ora di fine e l'esito di un non riuscito; una coda salvata che non
+  scrive; «Annulla» con l'ultima lettura; il caricamento a pezzi che, prima che il server abbia il primo pezzo, ha già
+  l'avanzamento su disco (dopo un riavvio chiede a che punto è); dove porta un rinvio, a chi vanno le credenziali, il file a
+  metà per id.
 - `FluidTransferAndroidTest` (5, Robolectric): la coda su SQLite che si rilegge uguale (anche un lavoro su misura), il piano
   che diventa i vincoli di WorkManager, il piano vuoto che cancella il lavoro unico, la notifica del servizio di tipo
   `dataSync` col testo e l'avanzamento, **la notifica viva** (genere `Transfer`, Live Update, i tasti che arrivano alla coda,
   l'esito del solo giro).
+- `FluidTransferLifecycleTest` (3, Robolectric, R2): il lavoro di WorkManager che lascia l'esito anche quando un altro
+  trasferimento riproverà; `open` dopo `close` che dà una coda nuova e viva; la notifica del servizio privata sulla schermata di
+  blocco (`VISIBILITY_PRIVATE`: con «nascondi i contenuti sensibili» il nome del file non si vede).
 
 ## Dove guardare
 

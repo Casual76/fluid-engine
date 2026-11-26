@@ -180,6 +180,34 @@ class GlassNodeCountInstrumentedTest {
     assertEquals(mapOf(FluidGlassLayerKind.Capture to 1, FluidGlassLayerKind.Placement to 1), census.second)
   }
 
+  /**
+   * F7.28 · La guardia della quiete sul dispositivo: una lastra ferma, su un fondo che non cambia, fra due campioni
+   * separati da 2 s non cattura, non pubblica, non crea né perde nodi e layer. In Robolectric la stessa guardia ha la
+   * sua mutazione (`GlassBalanceGuardsTest`); qui la si legge col compilatore e il disegno veri.
+   */
+  @Test
+  fun aRestingLiquidSlabStaysStillBetweenTwoSamplesTwoSecondsApart() {
+    compose.setContent { Scene(GlassRole.Floating, FluidGlassModel.Liquid) }
+    compose.waitForIdle()
+    compose.mainClock.advanceTimeBy(1_000)
+    compose.waitForIdle()
+    android.os.SystemClock.sleep(300)
+    assumeTheSlabCompiles()
+    val captures = FluidGlassDiagnostics.totalCaptures
+    val exports = FluidGlassDiagnostics.totalExports
+    val nodes = FluidGlassDiagnostics.liveNodes
+    val layers = FluidGlassDiagnostics.liveLayers
+    compose.mainClock.advanceTimeBy(2_000)
+    compose.waitForIdle()
+    android.os.SystemClock.sleep(2_000)
+    compose.waitForIdle()
+    Log.i(Tag, "quiete: catture ${FluidGlassDiagnostics.totalCaptures - captures}, export ${FluidGlassDiagnostics.totalExports - exports}")
+    assertEquals("catture fra i due campioni", captures, FluidGlassDiagnostics.totalCaptures)
+    assertEquals("export fra i due campioni", exports, FluidGlassDiagnostics.totalExports)
+    assertEquals("nodi fra i due campioni", nodes, FluidGlassDiagnostics.liveNodes)
+    assertEquals("layer fra i due campioni", layers, FluidGlassDiagnostics.liveLayers)
+  }
+
   private companion object {
     const val Tag = "GlassNodeCount"
     const val Bare = "senza-vetro"

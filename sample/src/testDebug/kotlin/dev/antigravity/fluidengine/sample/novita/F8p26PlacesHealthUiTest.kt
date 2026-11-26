@@ -34,6 +34,7 @@ import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -135,6 +136,17 @@ class F8p26PlacesHealthUiTest {
   }
 
   @Test
+  fun `un segnaposto per luogo, ognuno col suo nome e le sue foto`() {
+    // F8.26c: la galleria metteva un segnaposto per foto, tutti col nome del luogo, e il grappolo da 2 erano due «Duomo».
+    val markers = F8p26Places.Markers
+    assertEquals(markers.size, markers.map { it.title }.distinct().size)
+    assertEquals(12, markers.size)
+    assertEquals(46, F8p26Places.PhotoCount)
+    open("mappa")
+    compose.onNodeWithText("46 foto in 12 luoghi · Firenze").assertIsDisplayed()
+  }
+
+  @Test
   fun `il tasto della posizione mette la posizione simulata, mai quella vera`() {
     open("mappa")
     assertEquals(0, compose.onAllNodesWithTag(FluidMapTags.UserDot).fetchSemanticsNodes().size)
@@ -163,14 +175,16 @@ class F8p26PlacesHealthUiTest {
     open("salute")
     settleUntil { stepCards().firstOrNull()?.contains("Da ") == true }
     val before = description(FluidHealthTags.card(FluidHealthMetric.Steps))
-    // Telefono e orologio contano le stesse ore: vince l'orologio, e la fonte detta e' quella che ha contato.
-    assertTrue(before, before.contains("Da Orologio · orologio"))
+    // Telefono e orologio contano le stesse ore: vince l'orologio, e la fonte detta e' quella che ha contato. Il nome e'
+    // quello dell'app e l'apparecchio si dice una volta (F8.26c: prima «Da Orologio · orologio»).
+    assertTrue(before, before.contains("Da Ritmo · orologio"))
+    assertFalse(before, before.contains("orologio · orologio", ignoreCase = true))
     compose.onNodeWithTag(F8p26Tags.Arrive).performClick()
     settleUntil { description(FluidHealthTags.card(FluidHealthMetric.Steps)) != before }
     val after = description(FluidHealthTags.card(FluidHealthMetric.Steps))
     assertTrue("$before -> $after", before != after)
     val sleep = description(FluidHealthTags.card(FluidHealthMetric.Sleep))
-    assertTrue(sleep, sleep.contains("Da Orologio e Pampa Sounds"))
+    assertTrue(sleep, sleep.contains("Da Ritmo e Pampa Sounds"))
     assertTrue(compose.onNodeWithTag(FluidHealthTags.Rings).fetchSemanticsNode().config[SemanticsProperties.ContentDescription].first().startsWith("Passi, "))
   }
 

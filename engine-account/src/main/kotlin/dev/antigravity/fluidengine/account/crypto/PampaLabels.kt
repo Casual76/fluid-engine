@@ -41,9 +41,17 @@ object PampaLabels {
     }
   }
 
-  /** I dati associati di una riga sincronizzata: `accountId|pacchetto|raccolta|idRiga|versione` (K4). */
-  fun recordAad(accountId: String, packageName: String, collection: String, recordId: String, version: Long): ByteArray =
-    "$accountId|$packageName|$collection|$recordId|$version".toByteArray(Charsets.UTF_8)
+  /**
+   * I dati associati di una riga sincronizzata: `accountId|pacchetto|raccolta|idRiga|versione` (K4).
+   *
+   * R2 · Raccolta e id li sceglie l'app, e il separatore non ha lunghezze: con un «|» dentro, `a|b` + `c` darebbe gli
+   * stessi dati associati di `a` + `b|c`, e il server potrebbe scambiare le due righe. Per questo un «|» lì è
+   * [PampaCryptoException], subito, dove l'id nasce.
+   */
+  fun recordAad(accountId: String, packageName: String, collection: String, recordId: String, version: Long): ByteArray {
+    if ('|' in collection || '|' in recordId) throw PampaCryptoException("«|» non può stare nella raccolta né nell'id di una riga")
+    return "$accountId|$packageName|$collection|$recordId|$version".toByteArray(Charsets.UTF_8)
+  }
 
   /** I dati associati di un pacchetto di backup: `accountId|pacchetto|backup|n|epoca` (`b\chiavi.md` § 7). */
   fun backupAad(accountId: String, packageName: String, n: Long, epoch: Int): ByteArray =

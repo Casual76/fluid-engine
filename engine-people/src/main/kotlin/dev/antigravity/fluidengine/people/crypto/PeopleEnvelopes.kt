@@ -146,23 +146,42 @@ object Pmx1 {
  * codice. Qui si segue il telefono finto (il codice), ed è scritto nel rapporto di F10.6.
  */
 object SpaceRecordCipher {
-  class Opened(val data: String, val writer: String, val writerEpoch: Int, val signature: ByteArray)
+  /**
+   * Un record aperto. [writerKeys] sono le chiavi di lavoro pubbliche di chi scrive, firmate dalla sua radice, se il
+   * record le porta (R2, il campo facoltativo `k`): servono a controllare la firma di chi ha rinnovato le chiavi dopo
+   * che il proprietario ha mandato lo spazio. Un record di un engine più vecchio non le ha.
+   */
+  class Opened(val data: String, val writer: String, val writerEpoch: Int, val signature: ByteArray, val writerKeys: WorkPublic? = null)
 
+  /** Chiude un record; dentro, accanto alla firma, ci sono anche le chiavi di lavoro pubbliche di chi scrive (`k`, R2). */
   fun seal(key: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long, data: String, writerCode: String, writer: WorkKeys): ByteArray =
-    sealWith(key, spaceId, epoch, recordId, version, data, writerCode, writer, PampaCrypto.random(PampaCrypto.NONCE_BYTES))
+    sealWith(key, spaceId, epoch, recordId, version, data, writerCode, writer, PampaCrypto.random(PampaCrypto.NONCE_BYTES), carryKeys = true)
 
-  internal fun sealWith(key: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long, data: String, writerCode: String, writer: WorkKeys, nonce: ByteArray): ByteArray {
+  /** Con [carryKeys] falso è il record del contratto così com'è (`d`, `w`, `e`, `s`): i vettori del server lo usano. */
+  internal fun sealWith(key: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long, data: String, writerCode: String, writer: WorkKeys, nonce: ByteArray, carryKeys: Boolean = false): ByteArray {
     val sig = writer.sign.sign(signatureInput(spaceId, epoch, recordId, version, data))
     val plain = kotlinx.serialization.json.buildJsonObject {
       put("d", JsonPrimitive(data))
       put("w", JsonPrimitive(writerCode))
       put("e", JsonPrimitive(writer.epoch))
       put("s", JsonPrimitive(PampaBase64.encode(sig)))
+      if (carryKeys) {
+        val pub = writer.public
+        put("k", kotlinx.serialization.json.buildJsonObject {
+          put("epoch", JsonPrimitive(pub.epoch))
+          put("enc", JsonPrimitive(PampaBase64.encode(pub.enc)))
+          put("sign", JsonPrimitive(PampaBase64.encode(pub.sign)))
+          put("sig", JsonPrimitive(PampaBase64.encode(pub.sig)))
+        })
+      }
     }.toString().toByteArray(Charsets.UTF_8)
     return nonce + PampaCrypto.aesGcmSeal(key, nonce, plain, aad(spaceId, epoch, recordId, version))
   }
 
-  /** Apre un record; [PeopleDetected] se è stato spostato, rinominato, rinumerato o cambiato. Non controlla la firma. */
+  /**
+   * Apre un record; [PeopleDetected] se è stato spostato, rinominato, rinumerato o cambiato, o se dentro un campo è
+   * storto (R2: mai un'altra eccezione). Non controlla la firma.
+   */
   fun open(key: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long, ciphertext: ByteArray): Opened {
     if (ciphertext.size <= PampaCrypto.NONCE_BYTES + PampaCrypto.TAG_BYTES) throw PeopleDetected("record troppo corto")
     val plain = try {
@@ -172,7 +191,18 @@ object SpaceRecordCipher {
     }
     val o = runCatching { Json.parseToJsonElement(plain.decodeToString()) as JsonObject }.getOrNull() ?: throw PeopleDetected("record illeggibile")
     fun s(k: String) = (o[k] as? JsonPrimitive)?.content ?: throw PeopleDetected("record incompleto")
-    return Opened(s("d"), s("w"), s("e").toIntOrNull() ?: throw PeopleDetected("record incompleto"), PampaBase64.decode(s("s")))
+    fun b64(v: String) = runCatching { PampaBase64.decode(v) }.getOrNull() ?: throw PeopleDetected("record con un campo non valido")
+    val keys = (o["k"] as? JsonObject)?.let { k ->
+      runCatching {
+        WorkPublic(
+          (k["epoch"] as JsonPrimitive).content.toInt(),
+          b64((k["enc"] as JsonPrimitive).content),
+          b64((k["sign"] as JsonPrimitive).content),
+          b64((k["sig"] as JsonPrimitive).content),
+        )
+      }.getOrNull() ?: throw PeopleDetected("record con chiavi di lavoro non valide")
+    }
+    return Opened(s("d"), s("w"), s("e").toIntOrNull() ?: throw PeopleDetected("record incompleto"), b64(s("s")), keys)
   }
 
   /** La firma di [opened] è della chiave di lavoro [signPub]? */

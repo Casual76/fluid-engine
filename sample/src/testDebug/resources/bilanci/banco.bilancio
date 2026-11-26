@@ -1,0 +1,13 @@
+# F7.28 · Il banco delle allocazioni sul percorso caldo (GlassHotPathAllocationTest). Formato: LEGGIMI.txt.
+# Si misura solo il moto stabile: i byte allocati per fotogramma sul filo principale dalla scena col vetro, meno la stessa
+# scena senza vetro (stesso albero, stesso moto di 3 px a fotogramma, stesso filo, 300 fotogrammi di riscaldamento del
+# JIT, poi serie da 40 e da 80 fotogrammi, tre ripetizioni). È rosso un incremento sopra il tetto in tutte e tre.
+# Finestra 800 × 1280 px a densità 1, profilo Pieno, log del vetro spento. Numeri del JVM di Robolectric (HotSpot), non di
+# ART: dicono se il percorso alloca di più di ieri. Dipendono da quanto è caldo il JIT (la stessa lastra: 1,1 KB per
+# fotogramma dopo le altre prove, 3,8 KB in una JVM appena nata): i tetti reggono le due JVM e la mutazione (8 KiB per
+# fotogramma) cade in tutte e due.
+#
+# id                         fase  nodi layer cat/f catture pixel KiB fab fx rid alloc/f  ver   prova
+banco:lastra-mossa           moto  -    -     -     -       -     -   -   -  -   5000     F7.28 GlassHotPathAllocationTest | una lastra Liquid che si sposta e ricattura a ogni fotogramma: 1 048–1 141 B per fotogramma in più del banco vuoto a JVM calda, 3 757–3 927 B a JVM fredda (26/11, tre ripetizioni); vedi D6 del rapporto F7.28
+banco:lastra-su-fondo-mosso  moto  -    -     -     -       -     -   -   -  -   5000     F7.28 GlassHotPathAllocationTest | una lastra ferma sopra un contenuto della sorgente che si sposta: la sorgente si riregistra a ogni fotogramma e il vetro la segue, 1 087–1 114 B per fotogramma in più a JVM calda (26/11); stesso tetto della lastra mossa
+banco:gruppo-mosso           moto  -    -     -     -       -     -   -   -  -   14000    F7.28 GlassHotPathAllocationTest | il gruppo di tre tasti di vetro che si sposta, contro tre tasti pieni: 7 514–7 955 B per fotogramma in più a JVM calda, 10 822–11 947 B a JVM fredda (26/11), in parte dei tasti (interazione, semantica) e non solo del vetro; vedi D6 del rapporto F7.28

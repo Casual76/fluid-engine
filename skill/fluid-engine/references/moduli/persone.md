@@ -36,7 +36,7 @@ codice del server e quelli di Codex.
 | pezzo | formato | da Codex |
 |---|---|---|
 | `PersonCode` | `PMP-XXXX-XXXX`: 40 bit di `SHA-256("pampa/v1/codice|" ‖ radice)` in Crockford; la casella dalla stessa radice | `CodexId` col prefisso `PMP-` (Q10: niente `CDX-`) |
-| `PersonCard` | JSON firmato dalla radice, coi byte così come sono (`raw`, `sig`); `verify` controlla codice, casella, firme | `ContactCard`, senza uid Firebase |
+| `PersonCard` | JSON firmato dalla radice, coi byte così come sono (`raw`, `sig`); `verify` controlla codice, casella, firme, e rifiuta una chiave di cifratura di ordine piccolo (R2) | `ContactCard`, senza uid Firebase |
 | `Cdxb` | `"CDXB" ‖ u32 ‖ u32 ‖ HPKE ‖ firma`, con la scheda di chi manda dentro | `InboxParcel`, rifatta con HPKE (F10.5) |
 | `Pmx1` | `"PMX1" ‖ epoca ‖ id ‖ nonce ‖ AES-GCM`, una chiave per messaggio, le due caselle nei dati associati | `MessageEnvelope` (CDX3) |
 | `Cdxm` | i file a blocchi da 64 KiB | `MediaCipher`, **identico al byte** |
@@ -75,6 +75,40 @@ salvataggio del cursore e degli id visti, e `PeopleDispatcher.dispatch` le togli
 Se la seconda pagina cade, il campanello scade o lo Store riparte, la condivisione arriva al giro dopo, una volta sola.
 Una richiesta già accettata o ignorata nel frattempo non si annuncia più.
 
+**Contro le buste storte e i ritorni indietro (R2).** Il server può rimandare buste vecchie e genuine, e chiunque può
+mandare una richiesta col contenuto storto. Le regole:
+- **una busta storta è di quella busta sola**: un campo che non è base64, un numero che non è un numero, un tipo
+  sbagliato diventano `PeopleEvent.Detected("busta malformata")`, e il cursore la passa. Solo la rete, i tetti
+  (`retryable`) e l'accesso da rinnovare (401–403) fermano il ritiro, che riprende la pagina al giro dopo;
+- **la scheda di un contatto non scende mai**: fra quella che ho e quella di una busta resta la più nuova (epoca di
+  lavoro più alta, a pari epoca l'ora più recente). Lo stesso per la rubrica degli altri miei dispositivi, per la copia
+  sotto `K_com(rubrica)` e per gli scriventi di uno spazio;
+- **gli spazi e i gruppi tengono l'epoca più alta**: uno stato vecchio di uno spazio porta solo chiavi, non il gettone di
+  prima né chi era stato tolto (`SpaceMembership.mergeIncoming`); uno stato di un gruppo più vecchio di quello che ho
+  è `Detected`;
+- **la persona ripresa dal server non torna indietro**: `importSealed` unisce le chiavi di lavoro e tiene la scheda più
+  nuova; `importRubrica` rifiuta una copia con una versione più vecchia dell'ultima ripresa (`PampaCryptoException`);
+- **un contatto tolto resta tolto**: togliere lascia una lapide per 90 giorni (`rubrica-via` porta l'ora), e una rubrica
+  vecchia di un altro dispositivo, o una copia, non rimette un contatto aggiunto prima di quell'ora. Aggiungerlo di
+  nuovo dopo vale;
+- **un codice che ho già non si sostituisce**: `request` con un contatto della stessa radice lo rende com'è, con
+  un'altra radice è `PeopleDetected` (la scheda falsa di S5); così anche l'accettazione e la vicinanza.
+
+**Prima offline anche per le impronte (R2, R6).** Bloccare, togliere, sbloccare e ogni gettone nuovo (richieste,
+accettazioni, gruppi, vicinanza) valgono subito sul telefono: l'impronta da aggiungere o togliere nella casella va in coda
+con le buste, e la coda la manda **prima** di loro. La coda si salva dopo ogni chiamata, e il lavoro in sottofondo la
+finisce anche se WorkManager lo sostituisce: niente doppioni.
+
+**Un messaggio prima della sua chiave (R2).** Una PMX1 di un contatto (o di un membro di un gruppo) con un'epoca della
+conversazione che non ho ancora resta da parte, cifrata, fino a 100 buste, 1 MiB e 30 giorni; si apre quando arriva la
+«chiave-chat» (o lo stato del gruppo) e torna come `PeopleEvent.Message` col suo numero di busta.
+
+**I record degli spazi portano le chiavi di chi scrive (R2).** Dentro il record, accanto alla firma, c'è il campo
+facoltativo `k`: le chiavi di lavoro pubbliche di chi scrive, firmate dalla sua radice. Chi legge controlla la firma con
+la scheda fra gli scriventi se è della stessa epoca, altrimenti con `k`, se la radice è quella che il proprietario ha
+messo fra gli scriventi: chi rinnova le chiavi resta leggibile per tutti. Un record senza `k` (engine di prima) si legge
+come prima. Ogni guasto di un record è `SyncSealException`, mai un'altra eccezione.
+
 ## Trappole
 
 - `PeopleClient` vuole la persona (`PersonaStore.create`) prima di tutto: senza, `identity()` fallisce.
@@ -82,6 +116,7 @@ Una richiesta già accettata o ignorata nel frattempo non si annuncia più.
 - `SharedSpace.put/add/remove` senza gettone di scrittura sono `IllegalStateException`: una scrittura che il server
   rifiuterebbe resterebbe in coda e fermerebbe anche la lettura dello spazio.
 - Il canale aperto (`PeopleSocket`) va solo ad app aperta; in sottofondo suona il campanello ([push-fcm](push-fcm.md)).
+  Se per due ping e mezzo non arriva niente (nemmeno il «pong»), la lettura scade e il canale si chiude con 1006 (R2).
 - Chi ritira con `pickup()` senza `PeopleDispatcher` lascia le consegne nella coda (fino a 500): il primo `dispatch` le
   smista. Di `dispatch(events)` contano solo la coda e le consegne fatte a mano, oltre il cursore.
 - **Lo stato che non si apre più** (R1): con la chiave del Keystore persa o invalidata, o il file troncato,
@@ -98,4 +133,7 @@ dispositivi, gruppi da 30 e 100, server ostile, telefono rubato, campanello fint
 (anche il ritiro che cade alla seconda pagina o scade, con lo Store che riparte), `PeopleStateStoreTest` (il file che non
 si apre),
 `PeopleWorkTest` (la coda con WorkManager, senza rete e col telefono in tasca).
+`PeopleR2Test` e `PeopleSocketR2Test` (R2: busta malformata, schede, spazi e gruppi rimandati, persona e rubrica vecchie,
+contatto tolto che torna, blocco senza rete, messaggio prima della chiave, coda fermata a metà, contatto ri-aggiunto, il
+canale che tace).
 Il passaggio Store → app col provider vero è `PeopleBridgeTest` in `engine-account-host`.

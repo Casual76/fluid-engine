@@ -110,6 +110,16 @@ class AiAssistFirstUseTest {
     assertTrue(AiAssistTexts.installHint().contains("Pampa Store"))
   }
 
+  @Test fun `Riprova - solo dove la stessa domanda puo' andare, mai per non autorizzata`() {
+    val again = setOf(AiAssistError.Timeout, AiAssistError.Interrupted, AiAssistError.Failed, AiAssistError.Busy, AiAssistError.LimitReached, AiAssistError.ConsentRequired)
+    val never = setOf(AiAssistError.NotAuthorized, AiAssistError.NotInstalled, AiAssistError.NeedsUpdate, AiAssistError.NotReady, AiAssistError.TooLarge, AiAssistError.Cancelled)
+    assertEquals("ogni codice ha la sua risposta", AiAssistError.Codes, again + never)
+    again.forEach { assertTrue(it, AiAssistError(it).retryable) }
+    never.forEach { assertFalse(it, AiAssistError(it).retryable) }
+    // Un codice che questa versione non conosce si legge come «failed»: si puo' riprovare.
+    assertTrue(AiAssistError("nuovo_codice").retryable)
+  }
+
   @Test fun `Dalle app - l'app, la domanda, il titolo della pagina, la risposta e le ricevute, non le righe della pagina`() = runTest {
     val history = InMemoryAiAssistHistory()
     val consents = allowedConsents().apply { setPageConsent(Apps.School, AiAssistConsentState.Allowed) }

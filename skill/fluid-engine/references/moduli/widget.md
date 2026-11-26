@@ -124,7 +124,7 @@ e il contenuto chiede esattamente cio' che il budget permette.
 **Firma essenziale.**
 
 ```kotlin
-data class EngineWidgetLayout(val padding: Dp, val compact: Boolean, val rowLimit: Int, val showSubtitle: Boolean, val showFooter: Boolean)
+data class EngineWidgetLayout(val padding: Dp, val compact: Boolean, val rowLimit: Int, val showSubtitle: Boolean, val showFooter: Boolean, val stacked: Boolean = false)
 fun resolveEngineWidgetLayout(size: DpSize, hasFooter: Boolean = false, maxRows: Int = EngineWidgetMetrics.MaxRows): EngineWidgetLayout
 ```
 
@@ -138,6 +138,11 @@ items.take(layout.rowLimit).forEachIndexed { i, item -> ... }
 ```
 
 **Comportamento — i numeri veri** (da `EngineWidgetMetrics` e dalla funzione):
+- **`stacked`** (F8.25c) se la larghezza e' sotto **170 dp** (`EngineWidgetMetrics.StackedWidth`): la **taglia piccola**,
+  come i widget piccoli di iOS. In una riga il valore a destra **scende sotto il titolo**, il titolo ha tutta la larghezza
+  (niente «Mat…» accanto a un orario), la riga e' alta **44 dp** (`StackedRowHeight`) e quindi le righe sono meno; niente
+  tessera dell'icona. Un 2×2 su un telefono va da 130 dp (griglia a 5 colonne, (73·2 − 16) dp) a circa 170 dp (One UI a
+  4 colonne); il piccolo di iPhone e' 158 pt. Sul Tab S9 il 2×2 di prova troncava i nomi: da qui la correzione.
 - **`compact`** se la larghezza e' sotto **240 dp** *o* l'altezza sotto **150 dp**. Compatta: padding **12**, intestazione **32**, riga **34** (un rigo piu' un valore a destra); non compatta: padding **14**, intestazione **48**, riga **48** (titolo 15 sp su sottotitolo 12 sp).
   `showSubtitle = !compact`. Piede **38 dp**, spazio fra le parti **8 dp**.
 - Spazio per le righe = `altezza − 2·padding − intestazione − 8`. Il **piede si disegna solo se** `hasFooter` **e** l'avanzo e' almeno `riga + 8 + 38`; in tal caso si toglie `38 + 8` dall'avanzo.
@@ -146,6 +151,8 @@ items.take(layout.rowLimit).forEachIndexed { i, item -> ... }
 
   | cella (L × A) | modo | righe senza piede | righe con piede |
   |---|---|---|---|
+  | 158 × 158 | impilata (`stacked`) | 2 | 1 (il piede non entra) |
+  | 130 × 220 | impilata | 3 | 2 |
   | 180 × 110 | compatta | 1 | 1 (il piede non entra) |
   | 180 × 180 | compatta | 3 | 2 |
   | 300 × 150 | normale | 1 | 1 (il piede non entra) |
@@ -161,7 +168,7 @@ items.take(layout.rowLimit).forEachIndexed { i, item -> ... }
 - Il conto non include le hairline fra le righe (1 dp l'una): e' un limite superiore ragionevole, non una misura al pixel.
 - Senza `SizeMode.Exact` (o `Responsive`) `LocalSize` non e' la dimensione reale della cella e il budget sbaglia.
 
-**Test.** `EngineWidgetLayoutTest` (5): la cella piu' piccola tiene una riga e lascia cadere l'opzionale; l'altezza decide la compattezza come la larghezza; un piede prende lo spazio dalle righe; una cella piu' alta compra piu' righe; si ferma al tetto (e `maxRows = 2` vale).
+**Test.** `EngineWidgetLayoutTest` (6): la cella piu' piccola tiene una riga e lascia cadere l'opzionale; l'altezza decide la compattezza come la larghezza; un piede prende lo spazio dalle righe; una cella piu' alta compra piu' righe; si ferma al tetto (e `maxRows = 2` vale); la taglia piccola si impila (158 e 130 dp) e da 170 dp no. La prova col widget vero alla taglia vera e' `F8p25WidgetSmallTest` della galleria: a 130, 158 e 178 dp nessun nome troncato, e sotto 170 l'orario sta sotto il nome.
 
 ## I componenti
 
@@ -197,7 +204,7 @@ EngineWidgetSurface(palette, layout, onClick = apriLApp) {
 | `EngineWidgetHeader(title, palette, layout, subtitle, subtitleIsWarning, trailing)` | Titolo (17 sp grassetto, 15 compatto), riga di stato opzionale (12 sp, **sparisce in modalita' compatta**, in tono `attention` se `subtitleIsWarning`), **una** azione a destra. |
 | `EngineWidgetActionButton(icon, contentDescription, action, palette, layout)` | Tasto tondo, **tinto e non etichettato**: un'etichetta compete con il bersaglio della superficie per spazio e attenzione, e un widget ha posto per una sola azione primaria. 36 dp (30 compatto), icona 18 (15); ha `contentDescription` per l'accessibilita'. |
 | `EngineWidgetGroup(palette) { }` | Le righe dentro una sola card arrotondata (**20 dp**), come un elenco raggruppato. |
-| `EngineWidgetRow(title, palette, layout, icon, tone, subtitle, trailing, onClick)` | Una riga: tessera con icona, una o due righe di testo (15 sp, 13 compatto), un valore a destra come **`String`** (12 sp grassetto, nel colore del tono). La categoria sta **sulla tessera, non sullo sfondo**: tingere righe intere fa una toppa di blocchi colorati, e a quelle dimensioni non c'e' spazio per rimediare. Il sottotitolo si vede solo se `layout.showSubtitle`. |
+| `EngineWidgetRow(title, palette, layout, icon, tone, subtitle, trailing, onClick)` | Con `layout.stacked` (taglia piccola, F8.25c) si impila: il titolo su tutta la riga, il valore sotto, senza tessera. Altrimenti, una riga: tessera con icona, una o due righe di testo (15 sp, 13 compatto), un valore a destra come **`String`** (12 sp grassetto, nel colore del tono). La categoria sta **sulla tessera, non sullo sfondo**: tingere righe intere fa una toppa di blocchi colorati, e a quelle dimensioni non c'e' spazio per rimediare. Il sottotitolo si vede solo se `layout.showSubtitle`. |
 | `EngineWidgetHairline(palette, layout)` | Il separatore **rientrato** fino a dove comincia il testo (52 dp, 42 compatto), 1 dp. E' un wrapper perche' i modificatori Glance sono un insieme di proprieta', non una catena ordinata. |
 | `EngineWidgetIconTile(icon, tone, compact)` | La tessera della riga: 30 dp (24 compatta), angolo 9, icona 17 (14) tinta col contenuto del tono. Sola, per chi disegna una riga a modo suo. |
 | `EngineWidgetPill(value, label, tone, modifier, compact)` | Un conteggio e cio' che conta; `modifier` e' parametro perche' la pillola e' quasi sempre disposta dal genitore (peso in una riga, un'azione di tocco sua). |
@@ -290,6 +297,15 @@ FluidWidgetShowcase(
 - Il ritorno del launcher e' un `PendingIntent` **modificabile ed esplicito col pacchetto** (il launcher ci aggiunge
   `EXTRA_APPWIDGET_ID`; Android 14 vuole l'esplicito) verso un ricevitore **non esportato** registrato finche' la scheda
   c'e'. Non serve dichiarare niente nel manifest oltre al widget.
+- **Ogni widget deve avere l'anteprima per il launcher**: `android:previewLayout` (un layout fermo, da Android 12) e
+  `android:previewImage` (un'immagine, prima), nell'`appwidget-provider` XML. E' quella che il launcher mostra nel foglio
+  della richiesta e nell'elenco dei widget. **Senza, «Aggiungi alla Home» si presenta male**: sul Tab S9 (One UI, Android
+  16) il foglio «Aggiungere alla schermata Home?» scriveva «Aggiunta del widget non riuscita» al posto del widget (F8.25c).
+  Il layout usa solo viste ammesse in `RemoteViews` (niente `<View>`: un separatore e' un `FrameLayout`), i colori della
+  palette di serie con le varianti in `values-night` (il launcher lo legge col tema del sistema), e il contenuto della
+  taglia di serie. Un widget Glance non puo' usare il suo composable li': il layout si scrive a mano, e una prova lo gonfia
+  come `RemoteViews` (`RemoteViews(packageName, layout).apply(...)`), cosi' un errore si vede al PC e non nel foglio. Gli
+  esempi sono i due widget di prova della galleria (`sample/src/main/res/layout/f8p25_widget_*_preview.xml`).
 - `requestPinAppWidget` lancia se l'app non e' in primo piano: la vetrina lo tratta come «non si puo' da qui».
 - L'anteprima Glance si compone nella vetrina, non nel widget: legge le **stesse impostazioni** che legge il widget
   (`EngineSettings`), se no mostra un tema che il widget non avra'.
@@ -350,13 +366,14 @@ parole, la scheda da Android 13 e quella di Android 12 con la strada a mano.
 | `FooterHeight`, `Gap` | 38 dp, 8 dp |
 | `Padding` / `CompactPadding` | 14 dp / 12 dp |
 | `EngineWidgetMetrics.MaxRows` | 4 |
+| `EngineWidgetMetrics.StackedWidth` / `StackedRowHeight` | 170 dp / 44 dp (F8.25c, la taglia piccola) |
 | soglie di compattezza | larghezza < 240 dp o altezza < 150 dp |
 | `EngineWidgetShape.Container`, `Group`, `Tile`, `Pill` | 24, 20, 9, 18 dp |
 | alfa di tessere e toni (`TileAlpha`) / hairline (`HairlineAlpha`) | 0,16 / 0,10 (privati) |
 
 ## Cosa e' verificato dai test
 
-- `EngineWidgetLayoutTest` (5): il budget. E' l'unica parte di un widget Glance che un test puo' tenere: sotto c'e' `RemoteViews` e l'host taglia in silenzio.
+- `EngineWidgetLayoutTest` (6): il budget, con la taglia piccola impilata (F8.25c). E' l'unica parte di un widget Glance che un test puo' tenere: sotto c'e' `RemoteViews` e l'host taglia in silenzio.
 - `EngineWidgetArgbTest` (3): il tema dell'app vince su quello del launcher (e `SYSTEM` lo segue); gli interi sono i ruoli dello schema, con i traslucidi gia' composti sulla card; la serie scura ha i suoi valori fissi per avviso e successo.
   La derivazione (`engineWidgetArgbOf`) e' `internal` e separata dal `Context` per poterla provare senza un launcher.
 - `FluidWidgetShowcaseTest` (15, F8.25 e F8.25b): la vetrina e il riquadro rapido (sopra).
@@ -381,7 +398,7 @@ parole, la scheda da Android 13 e quella di Android 12 con la strada a mano.
 implementation project(':engine-widget')   // widget Glance
 ```
 
-**Configurazione minima.** Il modulo non porta manifest: la dichiarazione del widget e' dell'app. Servono (1) un `GlanceAppWidgetReceiver` nel manifest con il suo `appwidget-provider` XML; (2) una sottoclasse di `GlanceAppWidget` con
+**Configurazione minima.** Il modulo non porta manifest: la dichiarazione del widget e' dell'app. Servono (1) un `GlanceAppWidgetReceiver` nel manifest con il suo `appwidget-provider` XML, **con l'anteprima** (`android:previewLayout`, da Android 12, e `android:previewImage`, prima: vedi «La vetrina dei widget», trappole); (2) una sottoclasse di `GlanceAppWidget` con
 `sizeMode = SizeMode.Exact` che in `provideGlance` legge `EngineSettings` e costruisce palette e layout; (3) il collegamento `updateAll` della sezione sopra; (4) icone vettoriali a tratto.
 
 ```kotlin

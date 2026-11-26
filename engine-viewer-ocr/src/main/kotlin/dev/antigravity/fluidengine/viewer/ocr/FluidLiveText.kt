@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -107,11 +108,16 @@ object FluidLiveText {
         val recognizer = recognizer(context.applicationContext ?: context)
         if (!recognizer.available) return@withContext null
         val bitmap = load() ?: return@withContext null
-        try {
-          val result = if (findSheet && straightenSheets) SheetReading.recognize(recognizer, bitmap) else recognizer.recognize(bitmap)
-          result.also { cache.put(key, it) }
-        } finally {
-          bitmap.recycle()
+        // R1: Tesseract non si interrompe a metà pagina. Una lettura cominciata si finisce e si ricorda anche se chi
+        // l'ha chiesta non la vuole più (la ricerca cambiata, la pagina sfogliata via): prima si buttava, e la ricerca
+        // che ripartiva rileggeva la stessa pagina da capo.
+        withContext(NonCancellable) {
+          try {
+            val result = if (findSheet && straightenSheets) SheetReading.recognize(recognizer, bitmap) else recognizer.recognize(bitmap)
+            result.also { cache.put(key, it) }
+          } finally {
+            bitmap.recycle()
+          }
         }
       }
     }
@@ -219,7 +225,9 @@ class FluidLiveTextState(
       throw e
     } catch (e: Throwable) {
       FluidLiveText.lastError = e
-      android.util.Log.w("FluidLiveText", "Lettura del testo non riuscita", e)
+      // R1: solo il tipo. Il messaggio di un file che non si apre ha il percorso o l'indirizzo (il nome della foto):
+      // niente dati personali nei log. L'eccezione intera resta in lastError, per i log dell'app.
+      android.util.Log.w("FluidLiveText", "Lettura del testo non riuscita (${e.javaClass.simpleName})")
       null
     }
     show(result)

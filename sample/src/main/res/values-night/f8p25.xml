@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.25c · I colori notturni delle anteprime dei widget di prova (il launcher le legge col tema del sistema). -->
+<resources>
+  <color name="f8p25_widget_background">#FF0E0F10</color>
+  <color name="f8p25_widget_card">#FF1F2123</color>
+  <color name="f8p25_widget_text">#FFF2F2F5</color>
+  <color name="f8p25_widget_secondary">#FFAAAAB2</color>
+  <color name="f8p25_widget_hairline">#FF353638</color>
+  <color name="f8p25_widget_accent">#FF6FD3A6</color>
+</resources>

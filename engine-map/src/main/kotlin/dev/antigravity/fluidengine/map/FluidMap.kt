@@ -213,6 +213,12 @@ fun FluidMap(
       }
       .testTag(FluidMapTags.Map),
   ) {
+    // Una mappa che il vetro non vede (MapLibre in `SurfaceView`) sta **fuori** dalla registrazione del vetro: la sorgente,
+    // quando qualcuno la campiona, si compone in un layer fuori schermo, e il buco che la `SurfaceView` apre nella finestra
+    // restava chiuso li' dentro. La finestra sopra la mappa era piena e la mappa, disegnata sotto, non si vedeva: nera sul
+    // Tab S9 (F8.26, 26/11/2026). Dentro la sorgente restano solo la mappa che il vetro rifrange e TalkBack.
+    val glassSees = engine.glassSamplesMap
+    if (!glassSees) engine.Surface(state, style, dark, Modifier.matchParentSize())
     Box(
       Modifier
         .matchParentSize()
@@ -222,7 +228,7 @@ fun FluidMap(
           customActions = mapActions
         },
     ) {
-      engine.Surface(state, style, dark, Modifier.fillMaxSize())
+      if (glassSees) engine.Surface(state, style, dark, Modifier.fillMaxSize())
     }
     FluidMapUserDot(state, labels)
     FluidMapMarkerLayer(
@@ -286,6 +292,8 @@ fun FluidMap(
           bottom = contentPadding.calculateBottomPadding(),
         )
         .padding(start = 8.dp, bottom = 4.dp)
+        // Accanto ai comandi in basso, mai sotto: su un telefono stretto la scritta va a capo prima della capsula.
+        .padding(end = if (aboveSheet) FluidMapControlsDefaults.EdgeMargin + FluidMapControlsDefaults.Button + 8.dp else 8.dp)
         .offset { IntOffset(0, -lift.value.roundToPx()) },
     )
   }

@@ -35,7 +35,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-widget/widget/EngineWidgetLayout.kt`
 
-- `data class EngineWidgetLayout(val padding: Dp, val compact: Boolean, val rowLimit: Int, val showSubtitle: Boolean, val showFooter: Boolean)` — How much of a list fits in the cell the launcher handed over.
+- `data class EngineWidgetLayout(val padding: Dp, val compact: Boolean, val rowLimit: Int, val showSubtitle: Boolean, val showFooter: Boolean, val stacked: Boolean = false)` — How much of a list fits in the cell the launcher handed over.
 - `object EngineWidgetMetrics`
   - `val RowHeight: Dp` — A two-line row: a 15sp title over a 12sp subtitle, plus the padding around them.
   - `val CompactRowHeight: Dp` — One line and a trailing value, for a cell too short to give a row two of them.
@@ -46,6 +46,8 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val Padding: Dp`
   - `val CompactPadding: Dp`
   - `const val MaxRows: Int` — Beyond four rows a home-screen widget stops being glanceable and becomes a bad list.
+  - `val StackedWidth: Dp` — Sotto questa larghezza le righe si impilano ([EngineWidgetLayout.stacked]): 170 dp. Un 2×2 su un telefono va da 130 dp (la griglia a 5 colonne: (73·2 − 16) dp, documentazione Android «App widget layouts») a circa 170 dp (One UI a 4 colonne su un telefono da 411 dp); il piccolo di iPhone e' 158 pt (HIG «Widgets»). Sopra, nome e valore stanno sulla stessa riga anche coi nomi lunghi.
+  - `val StackedRowHeight: Dp` — Una riga impilata: il titolo a 13 sp sopra il valore a 11 sp, col padding verticale della riga compatta.
 - `fun resolveEngineWidgetLayout(size: DpSize, hasFooter: Boolean = false, maxRows: Int = EngineWidgetMetrics.MaxRows): EngineWidgetLayout` — [hasFooter] is asked for rather than assumed: a footer that has nothing to say should not be drawn, and the row budget should get its space back instead of leaving a gap.
 
 ## `engine-widget/widget/EngineWidgetPalette.kt`

@@ -175,7 +175,9 @@ loro (le note del relatore) che un involucro nasconderebbe. Basta la dipendenza 
 **Come si comporta.**
 - La pagina **ferma da 450 ms** si legge in sottofondo (una lettura alla volta nel processo, tutta fuori dal filo
   principale; le librerie native di Tesseract si caricano nel suo filo alla prima lettura; i risultati restano in
-  memoria, un file riaperto è già letto). Se c'è testo compare **il tasto di Testo attivo** in basso a destra, sopra la fila
+  memoria, un file riaperto è già letto se il visore ne sa la data di modifica, se no si rilegge a ogni apertura (R2: allo
+  stesso indirizzo può esserci un'altra foto); una lettura cominciata si finisce e si ricorda anche se la pagina se ne va
+  o la ricerca cambia, perché Tesseract non si ferma a metà pagina). Se c'è testo compare **il tasto di Testo attivo** in basso a destra, sopra la fila
   dei comandi, nello spazio dello schermo (`FluidViewerPageAccessory` di `engine-ui`): compare sfocato e si fa nitido
   (arriva da solo, R7), si ritira con le barre al tocco.
 - **Il tasto** accende la modalità: la foto si vela di nero al 45% e **le righe restano chiare** con un contorno bianco
@@ -188,10 +190,13 @@ loro (le note del relatore) che un involucro nasconderebbe. Basta la dipendenza 
 - **Tieni premuto su una parola** per selezionarla, anche con la modalità spenta (come in Foto); poi il dito allarga la
   selezione. Con la modalità accesa basta un tocco. **Le maniglie** di iOS (la sbarra col pallino) spostano i due capi; la
   selezione segue le righe (un pezzo di riga per riga toccata, storto come la riga in una foto storta). Sopra (o sotto) compare **il menu** di vetro con «Copia»,
-  «Seleziona tutto» e «Condividi». Un tocco fuori la toglie.
+  «Seleziona tutto» e «Condividi»: resta almeno 8 dp dentro l'immagine e dentro lo schermo e si sposta invece di tagliarsi,
+  come iOS (R1, dal tablet); in un'immagine più stretta del menu sta al centro. Un tocco fuori la toglie.
 - **Lo zoom, le pagine e le rotazioni**: il disegno sta **dentro** il riquadro dell'immagine che lo zoom del visore
   ingrandisce, quindi le righe seguono la foto da sole (pizzico, doppio tocco, spostamento, schermo girato); le maniglie
-  e il menu restano della stessa misura a ogni zoom (la scala si legge nel disegno). Nei PDF il disegno sta sopra ogni
+  e il menu restano della stessa misura a ogni zoom (la scala si legge nel disegno), e **nitidi**: niente strati fuori
+  schermo, che si disegnerebbero a 1× e poi si ingrandirebbero (il velo si stende fuori dalle righe con un ritaglio, R1).
+  Nei PDF il disegno sta sopra ogni
   pagina del preset (`FluidPageOverlays`), che cresce col pizzico. I riquadri sono in coordinate 0..1 dell'immagine
   dritta (EXIF applicato dallo stesso decodificatore del visore); `FluidTextQuad.rotated` li gira di quarti di giro.
 - **«Scansiona, poi leggi»** (F8.17d): in una **foto storta di un foglio** (girato di più di 1,5° o in prospettiva, più
@@ -214,12 +219,15 @@ loro (le note del relatore) che un involucro nasconderebbe. Basta la dipendenza 
 modello LSTM «fast» dell'italiano
 (`ita.traineddata`, Apache-2.0, 2,7 MB negli asset; riconosce anche l'inglese e le lingue con l'alfabeto latino). Prima
 della lettura l'immagine passa in grigio con **la luce della carta pareggiata** (la stessa idea del filtro «Documento»
-dello scanner) e il testo piccolo si ingrandisce fino a 2400 px sul lato lungo. Le librerie native ci sono per
+dello scanner) e il testo piccolo si ingrandisce fino a 2400 px sul lato lungo. La copia dei pixel e la preparazione
+stanno sul filo di Tesseract, con una copia sola dell'immagine (4 byte per pixel, R2); il testo delle parole e
+l'iteratore di Tesseract si liberano a ogni lettura (R1: prima ogni lettura con testo lasciava memoria nativa). Le librerie native ci sono per
 **arm64-v8a e x86_64**: su un telefono a 32 bit il tasto non compare. Un'app può dare un altro riconoscitore con
 `FluidLiveText.recognizer` (per esempio ML Kit, se lo sceglie: la domanda è nel rapporto di F8.17).
 
 **API.** `FluidLiveTextExtension` (trovata da sola); `FluidLiveText` (`recognizer`, `strings`, `enabled`,
-`straightenSheets`, `lastError` per i log, la memoria dei risultati; `read(context, key, findSheet = true) { foto }` legge
+`straightenSheets`, `lastError` per i log dell'app (in Logcat solo il tipo dell'errore: il messaggio di un file che non si
+apre ha il percorso, R1), la memoria dei risultati; `read(context, key, findSheet = true) { foto }` legge
 una foto passando dal foglio); per un visore dell'app: `FluidLiveTextState`, `FluidLiveTextOverlay(state)` dentro il riquadro dell'immagine e
 `FluidLiveTextControls(state)` in un posto fermo dello schermo; il modello `FluidRecognizedText` (blocchi, righe, parole,
 `FluidTextQuad` con `isUpright`, `distanceTo`, `between`; `search`, `text(from, to)`); `FluidOcrLicenses`. Il modulo

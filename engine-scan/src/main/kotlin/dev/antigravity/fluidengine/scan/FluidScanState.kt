@@ -22,9 +22,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -32,6 +36,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.text.DateFormat
 import java.util.Date
 import java.util.UUID
@@ -73,6 +80,12 @@ data class FluidScanOptions(
 )
 
 /**
+ * Le pagine che non si leggono (la foto rotta sul disco, la pagina pulita che non si scrive): [pages] sono i numeri
+ * nella fila, da 1. La lancia [FluidScanState.export], e lo scanner la dice.
+ */
+internal class ScanUnreadablePages(val pages: List<Int>) : IOException("Pagine che non si leggono: ${pages.joinToString(", ")}")
+
+/**
  * Lo stato di una scansione: la fila delle pagine, le loro miniature e la consegna. Si crea con
  * [rememberFluidScanState]; le pagine sopravvivono alla rotazione e alla ricreazione dell'attività (sono sul disco).
  * Tutto ciò che legge Compose è stato di snapshot, scritto sul filo principale.
@@ -86,9 +99,13 @@ class FluidScanState internal constructor(
 ) {
   private val list = mutableStateListOf<FluidScanPage>()
   private val thumbs = mutableStateMapOf<String, ImageBitmap>()
+  /** R1: le pagine la cui pulizia è fallita (il disco pieno, una foto che non si legge). */
+  private val failures = mutableStateMapOf<String, Boolean>()
   private val versions = HashMap<String, Int>()
   private val jobs = HashMap<String, Job>()
   private val disk = Mutex()
+  /** R1: cresce a ogni [clear]: uno scatto che finisce dopo non entra nella fila buttata. */
+  private var generation = 0
 
   /** Le pagine, nell'ordine della fila. */
   val pages: List<FluidScanPage> get() = list
@@ -100,16 +117,23 @@ class FluidScanState internal constructor(
   /** La miniatura pulita della pagina [id] (lato lungo 480 px), `null` finché non è pronta. */
   fun thumbnail(id: String): ImageBitmap? = thumbs[id]
 
-  /** La cartella di questa scansione nella cache dell'app. */
+  /** Vero se la pagina [id] non si è potuta pulire: «Salva» ci riprova, e se non va lo dice. */
+  internal fun failed(id: String): Boolean = failures[id] == true
+
+  /** La cartella di questa scansione nella cache dell'app (la crea: per chi scrive). */
   internal val folder: File get() = File(ScanFiles.root(context), session).apply { mkdirs() }
+
+  /** La cartella senza crearla: per chi legge o cancella. */
+  private val place: File get() = File(ScanFiles.root(context), session)
 
   /**
    * Aggiunge in coda la foto [photo] col foglio [quad] (quello trovato, o tutta la foto). La foto va sul disco e la
    * pagina pulita si calcola fuori dal filo principale; la pagina è nella fila subito, con la miniatura che arriva dopo.
-   * Restituisce la pagina, o `null` se la fila è piena.
+   * Restituisce la pagina, o `null` se la fila è piena (o se la scansione è stata buttata nel frattempo).
    */
   suspend fun add(photo: Bitmap, quad: FluidScanQuad? = null): FluidScanPage? {
     if (list.size >= options.maxPages) return null
+    val round = generation
     val id = UUID.randomUUID().toString().take(8)
     val file = File(folder, "foto-$id.jpg")
     val width = photo.width
@@ -118,6 +142,11 @@ class FluidScanState internal constructor(
       disk.withLock { FileOutputStream(file).use { photo.compress(Bitmap.CompressFormat.JPEG, 92, it) } }
     }
     val found = quad ?: withContext(Dispatchers.Default) { FluidScanEdges.detect(photo)?.quad } ?: FluidScanQuad.Full
+    if (round != generation) {
+      // «Butta» mentre lo scatto si scriveva: la foto non resta nella cache.
+      ScanFiles.cleanup.launch { disk.withLock { file.delete() } }
+      return null
+    }
     val page = FluidScanPage(id, found, 0, options.filter, file, width, height)
     list.add(page)
     process(page, photo)
@@ -128,10 +157,16 @@ class FluidScanState internal constructor(
   fun remove(id: String) {
     val index = list.indexOfFirst { it.id == id }
     if (index < 0) return
-    jobs.remove(id)?.cancel()
+    val job = jobs.remove(id)?.also { it.cancel() }
     val page = list.removeAt(index)
     thumbs.remove(id)
-    scope.launch(Dispatchers.IO) { page.photo.delete(); cleanFile(id).delete() }
+    failures.remove(id)
+    working = jobs.isNotEmpty()
+    // R1: i file si tolgono anche se la schermata se ne va subito dopo, e dopo il lavoro che li stava scrivendo.
+    ScanFiles.cleanup.launch {
+      job?.join()
+      disk.withLock { page.photo.delete(); cleanFile(id).delete() }
+    }
   }
 
   /** Sposta la pagina da [from] a [to] (il riordino col dito o con TalkBack). */
@@ -155,16 +190,37 @@ class FluidScanState internal constructor(
     for (page in list.toList()) setFilter(page.id, filter)
   }
 
-  /** Rifà la pagina [id] con una foto nuova (il «Riprendi» di VisionKit): stessa posizione nella fila. */
+  /**
+   * Rifà la pagina [id] con una foto nuova (il «Riprendi» di VisionKit): stessa posizione nella fila. Lo scatto nuovo
+   * prende il posto della foto solo quando la pagina nuova è pronta: annullato a metà (Indietro mentre si scrive), lascia
+   * la foto e la pagina di prima.
+   */
   suspend fun retake(id: String, photo: Bitmap, quad: FluidScanQuad? = null) {
-    val index = list.indexOfFirst { it.id == id }
-    if (index < 0) return
-    val old = list[index]
-    withContext(Dispatchers.IO) { disk.withLock { FileOutputStream(old.photo).use { photo.compress(Bitmap.CompressFormat.JPEG, 92, it) } } }
-    val found = quad ?: withContext(Dispatchers.Default) { FluidScanEdges.detect(photo)?.quad } ?: FluidScanQuad.Full
-    val page = old.copy(quad = found, quarterTurns = 0, photoWidth = photo.width, photoHeight = photo.height)
-    list[index] = page
-    process(page, photo)
+    if (list.none { it.id == id }) return
+    // R1: lo scatto nuovo in un file suo. Prima si scriveva sopra la foto della pagina: un annullamento a metà lasciava
+    // la pagina di prima (fila e pagina pulita) con i byte della foto nuova, e il ritaglio dopo usava quelli.
+    val fresh = File(folder, "foto-$id.nuova-${UUID.randomUUID().toString().take(6)}.jpg")
+    try {
+      withContext(Dispatchers.IO) { FileOutputStream(fresh).use { photo.compress(Bitmap.CompressFormat.JPEG, 92, it) } }
+      val found = quad ?: withContext(Dispatchers.Default) { FluidScanEdges.detect(photo)?.quad } ?: FluidScanQuad.Full
+      // Da qui la foto e la pagina cambiano insieme, senza annullamenti in mezzo.
+      withContext(NonCancellable) {
+        val target = list.firstOrNull { it.id == id } ?: return@withContext
+        disk.withLock { withContext(Dispatchers.IO) { replace(fresh, target.photo) } }
+        val index = list.indexOfFirst { it.id == id }
+        if (index < 0) {
+          // Tolta mentre la foto prendeva il suo posto: niente file rimasti.
+          ScanFiles.cleanup.launch { disk.withLock { target.photo.delete() } }
+          return@withContext
+        }
+        val page = list[index].copy(quad = found, quarterTurns = 0, photoWidth = photo.width, photoHeight = photo.height)
+        list[index] = page
+        process(page, photo)
+      }
+    } finally {
+      // Lo scatto annullato non resta nella cache (dopo il cambio di posto non c'è più, e non succede niente).
+      withContext(NonCancellable + Dispatchers.IO) { fresh.delete() }
+    }
   }
 
   private fun update(id: String, change: (FluidScanPage) -> FluidScanPage) {
@@ -181,28 +237,39 @@ class FluidScanState internal constructor(
     val version = (versions[page.id] ?: 0) + 1
     versions[page.id] = version
     jobs.remove(page.id)?.cancel()
+    failures.remove(page.id)
     working = true
     jobs[page.id] = scope.launch {
-      val thumb = withContext(Dispatchers.Default) {
-        val source = photo ?: decode(page.photo)
-        val clean = render(page, source)
-        if (photo == null) source.recycle()
-        disk.withLock { withContext(Dispatchers.IO) { FileOutputStream(cleanFile(page.id)).use { clean.compress(Bitmap.CompressFormat.JPEG, options.jpegQuality, it) } } }
-        val small = scaleTo(clean, ThumbnailLongSide)
-        if (small !== clean) clean.recycle()
-        small.asImageBitmap()
+      try {
+        val thumb = withContext(Dispatchers.Default) {
+          val source = photo ?: decode(page.photo)
+          val clean = render(page, source)
+          if (photo == null) source.recycle()
+          disk.withLock { withContext(Dispatchers.IO) { FileOutputStream(File(folder, "pagina-${page.id}.jpg")).use { clean.compress(Bitmap.CompressFormat.JPEG, options.jpegQuality, it) } } }
+          val small = scaleTo(clean, ThumbnailLongSide)
+          if (small !== clean) clean.recycle()
+          small.asImageBitmap()
+        }
+        if (versions[page.id] == version && list.any { it.id == page.id }) thumbs[page.id] = thumb
+      } catch (cancelled: CancellationException) {
+        throw cancelled
+      } catch (_: Exception) {
+        // R1: il disco pieno, una foto che non si legge. Prima l'eccezione usciva dal lavoro (e chiudeva l'app) e
+        // working restava vero; ora la pagina resta nella fila senza la pagina pulita, e «Salva» ci riprova e lo dice.
+        if (versions[page.id] == version && list.any { it.id == page.id }) failures[page.id] = true
+      } finally {
+        // Anche annullato (la pagina tolta, una versione più nuova): solo se questo lavoro è ancora l'ultimo chiesto.
+        if (jobs[page.id] === coroutineContext[Job]) jobs.remove(page.id)
+        working = jobs.isNotEmpty()
       }
-      if (versions[page.id] == version && list.any { it.id == page.id }) thumbs[page.id] = thumb
-      // Solo se questo lavoro è ancora l'ultimo chiesto: uno più nuovo resta in elenco.
-      if (jobs[page.id] === coroutineContext[Job]) jobs.remove(page.id)
-      working = jobs.isNotEmpty()
     }
   }
 
-  /** Aspetta che tutte le pagine pulite siano sul disco. */
+  /** Aspetta che tutte le pagine pulite siano sul disco (o fallite). */
   suspend fun awaitProcessed() {
     while (true) {
-      val pending = jobs.values.toList()
+      // Un lavoro che non è mai partito (lo scope già annullato) è finito anche lui.
+      val pending = jobs.values.filter { !it.isCompleted }
       if (pending.isEmpty()) return
       pending.forEach { it.join() }
     }
@@ -210,15 +277,26 @@ class FluidScanState internal constructor(
 
   /**
    * Scrive la consegna (il PDF, le immagini o tutte e due, come dice [output]) e la restituisce. Le pagine pulite che
-   * mancano si finiscono prima. Gira fuori dal filo principale.
+   * mancano si finiscono prima (e quelle fallite si rifanno una volta). Gira fuori dal filo principale.
+   *
+   * Lancia `IOException` se una pagina non si legge (il messaggio dice quali, per numero) o se il documento non si
+   * scrive (il disco pieno): la scansione resta com'è, e si può togliere o rifare la pagina e riprovare.
    */
   suspend fun export(output: FluidScanOutput = options.output, title: String = options.title ?: defaultTitle()): FluidScanResult {
+    // R1: una pagina senza pagina pulita (la pulizia fallita, la cache svuotata) si rifà prima di scrivere.
+    val queued = list.toList()
+    val missing = withContext(Dispatchers.IO) { queued.filter { !cleanFile(it.id).exists() }.map { it.id }.toSet() }
+    for (page in list.toList()) if (jobs[page.id]?.isCompleted != false && (page.id in missing || failed(page.id))) process(page, null)
     awaitProcessed()
+    val unreadable = list.mapIndexedNotNull { i, page -> if (failed(page.id)) i + 1 else null }
+    if (unreadable.isNotEmpty()) throw ScanUnreadablePages(unreadable)
     working = true
     try {
       val pages = list.toList()
       return withContext(Dispatchers.IO) {
         disk.withLock {
+          val gone = pages.mapIndexedNotNull { i, page -> if (cleanFile(page.id).exists()) null else i + 1 }
+          if (gone.isNotEmpty()) throw ScanUnreadablePages(gone)
           val safe = title.replace(Regex("[\\\\/:*?\"<>|]"), "-").trim().ifEmpty { "Scansione" }
           val images = if (output.images) pages.mapIndexed { i, page ->
             File(folder, if (pages.size == 1) "$safe.jpg" else "$safe - ${i + 1}.jpg").also { cleanFile(page.id).copyTo(it, overwrite = true) }
@@ -249,27 +327,43 @@ class FluidScanState internal constructor(
     }
   }
 
-  /** La pagina pulita [id] intera, dal disco (per la revisione a tutto schermo). */
+  /** La pagina pulita [id] intera, dal disco (per la revisione a tutto schermo); `null` se non c'è o non si legge. */
   suspend fun cleanPage(id: String, maxLongSide: Int = Int.MAX_VALUE): Bitmap? = withContext(Dispatchers.IO) {
     val file = cleanFile(id)
     if (!file.exists()) return@withContext null
-    disk.withLock { decode(file, maxLongSide) }
+    disk.withLock { decodeOrNull(file, maxLongSide) }
   }
 
-  /** La foto della pagina [id], ridotta a [maxLongSide] (per il ritaglio). */
+  /** La foto della pagina [id], ridotta a [maxLongSide] (per il ritaglio); `null` se non c'è o non si legge. */
   suspend fun photo(id: String, maxLongSide: Int): Bitmap? {
     val page = list.firstOrNull { it.id == id } ?: return null
-    return withContext(Dispatchers.IO) { disk.withLock { decode(page.photo, maxLongSide) } }
+    return withContext(Dispatchers.IO) { disk.withLock { decodeOrNull(page.photo, maxLongSide) } }
   }
 
-  /** Toglie tutte le pagine e i file della scansione. */
+  /**
+   * Toglie tutte le pagine e i file della scansione. I file si cancellano in sottofondo anche dopo che la schermata si
+   * è chiusa, dopo i lavori che li stavano scrivendo.
+   */
   fun clear() {
-    jobs.values.forEach { it.cancel() }
+    generation++
+    val pending = jobs.values.toList()
+    pending.forEach { it.cancel() }
     jobs.clear()
     list.clear()
     thumbs.clear()
-    val dir = File(ScanFiles.root(context), session)
-    scope.launch(Dispatchers.IO) { dir.deleteRecursively() }
+    failures.clear()
+    working = false
+    val dir = place
+    // R1: prima la pulizia partiva dallo scope della composizione, che «Butta» chiude subito dopo (o già chiuso), e non
+    // aspettava la pagina pulita che si stava scrivendo: restavano foto di documenti che la persona aveva buttato.
+    ScanFiles.cleanup.launch {
+      pending.joinAll()
+      disk.withLock {
+        // Un file tenuto aperto un attimo da altri (l'antivirus di Windows nelle prove) non lascia la cartella.
+        var tries = 0
+        while (!dir.deleteRecursively() && ++tries < DeleteTries) delay(DeleteRetryMillis)
+      }
+    }
   }
 
   internal fun restore(saved: List<FluidScanPage>) {
@@ -277,7 +371,26 @@ class FluidScanState internal constructor(
     for (page in saved) if (page.photo.exists()) { list.add(page); process(page, null) }
   }
 
-  private fun cleanFile(id: String) = File(folder, "pagina-$id.jpg")
+  private fun cleanFile(id: String) = File(place, "pagina-$id.jpg")
+
+  /**
+   * Mette [from] al posto di [to] (sul telefono un `rename`, che sostituisce in un colpo). Sulla JVM di Windows delle
+   * prove un file appena scritto può restare aperto un attimo da altri (l'antivirus): si riprova per mezzo secondo.
+   */
+  private fun replace(from: File, to: File) {
+    var tries = 0
+    while (true) {
+      try {
+        Files.move(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        return
+      } catch (missing: java.nio.file.NoSuchFileException) {
+        throw missing
+      } catch (busy: java.nio.file.FileSystemException) {
+        if (++tries >= DeleteTries) throw busy
+        Thread.sleep(DeleteRetryMillis)
+      }
+    }
+  }
 
   private fun render(page: FluidScanPage, photo: Bitmap): Bitmap {
     val straight = FluidScanImages.straighten(photo, page.quad, page.quarterTurns, options.maxLongSide)
@@ -292,6 +405,9 @@ class FluidScanState internal constructor(
 
   internal companion object {
     const val ThumbnailLongSide = 480
+    /** I tentativi di cancellare o spostare un file tenuto aperto da altri, a 25 ms l'uno dall'altro. */
+    const val DeleteTries = 20
+    const val DeleteRetryMillis = 25L
 
     fun decode(file: File, maxLongSide: Int = Int.MAX_VALUE): Bitmap {
       val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -301,6 +417,13 @@ class FluidScanState internal constructor(
       val bitmap = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
         ?: error("Pagina illeggibile: ${file.name}")
       return if (maxOf(bitmap.width, bitmap.height) > maxLongSide) scaleTo(bitmap, maxLongSide).also { if (it !== bitmap) bitmap.recycle() } else bitmap
+    }
+
+    /** Come [decode], ma `null` invece dell'errore (la revisione e il ritaglio mostrano il vuoto, non cadono). */
+    fun decodeOrNull(file: File, maxLongSide: Int): Bitmap? = try {
+      decode(file, maxLongSide)
+    } catch (_: IllegalStateException) {
+      null
     }
 
     fun scaleTo(bitmap: Bitmap, longSide: Int): Bitmap {

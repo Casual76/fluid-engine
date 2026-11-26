@@ -11,7 +11,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-sync/sync/FluidSync.kt`
 
-- `data class SyncConfig(val pageSize: Int = 200, val pushBatchSize: Int = 100, val maxPushRounds: Int = 4, val tombstoneRetentionMillis: Long = 90L * 24 * 60 * 60 * 1000, val maxMergeEdits: Int = FluidTextDiff.DefaultMaxEdits)` — Le regole di lavoro della sincronizzazione. I valori di serie vengono dall'Account Pampa (`b/architettura.md` § 5.3).
+- `data class SyncConfig(val pageSize: Int = 200, val pushBatchSize: Int = 100, val maxPushRounds: Int = 4, val tombstoneRetentionMillis: Long = 90L * 24 * 60 * 60 * 1000, val maxMergeEdits: Int = FluidTextDiff.DefaultMaxEdits, val unreadableRetries: Int = 3)` — Le regole di lavoro della sincronizzazione. I valori di serie vengono dall'Account Pampa (`b/architettura.md` § 5.3).
 - `fun interface SyncScheduler` — Chi fa partire un invio quando c'e' qualcosa da mandare. Con WorkManager: [FluidSyncWork.scheduler].
   - `fun requestSync()`
   - `companion object`
@@ -169,9 +169,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `data class Resolved(val copies: List<String>) : SyncResolution()` — Fatto. [copies] sono gli elementi nuovi nati da «tieni tutte e due» (vuota se se n'e' tenuta una sola).
   - `data class Stale(val current: SyncConflict?) : SyncResolution()` — Nel frattempo e' cambiato qualcosa: [current] e' il confronto di adesso (null se il conflitto non c'e' piu').
   - `data object NotFound : SyncResolution()` — L'elemento o il campo non esistono (cancellati).
-- `data class SyncSpaceState(val records: Map<String, SyncDocument>, val conflicts: List<SyncConflict>, val pending: Int, val syncing: Boolean, val lastSuccessMillis: Long?, val failure: SyncFailure?, val loading: Boolean = false)` — Lo stato di uno spazio, come lo legge l'interfaccia: gli elementi vivi, i conflitti, le modifiche in attesa e come e' andata l'ultima sincronizzazione.
+- `data class SyncSpaceState(val records: Map<String, SyncDocument>, val conflicts: List<SyncConflict>, val pending: Int, val syncing: Boolean, val lastSuccessMillis: Long?, val failure: SyncFailure?, val loading: Boolean = false, val unreadable: List<String> = emptyList())` — Lo stato di uno spazio, come lo legge l'interfaccia: gli elementi vivi, i conflitti, le modifiche in attesa e come e' andata l'ultima sincronizzazione.
   - `companion object`
-- `class SyncSpaceReport(val space: SyncSpaceId, val pushed: Int, val pulled: Int, val merged: Int, val conflicts: Int, val supersededByDelete: Int, val purged: Int, val fullResync: Boolean, val failure: SyncFailure?)` — Cosa ha fatto una sincronizzazione di uno spazio.
+- `class SyncSpaceReport(val space: SyncSpaceId, val pushed: Int, val pulled: Int, val merged: Int, val conflicts: Int, val supersededByDelete: Int, val purged: Int, val fullResync: Boolean, val failure: SyncFailure?, val unreadable: List<String> = emptyList())` — Cosa ha fatto una sincronizzazione di uno spazio.
 - `class SyncSpace internal constructor(val id: SyncSpaceId, private val engine: FluidSync)` — Uno spazio: i dati di un'app di una persona, oppure uno spazio condiviso. Si apre con [FluidSync.space].
   - `val state: StateFlow<SyncSpaceState>` — Lo stato dello spazio: cambia dopo ogni scrittura, ogni sincronizzazione e ogni scelta.
   - `suspend fun load()` — Legge il registro dal disco, se non l'ha gia' fatto. Le altre chiamate lo fanno da sole.

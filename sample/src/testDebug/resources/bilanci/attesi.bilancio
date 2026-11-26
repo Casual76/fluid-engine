@@ -1,0 +1,6 @@
+# F7.28 · Gli elementi che non ci sono ancora nel ramo: restano «atteso» finché il loro pacchetto non li consegna.
+# Quando un pacchetto arriva, la sua sezione compare in «Elementi nuovi» (o la sua scena in «Misure»): da quel momento la
+# verifica di completezza vuole il suo frammento misurato, e la riga qui sotto va tolta. Formato: LEGGIMI.txt.
+F7.25 atteso F7.28 | la sonda del vetro (F7.25): se aggiunge scene a «Misure», le loro righe vanno in vetro.bilancio
+F7.26 atteso F7.28 | la qualità del vetro (F7.26, ui/glass/quality): scene e righe in vetro.bilancio al suo arrivo
+F7.27 atteso F7.28 | menu, gruppo e foglio (F7.27): se cambiano i tetti di menu-tasto, menu-gruppo, foglio, li riscrive

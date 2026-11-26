@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- F8.25 · L'agenda di prova: 2x2 di serie (la taglia che requestPinAppWidget mette), si allarga fino a 4x4. -->
+<!-- F8.25c: previewLayout (da Android 12) e previewImage (prima) sono l'anteprima che il launcher mostra nel
+     foglio «Aggiungere alla schermata Home?» e nell'elenco dei widget. Senza, One UI scrive «Aggiunta del widget
+     non riuscita». -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/f8p25_agenda_description"
     android:initialLayout="@layout/glance_default_loading_layout"
+    android:previewLayout="@layout/f8p25_widget_agenda_preview"
+    android:previewImage="@drawable/f8p25_widget_agenda_preview_image"
     android:minWidth="110dp"
     android:minHeight="110dp"
     android:minResizeWidth="110dp"

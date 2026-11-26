@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.25c · Il gruppo delle righe nelle anteprime: la card, angolo 20 dp come EngineWidgetShape.Group. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="@color/f8p25_widget_card" />
+  <corners android:radius="20dp" />
+</shape>

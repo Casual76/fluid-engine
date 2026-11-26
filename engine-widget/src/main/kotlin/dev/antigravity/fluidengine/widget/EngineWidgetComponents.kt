@@ -173,6 +173,9 @@ fun EngineWidgetGroup(
  * The row's category is carried on the tile rather than on its background — tinting whole rows
  * turns a tidy group into a patchwork of coloured blocks, and at widget sizes there is no room to
  * recover from that.
+ *
+ * In a narrow cell ([EngineWidgetLayout.stacked], F8.25c) the row stacks like a small iOS widget: the title takes the
+ * whole width and the trailing value sits under it; the icon tile is left out.
  */
 @Composable
 fun EngineWidgetRow(
@@ -185,6 +188,28 @@ fun EngineWidgetRow(
   trailing: String? = null,
   onClick: Action? = null,
 ) {
+  if (layout.stacked) {
+    Column(
+      modifier = GlanceModifier
+        .fillMaxWidth()
+        .let { if (onClick != null) it.clickable(onClick) else it }
+        .padding(horizontal = 10.dp, vertical = 7.dp),
+    ) {
+      Text(
+        text = title,
+        style = engineWidgetTextStyle(color = palette.onSurface, size = 13.sp, weight = FontWeight.Medium),
+        maxLines = 1,
+      )
+      if (!trailing.isNullOrBlank()) {
+        Text(
+          text = trailing,
+          style = engineWidgetTextStyle(color = tone.content, size = 11.sp, weight = FontWeight.Bold),
+          maxLines = 1,
+        )
+      }
+    }
+    return
+  }
   Row(
     modifier = GlanceModifier
       .fillMaxWidth()
@@ -244,7 +269,8 @@ fun EngineWidgetHairline(
   palette: EngineWidgetPalette,
   layout: EngineWidgetLayout,
 ) {
-  val inset = if (layout.compact) 42.dp else 52.dp
+  // Una riga impilata non ha la tessera: il separatore parte da dove parte il testo.
+  val inset = if (layout.stacked) 10.dp else if (layout.compact) 42.dp else 52.dp
   Box(modifier = GlanceModifier.fillMaxWidth().padding(start = inset)) {
     Box(
       modifier = GlanceModifier

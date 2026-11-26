@@ -79,14 +79,14 @@ sealed interface ShareResult {
  */
 object PampaPeople {
   private val handlers = CopyOnWriteArrayList<suspend (List<SharedItem>) -> Unit>()
-  private val mutex = Mutex()
+  private val delivery = PeopleDelivery(handlers)
   @Volatile private var installed = false
-  @Volatile private var lastSeen = 0L
 
   private fun client(context: Context): PampaAccountClient = PampaAccount.client(context).also { c ->
     if (!installed) synchronized(this) {
       if (!installed) {
-        c.addChangeListener { what -> if (AccountProtocol.What.SHARE in what) deliver(c) }
+        val cache = DataStoreAccountCache.of(context.applicationContext)
+        c.addChangeListener { what -> if (AccountProtocol.What.SHARE in what) delivery.deliver(c, cache) }
         installed = true
       }
     }
@@ -115,17 +115,68 @@ object PampaPeople {
    * Chiamato quando lo Store dice che è arrivato qualcosa (`CHANGED` con `share`): qui l'app mostra **la sua** notifica
    * («Alessio ti ha condiviso una lista»). Si registra all'avvio dell'app (`Application.onCreate`): l'avviso esplicito
    * dello Store fa partire il processo anche con l'app chiusa.
+   *
+   * Ogni cosa arriva **una volta** (R2): il punto fin dove l'app ha già ricevuto sta nella copia locale del cliente,
+   * quindi un'app uccisa e fatta ripartire dall'avviso non riceve di nuovo la posta di sempre; due cose arrivate nello
+   * stesso millisecondo arrivano tutte e due; e se [handler] cade, la cosa si riconsegna all'avviso dopo.
    */
   fun onReceived(context: Context, handler: suspend (List<SharedItem>) -> Unit) {
     client(context)
     handlers += handler
   }
+}
 
-  internal suspend fun deliver(c: PampaAccountClient) = mutex.withLock {
-    val items = PeopleCalls.received(c, lastSeen)
+/**
+ * R2 · La consegna di «È arrivato qualcosa» alle app ([PampaPeople.onReceived]). Il punto di consegna è la coppia
+ * ultima ora + id già consegnati a quell'ora, salvato in [AccountCache] **dopo** che i gestori hanno finito: prima stava
+ * solo in memoria (a ogni riavvio tornava tutto) e confrontava solo l'ora (la seconda cosa dello stesso millisecondo
+ * si perdeva), e si segnava prima dei gestori (un gestore caduto la perdeva).
+ */
+internal class PeopleDelivery(private val handlers: List<suspend (List<SharedItem>) -> Unit>) {
+  private val mutex = Mutex()
+  @Volatile private var memory: Mark? = null
+
+  /** Fin dove si è consegnato: l'ora più alta, e gli id già consegnati a quell'ora. */
+  internal data class Mark(val at: Long, val ids: Set<String>)
+
+  suspend fun deliver(c: PampaAccountClient, cache: AccountCache?): Unit = mutex.withLock {
+    val mark = cache?.read(CACHE_DELIVERED)?.let(::parse) ?: memory ?: Mark(0, emptySet())
+    // Lo Store dà le cose con l'ora **dopo** `since`: si chiede un millisecondo prima, per quelle della stessa ora.
+    val items = PeopleCalls.received(c, mark.at - 1).filter { it.receivedAt > mark.at || (it.receivedAt == mark.at && it.id !in mark.ids) }
     if (items.isEmpty()) return@withLock
-    lastSeen = maxOf(lastSeen, items.maxOf { it.receivedAt })
-    for (h in handlers) runCatching { h(items) }
+    var failed = false
+    for (h in handlers) {
+      try {
+        h(items)
+      } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+      } catch (_: Exception) {
+        failed = true
+      }
+    }
+    // Un gestore caduto: niente segno, all'avviso dopo la cosa si riconsegna (meglio due volte che mai).
+    if (failed) return@withLock
+    val top = maxOf(mark.at, items.maxOf { it.receivedAt })
+    val ids = (if (top == mark.at) mark.ids else emptySet()) + items.filter { it.receivedAt == top }.map { it.id }
+    val next = Mark(top, ids)
+    memory = next
+    cache?.write(CACHE_DELIVERED, encode(next))
+    Unit
+  }
+
+  private fun encode(m: Mark): String = buildJsonObject {
+    put("at", m.at)
+    put("ids", JsonArray(m.ids.map(::JsonPrimitive)))
+  }.toString()
+
+  private fun parse(text: String): Mark? = runCatching {
+    val o = kotlinx.serialization.json.Json.parseToJsonElement(text).jsonObject
+    Mark((o["at"] as JsonPrimitive).longOrNull ?: 0, (o["ids"] as? JsonArray)?.map { (it as JsonPrimitive).content }?.toSet().orEmpty())
+  }.getOrNull()
+
+  companion object {
+    /** La voce della copia locale del cliente col punto di consegna delle persone. */
+    const val CACHE_DELIVERED = "peopleDelivered"
   }
 }
 

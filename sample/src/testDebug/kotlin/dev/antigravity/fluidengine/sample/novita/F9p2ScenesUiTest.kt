@@ -77,6 +77,10 @@ class F9p2ScenesUiTest {
     assertTrue(compose.onAllNodesWithTag(F9p2Tags.Chart).fetchSemanticsNodes().isNotEmpty())
     waitText("Meteo")
     waitText("Generica")
+    // Visto sul tablet (F9.2b): il punto delle migliaia anche nella tabella, e la percentuale arrotondata.
+    waitText("prima 10.050 · dopo ", substring = true)
+    assertEquals(33, f9p2Saved(10_050, 6_718))
+    assertEquals("14.282", f9p2Thousands(14_282))
   }
 
   @Test

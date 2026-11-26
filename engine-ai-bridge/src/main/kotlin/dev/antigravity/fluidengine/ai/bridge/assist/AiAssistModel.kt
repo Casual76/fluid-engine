@@ -219,6 +219,20 @@ data class AiAssistError(
   /** Le parole per l'utente, in italiano o in inglese. */
   fun message(language: String = "it"): String = AiAssistTexts.message(this, language)
 
+  /**
+   * Se ha senso offrire «Riprova» con la stessa domanda (F9.1d). Sì quando la stessa domanda puo' andare dopo: [Timeout],
+   * [Interrupted], [Failed] (e ogni codice sconosciuto), [Busy] e [LimitReached] (dopo [retryAfterMillis]),
+   * [ConsentRequired] (riprovare riapre il foglio del sì). No quando non cambierebbe niente: [NotAuthorized] (PampAI o
+   * l'utente hanno detto di no, e il tasto si spegne: [AiAssistEntry]), [NotInstalled], [NeedsUpdate] e [NotReady] (serve
+   * prima l'azione del tasto spento), [TooLarge] (la stessa domanda sarebbe ancora troppo lunga) e [Cancelled] (l'ha
+   * fermata l'utente).
+   */
+  val retryable: Boolean
+    get() = when (code) {
+      NotAuthorized, NotInstalled, NeedsUpdate, NotReady, TooLarge, Cancelled -> false
+      else -> true
+    }
+
   companion object {
     const val NotInstalled = "not_installed"
     const val NeedsUpdate = "needs_update"

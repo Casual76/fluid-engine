@@ -86,21 +86,51 @@ class SpaceMembership(
     /**
      * Le chiavi arrivate dal proprietario in una CDXB (`t = "spazio"`), unite a quello che avevo: le epoche si
      * aggiungono e non si tolgono (chi è rimasto legge il passato), la versione vista resta la più alta.
+     *
+     * Contro i ritorni indietro (R2): gettone di scrittura e scriventi vengono dall'epoca **più alta**. Uno stato di
+     * un'epoca vecchia, rimandato dal server, porta solo le chiavi (che già avevo): non rimette il gettone di prima né
+     * chi era stato tolto. A pari epoca gli scriventi si uniscono (togliere qualcuno cambia sempre epoca), e di ognuno
+     * resta la scheda più nuova.
      */
     fun mergeIncoming(prev: JsonObject?, payload: JsonObject, owner: String): JsonObject {
       val old = prev?.let(::fromJson)
       val incoming = fromJson(JsonObject(payload + mapOf("owner" to JsonPrimitive(owner))))
+      val writeToken: String?
+      val writers: Map<String, PersonCard>
+      when {
+        old == null || incoming.epoch > old.epoch -> {
+          writeToken = incoming.writeToken
+          writers = incoming.writers.mapValues { (code, card) -> old?.writers?.get(code)?.let { fresher(it, card) } ?: card }
+        }
+        incoming.epoch == old.epoch -> {
+          writeToken = incoming.writeToken ?: old.writeToken
+          writers = (old.writers.keys + incoming.writers.keys).associateWith { code ->
+            val a = old.writers[code]
+            val b = incoming.writers[code]
+            if (a != null && b != null) fresher(a, b) else a ?: b!!
+          }
+        }
+        else -> {
+          writeToken = old.writeToken
+          writers = old.writers.mapValues { (code, card) -> incoming.writers[code]?.let { fresher(card, it) } ?: card }
+        }
+      }
       return SpaceMembership(
         id = incoming.id,
         kind = incoming.kind,
         epoch = maxOf(incoming.epoch, old?.epoch ?: 0),
         keys = (old?.keys ?: emptyMap()) + incoming.keys,
-        writeToken = incoming.writeToken,
+        writeToken = writeToken,
         owner = owner,
-        writers = incoming.writers,
+        writers = writers,
         seen = old?.seen ?: emptyMap(),
       ).toJson()
     }
+
+    /** La scheda più nuova di due della stessa persona; con un'altra radice resta quella che c'era. */
+    private fun fresher(kept: PersonCard, incoming: PersonCard): PersonCard =
+      if (!kept.root.contentEquals(incoming.root)) kept
+      else if (incoming.work.epoch > kept.work.epoch || (incoming.work.epoch == kept.work.epoch && incoming.at > kept.at)) incoming else kept
   }
 }
 
@@ -236,18 +266,34 @@ class SharedSpaces(private val people: PeopleClient) {
         SpaceRecordCipher.open(key, m.id, payload.keyVersion, context.recordId, context.version, payload.bytes)
       } catch (d: PeopleDetected) {
         throw SyncSealException(d.what)
+      } catch (e: Exception) {
+        // R2 · Qualunque altro guasto di un record è un rifiuto pulito di quel record, mai un errore che risale.
+        throw SyncSealException("record illeggibile", e)
       }
       val me = people.identity()
-      val signPub = if (opened.writer == me.code) me.works[opened.writerEpoch]?.sign?.publicKey
-      else m.writers[opened.writer]?.work?.takeIf { it.epoch == opened.writerEpoch }?.sign
+      val signPub = if (opened.writer == me.code) me.works[opened.writerEpoch]?.sign?.publicKey else writerKey(m, opened)
       if (signPub == null) throw SyncSealException("record di chi non può scrivere")
       if (!SpaceRecordCipher.signedBy(opened, signPub, m.id, payload.keyVersion, context.recordId, context.version)) throw SyncSealException("firma del record")
       if (context.version < (m.seen[context.recordId] ?: 0)) throw SyncSealException("record vecchio rimandato")
       if (context.version > (m.seen[context.recordId] ?: 0)) people.edit { st ->
         st.spaces[m.id]?.let { j -> val now = SpaceMembership.fromJson(j); st.spaces[m.id] = SpaceMembership(now.id, now.kind, now.epoch, now.keys, now.writeToken, now.owner, now.writers, now.seen + (context.recordId to context.version)).toJson() }
       }
-      return PampaBase64.decode(opened.data)
+      return runCatching { PampaBase64.decode(opened.data) }.getOrElse { throw SyncSealException("record illeggibile", it) }
     }
+  }
+
+  /**
+   * La chiave di firma di chi ha scritto [opened] (R2): la sua scheda fra gli scriventi, se è della stessa epoca;
+   * altrimenti le chiavi di lavoro che il record porta con sé ([SpaceRecordCipher.Opened.writerKeys]), se le ha firmate
+   * la **stessa radice** che il proprietario ha messo fra gli scriventi. Così chi rinnova le chiavi (dopo un furto, o i
+   * sei mesi) resta leggibile per tutti, prima e dopo che il proprietario rimandi lo spazio; chi è stato tolto no.
+   */
+  private fun writerKey(m: SpaceMembership, opened: SpaceRecordCipher.Opened): ByteArray? {
+    val card = m.writers[opened.writer] ?: return null
+    if (card.work.epoch == opened.writerEpoch) return card.work.sign
+    val carried = opened.writerKeys ?: return null
+    if (carried.epoch != opened.writerEpoch || !carried.signedBy(card.root)) return null
+    return carried.sign
   }
 
   private suspend fun <R> guard(block: suspend () -> R): R = try {

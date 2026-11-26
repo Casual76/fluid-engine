@@ -147,7 +147,13 @@ class PersonaStore(private val dir: File, private val vault: PersonVault, privat
     return PampaEnvelope.seal(kPersona, epoch, plain, aad(accountId, version)).toField()
   }
 
-  /** Ritrova la persona dalla copia del server (telefono nuovo, o un altro dispositivo dopo un «perso o rubato»). */
+  /**
+   * Ritrova la persona dalla copia del server (telefono nuovo, o un altro dispositivo dopo un «perso o rubato»).
+   *
+   * Non torna mai indietro (R2, minacce M12): se qui c'è già la persona, le chiavi di lavoro si **uniscono** (quelle di
+   * un'epoca che ho restano le mie) e la scheda resta la più nuova delle due. Una copia vecchia rimandata dal server
+   * non toglie la privata dell'epoca nuova, e non rimette la scheda di prima.
+   */
   fun importSealed(accountId: String, field: String, version: Long, keyFor: (Int) -> ByteArray?): PersonIdentity {
     val envelope = PampaEnvelope.parseField(field)
     val key = keyFor(envelope.epoch) ?: throw PampaCryptoException("manca K_com(persona) dell'epoca ${envelope.epoch}")
@@ -155,9 +161,14 @@ class PersonaStore(private val dir: File, private val vault: PersonVault, privat
     val root = Ed25519Key.fromPrivate(PampaBase64.decode(o["root"]!!.jsonPrimitive.content))
     val identity = decodeWork(o["state"]!!.jsonObject)
     if (!identity.card.root.contentEquals(root.publicKey)) throw PampaCryptoException("la copia ha una radice che non è della scheda")
-    if (exists) {
-      val mine = identity()
-      if (mine != null && !mine.card.root.contentEquals(identity.card.root)) throw PampaCryptoException("la copia è di un'altra persona")
+    val mine = if (exists) identity() else null
+    if (mine != null) {
+      if (!mine.card.root.contentEquals(identity.card.root)) throw PampaCryptoException("la copia è di un'altra persona")
+      val works = TreeMap(identity.works)
+      works.putAll(mine.works)
+      val card = fresherCard(mine.card, identity.card)
+      saveRoot(root)
+      return saveWork(card, works)
     }
     saveRoot(root)
     return saveWork(identity.card, identity.works)

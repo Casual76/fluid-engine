@@ -193,7 +193,8 @@ FluidButton(
   fillWidth: Boolean = false,
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,    // null = silenzio totale
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
-  leading: (@Composable () -> Unit)? = null,           // icona 18 dp davanti al testo
+  labelPlacement: FluidButtonLabelPlacement = FluidButtonLabelPlacement.Beside, // Beside | Below (4.0, F8.26c)
+  leading: (@Composable () -> Unit)? = null,           // icona 18 dp davanti al testo (22 dp sopra, con Below)
 )
 ```
 
@@ -233,6 +234,11 @@ Il `Destructive` è quindi un contenitore *tinto* di errore, non un rosso pieno.
   la larghezza non cambia e la riga non si ridispone nel momento in cui parte il lavoro.
 - **La pressione sta fuori da clip e sfondo** (dalla 2.11.0): è il contenitore che cresce. Prima restava dentro e
   cedeva solo l'etichetta, il contenitore non si muoveva mai.
+- **`labelPlacement`** (dalla 4.0, F8.26c): `Beside` di serie. `Below` mette l'icona sopra e l'etichetta sotto, **su una
+  riga sola** (13 sp, che scende fino a 11 sp e solo dopo finisce coi puntini), in un tasto alto almeno 56 dp: i tasti
+  della scheda di un luogo in Mappe quando sono stretti. Per una **riga** di tasti la scelta la fa
+  `FluidButtonDefaults.labelPlacement(etichette, larghezzaDiOgniTasto)`: tutti accanto se ci stanno tutte, se no tutti
+  sotto. Senza, un'etichetta che non sta accanto all'icona va a capo **a metà parola** («Indicaz|ioni»).
 - Colore, `Role.Button`, ordine dei modificatori: `modifier` → `fillMaxWidth` (se `fillWidth`) → opacità →
   `fluidPressable` → clip → sfondo → altezza minima → padding.
 
@@ -244,6 +250,8 @@ Il `Destructive` è quindi un contenitore *tinto* di errore, non un rosso pieno.
   scorra la lista. Passa `FluidPressGrip.YieldsToScroll` (così fa già il «Riserva» di `FluidModelPickerPortal`).
 - `haptic = null` toglie *anche* contatto e rilascio, non solo il click: usalo solo se l'azione ha già un suo colpo.
 - Non c'è una variante solo-icona: per quella, `FluidGlassIconButton`.
+- Tre tasti con l'icona in una riga stretta (un telefono): con `Beside` le parole lunghe si spezzano a metà. Passa
+  `labelPlacement = FluidButtonDefaults.labelPlacement(…)` a tutti e tre.
 
 **Non usarlo quando.** L'azione sta sopra una foto/mappa/hero (opaco sopra un'immagine è sbagliato: `FluidGlassButton`);
 è ripetuta in una riga che deve restare «una riga» (la riga cede e non cresce: `FluidListRow` con `onClick`); è in una

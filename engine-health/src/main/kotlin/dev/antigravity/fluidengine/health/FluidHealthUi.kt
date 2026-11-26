@@ -135,14 +135,17 @@ data class FluidHealthLabels(
     )
   }
 
-  /** «Da Sounds», «Da Fitbit · orologio», «Da Sounds e Fitbit», «Da 3 fonti». */
+  /**
+   * «Da Sounds», «Da Fitbit · orologio», «Da Sounds e Fitbit», «Da 3 fonti». La parola dell'apparecchio non si ripete
+   * quando il nome dell'app la dice gia': «Da Orologio», non «Da Orologio · orologio» (F8.26c).
+   */
   fun sourceLine(sources: List<FluidHealthSource>, locale: Locale = Locale.getDefault()): String? {
     val distinct = sources.distinctBy { it.packageName }
     return when {
       distinct.isEmpty() -> null
       distinct.size == 1 -> {
         val s = distinct[0]
-        val device = deviceWord(s.device)
+        val device = deviceWord(s.device)?.takeUnless { s.label.contains(it, ignoreCase = true) }
         from(if (device != null) "${s.label} · $device" else s.label)
       }
       distinct.size == 2 -> from(FluidFormat.list(distinct.map { it.label }, locale))

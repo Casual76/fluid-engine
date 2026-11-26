@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ExecutorService
@@ -157,7 +158,9 @@ internal class FluidCameraXScanCamera(private val context: Context) : FluidScanC
         return@LaunchedEffect
       }
       try {
-        provider.unbindAll()
+        // R1: solo le sorgenti dello scanner. Il provider è uno per processo, e staccarle tutte («unbindAll») staccava
+        // anche l'anteprima dell'app ospite, che restava nera al ritorno dallo scanner.
+        provider.unbind(preview, analysis, still)
         val bound = provider.bindToLifecycle(lifecycle, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis, still)
         camera = bound
         hasTorch = bound.cameraInfo.hasFlashUnit()
@@ -165,13 +168,19 @@ internal class FluidCameraXScanCamera(private val context: Context) : FluidScanC
         problem = null
         ready = true
         awaitCancellation()
+      } catch (e: CancellationException) {
+        throw e
       } catch (e: IllegalArgumentException) {
-        // Nessuna fotocamera posteriore (un tablet senza, un emulatore).
+        // Nessuna fotocamera posteriore (un tablet senza, un emulatore), o l'app ospite tiene già la fotocamera con lo
+        // stesso ciclo di vita e le sorgenti insieme non ci stanno.
+        problem = FluidScanCameraProblem.Unavailable
+      } catch (e: IllegalStateException) {
+        // R1: le sorgenti già legate a un altro ciclo di vita: la fotocamera è occupata.
         problem = FluidScanCameraProblem.Unavailable
       } finally {
         ready = false
         camera = null
-        provider.unbindAll()
+        provider.unbind(preview, analysis, still)
       }
     }
   }

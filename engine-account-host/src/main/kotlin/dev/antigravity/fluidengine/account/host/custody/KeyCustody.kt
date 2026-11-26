@@ -182,6 +182,11 @@ class KeyCustody private constructor(
     known -= doorId
   }
 
+  /** R2 · Una porta costruita prima (un codice nuovo rimandato uguale dopo un'interruzione) e accettata dal server. */
+  internal fun rememberDoor(doorId: String) {
+    known += doorId
+  }
+
   // --- Le verifiche (K8, K9) -------------------------------------------------------------------------------------
 
   /**
@@ -361,15 +366,24 @@ class KeyCustody private constructor(
       val salt = runCatching { PampaBase64.decode(info.salt) }.getOrElse { throw CustodyTamperedException("sale illeggibile") }
       val keys = CustodyMath.doorKeys(door.secret, salt)
       if (PampaBase64.encode(keys.publicKey) != info.pub) throw CustodyTamperedException("la pubblica della porta non è quella del mio segreto (K8)")
+      // R2 · Si aprono solo i sigilli delle epoche della catena dichiarata, uno per epoca. Per sigillare verso la
+      // pubblica di una porta non serve nessun segreto: un sigillo in più, per un'epoca fuori dalla catena, sarebbe
+      // una chiave dei dati scelta dal server, e diventerebbe l'epoca con cui il telefono scrive.
+      val chain = chainEpochs(view)
       val epochs = TreeMap<Int, ByteArray>()
       for (s in info.seals) {
+        if (s.epoch !in chain) throw CustodyTamperedException("sigillo dell'epoca ${s.epoch}, fuori dalla catena")
+        if (s.epoch in epochs) throw CustodyTamperedException("due sigilli per l'epoca ${s.epoch}")
         val sealed = runCatching { PampaBase64.decode(s.sealed) }.getOrElse { throw CustodyTamperedException("sigillo illeggibile") }
-        epochs[s.epoch] = try {
+        val cd = try {
           CustodyMath.openDoorSeal(keys, door.doorId, s.epoch, sealed)
         } catch (e: PampaCryptoException) {
           throw CustodyTamperedException("sigillo dell'epoca ${s.epoch} non apribile")
         }
+        if (cd.size != PampaCrypto.KEY_BYTES) throw CustodyTamperedException("la chiave dei dati dell'epoca ${s.epoch} non è di ${PampaCrypto.KEY_BYTES} byte")
+        epochs[s.epoch] = cd
       }
+      for (e in chain) if (epochs[e] == null) throw CustodyTamperedException("manca il sigillo dell'epoca $e")
       val custody = KeyCustody(accountId, epochs, emptySet())
       val root = custody.verifyChain(view)
       val check = runCatching { PampaBase64.decode(info.check) }.getOrNull()
@@ -377,7 +391,6 @@ class KeyCustody private constructor(
       if (check == null || !PampaCrypto.equal(check, CustodyMath.check(door.secret, rootCd))) {
         throw CustodyTamperedException("la radice non è quella della porta (K9)")
       }
-      for (e in view.epochs) if (e.epoch >= root && epochs[e.epoch] == null) throw CustodyTamperedException("manca il sigillo dell'epoca ${e.epoch}")
       custody.known += door.doorId
       custody.verifyTags(view)
       custody.known += view.doors.map { it.doorId }
@@ -405,9 +418,12 @@ class KeyCustody private constructor(
       } catch (e: PampaCryptoException) {
         throw CustodyTamperedException("passaggio illeggibile")
       }
+      // R2 · Come per le porte: solo le epoche della catena dichiarata, e tutte.
+      val chain = chainEpochs(view)
+      for (e in epochs.keys) if (e !in chain) throw CustodyTamperedException("al passaggio c'è l'epoca $e, fuori dalla catena")
+      for (e in chain) if (epochs[e] == null) throw CustodyTamperedException("al passaggio manca l'epoca $e")
       val custody = KeyCustody(accountId, epochs, emptySet())
       val root = custody.verifyChain(view)
-      for (e in view.epochs) if (e.epoch >= root && epochs[e.epoch] == null) throw CustodyTamperedException("al passaggio manca l'epoca ${e.epoch}")
       custody.verifyTags(view)
       custody.known += view.doors.map { it.doorId }
       return custody.trimmedTo(root)
@@ -416,6 +432,17 @@ class KeyCustody private constructor(
     /** Rimette una custodia salvata (`CustodyKeyring`). */
     internal fun restore(accountId: String, epochs: Map<Int, ByteArray>, root: Int, knownDoors: Set<String>, device: DoorSecret? = null): KeyCustody =
       KeyCustody(accountId, epochs, knownDoors, device).also { it.root = root }
+
+    /**
+     * Le epoche della catena che il server dichiara (`GET /v1/keys` le dà dalla radice all'epoca attiva): le sole di cui
+     * si accetta una chiave dei dati. Che siano legate fra loro lo controlla poi [verifyChain] (K9).
+     */
+    private fun chainEpochs(view: KeysView): Set<Int> {
+      val declared = view.epochs.map { it.epoch }
+      if (declared.isEmpty()) throw CustodyTamperedException("catena delle epoche vuota")
+      if (declared.toSet().size != declared.size) throw CustodyTamperedException("catena delle epoche con un'epoca ripetuta")
+      return declared.toSet()
+    }
 
     private const val DEVICE_PREFIX = "device:"
   }

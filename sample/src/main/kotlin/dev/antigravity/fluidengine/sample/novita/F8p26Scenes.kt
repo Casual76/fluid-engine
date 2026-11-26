@@ -123,7 +123,8 @@ import java.time.ZoneId
 // telefono: la galleria non chiede il permesso della posizione) e **solo dati di salute finti** (FluidMemoryHealthGateway):
 // i dati veri di Health Connect non si leggono. Dalla Health Connect vera la scena dei permessi legge solo se c'e'.
 // Le tessere vere arrivano nella build di debug e nella bench; nella release pubblicata la mappa e' il disegno dell'engine.
-// Per le misure: l'extra di lancio `novita.map` = `texture` (di serie), `surface` o `disegno`.
+// Per le misure: l'extra di lancio `novita.map` = `texture` (di serie, col limite dei fotogrammi), `texture-libera`
+// (senza limite, come fino alla F8.26b), `surface` o `disegno`.
 
 internal val F8p26Section = NewElementSection(
   pack = "F8.26",
@@ -242,15 +243,20 @@ internal object F8p26Places {
     Triple("san-miniato", "San Miniato al Monte", FluidGeoPoint(43.75960, 11.26480)),
   )
 
-  /** Una manciata di foto per luogo, sparse di qualche decina di metri (sempre le stesse). */
-  val Markers: List<FluidMapMarker> = landmarks.flatMapIndexed { i, (id, title, at) ->
-    val photos = 2 + (i * 7) % 5
-    (0 until photos).map { k ->
-      val dLat = ((k * 37 + i * 11) % 9 - 4) * 0.00011
-      val dLon = ((k * 53 + i * 17) % 9 - 4) * 0.00014
-      FluidMapMarker("$id-$k", FluidGeoPoint(at.latitude + dLat, at.longitude + dLon), title, subtitle = "${3 + (k * 13 + i) % 40} foto")
-    }
+  /** Quante foto ha ogni luogo (sempre le stesse): 46 in tutto. */
+  private fun photosAt(i: Int): Int = 2 + (i * 7) % 5
+
+  /**
+   * Un segnaposto per **luogo**, col numero delle sue foto: l'engine conta i segnaposto come luoghi («2 luoghi» sul
+   * grappolo). Fino alla F8.26b la galleria ne metteva uno per foto, tutti col nome del luogo: il grappolo da 2 del
+   * Duomo erano due «Duomo» (F8.26c).
+   */
+  val Markers: List<FluidMapMarker> = landmarks.mapIndexed { i, (id, title, at) ->
+    FluidMapMarker(id, at, title, subtitle = "${photosAt(i)} foto")
   }
+
+  /** Le foto di tutti i luoghi. */
+  val PhotoCount: Int = landmarks.indices.sumOf { photosAt(it) }
 
   fun place(marker: FluidMapMarker): FluidMapPlace =
     FluidMapPlace(marker.title, marker.point, subtitle = marker.subtitle?.let { "Firenze · $it" } ?: "Firenze")
@@ -269,6 +275,8 @@ private fun rememberF8p26Engine(forceSketch: Boolean): FluidMapEngine {
       provided != null -> provided
       forceSketch || wanted == "disegno" || BuildConfig.BUILD_TYPE == "release" -> FluidSketchMapEngine()
       wanted == "surface" -> FluidMapLibreEngine(context, FluidMapRenderMode.Surface)
+      // Per la misura del limite dei fotogrammi (F8.26c): la TextureView senza limite, come fino alla F8.26b.
+      wanted == "texture-libera" -> FluidMapLibreEngine(context, FluidMapRenderMode.Texture, maximumFps = 0)
       else -> FluidMapLibreEngine(context, FluidMapRenderMode.Texture)
     }
   }
@@ -339,21 +347,20 @@ private fun F8p26MapScene(onBack: () -> Unit, forceSketch: Boolean = false, init
           modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 4.dp),
         )
         Text(
-          "${F8p26Places.Markers.size} foto in 12 luoghi · Firenze", style = MaterialTheme.typography.bodyMedium,
+          "${F8p26Places.PhotoCount} foto in ${F8p26Places.Markers.size} luoghi · Firenze", style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp),
         )
-        val byPlace = remember { F8p26Places.Markers.groupBy { it.title } }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
           FluidListGroup(modifier = Modifier.padding(horizontal = 16.dp)) {
-            byPlace.entries.forEachIndexed { i, (title, list) ->
+            F8p26Places.Markers.forEachIndexed { i, marker ->
               if (i > 0) FluidListDivider()
               FluidListRow(
-                title = title,
-                subtitle = "${list.size} foto",
+                title = marker.title,
+                subtitle = marker.subtitle.orEmpty(),
                 onClick = {
-                  selected = list.first().id
+                  selected = marker.id
                   detent = FluidSheetDetent.Medium
-                  scope.launch { state.animateTo(state.camera.copy(center = list.first().point, zoom = maxOf(state.camera.zoom, 16.0))) }
+                  scope.launch { state.animateTo(state.camera.copy(center = marker.point, zoom = maxOf(state.camera.zoom, 16.0))) }
                 },
               )
             }
@@ -451,10 +458,12 @@ private fun F8p26ViewerScene(onBack: () -> Unit) {
 
 /** Le fonti finte della galleria (mai i dati veri di Health Connect). */
 internal object F8p26Health {
-  val Watch = FluidHealthSource("com.example.orologio", "Orologio", FluidHealthDeviceKind.Watch, "Orologio finto")
-  val Phone = FluidHealthSource("dev.antigravity.fluidglass", "Telefono", FluidHealthDeviceKind.Phone)
+  // Nomi di app, non di apparecchi: l'apparecchio lo dice la riga della fonte («Da Ritmo · orologio»). Fino alla F8.26b
+  // l'app dell'orologio si chiamava «Orologio» e la card diceva «Da Orologio · orologio».
+  val Watch = FluidHealthSource("com.example.ritmo", "Ritmo", FluidHealthDeviceKind.Watch, "Orologio finto")
+  val Phone = FluidHealthSource("dev.antigravity.fluidglass", "Fluid Glass", FluidHealthDeviceKind.Phone)
   val Sounds = FluidHealthSource("dev.pampa.sounds", "Pampa Sounds", FluidHealthDeviceKind.Phone)
-  val Scale = FluidHealthSource("com.example.bilancia", "Bilancia", FluidHealthDeviceKind.Scale)
+  val Scale = FluidHealthSource("com.example.libra", "Libra", FluidHealthDeviceKind.Scale)
 
   /** L'ordine delle app come se l'utente l'avesse scelto nelle impostazioni di Health Connect (il finto lo segue). */
   val SettingsOrder: List<String> = listOf(Watch.packageName, Phone.packageName, Sounds.packageName, Scale.packageName)

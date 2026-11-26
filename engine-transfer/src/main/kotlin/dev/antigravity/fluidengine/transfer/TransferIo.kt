@@ -1,6 +1,8 @@
 package dev.antigravity.fluidengine.transfer
 
+import dev.antigravity.fluidengine.foundation.transfer.FluidTransferFailure
 import java.io.IOException
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.exp
@@ -65,20 +67,28 @@ internal class TransferResponse(val connection: HttpURLConnection) {
 internal class TransferHttp(private val config: FluidTransferConfig) {
   /**
    * Apre [method] su [url] seguendo i rinvii a mano (anche quelli che cambiano protocollo, come fa un CDN), con
-   * [headers] a ogni salto. [prepare] puo' scrivere il corpo (caricamenti). Chiama [onConnection] appena c'e' una
-   * connessione: la pausa la chiude per fermare una lettura bloccata.
+   * [headers] a ogni salto. [credentials] (quelle di [FluidTransferAuthorizer]) vanno solo allo stesso server: un
+   * rinvio verso un'altra origine (schema, host o porta) le lascia indietro, e non tornano piu' nei salti dopo, come
+   * fanno i browser e OkHttp. Un rinvio da https a http, o verso un protocollo che non e' http, non si segue: e' un
+   * errore. [prepare] puo' scrivere il corpo (caricamenti). Chiama [onConnection] appena c'e' una connessione: la pausa
+   * la chiude per fermare una lettura bloccata.
    */
   fun open(
     method: String,
     url: String,
     headers: Map<String, String>,
+    credentials: Map<String, String>,
     onConnection: (HttpURLConnection) -> Unit,
     prepare: ((HttpURLConnection) -> Unit)? = null,
   ): TransferResponse {
-    var current = url
+    var current = URL(url)
+    var secrets = credentials
+    // Un pezzo di un caricamento riprendibile (`Content-Range`) riceve 308 come conferma («Resume Incomplete»), non
+    // come rinvio; per tutto il resto 308 e' un rinvio permanente che tiene metodo e corpo.
+    val chunk = headers.keys.any { it.equals("Content-Range", ignoreCase = true) }
     var hops = 0
     while (true) {
-      val connection = (URL(current).openConnection() as HttpURLConnection).apply {
+      val connection = (current.openConnection() as HttpURLConnection).apply {
         requestMethod = method
         connectTimeout = config.connectTimeoutMillis
         readTimeout = config.readTimeoutMillis
@@ -87,17 +97,22 @@ internal class TransferHttp(private val config: FluidTransferConfig) {
         setRequestProperty("User-Agent", config.userAgent)
         // Niente compressione: con gzip la lunghezza e i `Range` sarebbero quelli del contenuto compresso.
         setRequestProperty("Accept-Encoding", "identity")
+        secrets.forEach { (name, value) -> setRequestProperty(name, value) }
         headers.forEach { (name, value) -> setRequestProperty(name, value) }
       }
       onConnection(connection)
       prepare?.invoke(connection)
       val response = TransferResponse(connection)
-      if (response.code in 300..399 && response.code != 304 && response.code != 308 && hops < MaxRedirects) {
+      val redirect = response.code in 300..399 && response.code != 304 && !(response.code == 308 && chunk)
+      if (redirect && hops < MaxRedirects) {
         val location = response.header("Location")
         if (!location.isNullOrBlank()) {
-          current = URL(URL(current), location).toString()
-          hops++
           connection.disconnect()
+          val next = redirectTarget(current, location)
+            ?: throw TransferException(FluidTransferFailure.server(response.code, "rinvio rifiutato verso ${location.substringBefore(':')}"))
+          if (!sameOrigin(current, next)) secrets = emptyMap()
+          current = next
+          hops++
           continue
         }
       }
@@ -108,6 +123,45 @@ internal class TransferHttp(private val config: FluidTransferConfig) {
   private companion object {
     const val MaxRedirects = 5
   }
+}
+
+/**
+ * Dove porta un rinvio da [from]: [location] risolta contro [from] (anche relativa, «/file.apk»), oppure null se non
+ * si segue: da https a http (la credenziale e il file passerebbero in chiaro) o verso un protocollo che non e' http.
+ */
+internal fun redirectTarget(from: URL, location: String): URL? {
+  val next = URL(from, location)
+  val scheme = next.protocol.lowercase()
+  if (scheme != "http" && scheme != "https") return null
+  if (from.protocol.equals("https", ignoreCase = true) && scheme == "http") return null
+  return next
+}
+
+/** Stesso schema, host e porta: l'«origine» del web. Solo li' una credenziale segue un rinvio. */
+internal fun sameOrigin(a: URL, b: URL): Boolean =
+  a.protocol.equals(b.protocol, ignoreCase = true) &&
+    a.host.equals(b.host, ignoreCase = true) &&
+    (if (a.port == -1) a.defaultPort else a.port) == (if (b.port == -1) b.defaultPort else b.port)
+
+/**
+ * Una lettura o una scrittura sul file del telefono: un suo errore (il disco pieno, una scheda tolta) e' del disco
+ * ([FluidTransferFailure.storage], che non si riprova da solo), non della rete.
+ */
+internal inline fun <T> onDisk(block: () -> T): T =
+  try {
+    block()
+  } catch (error: TransferException) {
+    throw error
+  } catch (error: IOException) {
+    throw TransferException(FluidTransferFailure.storage(error.message))
+  }
+
+/** Il file a meta' visto dalla coda: ogni suo errore passa da [onDisk]. */
+internal class DiskOutputStream(private val out: OutputStream) : OutputStream() {
+  override fun write(b: Int) = onDisk { out.write(b) }
+  override fun write(b: ByteArray, off: Int, len: Int) = onDisk { out.write(b, off, len) }
+  override fun flush() = onDisk { out.flush() }
+  override fun close() = onDisk { out.close() }
 }
 
 /** `Content-Range: bytes 100-199/1000` → (100, 199, 1000); il totale e' -1 se e' «*». Null se non si legge. */
@@ -125,5 +179,5 @@ internal fun parseAckedRange(value: String?): Long? {
 }
 
 /** L'errore della coda: porta il motivo da mostrare. */
-internal class TransferException(val failure: dev.antigravity.fluidengine.foundation.transfer.FluidTransferFailure) :
+internal class TransferException(val failure: FluidTransferFailure) :
   IOException(failure.toString())

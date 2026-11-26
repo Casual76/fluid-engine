@@ -20,6 +20,7 @@ Catalogo completo delle firme: [`../api/account-host.md`](../api/account-host.md
 | entrare, rinnovare, uscire | `AccountSession`: `adopt(risposta d'ingresso)`, `storeToken()`, `appToken(…)`, `signOut()`, `onRevoked(motivo)` |
 | la sessione di recupero diventata normale (passkey aggiunta, Google collegato) | `AccountSession.promote()`, poi `CustodyService.ensureDeviceDoor()` |
 | la prima cifratura, il codice di recupero, una porta | `CustodyService.startEncryption(codice)`, `createRecoveryCode()`, `addPrfDoor(…)` |
+| il codice nuovo da rimostrare dopo un riavvio, una rete caduta o un'attesa di sicurezza (R2) | `pendingRecoveryCode()`; quando l'utente l'ha scritto, `recoveryCodeSeen()` |
 | ruotare la chiave dopo un «perso o rubato» | `CustodyService.rotate(EpochKind.LOST)` |
 | ricevere in silenzio l'epoca creata da un altro dispositivo | `CustodyService.catchUp()`, con la porta del dispositivo (`ensureDeviceDoor`) |
 | il telefono nuovo | `openWithDoor(DoorSecret.recovery(codice))` o `DoorSecret.fromPasskey(risultato)`; col QR `beginTransfer()` → `pollTransfer(offer)` ogni pochi secondi (`null` finché non c'è il sigillo) |
@@ -52,12 +53,29 @@ dentro `noBackupFilesDir`: escluso dal backup di Android. Ogni rinnovo porta la 
 (`DeviceProof`, JWS ES256 con la chiave P-256 del Keystore, `rth` = hash del token di rinnovo, `iat` dall'ora del
 server). I token stanno in memoria (`TokenCache`), con l'orologio monotono. `session_revoked` con motivo `remote`,
 `lost` o `all` cancella chiavi **e** copie e avvisa le app con `wiped`; l'uscita volontaria cancella solo le chiavi.
+Ogni entrata (`adopt`) e ogni uscita cambiano una **generazione** (R2): un rinnovo o un token d'app partiti prima del
+cambio non entrano in cache e non puliscono la sessione nuova; chi li aspettava riprova una volta con quella nuova. Un
+`unauthorized` sul token di un'app toglie dalla cache il token dello Store e rinnova una volta. La chiave del
+dispositivo nasce una volta sola (cerca-o-genera sotto un lucchetto) e la pubblica si rilegge sempre dal Keystore.
 
 **La custodia** (`KeyCustody`, logica pura). La chiave dei dati `CD` a epoche, nata sul telefono. Le porte (il codice
 di recupero, ogni passkey col PRF) sono coppie X25519 ricavate dal segreto; sul server vanno solo pubblica, sale,
 sigilli HPKE, il tag (K8) e il `check` della radice (K9). Prima di usare qualunque cosa del server, la custodia
 verifica: la catena dei `link` col tipo dentro, i tag all'epoca di riferimento giusta (dopo un «perso o rubato» solo
 quelli nuovi, S11), le porte che conosceva, l'epoca che non torna indietro. Dal server ostile si accorge sempre.
+Aprendo una porta (o il passaggio) prende **solo** le epoche della catena dichiarata, una per epoca e di 32 byte (R2):
+per sigillare verso la pubblica di una porta non serve nessun segreto, e un sigillo in più fuori dalla catena sarebbe una
+chiave dei dati scelta dal server.
+
+**Il lavoro a metà** (R2, `in-sospeso.bin` in classe madre). Il codice di recupero nuovo e la prima custodia, con le
+richieste già pronte e le loro chiavi d'idempotenza, si chiudono **prima** di partire. Se la rete cade dopo che il
+server ha detto sì, o lo Store muore, la chiamata dopo (`createRecoveryCode`, `startEncryption` con lo stesso codice)
+rimanda **le stesse** richieste invece di far nascere un altro codice o un'altra chiave; se il server è già partito con
+quella chiave, la si tiene. Il codice resta in `pendingRecoveryCode()` finché l'utente non l'ha visto
+(`recoveryCodeSeen()`), anche dopo un'attesa di sicurezza (`waiting`): è il codice che varrà. Lo Store prende il codice
+da mostrare da lì (`pendingRecoveryCode() ?: RecoveryCode.generate()`): una prima cifratura rimasta a metà con un codice
+diverso, che il server ha già in parte, è `IllegalStateException`. Fino alla fine `hasCustody` è falso, e niente di
+cifrato parte (K2).
 
 **Le porte dei dispositivi** (`device:<deviceId>`, contratto `e2e.json`, `deviceDoor`). Ogni dispositivo dentro crea la
 sua porta appena ha la chiave (dopo il PRF, il codice o il QR): 32 byte casuali che restano nella sua custodia, in classe
@@ -155,6 +173,14 @@ Sul Tab S9 (Android 16, 25/11): TEE ~8 ms a chiusura o apertura, StrongBox ~120 
   passaggio fra due telefoni, il server ostile, niente segreti in intestazioni e corpi.
 - `AccountHostProviderTest` (Robolectric): firme diverse a ogni metodo, UID condiviso, K3, luoghi, `wiped`.
 - `StoreBackupTest`: il backup una volta, solo se cambiato, in tasca con la A, chiuso con la C, WorkManager.
+  L'impronta vale per un conto e un'epoca (R2, `StoreBackupR2Test`): un altro account sullo stesso telefono e una
+  rotazione rifanno il backup.
+- R2 (review `muse-account`): `KeyCustodyR2Test` (il sigillo in più fuori dalla catena, anche dalla porta del
+  dispositivo, una chiave di un byte, due sigilli per un'epoca, una porta senza sigilli, il passaggio con un'epoca in
+  più, HPKE verso una pubblica debole), `AccountSessionR2Test` (la risposta persa dopo che il server ha preso il codice o
+  l'epoca, l'impronta da rifare, due account in corsa sul rinnovo e sul token d'app, `unauthorized`, file e risposte
+  storti), `CustodyPendingR2Test` (il codice da rimostrare, l'attesa di sicurezza, il codice diverso), `DeviceKeyR2Test`
+  (due fili al primo uso, con un Keystore finto).
 - `AppearanceSyncTest` (F10.8): due dispositivi e il server finto con le regole di `choices.ts`; il conflitto sullo
   stesso campo, gli orologi sfasati di tre ore, l'orologio avanti di due giorni, le lapidi delle eccezioni, il contratto.
 - `PlacesSyncTest` (F10.8): i luoghi cifrati fra due dispositivi, il conflitto per campo, la cancellazione che vince, il

@@ -62,8 +62,14 @@ Catalogo delle firme: [`../api/map.md`](../api/map.md) (generato). Il foglio sot
   tutti i livelli da 0 a 18; gli id sono stabili (lo stesso insieme, lo stesso id), e un grappolo che non cambia non si
   anima. **Il viaggio d'oro**: quando lo zoom passa di livello i segnaposto **escono dal grappolo da cui nascono** e
   allontanando **ci rientrano**, in 280 ms (a occhio).
-- **L'attribuzione** è sempre in vista in basso a sinistra, sopra il foglio, su un vetro piccolo («© OpenStreetMap»), e
-  toccata mostra i crediti coi collegamenti (ODbL: openstreetmap.org/copyright a un tocco).
+- **L'attribuzione** è sempre in vista in basso a sinistra, sopra il foglio, su un vetro piccolo («OpenFreeMap
+  © OpenMapTiles © OpenStreetMap»: i tre nomi che chiedono i termini di OpenFreeMap e l'ODbL), e toccata mostra i
+  crediti coi collegamenti (ODbL: openstreetmap.org/copyright a un tocco). Su un telefono stretto va a capo fra un nome e
+  l'altro (il «©» resta attaccato al suo nome) e non passa mai sotto i comandi. TalkBack la legge **una volta**, come un
+  tasto: «Crediti della mappa: OpenFreeMap © OpenMapTiles © OpenStreetMap» (F8.26c; prima la scritta del vetro si
+  aggiungeva e i crediti si sentivano due volte).
+- **Il tasto della posizione** per TalkBack è «Posizione», anche prima che l'app la sappia (il tocco la chiede), e
+  «Posizione, la mappa ti segue» quando la segue. Fino alla F8.26b prima del tocco diceva «Posizione non disponibile».
 - **Il dito.** La mappa vera la muove MapLibre; il disegno ha gli stessi gesti: un dito trascina e lancia, due dita
   pizzicano e ruotano attorno al punto fra le dita, il doppio tocco avvicina di un passo. Il punto toccato **resta sotto
   il dito**. Niente inclinazione.
@@ -77,7 +83,18 @@ numero letto da TalkBack solo quando cambia. A camera ferma niente ridisegna.
 (`FluidMapEngine.glassSamplesMap`): il disegno sempre, MapLibre con `FluidMapRenderMode.Texture` (una `TextureView`, di
 serie). Con `FluidMapRenderMode.Surface` (una `SurfaceView`, in una finestra sua) il vetro non la vede: sopra la mappa si
 vede chiaro, con la tinta e il filo ma senza sfocatura. Le misure dei due modi sono nel rapporto di F8.26
-(`artifacts/liquid-glass/sessioni/f8-26/rapporto.md`). Il foglio e i pannelli si disegnano nell'host dei modali: perché
+(`artifacts/liquid-glass/sessioni/f8-26/rapporto.md`): sul Tab S9, col dito che trascina, `Texture` costa più CPU (il
+filo di MapLibre 4,9 s contro 3,0 in 14 s) ma il 99° percentile del disegno è 6,6 ms e i fotogrammi in ritardo 5 su 705.
+**Il limite dei fotogrammi** (F8.26c): in una `TextureView` MapLibre non aspetta lo schermo, e sul Tab S9 col dito che
+trascina disegnava **220 fotogrammi al secondo** su uno schermo da 120 (quasi metà buttati). Di serie
+`FluidMapLibreEngine` gli mette il limite del ritmo più alto dello schermo (`maximumFps =
+FluidMapLibreEngine.screenMaximumFps(context)`, `MapView.setMaximumFps`); `maximumFps = 0` lo toglie.
+
+**`Surface` solo a mano, per ora.** Sul Tab S9 (26/11/2026) la mappa in `SurfaceView` era **nera**: MapLibre la
+disegnava (681 fotogrammi nella traccia), ma `FluidMap` la teneva dentro la registrazione del vetro
+(`glassBackdropSource`, che quando il vetro la campiona si compone in un layer fuori schermo), e il buco che la
+`SurfaceView` apre nella finestra restava chiuso lì dentro. Dalla F8.26c una mappa che il vetro non vede sta **fuori**
+dalla sorgente, sotto. Nessuna fascia sceglie `Surface` da sola finché il telefono non mostra la mappa. Il foglio e i pannelli si disegnano nell'host dei modali: perché
 rifrangano la mappa e non la pagina sotto, l'host va messo **sopra la mappa** con la stessa registrazione
 (`FluidMapGlassHost(backdrop)` e `FluidMap(…, backdrop = backdrop)`).
 
@@ -114,8 +131,10 @@ foglio di vetro dell'engine torna al detent più basso quando l'app lo tiene ape
 
 `FluidMapPlaceCard(FluidMapPlace(nome, punto, sotto))`: il nome, la riga sotto, **Indicazioni** (pieno: apre l'app di
 mappe del telefono con `geo:`), **Condividi** (il nome e il collegamento a OpenStreetMap, col foglio di Android) e **Copia**
-(per TalkBack «Copia coordinate»: «43.77310, 11.25560» negli appunti, e «Coordinate copiate» al posto delle coordinate per 1,6 s, detto da
-TalkBack). Ogni tasto si può sostituire.
+(per TalkBack solo «Copia coordinate»: «43.77310, 11.25560» negli appunti, e «Coordinate copiate» al posto delle coordinate per 1,6 s, detto da
+TalkBack). Ogni tasto si può sostituire. **Le parole restano intere**: se un'etichetta non sta accanto alla sua icona (i
+tre tasti sul telefono), in tutti e tre l'icona sale e l'etichetta le sta sotto, su una riga, come in Mappe
+(`FluidButtonLabelPlacement.Below`); sul tablet restano accanto. Fino alla F8.26b il telefono leggeva «Indicaz|ioni».
 
 ## La cartolina: `FluidMapPostcard`
 
@@ -166,6 +185,9 @@ MapLibre. Il DEX misurato nella bench della galleria è nel rapporto di F8.26.
   stessa `backdrop` di `FluidMap`: l'host della radice registra la pagina, non la mappa.
 - *Sintomo*: i comandi di vetro neri o vuoti. → La mappa in una `SurfaceView` (`FluidMapRenderMode.Surface`): il vetro
   campiona solo una `TextureView` o Compose.
+- *Sintomo*: la mappa nera, con i segnaposto e i comandi sopra. → Una `SurfaceView` dentro un layer fuori schermo (la
+  registrazione del vetro, un `graphicsLayer` con `CompositingStrategy.Offscreen` o con l'alfa): il buco nella finestra
+  non si apre. `FluidMap` la tiene fuori dalla sua sorgente (F8.26c); fuori da `FluidMap` non va messa dentro un layer.
 - *Sintomo*: la lista dei segnaposto si ricompone a ogni fotogramma. → Una lettura di `state.camera` nella composizione:
   va nel disegno, o in un `derivedStateOf` che cambia di rado.
 - *Sintomo*: la mappa è bianca nelle prove. → MapLibre non si disegna in Robolectric: le prove usano

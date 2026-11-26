@@ -96,9 +96,16 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Tune
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.max
+
+/**
+ * Com'è andato uno scatto (R1): il testo da dire a TalkBack ([announce], la pagina giusta) o l'avviso da mostrare sulla
+ * fotocamera ([notice], per esempio la fila piena).
+ */
+internal class ScanCaptured(val announce: String? = null, val notice: String? = null)
 
 /** La pagina che vola dal foglio alla miniatura: da dove parte (radice), cosa mostra. */
 private class ScanFlight(val from: Rect, val image: ImageBitmap)
@@ -115,7 +122,8 @@ internal fun ScanCameraScreen(
   onFilterChange: (FluidScanFilter) -> Unit,
   retaking: Boolean,
   saving: Boolean,
-  onCaptured: suspend (Bitmap, FluidScanQuad?) -> Unit,
+  onCaptured: suspend (Bitmap, FluidScanQuad?) -> ScanCaptured,
+  onAnnounce: (String) -> Unit,
   onOpenPages: () -> Unit,
   onSave: () -> Unit,
   onCancel: () -> Unit,
@@ -125,7 +133,15 @@ internal fun ScanCameraScreen(
   var track by remember { mutableStateOf(FluidScanTrack(null, camera.aspect, 0f, false, FluidScanHint.Find)) }
   var capturing by remember { mutableStateOf(false) }
   var flight by remember { mutableStateOf<ScanFlight?>(null) }
-  var announce by remember { mutableStateOf("") }
+  // R1: un avviso al posto della scritta che guida, per [ScanCameraDefaults.NoticeMillis]: lo scatto non riuscito, la fila
+  // piena. Prima uno scatto fallito non diceva niente.
+  var notice by remember { mutableStateOf<String?>(null) }
+  LaunchedEffect(notice) {
+    if (notice != null) {
+      delay(ScanCameraDefaults.NoticeMillis)
+      notice = null
+    }
+  }
   val flightProgress = remember { Animatable(0f) }
   val flash = remember { Animatable(0f) }
   val scope = rememberCoroutineScope()
@@ -140,6 +156,10 @@ internal fun ScanCameraScreen(
 
   fun capture(manual: Boolean) {
     if (capturing || !camera.ready) return
+    if (!retaking && state.pages.size >= state.options.maxPages) {
+      notice = strings.pagesFull(state.options.maxPages)
+      return
+    }
     capturing = true
     if (manual) tracker.capturedManually()
     val live = track.quad
@@ -164,12 +184,14 @@ internal fun ScanCameraScreen(
             flight = null
           }
         }
-        captured(photo, quad)
-        announce = strings.pageAdded(state.pages.size)
+        val outcome = captured(photo, quad)
+        outcome.announce?.let(onAnnounce)
+        outcome.notice?.let { notice = it }
       } catch (cancelled: CancellationException) {
         throw cancelled
       } catch (_: Exception) {
-        // Uno scatto fallito (la fotocamera che si chiude a metà) non chiude lo scanner: si riprova.
+        // Uno scatto fallito (la fotocamera che si chiude a metà) non chiude lo scanner: si dice, e si riprova.
+        notice = strings.captureFailed
       } finally {
         capturing = false
       }
@@ -228,14 +250,14 @@ internal fun ScanCameraScreen(
     } else {
       // La scritta che guida, come «Ready for next scan.» di Note in iOS 26: una capsula di vetro sotto i tasti in alto;
       // il testo cambia per sostituzione sfocata (R7).
-      val text = when (hint) {
+      val text = notice ?: when (hint) {
         FluidScanHint.Find -> strings.hintFind
         FluidScanHint.Closer -> strings.hintCloser
         FluidScanHint.Steady -> if (auto && !retaking) strings.hintSteady else null
         FluidScanHint.Capturing -> strings.hintCapturing
         else -> null
       }
-      if (text != null && camera.ready) {
+      if (text != null && (camera.ready || notice != null)) {
         Box(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = ScanCameraDefaults.HintTop)
           .fluidGlass(shape = FluidCapsuleShape, backdrop = backdrop)
           .padding(horizontal = 18.dp, vertical = 9.dp).testTag(FluidScanTags.Hint)
@@ -327,8 +349,6 @@ internal fun ScanCameraScreen(
         }.size(with(density) { max(1f, f.from.width).toDp() }, with(density) { max(1f, f.from.height).toDp() }))
     }
 
-    // Per TalkBack: «Pagina 3 scansionata», detto una volta.
-    if (announce.isNotEmpty()) Text(announce, Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite }, color = Color.Transparent)
   }
 }
 
@@ -443,4 +463,6 @@ internal object ScanCameraDefaults {
   const val FlashMillis = 180
   /** I bordi trovati sulla foto vera valgono se distano da quelli dal vivo meno dell'8% della diagonale. A occhio. */
   const val ConfirmDistance = 0.08f
+  /** R1: quanto resta l'avviso al posto della scritta (lo scatto non riuscito, la fila piena): 2,5 s. A occhio. */
+  const val NoticeMillis = 2500L
 }

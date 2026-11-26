@@ -1756,6 +1756,56 @@ Il consiglio storico («non animare `intensity` su una superficie grande: il rag
 con più sfocatura che altezza); con le ottiche di serie e la lente accesa il padding resta zero a ogni intensità. Nel materiale nuovo `intensity` non tocca il raggio, quindi il margine della cattura resta fermo a ogni intensità.
 **Contare nel materiale nuovo.** Oltre alle catture, `FluidGlassDiagnostics` conta le superfici per materiale, i nodi e i layer vivi, e dice a che punto è il riscaldamento: sezione «Due materiali», «La diagnostica».
 
+### Bilanci e guardie per chi aggiunge un componente (F7.28)
+
+Un componente nuovo non può costare di più senza dirlo. Ogni elemento disponibile (un componente del vetro, una scena
+di «Misure», una scena di «Elementi nuovi») ha nel **registro dei bilanci** una riga per fase: entrata, moto, posa,
+uscita e rilascio. La riga dice i tetti: nodi e layer del vetro vivi, catture per fotogramma e in tutto, la cattura più
+grande in pixel, i byte del vetro residenti e in volo, le fabbriche nuove (layer, bitmap, programmi AGSL), i filtri
+nuovi, i ridisegni a riposo; nel banco del percorso caldo anche i byte allocati per fotogramma. Il registro sta in
+`sample/src/testDebug/resources/bilanci/`: `vetro.bilancio` (F7), `banco.bilancio`, un frammento `f8p<n>.bilancio` per
+pacchetto di F8 (del pacchetto) e `attesi.bilancio` per ciò che non c'è ancora. Il formato e il significato di ogni
+colonna sono in `bilanci/LEGGIMI.txt`.
+
+**Come si dichiara un bilancio.**
+1. Il componente entra in una scena vera: per F8 la sua scena della pagina «Elementi nuovi», per il vetro una scena di
+   «Misure» o, se sta da solo, un metodo di `GlassBalanceScenesTest` col suo nome nel catalogo di
+   `GlassBalanceRegistryTest` (`GlassComponents`). La misura usa un copione solo (`BalanceRuns`): entrata, due campioni di posa separati da 2 s, il moto (il
+   tratto della scena, o il dito che trascina dal centro), l'uscita, il rilascio.
+2. Si lancia la prova del proprietario (`F8BalanceTest` o `GlassBalanceScenesTest`). Senza righe
+   cade, e nell'uscita stampa le righe misurate (`Bilancio misurato | …`): si copiano nel file, con la sigla del
+   pacchetto in `ver`, la prova, e dopo `|` il motivo, cioè che cosa costa e perché.
+3. `GlassBalanceRegistryTest` controlla la completezza: un elemento disponibile senza bilancio, o con una fase che
+   manca, o ancora «atteso», è rosso. Un elemento futuro sta in `attesi.bilancio` finché non arriva; quando arriva, si
+   misura e la riga «atteso» si toglie.
+4. Una scena che al PC non si monta (una libreria nativa, un servizio di sistema) ha le sue righe `NV` in ogni colonna e
+   nel motivo il posto dove si misura davvero, per esempio il tablet.
+
+**Le guardie**, tutte con una prova che le fa cadere apposta (`GlassBalanceGuardsTest`, `GlassHotPathAllocationTest`,
+`GlassBalanceRegistryTest`):
+- **in quiete**, due campioni separati da 2 s: niente catture, fabbriche, filtri o ridisegni nuovi fra i due, e nodi,
+  layer e byte uguali. Un video, un cursore o un orologio visibile dichiara nella riga di posa la sua cadenza;
+- **in moto**: nessun layer registrato due volte nello stesso fotogramma e nessun vetro che cattura due volte nello
+  stesso fotogramma (lo stesso campo alla stessa revisione); nessuna colonna oltre il tetto; nessuna cattura più grande
+  del vetro (o della sua finestra) alla scala scelta più il margine ottico (`@margine`, di serie zero); un figlio della
+  sorgente che cambia arriva al vetro al fotogramma dopo;
+- **in moto stabile** zero layer, bitmap e programmi nuovi per fotogramma (le ombre di Robolectric che contano le
+  fabbriche, in `sample/src/testDebug/java/…/bilanci/`), e il banco ripetibile delle allocazioni: il vetro sul percorso
+  caldo meno la stessa scena senza vetro, rosso solo se l'incremento si ripete nelle tre ripetizioni;
+- **la completezza**, sopra.
+
+**Se una guardia diventa rossa.** Il messaggio dice elemento, fase, colonna, misura e tetto, e la riga misurata intera.
+Se il costo in più non è voluto è un difetto: si corregge il codice, non la riga. Se è voluto (il componente fa di più),
+si alza il tetto **in quella riga sola**, con la sigla del pacchetto e nel motivo il costo (quanto, in che fase) e la
+ragione. **Mai alzare un limite senza scrivere costo e motivo**, e mai per assorbire un regresso. Una invariante (doppia
+registrazione, filtro oltre il margine, campioni di posa diversi) non ha un tetto da alzare: si corregge; finché non è
+corretta sta in una riga `@difetto` del file, col motivo e chi la corregge. Un tetto più
+alto della misura si può abbassare (la prova lo stampa: «sotto il tetto»). I numeri sono del PC (Robolectric, finestra
+fissa, profilo Pieno): dicono se un elemento costa di più di ieri, non quanto costa sul telefono; il tempo vero resta
+il lavoro del tablet (F7.14, S6). Dove il vetro decide sull'orologio vero (la cattura tenuta si rinfresca ogni 110 ms
+veri) o la scena finisce di arrivare in sottofondo (miniature, testo letto), il tetto di catture, filtri, fabbriche e
+ridisegni lascia un margine, scritto in testa a ogni file; nodi, layer, pixel, byte e rilascio sono esatti.
+
 ## Token, costanti, `GlassDefaults`
 
 - `DefaultGlassBlurRadius` = **2,5 dp**: raggio di riferimento, per i pannelli *piccoli*; i grandi ne pagano di più per la regola della taglia. Solo per il vetro di prima: il materiale nuovo non lo legge.
@@ -1790,6 +1840,10 @@ con più sfocatura che altezza); con le ottiche di serie e la lente accesa il pa
   Le strade del materiale (F1B): `GlassRecipeParityTest` (una superficie fisica ferma = la `glassSurface` della stessa forma, su corpo, luce e ombra, entro un decimillesimo di dp; i capi di un viaggio = la superficie ferma; i profili derivati seguono quello di serie e i loro numeri propri sono un elenco chiuso; la tabella di verità modello × livello di API × livello di Fluid-physics per le cinque strade; nessuna prova saltata: il dipinto sceglie il modello e il primo fotogramma di un viaggio ha il velo della superficie ferma),
   `GlassPuckProfileTest`, `GlassDropProfileTest`, `GlassPaintedProfileTest` (ogni profilo derivato, contro le misure di Apple sul banco), `PhysicsLiquidTest` (Fluid-physics sul materiale nuovo).
   Nella galleria, in Robolectric: `GlassPathSelectionTest` (il percorso a ogni livello di API, il riscaldamento, il livello simulato) e `GlassNodeCountTest` (4 nodi e 3 layer, 3 e 2 senza ombra; il vetro di prima 5 nodi e 5 layer, di cui 3 dedotti dal codice dei nodi di Kyant che la diagnostica non conta). Sul dispositivo: `GlassShaderCompileInstrumentedTest`, `GlassNodeCountInstrumentedTest` (letture: `Liquid` 4 e 3, `Classic` 5 nodi e 2 layer, `Liquid` senza ombra 3 e 2) e `GlassNestingInstrumentedTest` (quattro alberi con il vetro dentro il vetro, composti davvero, nei due temi, con la regola dell'annidato accesa e spenta; più il fumetto di chat). Dopo la review, sul JVM: `GlassFieldOutlineTest` (il contorno del campo contro `Shape.createOutline`, le forme che restano `Classic` per un angolo oltre mezzo lato corto, il fumetto a due altezze, le forme ad angoli uguali mai misurate), `GlassNestedOnPanelTest` (la cattura che apre sempre con un'operazione, il pannello pieno che pubblica il suo colore, il materiale che resta pubblicato finché un pannello lo pubblica) e `GlassLiquidTraceExportTest` (la traccia del tocco col materiale nuovo).
+- I bilanci (F7.28): `GlassBalanceRegistryTest` (il registro si legge, ogni elemento disponibile ha il suo bilancio),
+  `GlassBalanceScenesTest` (le diciotto scene di «Misure» e tasto, gruppo, popover, tab bar), `F8BalanceTest` (ogni scena
+  di «Elementi nuovi»), `GlassHotPathAllocationTest` (il banco delle allocazioni) e `GlassBalanceGuardsTest` (ogni
+  guardia con la mutazione che la fa cadere); sul dispositivo la quiete in `GlassNodeCountInstrumentedTest`.
 - **Non verificato dai test**: com'è il vetro. Gli host dei test non hanno fondale; sfocatura, lente, bordo e ombra si guardano in mano (dimensione D1 di `docs/10-coerenza.md`), e le tre costanti della taglia sono da giudicare su un dispositivo. Il materiale nuovo è misurato sul banco (`tools/glassbench`) e **visto su un solo dispositivo, un Tab S9** (vedi «I limiti dichiarati oggi»).
 
 ## Dove guardare

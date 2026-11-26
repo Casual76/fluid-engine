@@ -10,6 +10,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * Lo Store che tiene le persone: di solito la sua `Application`. Il lavoro di WorkManager parte anche a Store chiuso, in
@@ -29,7 +31,9 @@ class PeopleOutboxWorker(context: Context, params: WorkerParameters) : Coroutine
   override suspend fun doWork(): Result {
     val client = (applicationContext as? PeopleWorkHost)?.peopleClient() ?: return Result.success()
     val report = try {
-      client.flush()
+      // R2 · Una richiesta nuova sostituisce questo lavoro (REPLACE, così vale l'ora più vicina): la coda finisce comunque
+      // il giro e lo salva, senza fermarsi fra una busta partita e la sua riga tolta (i doppioni di prima).
+      withContext(NonCancellable) { client.flush() }
     } catch (_: PersonLockedException) {
       // Prima del primo sblocco la posta non si apre: si riprova dopo.
       return Result.retry()

@@ -58,7 +58,11 @@ Store tiene il protocollo `1` per sempre; le novita' arrivano come capacita' (`p
 **Gli avvisi.** Lo Store manda a ogni app Pampa un broadcast esplicito `dev.pampa.account.CHANGED` con solo `what`
 (`state`, `appearance`, `grants`, `places`, `keys`, `wiped`). L'app **non si fida del contenuto**: rilegge dal provider.
 `wiped` (uscita da remoto) chiama i lavori di `onWiped` solo se lo Store conferma: nessuno dentro e un'uscita da remoto
-piu' nuova dell'ultima gestita. Un broadcast falso costa una lettura in piu'.
+piu' nuova dell'ultima gestita. Un broadcast falso costa una lettura in piu'. L'uscita si segna «gestita» solo **dopo**
+che tutti i lavori sono finiti senza errori (R2): se l'app muore a metà o un lavoro lancia, la prima lettura dallo Store
+(`refresh`, all'avvio e a ogni avviso) li rifà tutti; sono cancellazioni, rifarle non fa danni. Una risposta dello
+Store di forma inattesa dà l'esito «non disponibile» (`AppKeyResult.NoStore`, `TokenResult.Unavailable`,
+`PlacesResult.NoStore`), mai un crash.
 
 **Il tema comune (F10.8).** `engine-storage` cerca con `ServiceLoader` una `EngineSharedAppearance`, e questo modulo
 la dichiara (`PampaSharedAppearance`, in `META-INF/services`): un'app con `engine-account` che usa `EngineSettingsStore`
@@ -124,6 +128,16 @@ lei. Quando arriva qualcosa lo Store manda l'avviso esplicito `CHANGED` con `wha
 `share.received` dal provider (non si fida del broadcast) e chiama i lavori registrati con `onReceived`, che mostrano
 la notifica **dell'app** («Alessio ti ha condiviso una lista»). Uno Store senza le persone risponde `NoPeople` e la fila
 non c'è. Il gestore nello Store è `AccountPeopleMethods`, dato da `engine-people`.
+
+**Ogni cosa arriva una volta (R2).** Il punto fin dove l'app ha già ricevuto (l'ora più alta e gli id già consegnati a
+quell'ora) sta nella copia locale del cliente (`pampa_account`, voce `peopleDelivered`) e si scrive solo **dopo** che i
+lavori di `onReceived` hanno finito. Un'app uccisa e fatta ripartire dall'avviso non rinotifica la posta di sempre; due
+cose dello stesso millisecondo arrivano tutte e due; un lavoro che cade fa riconsegnare la cosa all'avviso dopo (meglio
+due volte che mai). La prima volta in assoluto arriva tutta la posta già presente.
+
+**Raccolte e id delle righe senza «|» (R2).** `PampaLabels.recordAad` (e quindi `PampaRecordCipher`) rifiuta con
+`PampaCryptoException` una raccolta o un id che contengono «|»: il separatore non ha lunghezze, e `a|b` + `c` darebbe gli
+stessi dati associati di `a` + `b|c`.
 
 ## Usarlo in un'app
 

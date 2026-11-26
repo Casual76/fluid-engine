@@ -270,6 +270,51 @@ internal object SyncStoreCodec {
   }
 }
 
+/**
+ * R2 · Una riga del relay che non si apre: quante sincronizzazioni di fila ci si sono fermate ([attempts]) e se e' gia'
+ * messa da parte ([parked]). Il suo contenuto resta sigillato com'era, per riaprirla quando arriva la chiave.
+ */
+internal class SyncUnreadable(val row: SyncRemoteRow, val attempts: Int, val parked: Boolean, val reason: String)
+
+internal fun SyncStoreCodec.encodeUnreadable(rows: Map<String, SyncUnreadable>): ByteArray = SyncDocumentCodec.write { out ->
+  out.writeByte(1)
+  out.writeInt(rows.size)
+  for (u in rows.values) {
+    SyncDocumentCodec.writeString(out, u.row.recordId)
+    out.writeLong(u.row.version)
+    out.writeBoolean(u.row.deleted)
+    out.writeBoolean(u.row.payload != null)
+    u.row.payload?.let {
+      out.writeInt(it.keyVersion)
+      SyncDocumentCodec.writeBytes(out, it.raw)
+    }
+    out.writeLong(u.row.seq)
+    out.writeInt(u.attempts)
+    out.writeBoolean(u.parked)
+    SyncDocumentCodec.writeString(out, u.reason.take(500))
+  }
+}
+
+internal fun SyncStoreCodec.decodeUnreadable(bytes: ByteArray): LinkedHashMap<String, SyncUnreadable> = SyncDocumentCodec.read(bytes) { input ->
+  val version = input.readUnsignedByte()
+  if (version != 1) throw SyncFormatException("righe illeggibili in formato $version")
+  val n = input.readInt()
+  if (n < 0 || n > 1_000_000) throw SyncFormatException("righe illeggibili: $n")
+  val out = LinkedHashMap<String, SyncUnreadable>()
+  repeat(n) {
+    val id = SyncDocumentCodec.readString(input)
+    val rowVersion = input.readLong()
+    val deleted = input.readBoolean()
+    val payload = if (input.readBoolean()) {
+      val keyVersion = input.readInt()
+      SyncSealedPayload(SyncDocumentCodec.readBytes(input), keyVersion)
+    } else null
+    val seq = input.readLong()
+    out[id] = SyncUnreadable(SyncRemoteRow(id, rowVersion, deleted, payload, seq), input.readInt(), input.readBoolean(), SyncDocumentCodec.readString(input))
+  }
+  out
+}
+
 /** Un invio salvato prima di partire: si rimanda identico, con la stessa chiave, finche' non arriva la risposta. */
 internal class SyncInflight(val key: String, val changes: List<SyncInflightChange>) {
   fun batch(): SyncPushBatch = SyncPushBatch(key, changes.map { SyncPushChange(it.recordId, it.baseVersion, it.deleted, it.payload) })

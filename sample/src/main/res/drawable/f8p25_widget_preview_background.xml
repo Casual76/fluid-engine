@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.25c · Il fondo delle anteprime dei widget di prova: la superficie del widget, angolo 24 dp come EngineWidgetShape. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="@color/f8p25_widget_background" />
+  <corners android:radius="24dp" />
+</shape>

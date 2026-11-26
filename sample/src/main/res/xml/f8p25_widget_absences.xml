@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- F8.25 · Le assenze di prova: 2x2, il quadrante di F8.6 sul widget. -->
+<!-- F8.25c: previewLayout (da Android 12) e previewImage (prima) sono l'anteprima che il launcher mostra nel
+     foglio «Aggiungere alla schermata Home?» e nell'elenco dei widget. Senza, One UI scrive «Aggiunta del widget
+     non riuscita». -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/f8p25_absences_description"
     android:initialLayout="@layout/glance_default_loading_layout"
+    android:previewLayout="@layout/f8p25_widget_absences_preview"
+    android:previewImage="@drawable/f8p25_widget_absences_preview_image"
     android:minWidth="110dp"
     android:minHeight="110dp"
     android:minResizeWidth="110dp"

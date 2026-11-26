@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
@@ -73,9 +74,12 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
@@ -115,7 +119,59 @@ enum class FluidButtonStyle {
 
 enum class FluidButtonSize { Large, Medium, Small }
 
+/**
+ * Dove sta l'etichetta di un [FluidButton] che ha un'icona (`leading`). Dalla 4.0 (F8.26c).
+ *
+ * Un'etichetta che non sta accanto all'icona andava a capo **a meta' parola** («Indicaz|ioni» nei tasti della scheda di
+ * un luogo, sul telefono). Mappe di iOS fa diverso: quando i tasti sono stretti l'icona sale e l'etichetta le sta sotto,
+ * piu' piccola, su una riga sola. [FluidButtonDefaults.labelPlacement] sceglie per una riga di tasti.
+ */
+enum class FluidButtonLabelPlacement {
+  /** Accanto all'icona: il tasto di sempre. */
+  Beside,
+
+  /**
+   * Sotto l'icona, su una riga sola e in un corpo piu' piccolo. La parola non si spezza mai: se non sta, il corpo scende
+   * fino a [FluidButtonDefaults.BelowMinFontSize] e solo dopo l'etichetta finisce coi puntini.
+   */
+  Below,
+}
+
 object FluidButtonDefaults {
+  /** L'altezza minima di un tasto con l'etichetta sotto l'icona ([FluidButtonLabelPlacement.Below]): 56 dp. */
+  val BelowHeight: Dp = 56.dp
+
+  /** Il corpo dell'etichetta sotto l'icona: 13 sp, e al piu' giu' fino a [BelowMinFontSize] se la parola non sta. */
+  val BelowFontSize = 13.sp
+
+  /** Il corpo piu' piccolo dell'etichetta sotto l'icona: 11 sp, il corpo delle didascalie. */
+  val BelowMinFontSize = 11.sp
+
+  /**
+   * Dove mettere le etichette di una **riga** di tasti con l'icona, larghi [buttonWidth] ciascuno: accanto all'icona se
+   * ci stanno tutte su una riga, se no tutte sotto (un tasto sotto e uno accanto, nella stessa riga, si leggono come
+   * due cose diverse). Misura col corpo e la scala dei caratteri di adesso.
+   *
+   * ```kotlin
+   * BoxWithConstraints {
+   *   val each = (maxWidth - 8.dp * 2) / 3
+   *   val placement = FluidButtonDefaults.labelPlacement(listOf("Indicazioni", "Condividi", "Copia"), each)
+   *   Row { FluidButton("Indicazioni", ..., labelPlacement = placement, leading = { ... }) ... }
+   * }
+   * ```
+   */
+  @Composable
+  fun labelPlacement(labels: List<String>, buttonWidth: Dp, size: FluidButtonSize = FluidButtonSize.Medium): FluidButtonLabelPlacement {
+    val measurer = rememberTextMeasurer()
+    val style = fluidButtonLabelStyle(size)
+    val density = LocalDensity.current
+    return remember(labels, buttonWidth, size, style, density) {
+      val room = with(density) { (buttonWidth - horizontalPadding(size) * 2 - ButtonIconSlot - ButtonIconGap).toPx() }
+      val fits = labels.all { measurer.measure(it, style, maxLines = 1, softWrap = false, density = density).size.width <= room }
+      if (fits) FluidButtonLabelPlacement.Beside else FluidButtonLabelPlacement.Below
+    }
+  }
+
   fun height(size: FluidButtonSize): Dp = when (size) {
     FluidButtonSize.Large -> 50.dp
     FluidButtonSize.Medium -> 42.dp
@@ -134,6 +190,18 @@ object FluidButtonDefaults {
     FluidButtonSize.Small -> FluidCapsuleShape
   }
 }
+
+/** Il posto dell'icona accanto all'etichetta, e lo spazio fra le due. */
+private val ButtonIconSlot = 18.dp
+private val ButtonIconGap = 6.dp
+
+/** Il corpo dell'etichetta di un [FluidButton] accanto all'icona. */
+@Composable
+private fun fluidButtonLabelStyle(size: FluidButtonSize): TextStyle = when (size) {
+  FluidButtonSize.Large -> MaterialTheme.typography.bodyLarge
+  FluidButtonSize.Medium -> MaterialTheme.typography.bodyLarge
+  FluidButtonSize.Small -> MaterialTheme.typography.bodyMedium
+}.copy(fontWeight = FontWeight.SemiBold)
 
 /**
  * A button.
@@ -175,6 +243,9 @@ object FluidButtonDefaults {
  * dipinto dell'engine (`FluidTintedGlass.kt`), cioè la tinta dell'accento schiarita e mescolata al vetro, col filo chiaro,
  * la riga di luce e l'ombra del vetro, e l'etichetta nell'inchiostro adattivo che regge 4,5:1. Col vetro di prima
  * ([FluidGlassModel.Classic], sotto Android 13) resta l'accento pieno.
+ *
+ * @param labelPlacement dove sta l'etichetta rispetto all'icona ([leading]): accanto (di serie) o sotto, su una riga sola,
+ *   quando i tasti sono stretti ([FluidButtonLabelPlacement], [FluidButtonDefaults.labelPlacement]). Dalla 4.0 (F8.26c).
  */
 @Composable
 fun FluidButton(
@@ -188,8 +259,10 @@ fun FluidButton(
   fillWidth: Boolean = false,
   haptic: FluidHapticEvent? = FluidHapticEvent.Tap,
   grip: FluidPressGrip = FluidPressGrip.HoldsFinger,
+  labelPlacement: FluidButtonLabelPlacement = FluidButtonLabelPlacement.Beside,
   leading: (@Composable () -> Unit)? = null,
 ) {
+  val below = labelPlacement == FluidButtonLabelPlacement.Below && leading != null && !loading
   val scheme = MaterialTheme.colorScheme
   val container = when (style) {
     FluidButtonStyle.Filled -> scheme.primary
@@ -222,31 +295,47 @@ fun FluidButton(
         grip = grip,
       )
       .then(if (tinted) Modifier.fluidTintedGlassFill(shape, scheme.primary) else Modifier.clip(shape).background(container))
-      .heightIn(min = FluidButtonDefaults.height(size))
-      .padding(horizontal = FluidButtonDefaults.horizontalPadding(size)),
+      .heightIn(min = if (below) FluidButtonDefaults.BelowHeight else FluidButtonDefaults.height(size))
+      .padding(horizontal = if (below) 6.dp else FluidButtonDefaults.horizontalPadding(size), vertical = if (below) 8.dp else 0.dp),
     contentAlignment = Alignment.Center,
   ) {
-    val labelStyle = when (size) {
-      FluidButtonSize.Large -> MaterialTheme.typography.bodyLarge
-      FluidButtonSize.Medium -> MaterialTheme.typography.bodyLarge
-      FluidButtonSize.Small -> MaterialTheme.typography.bodyMedium
-    }.copy(fontWeight = FontWeight.SemiBold)
+    val labelStyle = fluidButtonLabelStyle(size)
 
     CompositionLocalProvider(LocalContentColor provides content) {
-      Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        // The spinner takes the icon's place rather than replacing the label, so the button keeps
-        // its width and the row it sits in does not reflow the moment work starts.
-        if (loading) {
-          Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) {
-            FluidSpinner(size = 16.dp, color = content)
-          }
-        } else if (leading != null) {
-          Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) { leading() }
+      if (below) {
+        // L'icona sopra e l'etichetta sotto, su una riga: la parola resta intera (al piu' si rimpicciolisce).
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          Box(modifier = Modifier.size(22.dp), contentAlignment = Alignment.Center) { leading?.invoke() }
+          Text(
+            text = text,
+            style = labelStyle.copy(fontSize = FluidButtonDefaults.BelowFontSize, lineHeight = 16.sp),
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            autoSize = TextAutoSize.StepBased(
+              minFontSize = FluidButtonDefaults.BelowMinFontSize,
+              maxFontSize = FluidButtonDefaults.BelowFontSize,
+              stepSize = 0.5.sp,
+            ),
+          )
         }
-        Text(text = text, style = labelStyle, textAlign = TextAlign.Center)
+      } else {
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          // The spinner takes the icon's place rather than replacing the label, so the button keeps
+          // its width and the row it sits in does not reflow the moment work starts.
+          if (loading) {
+            Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+              FluidSpinner(size = 16.dp, color = content)
+            }
+          } else if (leading != null) {
+            Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) { leading() }
+          }
+          Text(text = text, style = labelStyle, textAlign = TextAlign.Center)
+        }
       }
     }
   }

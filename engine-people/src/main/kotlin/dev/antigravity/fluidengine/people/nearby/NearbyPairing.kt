@@ -136,8 +136,9 @@ class NearbySession internal constructor(
       throw NearbyRefused("i gettoni dell'altro non si aprono")
     }
     val theirToken = ((Json.parseToJsonElement(opened.decodeToString()) as JsonObject)["token"] as JsonPrimitive).content
-    // L'impronta del mio gettone nella mia casella: da qui in poi le sue buste passano.
-    people.peopleApi.addPrint("delivery", PeoplePrints.delivery(PampaBase64.decode(myToken)))
+    // R2 · Un codice che ho già, con un'altra radice, non sostituisce il contatto vero.
+    val old = people.contact(peer.code)
+    if (old != null && !old.card.root.contentEquals(peer.root)) throw NearbyRefused("il codice è di un contatto che hai già, con un'altra chiave")
     val contact = Contact(
       card = peer,
       theirToken = theirToken,
@@ -147,10 +148,16 @@ class NearbySession internal constructor(
       chatEpoch = 1,
       via = ContactVia.NEARBY,
       verification = Verification(VerifyMethod.NEARBY, me.card.work.epoch, peer.work.epoch, System.currentTimeMillis()),
+      // Di nuovo vicini con chi c'era già: la conversazione nuova è quella che ha anche lui, il nome dato resta.
+      nickname = old?.nickname,
       addedAt = System.currentTimeMillis(),
       lastActivity = System.currentTimeMillis(),
     )
-    people.edit { st: PeopleState -> st.contacts[peer.code] = contact }
+    // L'impronta del mio gettone nella mia casella, in coda (R2): la vicinanza va anche senza rete, e parte con la coda.
+    people.edit { st: PeopleState ->
+      people.queueDeliveryPrint(st, myToken)
+      st.contacts[peer.code] = contact
+    }
     people.syncContact(peer.code)
     return contact
   }

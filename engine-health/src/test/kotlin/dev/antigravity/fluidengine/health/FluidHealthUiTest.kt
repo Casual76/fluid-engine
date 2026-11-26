@@ -219,6 +219,16 @@ class FluidHealthUiTest {
     assertEquals("Da 3 fonti", labels.sourceLine(listOf(sounds, watch, FluidHealthSource("x")), Locale.ITALY))
   }
 
+  @Test
+  fun `la fonte non ripete l'apparecchio che il nome dell'app dice gia'`() {
+    // F8.26c: sul tablet la card diceva «Da Orologio · orologio».
+    val labels = FluidHealthLabels()
+    assertEquals("Da Orologio", labels.sourceLine(listOf(FluidHealthSource("a.b", "Orologio", FluidHealthDeviceKind.Watch)), Locale.ITALY))
+    assertEquals("Da Bilancia smart", labels.sourceLine(listOf(FluidHealthSource("c.d", "Bilancia smart", FluidHealthDeviceKind.Scale)), Locale.ITALY))
+    assertEquals("Da Ritmo · orologio", labels.sourceLine(listOf(FluidHealthSource("e.f", "Ritmo", FluidHealthDeviceKind.Watch)), Locale.ITALY))
+    assertEquals("From Pixel Watch", FluidHealthLabels.English.sourceLine(listOf(FluidHealthSource("g.h", "Pixel Watch", FluidHealthDeviceKind.Watch)), Locale.UK))
+  }
+
   private fun descriptionOf(tag: String): String =
     compose.onNodeWithTag(tag, useUnmergedTree = false).fetchSemanticsNode().config[SemanticsProperties.ContentDescription].first()
 }

@@ -47,9 +47,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `suspend fun requestFromQr(qr: PersonQr, greeting: String = ""): Contact` — Ho inquadrato il QR di qualcuno: la scheda è arrivata senza intermediari, quindi **verificata subito**. La richiesta porta il suo invito e la prova di aver visto il QR, così anche lui sa che sono io (critica S5).
   - `suspend fun accept(req: IncomingRequest): Contact` — Accetta una richiesta: il mio gettone per lui, e il mio nonce delle parole.
   - `suspend fun ignore(req: IncomingRequest)` — Ignora una richiesta: sparisce e basta, chi l'ha mandata non lo sa.
-  - `suspend fun block(mailbox: String)` — Blocca: come togliere, più l'impronta della sua casella fra i bloccati. Lo scarto è silenzioso.
+  - `suspend fun block(mailbox: String)` — Blocca: come togliere, più l'impronta della sua casella fra i bloccati. Lo scarto è silenzioso. Vale **subito** sul telefono, anche senza rete (R2, regola R6): le sue buste si scartano qui, e le impronte partono con la coda.
   - `suspend fun unblock(mailbox: String)`
-  - `suspend fun remove(code: String)` — Togli: la mia casella dimentica il gettone che gli avevo dato. Lui tiene quello che ha già.
+  - `suspend fun remove(code: String)` — Togli: la mia casella dimentica il gettone che gli avevo dato. Lui tiene quello che ha già. Vale subito (R2).
   - `fun words(code: String): WordsView?` — Le parole con [code], se lo scambio con l'impegno è finito; altrimenti `null` («le parole arrivano fra poco»).
   - `suspend fun markWordsVerified(code: String)` — Le parole tornavano al telefono: [code] è verificato a distanza, per le chiavi di oggi.
   - `suspend fun dismissNotice(code: String)` — L'utente ha visto l'avviso delle parole cambiate.
@@ -300,9 +300,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun messageIdOf(data: ByteArray): String` — L'id del messaggio, in base64url: serve a non prendere due volte lo stesso messaggio.
   - `fun open(chatKeys: Map<Int, ByteArray>, from: String, to: String, thread: String, data: ByteArray): ByteArray?` — Apre una PMX1 con la chiave dell'epoca giusta fra [chatKeys], o `null` se non è per questa conversazione.
 - `object SpaceRecordCipher` — Un record di uno spazio condiviso (contratto `people.formulas.spaceRecord`): `nonce(12) ‖ AES-256-GCM`, con la chiave dello spazio all'epoca e i dati associati `"pampa/v1/spazio|<spazio>|<epoca>|<record>|<versione>"`.
-  - `class Opened(val data: String, val writer: String, val writerEpoch: Int, val signature: ByteArray)`
-  - `fun seal(key: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long, data: String, writerCode: String, writer: WorkKeys): ByteArray`
-  - `fun open(key: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long, ciphertext: ByteArray): Opened` — Apre un record; [PeopleDetected] se è stato spostato, rinominato, rinumerato o cambiato. Non controlla la firma.
+  - `class Opened(val data: String, val writer: String, val writerEpoch: Int, val signature: ByteArray, val writerKeys: WorkPublic? = null)` — Un record aperto. [writerKeys] sono le chiavi di lavoro pubbliche di chi scrive, firmate dalla sua radice, se il record le porta (R2, il campo facoltativo `k`): servono a controllare la firma di chi ha rinnovato le chiavi dopo che il proprietario ha mandato lo spazio. Un record di un engine più vecchio non le ha.
+  - `fun seal(key: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long, data: String, writerCode: String, writer: WorkKeys): ByteArray` — Chiude un record; dentro, accanto alla firma, ci sono anche le chiavi di lavoro pubbliche di chi scrive (`k`, R2).
+  - `fun open(key: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long, ciphertext: ByteArray): Opened` — Apre un record; [PeopleDetected] se è stato spostato, rinominato, rinumerato o cambiato, o se dentro un campo è storto (R2: mai un'altra eccezione). Non controlla la firma.
   - `fun signedBy(opened: Opened, signPub: ByteArray, spaceId: String, epoch: Int, recordId: String, version: Long): Boolean` — La firma di [opened] è della chiave di lavoro [signPub]?
   - `fun aad(spaceId: String, epoch: Int, recordId: String, version: Long): ByteArray`
 

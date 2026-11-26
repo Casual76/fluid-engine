@@ -97,6 +97,8 @@ object NearbyHandshake {
       val challenge = reader.blob()
       val eph = reader.blob()
       if (challenge.size != CHALLENGE_BYTES || eph.size != 32) throw Refused("saluto di misura sbagliata")
+      // R2 · Un'effimera di ordine piccolo farebbe cadere la runa con un'eccezione grezza: un rifiuto pulito.
+      if (X25519Key.isWeak(eph)) throw Refused("saluto con una chiave debole")
       return Hello(card, challenge, eph)
     } catch (_: ByteReader.Malformed) {
       throw Refused("non è un saluto di Pampa")

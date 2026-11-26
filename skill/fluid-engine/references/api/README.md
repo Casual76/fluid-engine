@@ -12,7 +12,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Condivisione: foglio, copia preparata, immagine, PDF e stampa](condivisione.md) | 13 | 165 |
-| [Controlli](controlli.md) | 29 | 356 |
+| [Controlli](controlli.md) | 29 | 361 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 18 | 122 |
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
@@ -29,7 +29,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-net](net.md) | 4 | 32 |
 | [engine-config](config.md) | 1 | 10 |
 | [engine-update](update.md) | 2 | 14 |
-| [engine-widget](widget.md) | 8 | 103 |
+| [engine-widget](widget.md) | 8 | 105 |
 | [engine-wear](wear.md) | 21 | 115 |
 | [engine-wear-sync](wear-sync.md) | 8 | 90 |
 | [engine-richtext](richtext.md) | 9 | 104 |
@@ -47,7 +47,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-editor](editor.md) | 14 | 145 |
 | [engine-notify](notify.md) | 9 | 65 |
 | [engine-account](account.md) | 11 | 267 |
-| [engine-account-host](account-host.md) | 25 | 306 |
+| [engine-account-host](account-host.md) | 25 | 308 |
 | [engine-account-ui](account-ui.md) | 2 | 20 |
 | [engine-people](people.md) | 20 | 372 |
 | [engine-push-fcm](push-fcm.md) | 1 | 11 |
@@ -59,14 +59,14 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-search](search.md) | 8 | 152 |
 | [engine-search-semantic](search-semantic.md) | 2 | 9 |
 | [engine-scan e engine-scan-core](scan.md) | 11 | 129 |
-| [engine-map](map.md) | 13 | 179 |
+| [engine-map](map.md) | 13 | 180 |
 | [engine-health](health.md) | 8 | 148 |
 | [engine-diagnostics](diagnostics.md) | 9 | 107 |
 | [engine-feedback](feedback.md) | 4 | 63 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 13 | 206 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 149 |
-| [engine-ai-bridge](ai-bridge.md) | 12 | 191 |
+| [engine-ai-bridge](ai-bridge.md) | 12 | 192 |
 | [engine-ai-mcp](ai-mcp.md) | 10 | 157 |
 | [engine-ai-ui](ai-ui.md) | 32 | 284 |
 

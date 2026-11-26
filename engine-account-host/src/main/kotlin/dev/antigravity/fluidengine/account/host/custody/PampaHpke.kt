@@ -55,7 +55,13 @@ object PampaHpke {
   internal fun sealWith(hpke: HPKE, recipient: ByteArray, info: ByteArray, aad: ByteArray, plaintext: ByteArray, ephemeral: X25519KeyPair?): ByteArray {
     require(recipient.size == 32) { "la pubblica X25519 è di 32 byte, era ${recipient.size}" }
     val pk = runCatching { hpke.deserializePublicKey(recipient) }.getOrElse { throw PampaCryptoException("pubblica illeggibile", it) }
-    val ctx = if (ephemeral == null) hpke.setupBaseS(pk, info) else hpke.setupBaseS(pk, info, ephemeral.asHpke(hpke))
+    // R2 · Una pubblica di ordine piccolo (tutta zero, `1`, …) fa fallire l'accordo X25519 con un'IllegalStateException
+    // di Bouncy Castle: è un rifiuto, non un guasto. Arriva da un QR del passaggio o da una porta del server.
+    val ctx = try {
+      if (ephemeral == null) hpke.setupBaseS(pk, info) else hpke.setupBaseS(pk, info, ephemeral.asHpke(hpke))
+    } catch (e: IllegalStateException) {
+      throw PampaCryptoException("pubblica X25519 debole", e)
+    }
     val ct = ctx.seal(aad, plaintext)
     return ctx.encapsulation + ct
   }

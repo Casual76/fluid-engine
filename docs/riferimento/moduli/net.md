@@ -70,8 +70,10 @@ class FakeHttp(private val body: String) : EngineHttp() {
 
 **Comportamento — `readText`.**
 - Aggiunge `Accept: application/json` **dopo** i tuoi header: se ne passi uno `Accept` tuo, vince quello dell'engine. Imposta anche `User-Agent`.
-- Legge **tutto il corpo in memoria** come `String` (UTF-8). Per un manifest va bene; non e' fatto per file grandi.
-- **Qualunque codice fuori da 200–299 lancia** `IllegalStateException("Richiesta non riuscita (<codice>).")`; il corpo dell'errore viene letto e **scartato**.
+- Legge **tutto il corpo in memoria** come `String` (UTF-8), **al piu' 8 MiB**: oltre lancia `IllegalStateException("Risposta troppo grande.")` (un manifest
+  sbagliato o compromesso non esaurisce la memoria). Per un manifest va bene; non e' fatto per file grandi.
+- **Qualunque codice fuori da 200–299 lancia** `IllegalStateException("Richiesta non riuscita (<codice>).")`; il corpo dell'errore **non si legge** (R2: uno enorme
+  o lentissimo non si aspetta).
   Gli errori di rete (`UnknownHostException`, `SocketTimeoutException`, …) risalgono cosi' come sono. Nessun retry, nessuna cache HTTP, nessun ETag.
   I chiamanti dell'engine lo mettono in un `Result` (`runCatching`).
 - Segue i redirect con il meccanismo di `HttpURLConnection` (`instanceFollowRedirects = true`), che **rifiuta quelli che cambiano protocollo**
@@ -82,8 +84,11 @@ class FakeHttp(private val body: String) : EngineHttp() {
   installarlo. Il `.part` precedente viene cancellato prima di cominciare, e rimosso nel `finally` se qualcosa va storto. La cartella di destinazione viene creata
   (`mkdirs`); un `target` gia' esistente viene sostituito solo a download completato.
 - **Redirect a mano, fino a 5.** `HttpURLConnection` non segue un redirect che cambia protocollo, ed e' esattamente cio' che fa un host di release quando passa
-  alla sua CDN (GitHub Releases → storage): seguirli a mano non e' opzionale. Alla sesta redirezione, o con un `3xx` senza `Location`, lancia «Download non riuscito (<codice>).».
-  Gli stessi `headers` sono mandati a **ogni** salto (anche a un host diverso: non mettere un token qui).
+  alla sua CDN (GitHub Releases → storage): seguirli a mano non e' opzionale. La `Location` si risolve contro l'indirizzo di adesso (anche relativa, «/file.apk»).
+  Alla sesta redirezione, o con un `3xx` senza `Location`, lancia «Download non riuscito (<codice>).».
+  Gli `headers` vanno a ogni salto, **tranne le credenziali** (`Authorization`, `Proxy-Authorization`, `Cookie`): un salto verso un'altra origine (schema, host o
+  porta) le lascia indietro e non tornano nei salti dopo (R2). Un redirect **da https a http**, o verso un protocollo che non e' http, si rifiuta con «Download non
+  riuscito (<codice>).».
 - **Verifica la dimensione.** Se `expectedBytes > 0` e i byte scaricati sono diversi lancia «File incompleto: N byte invece di M.». Un download troncato **non solleva
   niente da solo** (la connessione si chiude e il file resta a meta'): senza questo controllo l'APK dimezzato arriverebbe all'installer, che lo rifiuta con un errore che non spiega niente.
   Il confronto e' con `expectedBytes` (il `sizeBytes` del manifest), **non** con il `Content-Length` della risposta.
@@ -179,7 +184,9 @@ if (permit.waiting) mostraIlPerche(permit.reasons)          // e «Fallo comunqu
 
 - **`install` è facoltativo e una volta sola** (le chiamate dopo la prima non fanno niente; `uninstall` per le prove). Costa
   un callback di rete, un ricevitore e un ascoltatore del calore; tutto fuori dal thread principale. `FluidTransfers.open`
-  di `engine-transfer` lo chiama da sé. Senza `install`, `FluidDeviceConditions` resta `Unknown` e niente si ferma.
+  di `engine-transfer` lo chiama da sé. Senza `install`, `FluidDeviceConditions` resta `Unknown` e niente si ferma. Se
+  Android rifiuta il callback o il ricevitore (un'app con troppe richieste aperte riceve `TooManyRequestsException`), l'app
+  non cade: la lettura riprova da sola, da un secondo a un minuto, e intanto vale l'ultima (R2).
 - **Chi legge già da qui**: gli stati pronti offline (`FluidEmptyState(FluidEmptyPreset.Offline)` senza `online` riprova da
   solo quando la rete torna), la luce del vetro che segue l'inclinazione (`FluidWork.MotionEffects`: si ferma col
   risparmio energetico, anche in carica, e col telefono caldo), l'aptica continua (`FluidWork.ContinuousHaptics`: col
@@ -208,8 +215,12 @@ if (permit.waiting) mostraIlPerche(permit.reasons)          // e «Fallo comunqu
   conta dalla prima caduta, due raccolte non si pestano).
 - `EngineConditionsTest` (Robolectric): il risparmio dati solo sulle reti che costano, i gradini del calore, i segnali
   letti da Android (risparmio energetico, calore, risparmio dati, corrente), `install` che riempie il posto solo.
-- `EngineHttp` non ha prove sue (la classe e' `open` per fingere la rete altrove); la coda di `engine-transfer` prova la
-  ripresa con `Range` contro un server vero (MockWebServer).
+- `EngineHttpTest` (JVM, R2, contro server finti in locale con MockWebServer, mai la rete vera): la `Location` relativa; le
+  credenziali che non seguono un redirect verso un altro host e restano su uno allo stesso server; il redirect da https a http
+  rifiutato (un server https finto col certificato fatto al volo da `keytool`, `LocalTls`) senza toccare il server in chiaro; un
+  corpo di 9 MiB rifiutato; il corpo di un errore che non si legge; un manifest normale.
+- `EngineConditionsFailureTest` (Robolectric, R2): Android che rifiuta il callback della rete predefinita (come con
+  `TooManyRequestsException`): niente eccezione al gestore del processo, e la lettura si riprende.
 
 ## Dove guardare
 

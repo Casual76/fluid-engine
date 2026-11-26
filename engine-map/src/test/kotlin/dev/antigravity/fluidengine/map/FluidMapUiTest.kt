@@ -263,7 +263,7 @@ class FluidMapUiTest {
     val state = FluidMapState(FluidMapCamera(signoria, 14.0))
     show { FluidMap(state, Modifier.fillMaxSize()) }
     compose.onNodeWithTag(FluidMapTags.Attribution).assertIsDisplayed()
-    assertEquals("Crediti della mappa: © OpenStreetMap", description(FluidMapTags.Attribution))
+    assertEquals("Crediti della mappa: ${FluidMapStyles.OpenFreeMapAttribution.short}", description(FluidMapTags.Attribution))
     val low = compose.onNodeWithTag(FluidMapTags.Attribution).fetchSemanticsNode().boundsInRoot.bottom
     state.bottomObscured = 300.dp
     settle(1_000)

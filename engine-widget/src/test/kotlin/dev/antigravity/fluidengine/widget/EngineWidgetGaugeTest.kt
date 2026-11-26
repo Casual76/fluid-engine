@@ -12,6 +12,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGaugeStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidGaugeThreshold
 import dev.antigravity.fluidengine.ui.fluid.fluidGaugeReading
 import java.io.File
+import kotlin.time.Duration.Companion.seconds
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -21,6 +22,12 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+
+/**
+ * Il tetto di serie di `runGlanceAppWidgetUnitTest` è 2 s: col PC carico da quattro build la prima composizione di
+ * Glance ne ha chiesti 4,15 (`lg-unione-r2`, 26/11) e la prova cadeva per il tempo, non per il widget.
+ */
+private val GlanceUnitTimeout = 30.seconds
 
 /**
  * F8.6 · Il quadrante sul widget: Glance lo compone (il numero, l'etichetta, la frase per TalkBack) e le maschere si
@@ -39,7 +46,7 @@ class EngineWidgetGaugeTest {
   private fun layout() = resolveEngineWidgetLayout(DpSize(180.dp, 180.dp))
 
   @Test
-  fun `Glance compone l'anello col numero e la frase per TalkBack`() = runGlanceAppWidgetUnitTest {
+  fun `Glance compone l'anello col numero e la frase per TalkBack`() = runGlanceAppWidgetUnitTest(timeout = GlanceUnitTimeout) {
     setContext(RuntimeEnvironment.getApplication())
     setAppWidgetSize(DpSize(180.dp, 180.dp))
     provideComposable {
@@ -61,7 +68,7 @@ class EngineWidgetGaugeTest {
   }
 
   @Test
-  fun `l'arco grande scrive anche l'etichetta, la soglia superata si dice`() = runGlanceAppWidgetUnitTest {
+  fun `l'arco grande scrive anche l'etichetta, la soglia superata si dice`() = runGlanceAppWidgetUnitTest(timeout = GlanceUnitTimeout) {
     setContext(RuntimeEnvironment.getApplication())
     setAppWidgetSize(DpSize(180.dp, 180.dp))
     provideComposable {
@@ -83,7 +90,7 @@ class EngineWidgetGaugeTest {
   }
 
   @Test
-  fun `la barra a capacita' ha l'etichetta, il valore e gli estremi`() = runGlanceAppWidgetUnitTest {
+  fun `la barra a capacita' ha l'etichetta, il valore e gli estremi`() = runGlanceAppWidgetUnitTest(timeout = GlanceUnitTimeout) {
     setContext(RuntimeEnvironment.getApplication())
     setAppWidgetSize(DpSize(250.dp, 110.dp))
     provideComposable {

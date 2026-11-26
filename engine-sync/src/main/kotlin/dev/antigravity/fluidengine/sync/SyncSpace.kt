@@ -119,6 +119,12 @@ data class SyncSpaceState(
   val failure: SyncFailure?,
   /** Vero finche' il registro non e' stato letto dal disco. */
   val loading: Boolean = false,
+  /**
+   * R2 · Gli elementi con una riga del relay che questo dispositivo non sa aprire, messa da parte per non fermare lo
+   * spazio ([SyncConfig.unreadableRetries]): la chiave di un'epoca che non c'e' ancora, un engine piu' nuovo, un contenuto
+   * rovinato. Si riprovano a ogni sincronizzazione; quando si aprono escono da qui.
+   */
+  val unreadable: List<String> = emptyList(),
 ) {
   companion object {
     internal val Loading = SyncSpaceState(emptyMap(), emptyList(), 0, false, null, null, loading = true)
@@ -143,10 +149,13 @@ class SyncSpaceReport(
   /** Vero se il dispositivo era fermo da troppo e ha riletto tutto. */
   val fullResync: Boolean,
   val failure: SyncFailure?,
+  /** R2 · Gli elementi con una riga messa da parte perche' non si apre ([SyncSpaceState.unreadable]). */
+  val unreadable: List<String> = emptyList(),
 ) {
   override fun toString(): String =
     "SyncSpaceReport($space: mandati $pushed, arrivati $pulled, fusi $merged, conflitti $conflicts, " +
-      "superati $supersededByDelete, tolti $purged${if (fullResync) ", riletto tutto" else ""}${failure?.let { ", $it" } ?: ""})"
+      "superati $supersededByDelete, tolti $purged${if (fullResync) ", riletto tutto" else ""}" +
+      "${if (unreadable.isNotEmpty()) ", da parte ${unreadable.size}" else ""}${failure?.let { ", $it" } ?: ""})"
 }
 
 /**
@@ -188,6 +197,8 @@ class SyncSpace internal constructor(
   private var syncing = false
   private var lastSuccess: Long? = null
   private var failure: SyncFailure? = null
+  /** R2 · Gli elementi con una riga messa da parte ([SyncSpaceState.unreadable]). */
+  private var unreadableIds: List<String> = emptyList()
 
   private val _state = MutableStateFlow(SyncSpaceState.Loading)
 
@@ -376,6 +387,9 @@ class SyncSpace internal constructor(
     // cancellato. Vale anche per un dispositivo che ha solo mandato e mai letto (cursore a zero, versioni confermate).
     var full = cursor == 0L
     val seen = HashSet<String>()
+    // R2 · Le righe che non si aprono: quelle messe da parte si riprovano qui, prima di leggere le novita'.
+    val parked = mutex.withLock { store.transaction { meta(key, MetaUnreadable) }?.let { SyncStoreCodec.decodeUnreadable(it) } } ?: LinkedHashMap()
+    retryParked(parked, report)
     while (true) {
       val page = engine.callPull(id, cursor, config.pageSize)
       when (page) {
@@ -391,10 +405,23 @@ class SyncSpace internal constructor(
           val opened = ArrayList<Pair<SyncRemoteRow, SyncDocument>>(page.rows.size)
           var stopped: SyncFailure? = null
           for (row in page.rows) {
-            val doc = runCatching { openRow(row) }.getOrElse { error ->
-              stopped = unreadable(row, error)
-              null
-            } ?: break
+            val doc = try {
+              openRow(row)
+            } catch (error: Exception) {
+              val failure = unreadable(row, error)
+              // R2 · Una riga che non si apre ferma lo spazio solo per qualche giro ([SyncConfig.unreadableRetries]):
+              // poi resta da parte, col suo contenuto sigillato, e il cursore la passa. Prima era un fermo per sempre.
+              seen += row.recordId
+              val known = parked[row.recordId]
+              if (known != null && known.parked && known.row.version >= row.version) continue
+              val attempts = if (known != null && known.row.version == row.version) known.attempts + 1 else 1
+              val aside = known?.parked == true || attempts >= config.unreadableRetries
+              parked[row.recordId] = SyncUnreadable(row, attempts, aside, failure.toString())
+              if (aside) continue
+              stopped = failure
+              break
+            }
+            parked[row.recordId]?.let { if (it.row.version <= row.version) parked.remove(row.recordId) }
             opened += row to doc
           }
           val next = if (stopped == null) page.next else opened.lastOrNull()?.first?.seq ?: cursor
@@ -403,9 +430,11 @@ class SyncSpace internal constructor(
               val out = ArrayList<SyncStoredRecord>()
               for ((row, doc) in opened) applyRemoteRow(row, doc, report)?.let(out::add)
               if (!full) putMeta(key, MetaCursor, SyncStoreCodec.encodeLong(next))
+              putMeta(key, MetaUnreadable, SyncStoreCodec.encodeUnreadable(parked))
               putMeta("", MetaClock, SyncStoreCodec.encodeHlc(clock.current))
               out to journalRecordCount(key)
             }
+            unreadableIds = parked.values.filter { it.parked }.map { it.row.recordId }
             updateMirrorLocked(touched.first, touched.second)
           }
           opened.forEach { seen += it.first.recordId }
@@ -415,6 +444,15 @@ class SyncSpace internal constructor(
         }
       }
     }
+    if (full && parked.keys.any { it !in seen }) {
+      // Una riga da parte che il relay, riletto tutto, non ha piu': l'elemento e' stato cancellato, vale quello.
+      parked.keys.retainAll(seen)
+      mutex.withLock {
+        store.transaction { putMeta(key, MetaUnreadable, SyncStoreCodec.encodeUnreadable(parked)) }
+        unreadableIds = parked.values.filter { it.parked }.map { it.row.recordId }
+      }
+    }
+    report.unreadable = unreadableIds
     if (full) {
       // Rilette tutte le righe: un elemento che il relay aveva e che ora non ha piu' e' stato cancellato, e la sua pietra
       // tombale e' gia' scaduta. Vale la cancellazione, come se l'avessimo vista in tempo.
@@ -436,6 +474,42 @@ class SyncSpace internal constructor(
         }
         updateMirrorLocked(touched.first, touched.second)
       }
+    }
+  }
+
+  /**
+   * R2 · Riprova le righe messe da parte: quella che ora si apre (e' arrivata la chiave, l'app e' stata aggiornata) si
+   * applica come se arrivasse adesso; quella superata da una versione gia' applicata se ne va; le altre restano.
+   */
+  private suspend fun retryParked(parked: LinkedHashMap<String, SyncUnreadable>, report: ReportBuilder) {
+    if (parked.isEmpty()) return
+    val opened = ArrayList<Pair<SyncRemoteRow, SyncDocument>>()
+    val gone = ArrayList<String>()
+    for (entry in parked.values.filter { it.parked }) {
+      val row = entry.row
+      val base = mutex.withLock { store.transaction { record(key, row.recordId)?.baseVersion } } ?: 0L
+      if (base >= row.version) { gone += row.recordId; continue }
+      val doc = try {
+        openRow(row)
+      } catch (error: Exception) {
+        unreadable(row, error)
+        continue
+      }
+      opened += row to doc
+      gone += row.recordId
+    }
+    if (gone.isEmpty()) return
+    gone.forEach { parked.remove(it) }
+    mutex.withLock {
+      val touched = store.transaction {
+        val out = ArrayList<SyncStoredRecord>()
+        for ((row, doc) in opened) applyRemoteRow(row, doc, report)?.let(out::add)
+        putMeta(key, MetaUnreadable, SyncStoreCodec.encodeUnreadable(parked))
+        putMeta("", MetaClock, SyncStoreCodec.encodeHlc(clock.current))
+        out to journalRecordCount(key)
+      }
+      unreadableIds = parked.values.filter { it.parked }.map { it.row.recordId }
+      updateMirrorLocked(touched.first, touched.second)
     }
   }
 
@@ -621,6 +695,9 @@ class SyncSpace internal constructor(
     val (records, size, last) = store.transaction {
       Triple(records(key), journalRecordCount(key), SyncStoreCodec.decodeLong(meta(key, MetaLastSuccess)))
     }
+    unreadableIds = store.transaction { meta(key, MetaUnreadable) }
+      ?.let { runCatching { SyncStoreCodec.decodeUnreadable(it) }.getOrNull() }
+      ?.values?.filter { it.parked }?.map { it.row.recordId }.orEmpty()
     mirror.clear()
     for (rec in records) mirror[rec.recordId] = rec.local
     pending = size
@@ -659,6 +736,7 @@ class SyncSpace internal constructor(
       syncing = syncing,
       lastSuccessMillis = lastSuccess,
       failure = failure,
+      unreadable = unreadableIds,
     )
     engine.onSpaceChanged()
   }
@@ -674,9 +752,10 @@ class SyncSpace internal constructor(
     var purged = 0
     var fullResync = false
     var failure: SyncFailure? = null
+    var unreadable: List<String> = emptyList()
 
     fun build(space: SyncSpaceId) =
-      SyncSpaceReport(space, pushed, pulled, merged, conflicts, supersededByDelete, purged, fullResync, failure)
+      SyncSpaceReport(space, pushed, pulled, merged, conflicts, supersededByDelete, purged, fullResync, failure, unreadable)
   }
 
   internal companion object {
@@ -685,6 +764,8 @@ class SyncSpace internal constructor(
     const val MetaInflight = "inflight"
     const val MetaLastSuccess = "last-success"
     const val MetaClock = "clock"
+    /** R2 · Le righe che non si aprono: i tentativi su quella che ferma lo spazio, e quelle messe da parte. */
+    const val MetaUnreadable = "unreadable"
 
     /** Un identificativo casuale: 22 caratteri, nessun titolo o nome dentro (sul relay sta in chiaro). */
     fun newRecordId(): String {

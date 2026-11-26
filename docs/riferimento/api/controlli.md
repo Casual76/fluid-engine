@@ -179,11 +179,16 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `enum class FluidButtonStyle` — How much a control's colour says about it.
 - `enum class FluidButtonSize`
+- `enum class FluidButtonLabelPlacement` — Dove sta l'etichetta di un [FluidButton] che ha un'icona (`leading`). Dalla 4.0 (F8.26c).
 - `object FluidButtonDefaults`
+  - `val BelowHeight: Dp` — L'altezza minima di un tasto con l'etichetta sotto l'icona ([FluidButtonLabelPlacement.Below]): 56 dp.
+  - `val BelowFontSize` — Il corpo dell'etichetta sotto l'icona: 13 sp, e al piu' giu' fino a [BelowMinFontSize] se la parola non sta.
+  - `val BelowMinFontSize` — Il corpo piu' piccolo dell'etichetta sotto l'icona: 11 sp, il corpo delle didascalie.
+  - `@Composable fun labelPlacement(labels: List<String>, buttonWidth: Dp, size: FluidButtonSize = FluidButtonSize.Medium): FluidButtonLabelPlacement` — Dove mettere le etichette di una **riga** di tasti con l'icona, larghi [buttonWidth] ciascuno: accanto all'icona se ci stanno tutte su una riga, se no tutte sotto (un tasto sotto e uno accanto, nella stessa riga, si leggono come due cose diverse). Misura col corpo e la scala dei caratteri di adesso.
   - `fun height(size: FluidButtonSize): Dp`
   - `fun horizontalPadding(size: FluidButtonSize): Dp`
   - `fun shape(size: FluidButtonSize): Shape`
-- `@Composable fun FluidButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, style: FluidButtonStyle = FluidButtonStyle.Filled, size: FluidButtonSize = FluidButtonSize.Medium, enabled: Boolean = true, loading: Boolean = false, fillWidth: Boolean = false, haptic: FluidHapticEvent? = FluidHapticEvent.Tap, grip: FluidPressGrip = FluidPressGrip.HoldsFinger, leading: (@Composable () -> Unit)? = null)` — A button.
+- `@Composable fun FluidButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, style: FluidButtonStyle = FluidButtonStyle.Filled, size: FluidButtonSize = FluidButtonSize.Medium, enabled: Boolean = true, loading: Boolean = false, fillWidth: Boolean = false, haptic: FluidHapticEvent? = FluidHapticEvent.Tap, grip: FluidPressGrip = FluidPressGrip.HoldsFinger, labelPlacement: FluidButtonLabelPlacement = FluidButtonLabelPlacement.Beside, leading: (@Composable () -> Unit)? = null)` — A button.
 - `@Composable fun <T> FluidSegmentedControl(options: List<T>, selected: T, onSelect: (T) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: (@Composable (option: T, selected: Boolean) -> Unit)? = null, label: (T) -> String)` — A segmented control.
 - `@Composable fun FluidChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, leading: (@Composable () -> Unit)? = null)` — A filter pill.
 - `@Composable fun FluidRowValue(text: String, modifier: Modifier = Modifier)` — A stepper-free numeric or textual value shown at the trailing edge of a settings row.

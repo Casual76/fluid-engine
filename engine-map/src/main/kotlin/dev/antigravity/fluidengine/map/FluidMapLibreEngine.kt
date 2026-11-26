@@ -7,8 +7,10 @@ package dev.antigravity.fluidengine.map
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Trace
+import android.view.Display
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,6 +45,7 @@ import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.snapshotter.MapSnapshotter
 import kotlin.coroutines.resume
+import kotlin.math.roundToInt
 
 /**
  * Come si disegna la mappa vera.
@@ -50,7 +53,14 @@ import kotlin.coroutines.resume
  * - [Texture]: una `TextureView`, disegnata dentro Compose. Il vetro dei comandi e del foglio la rifrange e la sfoca,
  *   come in Mappe. Costa una copia della tessera per fotogramma (la misura sul Tab S9 e' nella scheda del modulo).
  * - [Surface]: una `SurfaceView`, in una finestra sua: la strada piu' leggera, ma il vetro non la vede e sopra la mappa
- *   si vede chiaro, senza sfocatura (resta leggibile: la tinta e il filo ci sono).
+ *   si vede chiaro, senza sfocatura (resta leggibile: la tinta e il filo ci sono). **Solo a mano, per ora.** Sul Tab S9
+ *   (26/11/2026) la mappa in `SurfaceView` era nera: MapLibre la disegnava (681 fotogrammi nella traccia), ma la mappa
+ *   stava dentro la registrazione del vetro, e il buco della `SurfaceView` nella finestra non si apriva. Dalla F8.26c
+ *   [FluidMap] la tiene fuori; finche' il telefono non la mostra, nessuna fascia la sceglie da sola.
+ *
+ * Sul Tab S9, con la mappa trascinata, [Texture] costa piu' CPU (il filo di MapLibre 4,9 s contro 3,0 in 14 s, il
+ * RenderThread dell'app 3,0 contro 1,6) ma i fotogrammi arrivano in tempo: 99° percentile del disegno 6,6 ms, 5
+ * fotogrammi in ritardo su 705 (`sessioni/f8-26`, 26/11/2026).
  */
 enum class FluidMapRenderMode { Texture, Surface }
 
@@ -69,10 +79,18 @@ enum class FluidMapRenderMode { Texture, Surface }
  * misure sul telefono.
  *
  * MapLibre non si disegna in Robolectric: le prove sul computer usano [FluidSketchMapEngine].
+ *
+ * @param maximumFps quanti fotogrammi al secondo MapLibre disegna al piu' (`MapView.setMaximumFps`), solo in
+ *   [FluidMapRenderMode.Texture]:
+ *   di serie il ritmo piu' alto dello schermo ([screenMaximumFps]); 0 senza limite. In una `TextureView` MapLibre non
+ *   aspetta lo schermo: sul Tab S9 (120 Hz), col dito che trascina, disegnava **220 fotogrammi al secondo**, e l'app ne
+ *   poteva mostrare al piu' 120. Meta' del lavoro del suo filo (64% di un core) finiva buttato (F8.26c, 26/11/2026).
+ *   In [FluidMapRenderMode.Surface] il ritmo lo da' gia' lo schermo.
  */
 class FluidMapLibreEngine(
   context: Context,
   val renderMode: FluidMapRenderMode = FluidMapRenderMode.Texture,
+  val maximumFps: Int = screenMaximumFps(context),
 ) : FluidMapEngine {
   private val appContext = context.applicationContext
 
@@ -104,7 +122,9 @@ class FluidMapLibreEngine(
         .logoEnabled(false)
         .compassEnabled(false)
         .foregroundLoadColor(placeholder.toArgbInt())
-      MapView(context, options)
+      MapView(context, options).also {
+        if (renderMode == FluidMapRenderMode.Texture && maximumFps > 0) it.setMaximumFps(maximumFps)
+      }
     }
     MapViewLifecycle(view)
     val driver = remember(view) { MapLibreDriver(state) }
@@ -167,6 +187,17 @@ class FluidMapLibreEngine(
     /** Avvia MapLibre una volta per processo (dal thread principale). Niente chiave: OpenFreeMap non ne chiede. */
     fun ensureStarted(context: Context) {
       if (!MapLibre.hasInstance()) MapLibre.getInstance(context.applicationContext)
+    }
+
+    /**
+     * Il ritmo piu' alto dello schermo, in fotogrammi al secondo (120 sul Tab S9, 60 su un telefono semplice): il
+     * limite di serie di MapLibre in [FluidMapRenderMode.Texture]. Il piu' alto e non quello di adesso, perche' uno
+     * schermo adattivo sta a 60 da fermo e sale sotto il dito. 60 se lo schermo non lo dice.
+     */
+    fun screenMaximumFps(context: Context): Int {
+      val display = context.getSystemService(DisplayManager::class.java)?.getDisplay(Display.DEFAULT_DISPLAY)
+      val best = display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: display?.refreshRate ?: 60f
+      return best.roundToInt().coerceAtLeast(30)
     }
   }
 }

@@ -16,6 +16,7 @@ import dev.antigravity.fluidengine.people.crypto.PersonCard
 import dev.antigravity.fluidengine.people.crypto.PersonQr
 import dev.antigravity.fluidengine.people.crypto.Pmx1
 import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -26,6 +27,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -160,7 +162,18 @@ class PeopleClient(
     val me = identity()
     require(card.code != me.code) { "non ci si aggiunge da soli" }
     val st = state
-    val myToken = newDeliveryToken()
+    // R2 · Un codice già in rubrica non si sostituisce: con un'altra radice è una scheda falsa (critica S5), con la
+    // stessa è lo stesso contatto, che resta com'è (conversazione, gettoni e verifica compresi).
+    st.contacts[card.code]?.let { old ->
+      if (!old.card.root.contentEquals(card.root)) throw PeopleDetected("radice cambiata: il codice è di un contatto che ho già")
+      val kept = old.copy(card = fresherCard(old.card, card))
+      if (kept != old) {
+        st.contacts[card.code] = kept
+        stateStore.save(st)
+      }
+      return@withLock kept
+    }
+    val myToken = newDeliveryToken(st)
     val chatKey = PampaCrypto.random(32)
     val nonce = PampaCrypto.random(PairCode.NONCE_BYTES)
     val contact = Contact(
@@ -218,7 +231,9 @@ class PeopleClient(
 
   private suspend fun acceptLocked(st: PeopleState, req: IncomingRequest): Contact {
     val me = identity()
-    val myToken = newDeliveryToken()
+    val old = st.contacts[req.card.code]
+    if (old != null && !old.card.root.contentEquals(req.card.root)) throw PeopleDetected("radice cambiata: il codice è di un contatto che ho già")
+    val myToken = newDeliveryToken(st)
     val mine = req.invite?.let { st.invites[it] }
     val qrOk = mine?.kind == "qr" && req.qrProof != null && mine.qrSecret != null && PersonQr(me.card, mine.token, mine.qrSecret).checkProof(req.card.raw, req.qrProof)
     val via = when {
@@ -238,6 +253,8 @@ class PeopleClient(
       via = via,
       verification = if (qrOk) Verification(VerifyMethod.QR, me.card.work.epoch, req.card.work.epoch, clock()) else null,
       words = WordsExchange(committer = false, myEpoch = me.card.work.epoch, theirEpoch = req.card.work.epoch, myNonce = nonce, theirCommit = req.wordsCommit),
+      // Accetto di nuovo chi c'era già (ha perso la sua rubrica): la conversazione riparte, il nome che gli ho dato resta.
+      nickname = old?.nickname,
       addedAt = clock(),
       lastActivity = clock(),
     )
@@ -263,12 +280,15 @@ class PeopleClient(
     stateStore.save(st)
   }
 
-  /** Blocca: come togliere, più l'impronta della sua casella fra i bloccati. Lo scarto è silenzioso. */
+  /**
+   * Blocca: come togliere, più l'impronta della sua casella fra i bloccati. Lo scarto è silenzioso. Vale **subito** sul
+   * telefono, anche senza rete (R2, regola R6): le sue buste si scartano qui, e le impronte partono con la coda.
+   */
   suspend fun block(mailbox: String) = mutex.withLock {
     val st = state
     st.contacts.values.firstOrNull { it.card.mailbox == mailbox }?.let { removeLocked(st, it) }
     st.requests.entries.removeIf { it.value.card.mailbox == mailbox }
-    api.addPrint("blocked", PeoplePrints.blocked(mailbox))
+    st.pendingPrints += PrintOp(add = true, kind = "blocked", print = PeoplePrints.blocked(mailbox))
     st.blocked += mailbox
     stateStore.save(st)
     flushLocked()
@@ -276,12 +296,13 @@ class PeopleClient(
 
   suspend fun unblock(mailbox: String) = mutex.withLock {
     val st = state
-    api.removePrint(PeoplePrints.blocked(mailbox))
+    st.pendingPrints += PrintOp(add = false, kind = "blocked", print = PeoplePrints.blocked(mailbox))
     st.blocked -= mailbox
     stateStore.save(st)
+    flushLocked()
   }
 
-  /** Togli: la mia casella dimentica il gettone che gli avevo dato. Lui tiene quello che ha già. */
+  /** Togli: la mia casella dimentica il gettone che gli avevo dato. Lui tiene quello che ha già. Vale subito (R2). */
   suspend fun remove(code: String) = mutex.withLock {
     val st = state
     st.contacts[code]?.let { removeLocked(st, it) }
@@ -289,10 +310,25 @@ class PeopleClient(
     flushLocked()
   }
 
-  private suspend fun removeLocked(st: PeopleState, c: Contact) {
-    api.removePrint(PeoplePrints.delivery(PampaBase64.decode(c.myToken)))
+  private fun removeLocked(st: PeopleState, c: Contact) {
+    val now = clock()
+    st.pendingPrints += PrintOp(add = false, kind = "delivery", print = PeoplePrints.delivery(PampaBase64.decode(c.myToken)))
     st.contacts.remove(c.code)
-    queueSelf(st, identity(), buildJsonObject { put("t", "rubrica-via"); put("code", c.code) }, EnvelopePriority.NORMAL)
+    tombstone(st, c.code, now)
+    queueSelf(st, identity(), buildJsonObject { put("t", "rubrica-via"); put("code", c.code); put("at", now) }, EnvelopePriority.NORMAL)
+  }
+
+  /** La lapide di [code] tolto all'ora [at] (R2); le lapidi oltre i 90 giorni se ne vanno. */
+  private fun tombstone(st: PeopleState, code: String, at: Long) {
+    st.removedContacts[code] = maxOf(st.removedContacts[code] ?: 0L, at)
+    val horizon = clock() - PeopleState.TOMBSTONE_DAYS * DAY_MS
+    st.removedContacts.entries.removeIf { it.value < horizon }
+  }
+
+  /** [c] è un contatto tolto dopo che era stato aggiunto? Allora una sua copia vecchia non torna (R2). */
+  private fun buried(st: PeopleState, c: Contact): Boolean {
+    val removedAt = st.removedContacts[c.code] ?: return false
+    return removedAt >= c.addedAt
   }
 
   // --- Le quattro parole ------------------------------------------------------------------------------------------
@@ -364,6 +400,23 @@ class PeopleClient(
     val due = st.outbox.filter { it.notBefore <= now }
     // Le buste di gruppo partono con le consegne a pezzi; le altre casella per casella, al massimo 45 per chiamata.
     try {
+      // R2 · Prima le impronte della mia casella, nell'ordine: un gettone nuovo c'è già quando l'altro lo usa, e un
+      // blocco fatto senza rete arriva al server. Se una non passa per ora, le buste aspettano con lei.
+      while (st.pendingPrints.isNotEmpty()) {
+        val op = st.pendingPrints.first()
+        try {
+          if (op.add) api.addPrint(op.kind, op.print) else api.removePrint(op.print)
+        } catch (e: PeopleServerException) {
+          if (e.retryable || e.status in 401..403) {
+            stateStore.save(st)
+            scheduler.requestFlush(e.retryAfterSeconds?.times(1000) ?: RETRY_BASE_MS)
+            return FlushReport(0, st.outbox.size, emptyList(), offline = false)
+          }
+          // Un rifiuto definitivo (una richiesta sbagliata): riprovarla non cambia niente.
+        }
+        st.pendingPrints.removeAt(0)
+        stateStore.save(st)
+      }
       for (chunk in due.filter { it.group }.chunked(PeoplePolicy.GROUP_PER_CALL)) {
         val results = try {
           api.sendMany(chunk.map { it.envelope })
@@ -380,6 +433,8 @@ class PeopleClient(
             else -> postpone(st, listOf(item), null, now)
           }
         }
+        // R2 · Salvato dopo ogni chiamata: un lavoro fermato a metà (WorkManager, una schermata chiusa) non rimanda doppioni.
+        stateStore.save(st)
       }
       for ((to, items) in due.filter { !it.group }.groupBy { it.envelope.to }) {
         var rest = items
@@ -390,6 +445,7 @@ class PeopleClient(
             api.send(to, batch.map { it.envelope })
             st.outbox.removeAll(batch.toSet())
             sent += batch.size
+            stateStore.save(st)
           } catch (e: PeopleServerException) {
             val ok = (e.accepted ?: 0).coerceIn(0, batch.size)
             st.outbox.removeAll(batch.take(ok).toSet())
@@ -447,11 +503,13 @@ class PeopleClient(
   suspend fun pickup(): List<PeopleEvent> = mutex.withLock {
     val st = stateStore.reload()
     val events = ArrayList<PeopleEvent>()
+    // R2 · Le PMX1 rimaste ad aspettare la chiave: un altro mio dispositivo (o una copia) può averla portata.
+    retryWaiting(st).let { events += it; it.filterTo(st.undispatched) { e -> e.forApps } }
     var guard = 0
     while (guard++ < MAX_PAGES) {
       val page = api.pickup(st.cursor)
       for (e in page.envelopes) {
-        val opened = openEnvelope(st, e)
+        val opened = openEnvelope(st, e) + retryWaiting(st)
         events += opened
         opened.filterTo(st.undispatched) { it.forApps }
       }
@@ -484,25 +542,89 @@ class PeopleClient(
       }
     } catch (d: PeopleDetected) {
       listOf(PeopleEvent.Detected(e.n, d.what))
+    } catch (c: CancellationException) {
+      throw c
+    } catch (l: PersonLockedException) {
+      throw l
+    } catch (io: IOException) {
+      throw io
+    } catch (s: PeopleServerException) {
+      // Di passaggio (rete, tetti, accesso da rinnovare): la pagina si riprende al giro dopo, senza perdere niente.
+      if (s.retryable || s.status in 401..403) throw s
+      listOf(PeopleEvent.Detected(e.n, "busta che il server non lascia applicare (${s.code})"))
+    } catch (x: Exception) {
+      // R2 · Una busta con dentro un campo storto (un base64 rotto, un numero che non è un numero, un tipo sbagliato):
+      // è di quella busta sola. Il cursore la passa e la casella non si ferma; chiunque può mandarne una.
+      listOf(PeopleEvent.Detected(e.n, "busta malformata"))
     }
   }
 
   private fun onPmx1(st: PeopleState, e: PickedEnvelope, data: ByteArray): PeopleEvent? {
-    val me = identity()
-    val id = Pmx1.messageIdOf(data)
-    for (c in st.contacts.values.filter { it.card.mailbox == e.from }) {
-      val plain = Pmx1.open(c.chatKeys, e.from, me.mailbox, c.chatId, data) ?: continue
-      if (!st.seenMessages.add(id)) return null
-      st.contacts[c.code] = c.copy(lastActivity = clock())
-      return PeopleEvent.Message(e.n, c.code, c.chatId, json(plain), id)
-    }
-    for (g in st.groups.values) {
-      val m = g.members.values.firstOrNull { it.mailbox == e.from } ?: continue
-      val plain = Pmx1.open(g.keys, e.from, me.mailbox, g.id, data) ?: continue
-      if (!st.seenMessages.add(id)) return null
-      return PeopleEvent.Message(e.n, m.code, g.id, json(plain), id, group = g.id)
+    openPmx1(st, e.n, e.from, data)?.let { return it.takeIf { m -> m !== ALREADY_SEEN } }
+    // R2 · Di un contatto (o di un membro di un gruppo) ma di un'epoca che non ho ancora: la chiave è in ritardo. La busta
+    // resta qui, cifrata, e si riapre quando arriva la chiave.
+    val epoch = Pmx1.epochOf(data)
+    val waits = st.contacts.values.any { it.card.mailbox == e.from && epoch > it.chatEpoch && epoch !in it.chatKeys } ||
+      st.groups.values.any { g -> epoch > g.epoch && epoch !in g.keys && g.members.values.any { it.mailbox == e.from } }
+    if (waits && st.waitingMessages.none { it.n == e.n && it.from == e.from }) {
+      st.waitingMessages += WaitingMessage(e.n, e.from, PampaBase64.encode(data), clock())
+      trimWaiting(st)
+      return null
     }
     throw PeopleDetected("messaggio che non si apre (spostato, cambiato o di un'epoca che non ho)")
+  }
+
+  /** Apre una PMX1 con le chiavi di oggi: il messaggio, [ALREADY_SEEN] se l'avevo già, `null` se non si apre. */
+  private fun openPmx1(st: PeopleState, n: Long, from: String, data: ByteArray): PeopleEvent.Message? {
+    val me = identity()
+    val id = Pmx1.messageIdOf(data)
+    for (c in st.contacts.values.filter { it.card.mailbox == from }) {
+      val plain = Pmx1.open(c.chatKeys, from, me.mailbox, c.chatId, data) ?: continue
+      if (!st.seenMessages.add(id)) return ALREADY_SEEN
+      st.contacts[c.code] = c.copy(lastActivity = clock())
+      return PeopleEvent.Message(n, c.code, c.chatId, json(plain), id)
+    }
+    for (g in st.groups.values) {
+      val m = g.members.values.firstOrNull { it.mailbox == from } ?: continue
+      val plain = Pmx1.open(g.keys, from, me.mailbox, g.id, data) ?: continue
+      if (!st.seenMessages.add(id)) return ALREADY_SEEN
+      return PeopleEvent.Message(n, m.code, g.id, json(plain), id, group = g.id)
+    }
+    return null
+  }
+
+  /** Le PMX1 in attesa che ora si aprono (la chiave è arrivata): tornano coi loro numeri di busta. Le scadute vanno via. */
+  private fun retryWaiting(st: PeopleState): List<PeopleEvent> {
+    if (st.waitingMessages.isEmpty()) return emptyList()
+    val out = ArrayList<PeopleEvent>()
+    val iter = st.waitingMessages.iterator()
+    while (iter.hasNext()) {
+      val w = iter.next()
+      val data = runCatching { PampaBase64.decode(w.data) }.getOrNull()
+      if (data == null) { iter.remove(); continue }
+      val opened = try {
+        openPmx1(st, w.n, w.from, data)
+      } catch (_: PeopleDetected) {
+        iter.remove()
+        out += PeopleEvent.Detected(w.n, "contenuto illeggibile")
+        continue
+      }
+      when {
+        opened === ALREADY_SEEN -> iter.remove()
+        opened != null -> { iter.remove(); out += opened }
+      }
+    }
+    trimWaiting(st)
+    return out
+  }
+
+  /** I tetti delle PMX1 in attesa: 30 giorni, 100 buste, 1 MiB. Escono prima le più vecchie. */
+  private fun trimWaiting(st: PeopleState) {
+    val horizon = clock() - PeopleState.WAITING_DAYS * DAY_MS
+    st.waitingMessages.removeAll { it.at < horizon }
+    while (st.waitingMessages.size > PeopleState.WAITING_MAX || st.waitingMessages.sumOf { it.data.length } > PeopleState.WAITING_MAX_BYTES * 4 / 3) {
+      st.waitingMessages.removeAt(0)
+    }
   }
 
   private suspend fun onCdxb(st: PeopleState, e: PickedEnvelope, opened: Cdxb.Opened): List<PeopleEvent> {
@@ -512,10 +634,14 @@ class PeopleClient(
     val code = card.code
     if (e.from == me.mailbox) return onSelf(st, e, p)
     if (card.mailbox in st.blocked) return emptyList()
+    // R2 · La scheda di un contatto non torna mai indietro: una busta vecchia e genuina, rimandata dal server dopo un
+    // rinnovo, non rimette le chiavi di prima (che stanno sul telefono rubato). Si tiene la più nuova delle due.
+    val known = st.contacts[code]?.card?.let { fresherCard(it, card) } ?: card
     return when (p.s("t")) {
       "richiesta" -> {
         val greeting = p.s("greeting").orEmpty()
         if (greeting.codePointCount(0, greeting.length) > PeoplePolicy.GREETING_MAX) throw PeopleDetected("richiesta troppo lunga")
+        st.contacts[code]?.let { if (!it.card.root.contentEquals(card.root)) throw PeopleDetected("richiesta col codice di un contatto ma un'altra radice") }
         val req = IncomingRequest(
           n = e.n, card = card, greeting = greeting, token = p.req("token"), chatId = p.req("chatId"), chatKey = PampaBase64.decode(p.req("chatKey")),
           via = e.via, invite = p.s("invite"), wordsCommit = p.s("wordsCommit")?.let(PampaBase64::decode), qrProof = p.s("qrProof"), at = e.at,
@@ -532,7 +658,7 @@ class PeopleClient(
       }
       "accetta" -> {
         val c = st.contacts[code] ?: throw PeopleDetected("accettazione di una richiesta che non ho fatto")
-        var updated = c.copy(theirToken = p.req("token"), card = card, lastActivity = clock())
+        var updated = c.copy(theirToken = p.req("token"), card = known, lastActivity = clock())
         val out = mutableListOf<PeopleEvent>(PeopleEvent.Accepted(e.n, code))
         val w = c.words
         val nonce = p.s("wordsNonce")?.let(PampaBase64::decode)
@@ -554,7 +680,7 @@ class PeopleClient(
         val theirEnc = card.work.takeIf { it.epoch == theirEpoch }?.enc ?: throw PeopleDetected("parole di un'altra epoca")
         val myEnc = me.works[myEpoch]?.enc?.publicKey ?: throw PeopleDetected("parole per una chiave che non ho")
         if (!PairCode.opens(w.theirCommit, nonce, card.root, theirEnc, myEnc)) throw PeopleDetected("l'impegno delle parole non torna")
-        st.contacts[code] = c.copy(words = w.copy(theirNonce = nonce), card = card)
+        st.contacts[code] = c.copy(words = w.copy(theirNonce = nonce), card = known)
         listOf(PeopleEvent.WordsReady(e.n, code))
       }
       "chiave-chat" -> {
@@ -563,7 +689,7 @@ class PeopleClient(
         val epoch = p.int("epoch")
         val keys = c.chatKeys + (epoch to PampaBase64.decode(p.req("key")))
         val out = mutableListOf<PeopleEvent>(PeopleEvent.ChatKey(e.n, code, epoch))
-        var updated = c.copy(chatKeys = keys, chatEpoch = maxOf(c.chatEpoch, epoch), card = card)
+        var updated = c.copy(chatKeys = keys, chatEpoch = maxOf(c.chatEpoch, epoch), card = known)
         val commit = p.s("wordsCommit")?.let(PampaBase64::decode)
         if (commit != null && card.work.epoch > c.card.work.epoch) {
           val nonce = responderNonce(me, commit, me.card.work.epoch, card.work.epoch)
@@ -587,7 +713,7 @@ class PeopleClient(
         val c = st.contacts[code] ?: throw PeopleDetected("parole da chi non è un contatto")
         val w = c.words ?: throw PeopleDetected("parole senza uno scambio aperto")
         if (!w.committer || p.int("yourEpoch") != w.myEpoch || p.int("myEpoch") != w.theirEpoch) throw PeopleDetected("parole fuori dallo scambio")
-        val updated = c.copy(words = w.copy(theirNonce = PampaBase64.decode(p.req("nonce")), revealed = true), card = card)
+        val updated = c.copy(words = w.copy(theirNonce = PampaBase64.decode(p.req("nonce")), revealed = true), card = known)
         sendReveal(st, me, updated, w)
         st.contacts[code] = updated
         listOf(PeopleEvent.WordsReady(e.n, code))
@@ -604,14 +730,17 @@ class PeopleClient(
         val group = p.req("group")
         val prev = st.groups[group]
         if (prev != null && prev.admin != code) throw PeopleDetected("stato del gruppo da chi non lo amministra")
+        // R2 · Uno stato vecchio rimandato non rimette dentro chi era uscito, né i gettoni di prima.
+        if (prev != null && p.int("epoch") < prev.epoch) throw PeopleDetected("stato del gruppo più vecchio di quello che ho")
         val members = (p["members"] as JsonArray).map { PeopleState.member(it.jsonObject) }.associateBy { it.code }
         val mine = members[me.code] ?: throw PeopleDetected("gruppo che non mi contiene")
         val keys = (prev?.keys ?: emptyMap()) + (p["keys"] as JsonObject).entries.associate { it.key.toInt() to PampaBase64.decode(it.value.jsonPrimitive.content) }
+        // Le impronte in coda, come le buste (R2): il ritiro non chiama la rete a metà di una busta.
         if (prev != null && prev.myToken != mine.token) {
-          api.addPrint("delivery", PeoplePrints.delivery(PampaBase64.decode(mine.token)))
-          api.removePrint(PeoplePrints.delivery(PampaBase64.decode(prev.myToken)))
+          st.pendingPrints += PrintOp(add = true, kind = "delivery", print = PeoplePrints.delivery(PampaBase64.decode(mine.token)))
+          st.pendingPrints += PrintOp(add = false, kind = "delivery", print = PeoplePrints.delivery(PampaBase64.decode(prev.myToken)))
         } else if (prev == null && mine.token != st.pendingGroupTokens[group]) {
-          api.addPrint("delivery", PeoplePrints.delivery(PampaBase64.decode(mine.token)))
+          st.pendingPrints += PrintOp(add = true, kind = "delivery", print = PeoplePrints.delivery(PampaBase64.decode(mine.token)))
         }
         st.pendingGroupTokens.remove(group)
         st.groups[group] = PeopleGroup(group, p.s("name") ?: prev?.name ?: "", code, p.int("epoch"), keys, members, mine.token)
@@ -639,14 +768,23 @@ class PeopleClient(
     return when (p.s("t")) {
       "rubrica" -> {
         val incoming = PeopleState.contact(p["contact"]!!.jsonObject)
+        // R2 · Una rubrica partita prima che togliessi questo contatto (un dispositivo rimasto offline) non lo rimette.
+        if (buried(st, incoming)) return emptyList()
         val mine = st.contacts[incoming.code]
-        if (mine == null || incoming.lastActivity >= mine.lastActivity) st.contacts[incoming.code] = incoming
+        if (mine != null && !mine.card.root.contentEquals(incoming.card.root)) throw PeopleDetected("rubrica con un'altra radice per un contatto")
+        if (mine == null || incoming.lastActivity >= mine.lastActivity) {
+          st.contacts[incoming.code] = if (mine == null) incoming else incoming.copy(card = fresherCard(mine.card, incoming.card))
+        }
         st.requests.entries.removeIf { it.value.card.code == incoming.code }
         listOf(PeopleEvent.RubricaSynced(e.n, incoming.code))
       }
       "rubrica-via" -> {
-        st.contacts.remove(p.req("code"))
-        listOf(PeopleEvent.RubricaSynced(e.n, p.req("code")))
+        val code = p.req("code")
+        // Tolto all'ora dell'altro dispositivo: un contatto aggiunto qui dopo, di nuovo, resta (R2).
+        val at = (p["at"] as? JsonPrimitive)?.longOrNull ?: clock()
+        st.contacts[code]?.let { if (it.addedAt <= at) st.contacts.remove(code) }
+        tombstone(st, code, at)
+        listOf(PeopleEvent.RubricaSynced(e.n, code))
       }
       "dispositivi" -> listOf(PeopleEvent.FromMyDevices(e.n, JsonObject(p - "origin")))
       else -> throw PeopleDetected("busta a me stesso di un tipo sconosciuto")
@@ -724,10 +862,10 @@ class PeopleClient(
   /** Un gruppo nuovo, di cui sono l'amministratore. Il nome viaggia solo cifrato, dentro le buste. */
   suspend fun createGroup(name: String): PeopleGroup = mutex.withLock {
     val me = identity()
-    val myToken = newDeliveryToken()
+    val st = state
+    val myToken = newDeliveryToken(st)
     val id = PampaBase64.encode(PampaCrypto.random(16))
     val g = PeopleGroup(id, name, me.code, 1, mapOf(1 to PampaCrypto.random(32)), mapOf(me.code to selfMember(me, myToken)), myToken)
-    val st = state
     st.groups[id] = g
     stateStore.save(st)
     g
@@ -746,8 +884,8 @@ class PeopleClient(
   /** Ho inquadrato il QR di un gruppo: chiedo di entrare all'amministratore, col mio gettone per il gruppo. */
   suspend fun joinGroup(invite: GroupInvite) = mutex.withLock {
     val me = identity()
-    val token = newDeliveryToken()
     val st = state
+    val token = newDeliveryToken(st)
     st.pendingGroupTokens[invite.group] = token
     val payload = buildJsonObject { put("t", "ingresso"); put("group", invite.group); put("token", token); put("invite", invite.token) }
     enqueue(st, OutEnvelope(invite.admin.mailbox, seal(me, invite.admin, payload), invite = invite.token, priority = EnvelopePriority.NORMAL), "ingresso nel gruppo")
@@ -796,8 +934,8 @@ class PeopleClient(
     val epoch = g.epoch + 1
     val stay = (g.members - codes.toSet()).mapValues { (_, m) -> m.copy(token = PeoplePrints.newToken()) }
     val myToken = stay.getValue(me.code).token
-    api.addPrint("delivery", PeoplePrints.delivery(PampaBase64.decode(myToken)))
-    api.removePrint(PeoplePrints.delivery(PampaBase64.decode(g.myToken)))
+    st.pendingPrints += PrintOp(add = true, kind = "delivery", print = PeoplePrints.delivery(PampaBase64.decode(myToken)))
+    st.pendingPrints += PrintOp(add = false, kind = "delivery", print = PeoplePrints.delivery(PampaBase64.decode(g.myToken)))
     val updated = g.copy(epoch = epoch, keys = g.keys + (epoch to PampaCrypto.random(32)), members = stay, myToken = myToken)
     st.groups[groupId] = updated
     broadcastGroup(st, updated, stay.values.map { it.copy(token = oldTokens.getValue(it.code)) }, gone)
@@ -841,16 +979,36 @@ class PeopleClient(
     return dev.antigravity.fluidengine.account.crypto.PampaEnvelope.seal(kRubrica, epoch, plain.toString().toByteArray(), rubricaAad(accountId, version)).toField()
   }
 
-  /** Riprende la rubrica dalla copia del server. Quello che c'è già sul telefono e non è nella copia resta. */
+  /**
+   * Riprende la rubrica dalla copia del server. Quello che c'è già sul telefono e non è nella copia resta.
+   *
+   * Contro i ritorni indietro (R2, minacce M12): una copia con una [version] più vecchia dell'ultima ripresa qui è
+   * rifiutata ([dev.antigravity.fluidengine.account.crypto.PampaCryptoException]); un contatto tolto dopo che era
+   * stato aggiunto (le lapidi, anche quelle della copia) non torna; e la scheda di un contatto non scende mai a
+   * un'epoca di lavoro più vecchia di quella che ho.
+   */
   suspend fun importRubrica(accountId: String, field: String, version: Long, keyFor: (Int) -> ByteArray?) = mutex.withLock {
     val envelope = dev.antigravity.fluidengine.account.crypto.PampaEnvelope.parseField(field)
     val key = keyFor(envelope.epoch) ?: throw dev.antigravity.fluidengine.account.crypto.PampaCryptoException("manca K_com(rubrica) dell'epoca ${envelope.epoch}")
     val copy = PeopleState.fromJson(Json.parseToJsonElement(envelope.open(key, rubricaAad(accountId, version)).decodeToString()).jsonObject)
     val st = state
-    for ((k, c) in copy.contacts) if ((st.contacts[k]?.lastActivity ?: -1) <= c.lastActivity) st.contacts[k] = c
+    if (version < st.importedRubrica) {
+      throw dev.antigravity.fluidengine.account.crypto.PampaCryptoException("copia della rubrica più vecchia di quella già ripresa ($version < ${st.importedRubrica})")
+    }
+    for ((code, at) in copy.removedContacts) {
+      tombstone(st, code, at)
+      st.contacts[code]?.let { if (it.addedAt <= at) st.contacts.remove(code) }
+    }
+    for ((k, c) in copy.contacts) {
+      if (buried(st, c)) continue
+      val mine = st.contacts[k]
+      if (mine != null && !mine.card.root.contentEquals(c.card.root)) continue
+      if ((mine?.lastActivity ?: -1) <= c.lastActivity) st.contacts[k] = if (mine == null) c else c.copy(card = fresherCard(mine.card, c.card))
+    }
     st.blocked += copy.blocked
     for ((k, g) in copy.groups) st.groups.putIfAbsent(k, g)
     for ((k, sp) in copy.spaces) st.spaces.putIfAbsent(k, sp)
+    st.importedRubrica = version
     stateStore.save(st)
   }
 
@@ -887,10 +1045,16 @@ class PeopleClient(
 
   // --- Gli attrezzi -----------------------------------------------------------------------------------------------
 
-  private suspend fun newDeliveryToken(): String {
+  /** Un gettone nuovo da dare: la sua impronta va in coda (R2), e parte prima della busta che lo porta. */
+  private fun newDeliveryToken(st: PeopleState): String {
     val token = PeoplePrints.newToken()
-    api.addPrint("delivery", PeoplePrints.delivery(PampaBase64.decode(token)))
+    st.pendingPrints += PrintOp(add = true, kind = "delivery", print = PeoplePrints.delivery(PampaBase64.decode(token)))
     return token
+  }
+
+  /** Per la vicinanza: il gettone nato lì, in coda come gli altri (R2). */
+  internal fun queueDeliveryPrint(st: PeopleState, token: String) {
+    st.pendingPrints += PrintOp(add = true, kind = "delivery", print = PeoplePrints.delivery(PampaBase64.decode(token)))
   }
 
   private fun seal(me: PersonIdentity, to: PersonCard, payload: JsonObject): String = seal(me, CdxbRecipient.of(to), payload)
@@ -913,7 +1077,11 @@ class PeopleClient(
 
   companion object {
     private const val MAX_PAGES = 50
-    private val RUBRICA_KEYS = setOf("v", "contacts", "blocked", "groups", "spaces")
+    private const val DAY_MS = 86_400_000L
+    /** Le lapidi dei contatti tolti viaggiano anche nella copia (R2): un telefono che la riprende non li rimette. */
+    private val RUBRICA_KEYS = setOf("v", "contacts", "blocked", "groups", "spaces", "removed")
+    /** Il segno di una PMX1 già presa: non è un evento. */
+    private val ALREADY_SEEN = PeopleEvent.Message(-1, "", "", JsonObject(emptyMap()), "")
     private const val RESPONDER_NONCE = "pampa/v1/parole-nonce"
     private const val RETRY_OFFLINE_MS = 60_000L
     private const val RETRY_BASE_MS = 5_000L

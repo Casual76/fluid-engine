@@ -6,6 +6,12 @@ import dev.antigravity.fluidengine.foundation.transfer.FluidTransferFailure
 import dev.antigravity.fluidengine.foundation.transfer.FluidTransferItem
 import dev.antigravity.fluidengine.foundation.transfer.FluidTransferState
 import java.io.File
+import java.io.FileOutputStream
+import java.io.FilterOutputStream
+import java.io.IOException
+import java.io.OutputStream
+import java.net.InetAddress
+import java.net.URL
 import java.nio.file.Files
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
@@ -70,8 +76,13 @@ class FluidTransfersTest {
   private inner class FileServer(
     var body: ByteArray = content,
     var ranges: Boolean = true,
-    var etag: String = "\"v1\"",
+    /** Null: il server non da' validatori (niente `ETag`, niente `Last-Modified`). */
+    var etag: String? = "\"v1\"",
     var bytesPerTick: Long = 32 * 1024,
+    /** R2 · Un server scorretto: onora `Range` ma ignora `If-Range` (risponde 206 anche dalla versione nuova). */
+    var ignoreIfRange: Boolean = false,
+    /** R2 · Il corpo a pezzi, senza la misura (`Transfer-Encoding: chunked`): il totale non si sa. */
+    var chunked: Boolean = false,
   ) : okhttp3.mockwebserver.Dispatcher() {
     val requests = CopyOnWriteArrayList<RecordedRequest>()
     var failNext = 0
@@ -85,20 +96,20 @@ class FluidTransfersTest {
       }
       val range = request.getHeader("Range")
       val ifRange = request.getHeader("If-Range")
-      val honor = ranges && range != null && (ifRange == null || ifRange == etag)
+      val honor = ranges && range != null && (ignoreIfRange || ifRange == null || ifRange == etag)
       if (honor) {
         val start = range!!.removePrefix("bytes=").substringBefore('-').toInt()
         if (start >= body.size) return MockResponse().setResponseCode(416)
         return MockResponse().setResponseCode(206)
           .setHeader("Content-Range", "bytes $start-${body.size - 1}/${body.size}")
-          .setHeader("ETag", etag)
+          .apply { etag?.let { setHeader("ETag", it) } }
           .setBody(Buffer().write(body.copyOfRange(start, body.size)))
           .throttleBody(bytesPerTick, 20, TimeUnit.MILLISECONDS)
       }
       return MockResponse().setResponseCode(200)
-        .setHeader("ETag", etag)
+        .apply { etag?.let { setHeader("ETag", it) } }
         .apply { if (ranges) setHeader("Accept-Ranges", "bytes") }
-        .setBody(Buffer().write(body))
+        .apply { if (chunked) setChunkedBody(Buffer().write(body), 16 * 1024) else setBody(Buffer().write(body)) }
         .throttleBody(bytesPerTick, 20, TimeUnit.MILLISECONDS)
     }
   }
@@ -138,7 +149,7 @@ class FluidTransfersTest {
     assertEquals(FluidTransferState.Completed, done.state)
     assertEquals(content.size.toLong(), done.bytesDone)
     assertArrayEquals(content, File(folder, "apk.apk").readBytes())
-    assertFalse(FluidTransfers.partFile(File(folder, "apk.apk")).exists())
+    assertFalse(FluidTransfers.partFile(download()).exists())
     assertEquals("identity", files.requests.first().getHeader("Accept-Encoding"))
   }
 
@@ -154,7 +165,7 @@ class FluidTransfersTest {
     withTimeout(10_000) { run.await() }
     val paused = transfers.item("apk")!!
     assertEquals(FluidTransferState.Paused, paused.state)
-    val part = FluidTransfers.partFile(File(folder, "apk.apk"))
+    val part = FluidTransfers.partFile(download())
     assertEquals(paused.bytesDone, part.length())
     assertTrue(paused.bytesDone in 200_000 until content.size.toLong())
 
@@ -222,7 +233,7 @@ class FluidTransfersTest {
     withTimeout(10_000) { run.await() }
     val saved = store.load().single()
     assertTrue(saved.state == FluidTransferState.Running || saved.state == FluidTransferState.Queued)
-    val part = FluidTransfers.partFile(File(folder, "apk.apk")).length()
+    val part = FluidTransfers.partFile(download()).length()
     assertTrue(part > 0L)
 
     val second = queue(store)
@@ -360,7 +371,7 @@ class FluidTransfersTest {
     transfers.cancel("apk")
     withTimeout(10_000) { run.await() }
     assertEquals(FluidTransferState.Cancelled, transfers.item("apk")!!.state)
-    assertFalse(FluidTransfers.partFile(File(folder, "apk.apk")).exists())
+    assertFalse(FluidTransfers.partFile(download()).exists())
     transfers.clearFinished()
     transfers.settle()
     assertNull(transfers.item("apk"))
@@ -471,4 +482,340 @@ class FluidTransfersTest {
   }
 
   private fun ByteArray.toTempFile(): File = File(folder, "check.bin").apply { writeBytes(this@toTempFile) }
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // R2 · Rete e trasferimenti (muse-f8-prime, 15-20 e i minori): server scorretti, rinvii, disco pieno.
+  // ---------------------------------------------------------------------------------------------------------------
+
+  private fun queueWith(
+    authorizer: FluidTransferAuthorizer = FluidTransferAuthorizer.None,
+    store: FluidTransferStore = InMemoryFluidTransferStore(),
+    config: FluidTransferConfig = FluidTransferConfig(progressIntervalMillis = 50L, conditionsCheckMillis = 50L),
+  ): FluidTransfers =
+    FluidTransfers(
+      store = store,
+      conditions = { conditions },
+      authorizer = authorizer,
+      config = config,
+      dispatcher = Dispatchers.IO,
+      conditionChanges = null,
+    ).also(opened::add)
+
+  /** Le credenziali dell'app: tutto quello che da' l'authorizer e' segreto, anche un'intestazione sua. */
+  private val secret = FluidTransferAuthorizer { mapOf("Authorization" to "Bearer s3gr3to", "X-Api-Key" to "chiave") }
+
+  /** Il server delle release: vuole la credenziale, poi rimanda al CDN ([cdn]) con un indirizzo firmato. */
+  private fun releaseServer(cdn: String) = object : okhttp3.mockwebserver.Dispatcher() {
+    override fun dispatch(request: RecordedRequest): MockResponse =
+      if (request.getHeader("Authorization") != "Bearer s3gr3to") MockResponse().setResponseCode(401)
+      else MockResponse().setResponseCode(302).setHeader("Location", cdn)
+  }
+
+  private fun downloadFrom(url: String, id: String = "apk", target: File = File(folder, "$id.apk"), title: String = "Pampa Notes 2.4") =
+    FluidTransferRequest.download(url = url, target = target, title = title, id = id)
+
+  @Test fun `R2 le credenziali non seguono un rinvio verso un altro host`() = runBlocking {
+    val cdn = MockWebServer().apply { start(InetAddress.getByName("127.0.0.1"), 0) }
+    try {
+      val files = FileServer(bytesPerTick = 512 * 1024)
+      cdn.dispatcher = files
+      server.dispatcher = releaseServer("http://127.0.0.1:${cdn.port}/cdn/notes.apk?firma=abc")
+      val transfers = queueWith(authorizer = secret)
+      transfers.enqueue(downloadFrom("http://localhost:${server.port}/release/notes.apk"))
+      transfers.settle()
+      withTimeout(20_000) { transfers.runQueue() }
+      assertEquals(FluidTransferState.Completed, transfers.item("apk")!!.state)
+      assertArrayEquals(content, File(folder, "apk.apk").readBytes())
+      val atCdn = files.requests.single()
+      assertNull("il CDN non deve vedere la credenziale", atCdn.getHeader("Authorization"))
+      assertNull("nemmeno un'intestazione dell'authorizer", atCdn.getHeader("X-Api-Key"))
+      assertEquals("identity", atCdn.getHeader("Accept-Encoding"))
+    } finally {
+      cdn.shutdown()
+    }
+  }
+
+  @Test fun `R2 un rinvio sullo stesso server tiene le credenziali`() = runBlocking {
+    val files = FileServer(bytesPerTick = 512 * 1024)
+    server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+      override fun dispatch(request: RecordedRequest): MockResponse = when {
+        request.getHeader("Authorization") != "Bearer s3gr3to" -> MockResponse().setResponseCode(401)
+        request.path == "/vecchio/notes.apk" -> MockResponse().setResponseCode(301).setHeader("Location", "/notes.apk")
+        else -> files.dispatch(request)
+      }
+    }
+    val transfers = queueWith(authorizer = secret)
+    transfers.enqueue(downloadFrom(server.url("/vecchio/notes.apk").toString()))
+    transfers.settle()
+    withTimeout(20_000) { transfers.runQueue() }
+    assertEquals(FluidTransferState.Completed, transfers.item("apk")!!.state)
+    assertEquals("Bearer s3gr3to", files.requests.single().getHeader("Authorization"))
+  }
+
+  @Test fun `R2 un rinvio da https a http si rifiuta e la credenziale resta a casa`() = LocalTls.trusted {
+    runBlocking {
+      val plain = MockWebServer().apply { start(InetAddress.getByName("127.0.0.1"), 0) }
+      val secure = MockWebServer().apply {
+        useHttps(LocalTls.serverSockets, false)
+        start(InetAddress.getByName("localhost"), 0)
+      }
+      try {
+        val files = FileServer(bytesPerTick = 512 * 1024)
+        plain.dispatcher = files
+        secure.dispatcher = releaseServer("http://127.0.0.1:${plain.port}/cdn/notes.apk")
+        val transfers = queueWith(authorizer = secret)
+        transfers.enqueue(downloadFrom("https://localhost:${secure.port}/release/notes.apk"))
+        transfers.settle()
+        val result = withTimeout(20_000) { transfers.runQueue() }
+        assertEquals("il server in chiaro non va nemmeno toccato", 0, files.requests.size)
+        assertEquals(1, secure.requestCount)
+        val item = transfers.item("apk")!!
+        assertEquals(FluidTransferState.Failed, item.state)
+        assertFalse(result.retryLater)
+      } finally {
+        plain.shutdown()
+        secure.shutdown()
+      }
+    }
+  }
+
+  @Test fun `R2 un rinvio permanente 308 si segue`() = runBlocking {
+    val files = FileServer(bytesPerTick = 512 * 1024)
+    server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+      override fun dispatch(request: RecordedRequest): MockResponse =
+        if (request.path == "/vecchio.apk") MockResponse().setResponseCode(308).setHeader("Location", "/notes.apk")
+        else files.dispatch(request)
+    }
+    val transfers = queue()
+    transfers.enqueue(downloadFrom(server.url("/vecchio.apk").toString()))
+    transfers.settle()
+    withTimeout(20_000) { transfers.runQueue() }
+    val item = transfers.item("apk")!!
+    assertEquals("${item.failure}", FluidTransferState.Completed, item.state)
+    assertArrayEquals(content, File(folder, "apk.apk").readBytes())
+  }
+
+  @Test fun `R2 il disco pieno a meta' e' il disco e non la rete, e non si riprova da solo`() = runBlocking {
+    val files = FileServer(bytesPerTick = 128 * 1024)
+    server.dispatcher = files
+    val transfers = queue()
+    val room = 300_000L
+    transfers.partOutput = { file, append -> FullDisk(FileOutputStream(file, append), room) }
+    transfers.enqueue(download())
+    transfers.settle()
+    val result = withTimeout(20_000) { transfers.runQueue() }
+    val item = transfers.item("apk")!!
+    assertFalse("un disco pieno non passa da solo: niente nuovi tentativi", result.retryLater)
+    assertEquals(FluidTransferState.Failed, item.state)
+    assertEquals(FluidTransferFailure.Storage, item.failure?.kind)
+    assertEquals(1, item.attempts)
+    // Fatto spazio, «Riprova» riprende da dove il disco si era fermato.
+    transfers.partOutput = { file, append -> FileOutputStream(file, append) }
+    val kept = folder.listFiles()!!.single { it.name.endsWith(".part") }.length()
+    assertTrue("parziale tenuto: $kept", kept in 1..room)
+    transfers.retry("apk")
+    transfers.settle()
+    withTimeout(20_000) { transfers.runQueue() }
+    assertEquals(FluidTransferState.Completed, transfers.item("apk")!!.state)
+    assertArrayEquals(content, File(folder, "apk.apk").readBytes())
+    assertEquals("bytes=$kept-", files.requests.last().getHeader("Range"))
+  }
+
+  @Test fun `R2 un server che ignora If-Range non cuce due versioni`() = runBlocking {
+    val files = FileServer(ignoreIfRange = true)
+    server.dispatcher = files
+    val transfers = queue()
+    transfers.enqueue(download())
+    transfers.settle()
+    val run = async(Dispatchers.IO) { transfers.runQueue() }
+    transfers.waitFor("apk") { it.bytesDone > 200_000 }
+    transfers.pause("apk")
+    withTimeout(10_000) { run.await() }
+    // Il file cambia sul server durante la pausa, con la stessa misura: lo dice solo l'ETag.
+    val changed = Random(99).nextBytes(content.size)
+    files.body = changed
+    files.etag = "\"v2\""
+    transfers.resume("apk")
+    transfers.settle()
+    withTimeout(20_000) { transfers.runQueue() }
+    assertEquals(FluidTransferState.Completed, transfers.item("apk")!!.state)
+    assertArrayEquals(changed, File(folder, "apk.apk").readBytes())
+  }
+
+  @Test fun `R2 un server senza validatori che cambia misura fa ricominciare da capo`() = runBlocking {
+    val files = FileServer(etag = null)
+    server.dispatcher = files
+    val transfers = queue()
+    transfers.enqueue(download())
+    transfers.settle()
+    val run = async(Dispatchers.IO) { transfers.runQueue() }
+    transfers.waitFor("apk") { it.bytesDone > 200_000 }
+    transfers.pause("apk")
+    withTimeout(10_000) { run.await() }
+    val changed = Random(98).nextBytes(1_200_000)
+    files.body = changed
+    transfers.resume("apk")
+    transfers.settle()
+    withTimeout(20_000) { transfers.runQueue() }
+    assertEquals(FluidTransferState.Completed, transfers.item("apk")!!.state)
+    assertArrayEquals(changed, File(folder, "apk.apk").readBytes())
+  }
+
+  @Test fun `R2 due trasferimenti verso lo stesso file non si cuciono`() = runBlocking {
+    val files = FileServer()
+    server.dispatcher = files
+    val transfers = queue()
+    val target = File(folder, "notes.apk")
+    transfers.enqueue(downloadFrom(server.url("/notes.apk").toString(), id = "v1", target = target))
+    transfers.settle()
+    val run = async(Dispatchers.IO) { transfers.runQueue() }
+    transfers.waitFor("v1") { it.bytesDone > 200_000 }
+    transfers.pause("v1")
+    withTimeout(10_000) { run.await() }
+    val paused = transfers.item("v1")!!.bytesDone
+    // Esce la versione nuova: l'app chiede lei, con un altro id, sullo stesso file.
+    val v2 = Random(97).nextBytes(content.size)
+    files.body = v2
+    files.etag = "\"v2\""
+    transfers.enqueue(downloadFrom(server.url("/notes.apk").toString(), id = "v2", target = target, title = "Pampa Notes 2.5"))
+    transfers.settle()
+    withTimeout(20_000) { transfers.runQueue() }
+    assertEquals(FluidTransferState.Completed, transfers.item("v2")!!.state)
+    assertArrayEquals(v2, target.readBytes())
+    // Il parziale di v1 c'e' ancora, intero: v1 puo' riprendere da li'.
+    assertEquals(listOf(paused), folder.listFiles()!!.filter { it.name.endsWith(".part") }.map { it.length() })
+  }
+
+  @Test fun `R2 un trasferimento non riuscito ha l'ora di fine e l'esito lo dice`() = runBlocking {
+    val files = FileServer()
+    files.failNext = 1
+    files.failCode = 404
+    server.dispatcher = files
+    val transfers = queue()
+    val since = System.currentTimeMillis()
+    transfers.enqueue(download())
+    transfers.settle()
+    transfers.runQueue()
+    val item = transfers.item("apk")!!
+    assertEquals(FluidTransferState.Failed, item.state)
+    assertNotNull("finishedAtMillis", item.finishedAtMillis)
+    val outcome = fluidTransferOutcome(transfers.overview.value, since)
+    assertTrue("$outcome", outcome.failed)
+    assertEquals("Pampa Notes 2.4 non riuscito", outcome.message)
+  }
+
+  @Test fun `R2 una coda salvata che non scrive non nasconde il trasferimento`() = runBlocking {
+    server.dispatcher = FileServer(bytesPerTick = 512 * 1024)
+    val broken = object : FluidTransferStore {
+      override fun load(): List<FluidTransferRecord> = emptyList()
+      override fun save(record: FluidTransferRecord) {
+        throw IllegalStateException("database or disk is full")
+      }
+      override fun delete(id: String) {
+        throw IllegalStateException("database or disk is full")
+      }
+    }
+    val transfers = queue(store = broken)
+    transfers.enqueue(download())
+    transfers.settle()
+    assertEquals(FluidTransferState.Queued, transfers.item("apk")?.state)
+    withTimeout(20_000) { transfers.runQueue() }
+    assertEquals(FluidTransferState.Completed, transfers.item("apk")!!.state)
+    assertArrayEquals(content, File(folder, "apk.apk").readBytes())
+  }
+
+  @Test fun `R2 Annulla che arriva all'ultima lettura annulla davvero`() = runBlocking {
+    server.dispatcher = FileServer(chunked = true)
+    // L'avanzamento arriva solo la prima volta e alla fine: Annulla cade dopo l'ultima lettura, con il totale ignoto.
+    val transfers = queueWith(config = FluidTransferConfig(progressIntervalMillis = 600_000L, conditionsCheckMillis = 600_000L))
+    transfers.enqueue(download())
+    transfers.settle()
+    withTimeout(20_000) {
+      transfers.runQueue { if (transfers.item("apk")?.bytesDone == content.size.toLong()) transfers.cancel("apk") }
+    }
+    transfers.settle()
+    assertEquals(FluidTransferState.Cancelled, transfers.item("apk")!!.state)
+    assertFalse(File(folder, "apk.apk").exists())
+    assertTrue(folder.listFiles()!!.none { it.name.endsWith(".part") })
+  }
+
+  @Test fun `R2 caricamento a pezzi, prima che il server abbia il primo pezzo su disco c'e' gia' l'avanzamento`() = runBlocking {
+    val upload = Random(8).nextBytes(3 * 256 * 1024)
+    val source = File(folder, "video.mp4").apply { writeBytes(upload) }
+    val store = InMemoryFluidTransferStore()
+    var snapshot: InMemoryFluidTransferStore? = null
+    val received = java.io.ByteArrayOutputStream()
+    val requests = CopyOnWriteArrayList<String>()
+    server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+      override fun dispatch(request: RecordedRequest): MockResponse {
+        val range = request.getHeader("Content-Range") ?: return MockResponse().setResponseCode(400)
+        requests += range
+        if (range.startsWith("bytes */")) {
+          val acked = received.size()
+          return if (acked == 0) MockResponse().setResponseCode(308)
+          else MockResponse().setResponseCode(308).setHeader("Range", "bytes=0-${acked - 1}")
+        }
+        val (start, end, total) = parseContentRange(range)!!
+        if (start != received.size().toLong()) return MockResponse().setResponseCode(400)
+        received.write(request.body.readByteArray())
+        if (snapshot == null) {
+          // Il server ha il primo pezzo intero e il processo «muore» qui, prima di leggere la risposta: cosa c'e' su disco?
+          snapshot = InMemoryFluidTransferStore().apply { store.load().forEach(::save) }
+          return MockResponse().setResponseCode(503)
+        }
+        return if (end + 1 == total) MockResponse().setResponseCode(201)
+        else MockResponse().setResponseCode(308).setHeader("Range", "bytes=0-$end")
+      }
+    }
+    val config = FluidTransferConfig(uploadChunkBytes = 256 * 1024)
+    val first = queueWith(store = store, config = config)
+    first.enqueue(FluidTransferRequest.upload(server.url("/session/1").toString(), source, "Video della gita", id = "up", resumable = true))
+    first.settle()
+    withTimeout(20_000) { first.runQueue() }
+    first.close()
+    val saved = snapshot!!.load().single()
+    assertTrue("su disco prima del primo pezzo: ${saved.bytesDone}", saved.bytesDone > 0L)
+    // La coda nuova, dopo il riavvio, chiede prima a che punto e' il server: il primo pezzo non si rimanda.
+    requests.clear()
+    val second = queueWith(store = snapshot!!, config = config)
+    second.settle()
+    withTimeout(20_000) { second.runQueue() }
+    assertEquals(FluidTransferState.Completed, second.item("up")!!.state)
+    assertTrue(requests.first(), requests.first().startsWith("bytes */"))
+    assertArrayEquals(upload, received.toByteArray())
+  }
+
+  @Test fun `R2 dove porta un rinvio e a chi vanno le credenziali`() {
+    val https = URL("https://example.org/a/b.apk")
+    assertEquals("https://example.org/c.apk", redirectTarget(https, "/c.apk").toString())
+    assertEquals("https://example.org/a/d.apk", redirectTarget(https, "d.apk").toString())
+    assertEquals("https://cdn.example.org/x?firma=1", redirectTarget(https, "https://cdn.example.org/x?firma=1").toString())
+    assertNull("da https a http no", redirectTarget(https, "http://cdn.example.org/x"))
+    assertNull("un protocollo che non e' http no", redirectTarget(URL("http://example.org/"), "file:///data/data/app/x"))
+    assertEquals("da http a https si'", "https://example.org/y", redirectTarget(URL("http://example.org/"), "https://example.org/y").toString())
+    assertTrue(sameOrigin(URL("https://example.org/a"), URL("https://EXAMPLE.org:443/b")))
+    assertFalse("lo schema conta", sameOrigin(URL("http://example.org/a"), URL("https://example.org/a")))
+    assertFalse("la porta conta", sameOrigin(URL("https://example.org/a"), URL("https://example.org:8443/a")))
+    assertFalse("l'host conta", sameOrigin(URL("https://example.org/a"), URL("https://cdn.example.org/a")))
+  }
+
+  @Test fun `R2 ogni trasferimento ha il suo file a meta'`() {
+    val one = FluidTransfers.partFile(download(id = "v1").copy(file = File(folder, "notes.apk")))
+    val two = FluidTransfers.partFile(download(id = "v2").copy(file = File(folder, "notes.apk")))
+    assertEquals(folder.absoluteFile, one.parentFile)
+    assertTrue(one.name, one.name.matches(Regex("""notes\.apk\.[0-9a-f]{12}\.part""")))
+    assertTrue(one != two)
+    assertEquals(one, FluidTransfers.partFile(download(id = "v1").copy(file = File(folder, "notes.apk"))))
+  }
+
+  /** Un disco che si riempie dopo [room] byte: la scrittura lancia come su Android (`ENOSPC`). */
+  private class FullDisk(out: OutputStream, private val room: Long) : FilterOutputStream(out) {
+    private var written = 0L
+
+    override fun write(b: ByteArray, off: Int, len: Int) {
+      if (written + len > room) throw IOException("write failed: ENOSPC (No space left on device)")
+      out.write(b, off, len)
+      written += len
+    }
+  }
 }

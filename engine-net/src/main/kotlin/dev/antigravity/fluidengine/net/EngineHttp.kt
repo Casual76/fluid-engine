@@ -24,17 +24,31 @@ open class EngineHttp(
   private val readTimeoutMillis: Int = 30_000,
 ) {
 
+  /**
+   * Reads a small document (a manifest, a config) as UTF-8 text. At most 8 MiB: a bigger body is not a
+   * manifest, and reading it whole could run the app out of memory. An error's body is not read at all.
+   */
   open suspend fun readText(url: String, headers: Map<String, String> = emptyMap()): String =
     withContext(Dispatchers.IO) {
       val connection = open(url, headers + ("Accept" to "application/json"))
       try {
         val code = connection.responseCode
-        val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-        val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
         if (code !in 200..299) {
           error("Richiesta non riuscita ($code).")
         }
-        body
+        if (connection.contentLengthLong > MaxTextBytes) error("Risposta troppo grande.")
+        val bytes = connection.inputStream.use { input ->
+          val out = java.io.ByteArrayOutputStream()
+          val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+          while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            out.write(buffer, 0, read)
+            if (out.size() > MaxTextBytes) error("Risposta troppo grande.")
+          }
+          out.toByteArray()
+        }
+        String(bytes, Charsets.UTF_8)
       } finally {
         connection.disconnect()
       }
@@ -104,25 +118,36 @@ open class EngineHttp(
   /**
    * `HttpURLConnection` refuses to follow a redirect that changes protocol, which is exactly what a
    * release host does when it hands over to its CDN. Following them by hand is not optional.
+   *
+   * A `Location` is resolved against the current URL (a relative one too). The credentials
+   * (`Authorization`, `Proxy-Authorization`, `Cookie`) stay behind on a hop to another origin (scheme,
+   * host or port) and never come back: a release host's token must not reach its CDN. A redirect from
+   * https to http, or to anything that is not http, is refused.
    */
   private fun openFollowingRedirects(url: String, headers: Map<String, String>): HttpURLConnection {
-    var current = url
+    var current = URL(url)
+    var sent = headers
     var redirects = 0
     while (true) {
-      val connection = (URL(current).openConnection() as HttpURLConnection).apply {
+      val connection = (current.openConnection() as HttpURLConnection).apply {
         connectTimeout = connectTimeoutMillis
         readTimeout = 60_000
         instanceFollowRedirects = false
         setRequestProperty("User-Agent", userAgent)
-        headers.forEach { (name, value) -> setRequestProperty(name, value) }
+        sent.forEach { (name, value) -> setRequestProperty(name, value) }
       }
       val code = connection.responseCode
       if (code in 300..399 && redirects < MaxRedirects) {
         val location = connection.getHeaderField("Location")
         if (!location.isNullOrBlank()) {
-          current = location
-          redirects++
           connection.disconnect()
+          val next = URL(current, location)
+          val scheme = next.protocol.lowercase()
+          val downgrade = current.protocol.equals("https", ignoreCase = true) && scheme != "https"
+          if (downgrade || (scheme != "http" && scheme != "https")) error("Download non riuscito ($code).")
+          if (!sameOrigin(current, next)) sent = sent.filterKeys { it.lowercase() !in CredentialHeaders }
+          current = next
+          redirects++
           continue
         }
       }
@@ -137,5 +162,16 @@ open class EngineHttp(
   companion object {
     const val DefaultUserAgent: String = "FluidEngine/1.0"
     private const val MaxRedirects = 5
+
+    /** The most [readText] reads: 8 MiB, far above any manifest. */
+    private const val MaxTextBytes = 8L * 1024L * 1024L
+
+    /** What does not follow a redirect to another origin. */
+    private val CredentialHeaders = setOf("authorization", "proxy-authorization", "cookie")
+
+    private fun sameOrigin(a: URL, b: URL): Boolean =
+      a.protocol.equals(b.protocol, ignoreCase = true) &&
+        a.host.equals(b.host, ignoreCase = true) &&
+        (if (a.port == -1) a.defaultPort else a.port) == (if (b.port == -1) b.defaultPort else b.port)
   }
 }

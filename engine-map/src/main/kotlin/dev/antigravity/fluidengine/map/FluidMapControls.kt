@@ -45,7 +45,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -115,14 +117,11 @@ internal fun FluidMapControlsColumn(
         }
         if (showLocation) {
           val following = state.tracking == FluidMapTracking.Follow
-          val known = state.userLocation != null
           FluidCapsuleAction(
             icon = if (following) FluidIcons.Filled.NearMe else FluidIcons.NearMe,
-            contentDescription = when {
-              following -> labels.locationFollowing
-              known -> labels.location
-              else -> labels.locationUnknown
-            },
+            // Come il tasto di Mappe: «Posizione» anche prima che l'app la sappia (il tocco la chiede). Fino alla F8.26b
+            // diceva «Posizione non disponibile», che e' falso: il tasto e' li' proprio per averla.
+            contentDescription = if (following) labels.locationFollowing else labels.location,
             onClick = {
               if (state.userLocation == null) onLocationRequest?.invoke()
               else if (following) state.tracking = FluidMapTracking.Off
@@ -264,7 +263,11 @@ private fun FluidMapLayersButton(state: FluidMapState, styles: List<FluidMapStyl
 /**
  * L'attribuzione: la scritta corta sempre in vista sulla mappa, su un vetro piccolo, che toccata apre i crediti con i
  * collegamenti (ODbL: «© OpenStreetMap» e openstreetmap.org/copyright a un tocco). Il bersaglio del dito e' di 44 dp
- * anche se il vetro e' basso.
+ * anche se il vetro e' basso. Su uno schermo stretto la scritta va a capo (al piu' due righe) invece di finire sotto i
+ * comandi.
+ *
+ * TalkBack la legge una volta: «Crediti della mappa: OpenFreeMap © OpenMapTiles © OpenStreetMap», un tasto. Fino alla
+ * F8.26b la scritta sul vetro si univa alla descrizione e i crediti si sentivano due volte.
  */
 @Composable
 internal fun FluidMapAttributionChip(
@@ -281,9 +284,11 @@ internal fun FluidMapAttributionChip(
       .heightIn(min = 44.dp)
       .onGloballyPositioned { origin = it.boundsInRoot() }
       .testTag(FluidMapTags.Attribution)
-      .semantics {
+      // La descrizione e' tutta qui: la scritta sul vetro non si aggiunge (TalkBack la diceva due volte).
+      .clearAndSetSemantics {
         contentDescription = "${labels.credits}: ${attribution.short}"
         role = Role.Button
+        onClick { open = true; true }
       }
       .clickable { open = true },
     contentAlignment = Alignment.BottomStart,
@@ -292,7 +297,7 @@ internal fun FluidMapAttributionChip(
       BasicText(
         attribution.short,
         style = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 10.5.sp, fontWeight = FontWeight.Medium),
-        maxLines = 1,
+        maxLines = 2,
       )
     }
   }

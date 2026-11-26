@@ -119,7 +119,7 @@ internal fun ScanReviewScreen(
   Box(Modifier.fillMaxSize().background(Color.Black).testTag(FluidScanTags.Review)) {
     HorizontalPager(pager, Modifier.fillMaxSize().glassBackdropSource(backdrop), key = { pages.getOrNull(it)?.id ?: it }) { index ->
       val item = pages.getOrNull(index) ?: return@HorizontalPager
-      ScanReviewPage(state, item, strings.page(index + 1, count))
+      ScanReviewPage(state, item, strings.page(index + 1, count), strings)
     }
     // In alto: indietro alla fotocamera, «2 di 5», Salva.
     Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -191,7 +191,7 @@ private fun ReviewAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 
 /** Una pagina pulita a tutto schermo: prima la miniatura (subito), poi la pagina intera dal disco. */
 @Composable
-private fun ScanReviewPage(state: FluidScanState, page: FluidScanPage, description: String) {
+private fun ScanReviewPage(state: FluidScanState, page: FluidScanPage, description: String, strings: FluidScanStrings) {
   val thumb = state.thumbnail(page.id)
   val screen = with(LocalDensity.current) {
     val c = LocalConfiguration.current
@@ -206,7 +206,8 @@ private fun ScanReviewPage(state: FluidScanState, page: FluidScanPage, descripti
       Image(shown, description, Modifier.aspectRatio(shown.width.toFloat() / shown.height).shadow(6.dp),
         contentScale = ContentScale.Fit)
     } else {
-      Text("…", color = Color.White, textAlign = TextAlign.Center)
+      // R1: una pagina che non si è potuta pulire lo dice (Riprendi la rifà, Elimina la toglie), invece dei puntini.
+      Text(if (state.failed(page.id)) strings.pageFailed else "…", color = Color.White, textAlign = TextAlign.Center)
     }
   }
 }

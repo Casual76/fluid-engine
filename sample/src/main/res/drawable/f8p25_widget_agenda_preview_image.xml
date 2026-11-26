@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  F8.25c · L'immagine d'anteprima dell'agenda per i launcher prima di Android 12 (android:previewImage): la superficie, la
+  card delle righe e due righe accennate (il nome sopra, l'orario sotto). Prima di Android 12 un launcher non legge un
+  previewLayout.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="158dp"
+    android:height="158dp">
+  <item android:drawable="@drawable/f8p25_widget_preview_background" />
+  <item android:left="12dp" android:top="14dp" android:right="96dp" android:bottom="132dp">
+    <shape android:shape="rectangle">
+      <solid android:color="@color/f8p25_widget_text" />
+      <corners android:radius="6dp" />
+    </shape>
+  </item>
+  <item android:left="12dp" android:top="38dp" android:right="12dp" android:bottom="24dp"
+      android:drawable="@drawable/f8p25_widget_preview_card" />
+  <item android:left="22dp" android:top="50dp" android:right="50dp" android:bottom="98dp">
+    <shape android:shape="rectangle">
+      <solid android:color="@color/f8p25_widget_text" />
+      <corners android:radius="5dp" />
+    </shape>
+  </item>
+  <item android:left="22dp" android:top="66dp" android:right="100dp" android:bottom="84dp">
+    <shape android:shape="rectangle">
+      <solid android:color="@color/f8p25_widget_accent" />
+      <corners android:radius="4dp" />
+    </shape>
+  </item>
+  <item android:left="22dp" android:top="92dp" android:right="64dp" android:bottom="56dp">
+    <shape android:shape="rectangle">
+      <solid android:color="@color/f8p25_widget_text" />
+      <corners android:radius="5dp" />
+    </shape>
+  </item>
+  <item android:left="22dp" android:top="108dp" android:right="100dp" android:bottom="42dp">
+    <shape android:shape="rectangle">
+      <solid android:color="@color/f8p25_widget_secondary" />
+      <corners android:radius="4dp" />
+    </shape>
+  </item>
+</layer-list>

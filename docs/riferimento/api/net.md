@@ -17,7 +17,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-net/net/EngineHttp.kt`
 
 - `open class EngineHttp(private val userAgent: String = DefaultUserAgent, private val connectTimeoutMillis: Int = 15_000, private val readTimeoutMillis: Int = 30_000)` — The two HTTP calls the engine itself makes: read a small document, and download a large file.
-  - `open suspend fun readText(url: String, headers: Map<String, String> = emptyMap()): String`
+  - `open suspend fun readText(url: String, headers: Map<String, String> = emptyMap()): String` — Reads a small document (a manifest, a config) as UTF-8 text. At most 8 MiB: a bigger body is not a manifest, and reading it whole could run the app out of memory. An error's body is not read at all.
   - `open suspend fun download(url: String, target: File, expectedBytes: Long = 0L, headers: Map<String, String> = emptyMap(), onProgress: (progress: Float, downloaded: Long, total: Long) -> Unit = { _, _, _ -> }): File` — Downloads to `<target>.part` and renames on success.
   - `companion object`
     - `const val DefaultUserAgent: String`

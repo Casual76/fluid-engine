@@ -400,7 +400,10 @@ di PampAI e delle cinque app collegate e' di 208 tool e ~31.400 gettoni; il prom
   risultato supera `searchPreloadMinScore` (8) entrano fino a tre tool della **stessa app**, e si risparmia il giro della
   ricerca. Col router solo dai gruppi differiti, con `skipRouter` anche da casa.
 - **Le parole in piu'** (`ToolRegistry.searchTerms`): il vocabolario di un'app collegata, le parole del mestiere
-  («voti media verifiche...»), il nome di un connettore. Contano come la riga del gruppo.
+  («voti media verifiche...»), il nome di un connettore. Contano come la riga del gruppo. Vanno date **al gruppo giusto**:
+  «sabato» non compare in nessuna descrizione del meteo («I prossimi giorni»), quindi i giorni della settimana vanno fra le
+  parole del gruppo delle previsioni dei giorni. Un'espansione nel motore («sabato» → «giorno») e' stata provata in F9.2b
+  e tolta: nel calendario faceva vincere «Crea evento» («titolo, giorno e ora») su «Eventi».
 - **`AskInput.skipRouter`**: niente stadio 1; i gruppi sono quelli del pre-router o suggeriti, il resto lo apre o lo cerca
   il modello.
 - **Gli schemi gia' mandati restano al loro posto** da un giro all'altro, i nuovi in coda: il prefisso della richiesta resta

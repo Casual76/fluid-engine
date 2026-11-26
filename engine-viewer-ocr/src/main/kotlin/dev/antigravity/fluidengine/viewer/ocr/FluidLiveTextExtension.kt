@@ -40,7 +40,7 @@ class FluidLiveTextExtension : FluidViewerExtension {
 
   override fun decorate(context: Context, file: FluidViewerFile, content: FluidViewerContent): FluidViewerContent {
     if (!FluidLiveText.enabled) return content
-    val key = "${file.uri}|${file.sizeBytes}|${file.modifiedAtMillis}"
+    val key = readingKey(file)
     return when (content) {
       is FluidViewerContent.Image -> FluidViewerContent.Image(content.aspectRatio) {
         content.draw()
@@ -60,6 +60,17 @@ class FluidLiveTextExtension : FluidViewerExtension {
   internal companion object {
     /** La foto da leggere: al più 8 MP. Di più non serve al riconoscimento e costa memoria. */
     const val ReadMaxPixels: Long = 8_000_000L
+
+    private val opens = java.util.concurrent.atomic.AtomicLong()
+
+    /**
+     * La chiave della memoria dei risultati per [file]. R2 (n. 11): senza la data di modifica l'indirizzo da solo non
+     * dice se il file è cambiato (un'app che riscrive la foto allo stesso indirizzo, e passa solo l'`Uri`), e la
+     * memoria mostrava il testo della foto di prima: allora il risultato vale solo per questa apertura.
+     */
+    fun readingKey(file: FluidViewerFile): String =
+      if (file.modifiedAtMillis == null) "${file.uri}|${file.sizeBytes}|aperto-${opens.incrementAndGet()}"
+      else "${file.uri}|${file.sizeBytes}|${file.modifiedAtMillis}"
   }
 }
 

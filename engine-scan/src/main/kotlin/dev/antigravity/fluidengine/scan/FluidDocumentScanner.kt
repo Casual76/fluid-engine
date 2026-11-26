@@ -8,6 +8,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -20,6 +22,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.ui.fluid.FluidAlert
 import dev.antigravity.fluidengine.ui.fluid.FluidAlertAction
 import dev.antigravity.fluidengine.ui.fluid.FluidConfirmationDialog
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
@@ -29,6 +36,7 @@ import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.fluidphysics.FluidMorphMenuHost
 import dev.antigravity.fluidengine.ui.fluidphysics.LocalFluidMorphMenuState
 import dev.antigravity.fluidengine.ui.fluidphysics.rememberFluidMorphMenuState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /** Le parole dello scanner, in italiano di serie. */
@@ -83,6 +91,24 @@ data class FluidScanStrings(
   val saving: String = "Salvataggio…",
   val pageAdded: (Int) -> String = { n -> "Pagina $n scansionata" },
   val documentFound: String = "Documento trovato",
+  // R1: gli avvisi che prima mancavano.
+  /** Lo scatto non riuscito (la fotocamera che si chiude a metà): scritto sulla fotocamera e detto da TalkBack. */
+  val captureFailed: String = "Scatto non riuscito, riprova",
+  /** La fila piena ([FluidScanOptions.maxPages]): lo scatto non parte. */
+  val pagesFull: (Int) -> String = { n -> "Hai raggiunto il massimo di $n pagine" },
+  /** Il titolo dell'avviso quando «Salva» non riesce. */
+  val saveFailedTitle: String = "Non è stato possibile salvare",
+  /** Il messaggio: le pagine che non si leggono (numeri da 1), o nessuna se il documento non si scrive (il disco pieno). */
+  val saveFailed: (List<Int>) -> String = { pages ->
+    when (pages.size) {
+      0 -> "Il documento non si è scritto: libera un po' di spazio e riprova."
+      1 -> "La pagina ${pages[0]} non si legge: rifalla con Riprendi o eliminala."
+      else -> "Le pagine ${pages.joinToString(", ")} non si leggono: rifalle con Riprendi o eliminale."
+    }
+  },
+  val ok: String = "OK",
+  /** Nella revisione, al posto della pagina che non si è potuta pulire. */
+  val pageFailed: String = "Pagina non leggibile",
 )
 
 /** I tag dei test dello scanner. */
@@ -156,6 +182,10 @@ fun FluidDocumentScanner(
   }
   var confirmDiscard by remember { mutableStateOf(false) }
   var saving by remember { mutableStateOf(false) }
+  // R1: «Salva» che non riesce lo dice (le pagine che non si leggono, o nessuna se il documento non si scrive).
+  var saveFailure by remember { mutableStateOf<List<Int>?>(null) }
+  // R1: l'annuncio per TalkBack sta qui, non nella fotocamera: dopo «Riprendi» la fotocamera esce subito.
+  var announce by remember { mutableStateOf("") }
   val scope = rememberCoroutineScope()
   val backdrop = rememberGlassBackdrop()
   val outerModal = LocalFluidGlassModalHostState.current
@@ -166,11 +196,18 @@ fun FluidDocumentScanner(
     if (!saving && state.pages.isNotEmpty()) {
       saving = true
       scope.launch {
-        try {
-          onDone(state.export())
+        val result = try {
+          state.export()
+        } catch (cancelled: CancellationException) {
+          throw cancelled
+        } catch (e: Exception) {
+          // R1: prima l'eccezione usciva dal lavoro e chiudeva l'app; ora lo scanner resta aperto e lo dice.
+          saveFailure = (e as? ScanUnreadablePages)?.pages.orEmpty()
+          null
         } finally {
           saving = false
         }
+        if (result != null) onDone(result)
       }
     }
   }
@@ -187,13 +224,24 @@ fun FluidDocumentScanner(
             onFilterChange = { filter = it; state.setFilterForAll(it) },
             retaking = retake != null, saving = saving,
             onCaptured = { photo, quad ->
+              // R1: l'esito vero: «Pagina 2 scansionata» per la pagina rifatta, non il totale; niente pagina annunciata
+              // se la fila è piena.
               if (retake != null) {
                 state.retake(retake.id, photo, quad)
+                val at = state.pages.indexOfFirst { it.id == retake.id }
                 screen = ScanScreen.Review(retake.returnTo)
+                ScanCaptured(announce = if (at >= 0) strings.pageAdded(at + 1) else null)
               } else {
-                state.add(photo, quad)?.let { page -> if (page.filter != filter) state.setFilter(page.id, filter) }
+                val page = state.add(photo, quad)
+                if (page == null) {
+                  ScanCaptured(notice = if (state.pages.size >= state.options.maxPages) strings.pagesFull(state.options.maxPages) else null)
+                } else {
+                  if (page.filter != filter) state.setFilter(page.id, filter)
+                  ScanCaptured(announce = strings.pageAdded(state.pages.indexOfFirst { it.id == page.id } + 1))
+                }
               }
             },
+            onAnnounce = { announce = it },
             onOpenPages = { if (state.pages.isNotEmpty()) screen = ScanScreen.Review(state.pages.lastIndex) },
             onSave = save, onCancel = { if (retake != null) screen = ScanScreen.Review(retake.returnTo) else cancel() },
           )
@@ -229,6 +277,15 @@ fun FluidDocumentScanner(
         }, FluidAlertAction.Emphasis.Destructive)),
         cancelLabel = strings.keepScanning,
       )
+      FluidAlert(
+        item = saveFailure,
+        onDismissRequest = { saveFailure = null },
+        title = { strings.saveFailedTitle },
+        message = { pages -> strings.saveFailed(pages) },
+        actions = { listOf(FluidAlertAction(strings.ok, { saveFailure = null }, FluidAlertAction.Emphasis.Preferred)) },
+      )
+      // Per TalkBack: «Pagina 3 scansionata», detto una volta.
+      if (announce.isNotEmpty()) Text(announce, Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite }, color = Color.Transparent)
       if (outerModal == null) FluidGlassModalHost(modal, backdrop)
       if (outerMenu == null) FluidMorphMenuHost(state = menu, backdrop = backdrop)
     }

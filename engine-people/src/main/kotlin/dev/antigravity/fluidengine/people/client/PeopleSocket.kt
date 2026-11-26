@@ -50,6 +50,9 @@ class PeopleSocket(
     val s = connect(uri.host, port, tls)
     socket = s
     try {
+      // R2 · Il server risponde «pong» a ogni «ping»: se per due intervalli e mezzo non arriva niente, la rete è morta in
+      // silenzio. La lettura scade, il canale si chiude (1006) e chi lo usa lo riapre o torna al campanello.
+      s.soTimeout = (pingEveryMillis * 5 / 2).coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
       val input = BufferedInputStream(s.getInputStream())
       val output = s.getOutputStream()
       handshake(uri, input, output)

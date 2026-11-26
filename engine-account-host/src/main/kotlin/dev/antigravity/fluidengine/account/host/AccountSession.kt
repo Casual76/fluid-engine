@@ -67,6 +67,17 @@ class AccountSession(
   private val notify: (what: List<String>) -> Unit = {},
 ) {
   private val mutex = Mutex()
+
+  /**
+   * R2 · Ogni entrata e ogni uscita cambiano la generazione, sotto [lock]: un rinnovo o un token d'app partiti prima
+   * non mettono in cache (né puliscono) quello che vale per la sessione di dopo. [adopt] non è sospesa e non può
+   * prendere [mutex]; il lucchetto corto protegge solo «confronta e metti in cache».
+   */
+  private val lock = Any()
+  private var generation = 0L
+
+  private fun generationNow(): Long = synchronized(lock) { generation }
+
   private val _state = MutableStateFlow<HostSession>(HostSession.SignedOut)
   val state: StateFlow<HostSession> = _state.asStateFlow()
 
@@ -86,10 +97,14 @@ class AccountSession(
   fun adopt(response: JsonObject, displayName: String, storePackage: String) {
     fun s(k: String) = (response[k] as? JsonPrimitive)?.content ?: throw IllegalArgumentException("manca $k")
     val session = StoredSession(s("accountId"), s("deviceId"), s("refreshToken"), SessionKind.of((response["kind"] as? JsonPrimitive)?.content), displayName, storePackage)
-    sessions.save(session)
-    sessions.clearRemoteExit()
-    tokens.clear()
-    tokens.put(STORE_KEY, "account", emptySet(), s("accessToken"), (response["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 900)
+    val access = s("accessToken")
+    synchronized(lock) {
+      sessions.save(session)
+      sessions.clearRemoteExit()
+      tokens.clear()
+      tokens.put(STORE_KEY, "account", emptySet(), access, (response["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 900)
+      generation++
+    }
     _state.value = HostSession.SignedIn(session.accountId, session.deviceId, displayName, session.kind)
     notify(listOf("state"))
   }
@@ -100,10 +115,13 @@ class AccountSession(
    * la porta di questo dispositivo (`CustodyService.ensureDeviceDoor`). Una sessione già normale non cambia.
    */
   fun promote() {
-    val s = runCatching { sessions.load() }.getOrNull() ?: return
-    if (s.kind != SessionKind.RECOVERY) return
-    val full = StoredSession(s.accountId, s.deviceId, s.refreshToken, SessionKind.FULL, s.displayName, s.storePackage)
-    sessions.save(full)
+    // R2 · Leggere e riscrivere sotto lo stesso lucchetto di [adopt]: un'entrata con un altro account nel mezzo non
+    // si fa sovrascrivere dalla sessione di prima. La generazione non cambia: è la stessa sessione, coi suoi token.
+    val full = synchronized(lock) {
+      val s = runCatching { sessions.load() }.getOrNull() ?: return
+      if (s.kind != SessionKind.RECOVERY) return
+      StoredSession(s.accountId, s.deviceId, s.refreshToken, SessionKind.FULL, s.displayName, s.storePackage).also { sessions.save(it) }
+    }
     _state.value = HostSession.SignedIn(full.accountId, full.deviceId, full.displayName, full.kind)
     notify(listOf("state"))
   }
@@ -122,18 +140,30 @@ class AccountSession(
    * [AccountServerException] per il resto. Un `session_revoked` pulisce prima di essere rilanciato.
    */
   suspend fun storeToken(): String = mutex.withLock {
-    tokens.get(STORE_KEY, "account", emptySet())?.let { return it.token }
-    val session = sessions.load() ?: throw AccountServerException(401, "unauthorized", "Non sei entrato nell'Account Pampa.")
-    val url = baseUrl.trimEnd('/') + REFRESH_PATH
-    val proof = DeviceProof.create(deviceKey, "POST", url, session.refreshToken, client.serverNow())
-    val r = try {
-      client.call("POST", REFRESH_PATH, buildJsonObject { put("refreshToken", session.refreshToken) }, headers = mapOf("pampa-device-proof" to proof))
-    } catch (e: AccountServerException) {
-      if (e.isSessionRevoked) revokedLocked(e.reason)
-      throw e
+    while (true) {
+      val gen = generationNow()
+      tokens.get(STORE_KEY, "account", emptySet())?.let { return it.token }
+      val session = sessions.load() ?: throw AccountServerException(401, "unauthorized", "Non sei entrato nell'Account Pampa.")
+      val url = baseUrl.trimEnd('/') + REFRESH_PATH
+      val proof = DeviceProof.create(deviceKey, "POST", url, session.refreshToken, client.serverNow())
+      val r = try {
+        client.call("POST", REFRESH_PATH, buildJsonObject { put("refreshToken", session.refreshToken) }, headers = mapOf("pampa-device-proof" to proof))
+      } catch (e: AccountServerException) {
+        // R2 · Un «revocata» della sessione di prima non pulisce quella entrata nel frattempo.
+        if (generationNow() != gen) continue
+        if (e.isSessionRevoked) revokedLocked(e.reason)
+        throw e
+      }
+      val token = (r["accessToken"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+        ?: throw AccountServerException(502, "unavailable", "Il servizio non è raggiungibile. Riprova più tardi.")
+      synchronized(lock) {
+        if (generation == gen) return tokens.put(STORE_KEY, "account", emptySet(), token, (r["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 900).token
+      }
+      // R2 · Mentre rinnovava qualcuno è entrato con un altro account (o è uscito): il token è del conto di prima, e
+      // si ricomincia dalla cache, che adesso ha quello della sessione nuova.
     }
-    val token = (r["accessToken"] as JsonPrimitive).content
-    tokens.put(STORE_KEY, "account", emptySet(), token, (r["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 900).token
+    @Suppress("UNREACHABLE_CODE")
+    error("non raggiungibile")
   }
 
   /**
@@ -143,26 +173,50 @@ class AccountSession(
   suspend fun appToken(packageName: String, audience: String, scopes: Set<String>): TokenOutcome {
     if (_state.value is HostSession.SignedOut) return TokenOutcome.SignedOut
     if (!policy.allows(packageName, audience, scopes)) return TokenOutcome.NotAllowed
-    tokens.get(packageName, audience, scopes)?.let { return TokenOutcome.Ok(it.token, tokens.secondsLeft(it)) }
-    return try {
-      val r = client.call("POST", "/v1/apps/$packageName/token", buildJsonObject {
-        put("audience", audience)
-        putJsonArray("scopes") { scopes.sorted().forEach { add(JsonPrimitive(it)) } }
-      }, token = storeToken())
-      val expires = (r["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 900
-      val token = (r["token"] as JsonPrimitive).content
-      tokens.put(packageName, audience, scopes, token, expires)
-      TokenOutcome.Ok(token, expires)
-    } catch (e: IOException) {
-      TokenOutcome.Offline
-    } catch (e: AccountServerException) {
-      when {
-        e.isSessionRevoked || e.code == "unauthorized" -> TokenOutcome.SignedOut
-        e.code == "app_disconnected" -> TokenOutcome.Disconnected.also { tokens.forget(packageName) }
-        e.code == "forbidden" -> TokenOutcome.NotAllowed
-        e.code == "unavailable" || e.status >= 500 -> TokenOutcome.Offline
-        else -> TokenOutcome.Unavailable(e.message)
+    // R2 · Un secondo giro, uno solo: se la sessione è cambiata a metà (il token sarebbe del conto di prima), o se il
+    // server ha rifiutato il token dello Store in cache («unauthorized»), che allora si toglie e si rinnova.
+    var retried = false
+    while (true) {
+      if (_state.value is HostSession.SignedOut) return TokenOutcome.SignedOut
+      val gen = generationNow()
+      tokens.get(packageName, audience, scopes)?.let { return TokenOutcome.Ok(it.token, tokens.secondsLeft(it)) }
+      val outcome: TokenOutcome? = try {
+        val r = client.call("POST", "/v1/apps/$packageName/token", buildJsonObject {
+          put("audience", audience)
+          putJsonArray("scopes") { scopes.sorted().forEach { add(JsonPrimitive(it)) } }
+        }, token = storeToken())
+        val expires = (r["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 900
+        val token = (r["token"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+        when {
+          token == null -> TokenOutcome.Unavailable("risposta illeggibile")
+          else -> synchronized(lock) {
+            if (generation == gen) {
+              tokens.put(packageName, audience, scopes, token, expires)
+              TokenOutcome.Ok(token, expires)
+            } else {
+              null
+            }
+          }
+        }
+      } catch (e: IOException) {
+        TokenOutcome.Offline
+      } catch (e: AccountServerException) {
+        when {
+          generationNow() != gen -> null
+          e.code == "unauthorized" && !retried -> {
+            synchronized(lock) { if (generation == gen) tokens.forget(STORE_KEY) }
+            null
+          }
+          e.isSessionRevoked || e.code == "unauthorized" -> TokenOutcome.SignedOut
+          e.code == "app_disconnected" -> TokenOutcome.Disconnected.also { tokens.forget(packageName) }
+          e.code == "forbidden" -> TokenOutcome.NotAllowed
+          e.code == "unavailable" || e.status >= 500 -> TokenOutcome.Offline
+          else -> TokenOutcome.Unavailable(e.message)
+        }
       }
+      if (outcome != null) return outcome
+      if (retried) return if (_state.value is HostSession.SignedOut) TokenOutcome.SignedOut else TokenOutcome.Offline
+      retried = true
     }
   }
 
@@ -180,8 +234,11 @@ class AccountSession(
   }
 
   private fun clearLocked(kind: ExitKind) {
-    tokens.clear()
-    sessions.clear()
+    synchronized(lock) {
+      tokens.clear()
+      sessions.clear()
+      generation++
+    }
     keyring.wipe()
     deviceKey.destroy()
     _state.value = HostSession.SignedOut

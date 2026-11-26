@@ -19,10 +19,16 @@ import androidx.compose.ui.platform.LocalContext
 data class FluidMapCredit(val text: String, val url: String)
 
 /**
- * L'attribuzione di una mappa: la scritta corta sempre visibile nell'angolo ([short], «© OpenStreetMap») e i crediti
- * interi che compaiono toccandola ([credits]). I dati di OpenStreetMap sono sotto ODbL, che la chiede: la mappa la
- * disegna sempre, anche sulla cartolina, e non si spegne (le linee guida dell'attribuzione della OSMF: «© OpenStreetMap»
- * visibile, con il collegamento a openstreetmap.org/copyright a un tocco).
+ * L'attribuzione di una mappa: la scritta corta sempre visibile nell'angolo ([short]) e i crediti interi che compaiono
+ * toccandola ([credits]). La mappa la disegna sempre, anche sulla cartolina, e non si spegne:
+ *
+ * - i dati di OpenStreetMap sono sotto ODbL (le linee guida dell'attribuzione della OSMF: «© OpenStreetMap» visibile, con
+ *   il collegamento a openstreetmap.org/copyright a un tocco);
+ * - le tessere di OpenFreeMap chiedono, nei termini d'uso, «OpenFreeMap © OpenMapTiles Data from OpenStreetMap» (dalla
+ *   4.0, F8.26c: prima la scritta corta diceva solo «© OpenStreetMap»).
+ *
+ * Nella scritta corta lo spazio dopo «©» e' fisso (` `): se la scritta non sta su una riga va a capo fra un nome e
+ * l'altro, mai fra il «©» e il suo nome.
  */
 @Immutable
 data class FluidMapAttribution(val short: String, val credits: List<FluidMapCredit>)
@@ -61,9 +67,12 @@ data class FluidMapStyle(
  * i suoi [FluidMapStyle].
  */
 object FluidMapStyles {
-  /** I crediti delle mappe di OpenFreeMap, come li scrive il servizio (TileJSON di tiles.openfreemap.org). */
+  /**
+   * I crediti delle mappe di OpenFreeMap, come li scrive il servizio (TileJSON di tiles.openfreemap.org): la scritta corta
+   * «OpenFreeMap © OpenMapTiles © OpenStreetMap» porta i tre nomi che i termini d'uso e l'ODbL chiedono in vista.
+   */
   val OpenFreeMapAttribution: FluidMapAttribution = FluidMapAttribution(
-    short = "© OpenStreetMap",
+    short = "OpenFreeMap © OpenMapTiles © OpenStreetMap",
     credits = listOf(
       FluidMapCredit("Dati © contributori di OpenStreetMap, licenza ODbL", "https://www.openstreetmap.org/copyright"),
       FluidMapCredit("Tessere di OpenFreeMap", "https://openfreemap.org"),
@@ -171,7 +180,6 @@ data class FluidMapLabels(
   val map: String = "Mappa",
   val location: String = "Posizione",
   val locationFollowing: String = "Posizione, la mappa ti segue",
-  val locationUnknown: String = "Posizione non disponibile",
   val compass: (degrees: Int) -> String = { "Bussola, $it gradi. Tocca per tornare al nord" },
   val layers: String = "Livelli della mappa",
   val layersTitle: String = "Mappa",
@@ -199,7 +207,7 @@ data class FluidMapLabels(
     /** Le stesse parole in inglese. */
     val English: FluidMapLabels = FluidMapLabels(
       map = "Map", location = "Location", locationFollowing = "Location, the map follows you",
-      locationUnknown = "Location unavailable", compass = { "Compass, $it degrees. Tap to face north" },
+      compass = { "Compass, $it degrees. Tap to face north" },
       layers = "Map layers", layersTitle = "Map", credits = "Map credits", zoomIn = "Zoom in", zoomOut = "Zoom out",
       showAll = "Show all places", cluster = { if (it == 1) "1 place" else "$it places" }, clusterAction = "Zoom in",
       selected = "Selected", userLocation = "Your location", directions = "Directions", share = "Share",

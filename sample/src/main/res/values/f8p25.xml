@@ -6,4 +6,25 @@
   <string name="f8p25_absences_label">Assenze di prova</string>
   <string name="f8p25_absences_description">Le assenze sul massimo, con il limite, come il quadrante di F8.6.</string>
   <string name="f8p25_quick_tile_label">Fluid Glass</string>
+
+  <!--
+    F8.25c · Le anteprime per il launcher (il foglio «Aggiungere alla schermata Home?» e l'elenco dei widget): senza, One UI
+    scriveva «Aggiunta del widget non riuscita» al posto del widget. Sono layout fermi, letti dal launcher, coi colori
+    della palette di serie del widget (presi dal widget vero sul Tab S9 il 26/11/2026) e le parole della taglia piccola.
+  -->
+  <string name="f8p25_preview_today">Oggi</string>
+  <string name="f8p25_preview_lesson1">Matematica</string>
+  <string name="f8p25_preview_time1">8:00</string>
+  <string name="f8p25_preview_lesson2">Italiano</string>
+  <string name="f8p25_preview_time2">9:00</string>
+  <string name="f8p25_preview_absences">Assenze</string>
+  <string name="f8p25_preview_absences_value">18 %</string>
+  <string name="f8p25_preview_absences_limit">Limite 25 %</string>
+
+  <color name="f8p25_widget_background">#FFF0F1F5</color>
+  <color name="f8p25_widget_card">#FFF7FAFA</color>
+  <color name="f8p25_widget_text">#FF121214</color>
+  <color name="f8p25_widget_secondary">#FF68686E</color>
+  <color name="f8p25_widget_hairline">#FFE0E2E3</color>
+  <color name="f8p25_widget_accent">#FF1F8A60</color>
 </resources>

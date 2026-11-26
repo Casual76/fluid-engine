@@ -82,6 +82,13 @@ class FluidScanActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    // R1: sotto la barra a tre tasti Android stende un velo di contrasto (la regola delle app dell'engine lo spegne).
+    // L'attività gestisce da sé la rotazione, e `enableEdgeToEdge()` lo riaccende ai cambi di configurazione: dopo, lo
+    // si rispegne, come nella galleria.
+    if (android.os.Build.VERSION.SDK_INT >= 29) {
+      window.isNavigationBarContrastEnforced = false
+      addOnConfigurationChangedListener { window.decorView.post { window.isNavigationBarContrastEnforced = false } }
+    }
     val options = FluidScanOptions(
       output = FluidScanDocumentContract.output(intent.getStringExtra(FluidScanDocumentContract.ExtraOutput)),
       filter = FluidScanFilter.of(intent.getStringExtra(FluidScanDocumentContract.ExtraFilter)),

@@ -57,9 +57,11 @@ class FluidTransferWorker(context: Context, params: WorkerParameters) : Coroutin
         runCatching { setForeground(transfers.notifications.foregroundInfo(applicationContext, overview)) }
       }
     }
-    if (result.retryLater) return Result.retry()
+    // L'esito prima del nuovo tentativo: chi e' finito in questo giro lo dice adesso (anche se un altro riprovera'), e
+    // la notifica viva comincia il giro dopo da zero.
     val after = transfers.overview.value
     if (after.running == null) runCatching { transfers.notifications.finished(applicationContext, after) }
+    if (result.retryLater) return Result.retry()
     // Il giro dopo, coi vincoli di chi aspetta: si accoda a questo (che sta finendo), non lo sostituisce.
     val plan = transfers.plan(replace = false).let { plan ->
       // Un giro che non ha fatto partire niente, con chi aspetta ancora: i vincoli di WorkManager erano soddisfatti ma le

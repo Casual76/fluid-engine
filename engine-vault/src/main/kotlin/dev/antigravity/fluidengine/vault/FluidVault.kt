@@ -299,8 +299,10 @@ class FluidVault internal constructor(
     ): FluidVault = FluidVault(name, dir, keystore, labels, clock, scope, io, secretIterations)
 
     private fun requireName(name: String) {
-      require(name.isNotEmpty() && name.length <= 64 && name.all { it in 'a'..'z' || it in '0'..'9' || it in "._-" }) {
-        "nome non valido: «$name» (lettere minuscole, cifre, punto, trattino, trattino basso)"
+      // R2 · «.» e «..» (e gli altri nomi di soli punti) sono cartelle speciali: la sezione uscirebbe dalla cassaforte,
+      // e `reset()` cancellerebbe la cartella di sopra.
+      require(name.isNotEmpty() && name.length <= 64 && name.all { it in 'a'..'z' || it in '0'..'9' || it in "._-" } && name.any { it != '.' }) {
+        "nome non valido: «$name» (lettere minuscole, cifre, punto, trattino, trattino basso; non di soli punti)"
       }
     }
   }

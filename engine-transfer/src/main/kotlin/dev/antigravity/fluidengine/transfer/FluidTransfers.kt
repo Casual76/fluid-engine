@@ -206,6 +206,9 @@ class FluidTransfers(
    */
   @Volatile var notifications: FluidTransferNotifications = SimpleTransferNotifications()
 
+  /** Dove si scrive il file a meta' (il file vero; le prove ci mettono un disco che si riempie). */
+  internal var partOutput: (File, Boolean) -> java.io.OutputStream = { file, append -> FileOutputStream(file, append) }
+
   init {
     scope.launch {
       ensureLoaded()
@@ -215,7 +218,8 @@ class FluidTransfers(
         } catch (cancelled: CancellationException) {
           throw cancelled
         } catch (error: Exception) {
-          // Un comando che fallisce (un disco pieno) non ferma quelli dopo.
+          // Un comando che fallisce non ferma quelli dopo; resta scritto nel registro.
+          warn("un comando della coda non e' riuscito", error)
         }
       }
     }
@@ -268,7 +272,11 @@ class FluidTransfers(
   override fun retry(id: String) {
     command {
       edit(id) {
-        if (it.state == FluidTransferState.Failed) it.copy(state = FluidTransferState.Queued, failure = null, attempts = 0) else it
+        if (it.state == FluidTransferState.Failed) {
+          it.copy(state = FluidTransferState.Queued, failure = null, attempts = 0, finishedAtMillis = null)
+        } else {
+          it
+        }
       }
       triedThisRun.remove(id)
       schedule()
@@ -307,7 +315,7 @@ class FluidTransfers(
       val gone = synchronized(lock) {
         records.values.filter { it.state.finished }.map { it.id }.onEach { records.remove(it) }
       }
-      gone.forEach(store::delete)
+      gone.forEach(::forget)
       publish()
       schedule()
     }
@@ -321,7 +329,7 @@ class FluidTransfers(
       while (active.containsKey(id)) kotlinx.coroutines.delay(10L)
       val record = synchronized(lock) { records.remove(id) } ?: return@command
       if (!record.state.finished) discardPartial(record)
-      store.delete(id)
+      forget(id)
       publish()
       schedule()
     }
@@ -337,11 +345,15 @@ class FluidTransfers(
     done.await()
   }
 
-  /** Ferma tutto (per le prove): i trasferimenti in corso si fermano dove sono. */
+  /**
+   * Ferma tutto (per le prove): i trasferimenti in corso si fermano dove sono. Se era la coda dell'app, il prossimo
+   * [open] ne apre una nuova (dalla stessa coda salvata) invece di restituire questa, che non lavora piu'.
+   */
   fun close() {
     active.values.forEach { it.stop(TransferStop.Shutdown) }
     commands.close()
     scope.cancel()
+    synchronized(Companion) { if (shared === this) shared = null }
   }
 
   // ---------------------------------------------------------------------------------------------------------------
@@ -497,7 +509,8 @@ class FluidTransfers(
           outcome = TransferOutcome.RetryLater
           it.copy(state = FluidTransferState.Queued, failure = failure, attempts = attempts)
         } else {
-          it.copy(state = FluidTransferState.Failed, failure = failure, attempts = attempts)
+          // L'ora di fine anche qui: l'esito del giro (la notifica viva, la pillola) conta i finiti da quell'ora.
+          it.copy(state = FluidTransferState.Failed, failure = failure, attempts = attempts, finishedAtMillis = wall())
         }
       }
       return outcome
@@ -551,23 +564,31 @@ class FluidTransfers(
     val target = request.file
     val folder = target.absoluteFile.parentFile ?: throw TransferException(FluidTransferFailure.storage("cartella"))
     if (!folder.exists() && !folder.mkdirs()) throw TransferException(FluidTransferFailure.storage("cartella"))
-    val part = partFile(target)
+    // Il parziale e' di questo trasferimento (il suo id nel nome): un altro verso lo stesso file non ci cuce la sua coda.
+    val part = partFile(request)
     var offset = if (part.exists()) part.length() else 0L
     var restarted = false
     while (true) {
-      val headers = authorizer.headers(request).toMutableMap()
+      val headers = HashMap<String, String>()
       if (offset > 0L) {
         headers["Range"] = "bytes=$offset-"
         session.record.validator?.let { headers["If-Range"] = it }
       }
-      val response = http.open("GET", request.url, headers, session.control::attach)
+      val response = http.open("GET", request.url, headers, authorizer.headers(request), session.control::attach)
       try {
         val total: Long
         var resumable = session.record.resumable
+        val validator = strongEtag(response.header("ETag")) ?: response.header("Last-Modified")
         when (response.code) {
           206 -> {
             val range = parseContentRange(response.header("Content-Range"))
-            if (range == null || range.first != offset) {
+            // Un server che ignora `If-Range` risponde 206 anche dalla versione nuova: la coda si cuce solo allo stesso
+            // file, cioe' con lo stesso validatore e lo stesso totale di prima (quando si sanno).
+            val saved = session.record.validator
+            val known = session.record.bytesTotal
+            val changed = (saved != null && validator != null && saved != validator) ||
+              (range != null && range.third > 0L && known > 0L && range.third != known)
+            if (range == null || range.first != offset || changed) {
               if (restarted) throw TransferException(FluidTransferFailure.server(206, "Content-Range"))
               part.delete()
               offset = 0L
@@ -598,13 +619,15 @@ class FluidTransfers(
           }
           else -> throw TransferException(failureFor(response.code))
         }
-        val validator = strongEtag(response.header("ETag")) ?: response.header("Last-Modified")
-        session.update { it.copy(bytesTotal = total, validator = validator ?: it.validator, resumable = resumable, bytesDone = offset) }
+        // Un 200 e' un file intero nuovo: il suo validatore (anche nessuno) prende il posto di quello di prima.
+        val fresh = if (response.code == 200) validator else validator ?: session.record.validator
+        session.update { it.copy(bytesTotal = total, validator = fresh, resumable = resumable, bytesDone = offset) }
         session.rate.reset(ticks(), offset)
         var done = offset
         val buffer = ByteArray(config.bufferBytes)
         response.connection.inputStream.use { input ->
-          FileOutputStream(part, offset > 0L).use { output ->
+          // Il disco pieno a meta' e' il disco, non la rete: `DiskOutputStream` lo dice (e non si riprova da solo).
+          DiskOutputStream(onDisk { partOutput(part, offset > 0L) }).use { output ->
             while (true) {
               session.control.check()
               val read = input.read(buffer)
@@ -616,6 +639,8 @@ class FluidTransfers(
           }
         }
         session.progress(done, force = true)
+        // Una pausa o un annullamento arrivati con l'ultima lettura valgono: il parziale non diventa il file.
+        session.control.check()
         if (total > 0L && done < total) {
           // Un taglio a meta' non e' un errore del file: si riprende da qui.
           throw TransferException(FluidTransferFailure.network("connessione chiusa a ${done} di $total byte"))
@@ -634,7 +659,7 @@ class FluidTransfers(
       throw TransferException(FluidTransferFailure.integrity("$done byte invece di ${request.expectedBytes}"))
     }
     request.sha256?.takeIf { it.isNotBlank() }?.let { expected ->
-      val actual = sha256Of(part)
+      val actual = onDisk { sha256Of(part) }
       if (!actual.equals(expected.trim(), ignoreCase = true)) {
         part.delete()
         throw TransferException(FluidTransferFailure.integrity("impronta diversa"))
@@ -662,18 +687,20 @@ class FluidTransfers(
     val request = session.record.request
     session.update { it.copy(bytesTotal = total, bytesDone = 0L, resumable = false) }
     session.rate.reset(ticks(), 0L)
-    val headers = authorizer.headers(request).toMutableMap()
+    val headers = HashMap<String, String>()
     request.mimeType?.let { headers["Content-Type"] = it }
     var sent = 0L
-    val response = http.open(request.method, request.url, headers, session.control::attach) { connection ->
+    val response = http.open(request.method, request.url, headers, authorizer.headers(request), session.control::attach) { connection ->
+      // Un rinvio che tiene il corpo (307, 308) lo rimanda intero: l'avanzamento riparte da zero.
+      sent = 0L
       connection.doOutput = true
       connection.setFixedLengthStreamingMode(total)
       connection.outputStream.use { output ->
-        request.file.inputStream().use { input ->
+        onDisk { request.file.inputStream() }.use { input ->
           val buffer = ByteArray(config.bufferBytes)
           while (true) {
             session.control.check()
-            val read = input.read(buffer)
+            val read = onDisk { input.read(buffer) }
             if (read < 0) break
             output.write(buffer, 0, read)
             sent += read
@@ -700,9 +727,8 @@ class FluidTransfers(
     val request = session.record.request
     var acked = 0L
     if (session.record.uploadAcked > 0L || session.record.bytesDone > 0L) {
-      val headers = authorizer.headers(request).toMutableMap()
-      headers["Content-Range"] = "bytes */$total"
-      val response = http.open("PUT", request.url, headers, session.control::attach) { connection ->
+      val headers = hashMapOf("Content-Range" to "bytes */$total")
+      val response = http.open("PUT", request.url, headers, authorizer.headers(request), session.control::attach) { connection ->
         connection.doOutput = true
         connection.setFixedLengthStreamingMode(0L)
         connection.outputStream.close()
@@ -725,25 +751,24 @@ class FluidTransfers(
     session.update { it.copy(bytesTotal = total, uploadAcked = acked, bytesDone = acked, resumable = true) }
     session.rate.reset(ticks(), acked)
     var stalls = 0
-    RandomAccessFile(request.file, "r").use { file ->
+    onDisk { RandomAccessFile(request.file, "r") }.use { file ->
       while (acked < total) {
         session.control.check()
         val end = minOf(acked + config.uploadChunkBytes, total) - 1L
         val length = end - acked + 1L
-        val headers = authorizer.headers(request).toMutableMap()
-        headers["Content-Range"] = "bytes $acked-$end/$total"
+        val headers = hashMapOf("Content-Range" to "bytes $acked-$end/$total")
         request.mimeType?.let { headers["Content-Type"] = it }
         val from = acked
-        val response = http.open("PUT", request.url, headers, session.control::attach) { connection ->
+        val response = http.open("PUT", request.url, headers, authorizer.headers(request), session.control::attach) { connection ->
           connection.doOutput = true
           connection.setFixedLengthStreamingMode(length)
           connection.outputStream.use { output ->
             val buffer = ByteArray(config.bufferBytes)
-            file.seek(from)
+            onDisk { file.seek(from) }
             var left = length
             while (left > 0L) {
               session.control.check()
-              val read = file.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
+              val read = onDisk { file.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt()) }
               if (read < 0) throw TransferException(FluidTransferFailure.storage("il file si e' accorciato"))
               output.write(buffer, 0, read)
               left -= read
@@ -823,7 +848,7 @@ class FluidTransfers(
       val save = force || now - lastSaved >= config.persistIntervalMillis
       if (save) lastSaved = now
       synchronized(lock) { records[id]?.let { records[id] = it.copy(bytesDone = bytes, updatedAtMillis = wall()) } }
-      if (save) synchronized(lock) { records[id] }?.let(store::save)
+      if (save) synchronized(lock) { records[id] }?.let(::persist)
       pendingBytes = null
       publish()
       return true
@@ -833,7 +858,7 @@ class FluidTransfers(
     fun flush() {
       val bytes = pendingBytes
       synchronized(lock) { records[id]?.let { if (bytes != null) records[id] = it.copy(bytesDone = bytes) } }
-      synchronized(lock) { records[id] }?.let(store::save)
+      synchronized(lock) { records[id] }?.let(::persist)
       pendingBytes = null
     }
   }
@@ -858,8 +883,29 @@ class FluidTransfers(
 
   private fun write(record: FluidTransferRecord) {
     synchronized(lock) { records[record.id] = record }
-    store.save(record)
+    persist(record)
     publish()
+  }
+
+  /**
+   * Scrive [record] nella coda salvata. Una coda salvata che non scrive (SQLite pieno o rotto) non ferma quella in
+   * memoria: il trasferimento si vede e va avanti, e l'errore resta nel registro. Si perderebbe solo col processo.
+   */
+  private fun persist(record: FluidTransferRecord) {
+    try {
+      store.save(record)
+    } catch (error: Exception) {
+      warn("la coda salvata non ha scritto ${record.id}", error)
+    }
+  }
+
+  /** Toglie [id] dalla coda salvata, con la stessa regola di [persist]. */
+  private fun forget(id: String) {
+    try {
+      store.delete(id)
+    } catch (error: Exception) {
+      warn("la coda salvata non ha tolto $id", error)
+    }
   }
 
   /** Cambia [id] con [change], lo salva e lo mostra. Null se non c'e'. */
@@ -870,7 +916,7 @@ class FluidTransfers(
       if (next == current) return current
       next.copy(updatedAtMillis = wall()).also { records[id] = it }
     }
-    store.save(updated)
+    persist(updated)
     publish()
     return updated
   }
@@ -880,7 +926,7 @@ class FluidTransfers(
       val finished = records.values.filter { it.state.finished }.sortedByDescending { it.finishedAtMillis ?: it.updatedAtMillis }
       finished.drop(config.keepFinished).map { it.id }.onEach { records.remove(it) }
     }
-    gone.forEach(store::delete)
+    gone.forEach(::forget)
   }
 
   private fun publish() {
@@ -900,7 +946,7 @@ class FluidTransfers(
   }
 
   private fun discardPartial(record: FluidTransferRecord) {
-    if (record.request.direction == FluidTransferDirection.Download) partFile(record.request.file).delete()
+    if (record.request.direction == FluidTransferDirection.Download) partFile(record.request).delete()
   }
 
   private enum class TransferOutcome { Completed, RetryLater, Other }
@@ -940,8 +986,23 @@ class FluidTransfers(
     fun from(context: Context): FluidTransfers =
       (context.applicationContext as? FluidTransferHost)?.fluidTransfers ?: open(context)
 
-    /** Il file a meta' di uno scaricamento verso [target]. */
-    fun partFile(target: File): File = File(target.absoluteFile.parentFile, "${target.name}.part")
+    /**
+     * Il file a meta' dello scaricamento [request]: accanto al file, col nome del file e un'impronta del suo id
+     * (`notes.apk.3f2a9c41d07b.part`). Ogni trasferimento ha il suo: due richieste verso lo stesso file non si cuciono.
+     */
+    fun partFile(request: FluidTransferRequest): File {
+      val target = request.file
+      val digest = MessageDigest.getInstance("SHA-256").digest(request.id.toByteArray(Charsets.UTF_8))
+      val tag = digest.take(6).joinToString("") { "%02x".format(it) }
+      return File(target.absoluteFile.parentFile, "${target.name}.$tag.part")
+    }
+
+    private const val LogTag = "FluidTransfers"
+
+    /** Un errore che la coda non mostra ma non tace: nel registro di Android (nelle prove sulla JVM, da nessuna parte). */
+    private fun warn(message: String, error: Throwable) {
+      runCatching { android.util.Log.w(LogTag, message, error) }
+    }
 
     private val UnmeteredReasons = setOf(
       FluidConditionReason.Metered, FluidConditionReason.NotWifi, FluidConditionReason.Roaming, FluidConditionReason.DataSaver,

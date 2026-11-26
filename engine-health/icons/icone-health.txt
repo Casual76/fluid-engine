@@ -1,0 +1,18 @@
+# F8.26 · Le icone della salute (engine-health), allo stesso peso del set dell'engine. Si rigenerano dalla radice
+# dell'engine con:
+#
+#   python tools/icons/gen_fluid_icons.py --app engine-health/icons/icone-health.txt \
+#       --package dev.antigravity.fluidengine.health.icons \
+#       --out engine-health/src/main/kotlin/dev/antigravity/fluidengine/health/icons
+#
+# Una per misura, piene nelle card (come i simboli delle categorie di Salute) e al tratto nelle righe dei permessi.
+
+## Le misure
+footprint pieno               # i passi
+directions_run pieno          # gli allenamenti
+monitor_weight pieno          # il peso
+water_drop pieno              # l'acqua
+
+## I permessi e le fonti
+watch                         # un dato dall'orologio
+smartphone                    # un dato dal telefono

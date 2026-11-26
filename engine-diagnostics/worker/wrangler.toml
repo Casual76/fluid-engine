@@ -1,0 +1,35 @@
+# F8.24 · Il Worker della diagnostica dal campo: riceve i rapporti di engine-diagnostics e li tiene in D1, e da' il
+# cruscotto per app e modello di telefono.
+#
+# Oggi SOLO in locale: `wrangler dev --local` (Miniflare, D1 su disco in .wrangler/) e `node test.mjs`. Niente
+# `wrangler login`, niente deploy, niente `--remote`: lo pubblica Alessio quando decide, con la guida del README.
+# Opzioni controllate sullo schema di Wrangler 4.168.0 (quello di Pampa-account), il 26/11/2026.
+
+name = "pampa-diagnostica"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+# Niente telemetria di Wrangler.
+send_metrics = false
+
+# Niente indirizzo *.workers.dev e niente anteprime finche' non si decide il dominio.
+workers_dev = false
+preview_urls = false
+
+# Nessun registro: i registri automatici di Cloudflare scrivono una riga per richiesta, con l'indirizzo IP. Il Worker
+# non legge mai l'IP e non vuole che resti scritto da nessuna parte (rischio della scheda `crash-e-lentezze`).
+[observability]
+enabled = false
+
+# Una volta al giorno si cancellano i rapporti piu' vecchi di 90 giorni.
+[triggers]
+crons = ["30 3 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pampa-diagnostica"
+# Si riempie alla pubblicazione con l'id che stampa `wrangler d1 create pampa-diagnostica`. In locale basta questo.
+database_id = "00000000-0000-0000-0000-000000000024"
+migrations_dir = "migrations"
+
+# Il segreto del cruscotto non sta qui. In produzione: `wrangler secret put DASHBOARD_TOKEN`; in locale `.dev.vars`
+# (fuori da git) con DASHBOARD_TOKEN=un-valore-finto.

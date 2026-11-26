@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F8.24 · engine-diagnostics non dichiara permessi. L'invio dei rapporti usa INTERNET, che un'app con un indirizzo per la
+    diagnostica ha gia' (o dichiara lei); senza indirizzo i rapporti restano sul telefono e il modulo non apre mai la rete.
+  -->
+</manifest>

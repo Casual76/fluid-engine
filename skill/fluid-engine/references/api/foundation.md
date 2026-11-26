@@ -416,6 +416,35 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `fun byId(id: String?): FluidRecordingQuality?` — La preimpostazione con [id], o null (un valore salvato da una versione che ne aveva un'altra).
     - `fun of(lossless: Boolean, bitRate: Int, sampleRate: Int): FluidRecordingQuality?` — La preimpostazione con questo formato, o null se non è una delle quattro.
 
+## `engine-foundation/foundation/lab/FluidLab.kt`
+
+- `class FluidExperiment(val key: String, val title: String, val summary: String, val group: String? = null, val defaultEnabled: Boolean = false, val applies: FluidExperimentApplies = FluidExperimentApplies.Immediately, val expires: LocalDate? = null)` — Una funzione sperimentale: una cosa nuova dell'app che l'utente può provare prima che sia finita (F8.24).
+  - `fun isExpired(today: LocalDate): Boolean` — Vero se la prova è finita il giorno [today] (il giorno di [expires] vale ancora).
+- `enum class FluidExperimentApplies` — Quando vale la scelta di una [FluidExperiment].
+- `class FluidLabState internal constructor(val chosen: Map<String, Boolean>, val pendingRestart: Set<String>)` — Lo stato del Laboratorio in un colpo solo, immutabile: la scelta di ogni funzione e quelle che aspettano il prossimo avvio. Si sostituisce intero a ogni cambio (la regola di F7.21: uno stato letto da più fili è un valore intero).
+  - `fun isChosen(key: String): Boolean` — Il valore scelto della funzione [key] (falso per una chiave che non c'è).
+  - `val enabledCount: Int get()` — Quante funzioni sono accese, contando la scelta e non il valore in uso.
+- `interface FluidLabStore` — Dove si ricorda la scelta dell'utente. Di serie le `SharedPreferences` dell'app in un file suo ([FluidLab.create]); [inMemory] per le prove. La lettura è sincrona di proposito: una funzione può decidere il primo fotogramma.
+  - `fun readAll(): Map<String, Boolean>` — Le scelte salvate: chiave → acceso. Una chiave assente vuol dire «nessuna scelta».
+  - `fun write(key: String, enabled: Boolean?)` — Salva la scelta di [key]; nulla la cancella (torna al valore di serie).
+  - `fun clear()` — Cancella tutte le scelte.
+  - `companion object`
+    - `fun inMemory(initial: Map<String, Boolean> = emptyMap()): FluidLabStore` — Una memoria che dura quanto l'oggetto: per le prove.
+    - `fun preferences(preferences: SharedPreferences): FluidLabStore` — Le `SharedPreferences` [preferences]: si scrive con `apply()`, quindi senza aspettare il disco.
+- `class FluidLab(experiments: List<FluidExperiment>, private val store: FluidLabStore, today: LocalDate = LocalDate.now())` — Il Laboratorio di un'app: le [experiments] che l'utente può accendere, con la sua scelta ricordata (F8.24).
+  - `val experiments: List<FluidExperiment>` — Le funzioni della pagina, nell'ordine dato, senza quelle scadute.
+  - `val state: StateFlow<FluidLabState>` — Lo stato da osservare (la pagina, la riga delle impostazioni).
+  - `fun experiment(key: String): FluidExperiment?` — La funzione [key], o nulla se non c'è (o è scaduta).
+  - `fun isEnabled(experiment: FluidExperiment): Boolean` — Vero se la funzione è accesa **ora**. Per una funzione [FluidExperimentApplies.NextLaunch] è il valore di quando il processo è partito. Una funzione che il Laboratorio non conosce (o scaduta) dà il suo valore di serie.
+  - `fun isEnabled(key: String): Boolean` — [isEnabled] per nome: falso per un nome che non c'è.
+  - `fun setEnabled(experiment: FluidExperiment, enabled: Boolean)` — Accende o spegne la funzione [experiment]. Una scelta uguale al valore di serie non resta scritta.
+  - `fun resetAll()` — Riporta tutte le funzioni al valore di serie, come «Ripristina tutto» di Safari.
+  - `fun enabledExperiments(): List<FluidExperiment>` — Le funzioni accese ora (per una segnalazione: «Funzioni in prova accese: …»).
+  - `companion object`
+    - `const val DefaultFileName: String` — Il file delle `SharedPreferences` di [create], a parte da quelli dell'app.
+    - `fun isValidKey(key: String): Boolean` — Vero se [key] è un nome di funzione valido.
+    - `fun create(context: Context, experiments: List<FluidExperiment>, fileName: String = DefaultFileName): FluidLab` — Il Laboratorio con la memoria nelle `SharedPreferences` dell'app (il file [fileName], escluso dal backup solo se l'app lo esclude). La lettura del file avviene qui, una volta: crealo nell'`Application` o al primo uso.
+
 ## `engine-foundation/foundation/live/FluidLiveUpdate.kt`
 
 - `class FluidLiveKind private constructor(val name: String, val promotable: Boolean)` — Il genere di un'attività viva: decide l'icona di serie, la categoria della notifica e se può diventare un Live Update.

@@ -590,6 +590,9 @@ FluidGlassSheet(
   95% a 200 ms, punta di 1,5% a 310 ms, sulla curva del foglio di Apple), scendendo con la stessa rigidezza e lo
   smorzamento critico (il foglio di Apple che si richiude non rimbalza). Un dito che lo riprende mentre si muove ferma la
   molla dov'è, anche senza trascinare.
+  Un foglio che **l'app tiene aperto** (un `onDismissRequest` che non lo chiude, come il foglio sopra la mappa di
+  `engine-map`) e che il dito porta sotto il detent più basso **torna su** al detent più basso con la stessa molla, due
+  fotogrammi dopo la richiesta (4.0, F8.26): prima restava dove l'aveva lasciato il dito.
 - **Lo scorrimento.** Il contenuto è una colonna alta quanto il foglio (sopra la barra di navigazione): una lista con
   `Modifier.weight(1f)` ci scorre dentro. Finché il foglio non è al detent più alto, scorrere verso l'alto **alza il
   foglio** invece della lista; a lista in cima, scorrere verso il basso lo abbassa.

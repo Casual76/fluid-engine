@@ -1,0 +1,64 @@
+// F8.24 · La diagnostica dal campo (`crash-e-lentezze`), come MetricKit di Apple: i crash, i blocchi (ANR), le chiusure
+// decise dal sistema (ApplicationExitInfo, Android 11+) e i fotogrammi lenti per pagina (JankStats), col consenso chiesto
+// una volta e una coda sul telefono finche' l'utente non dice di si'. Senza contenuti e senza identita'. In piu' il
+// registro circolare in memoria (`FluidLog`, col filtro dei dati personali) che usa «Segnala un problema», e le tracce
+// dei tempi (`FluidTrace`, AndroidX Tracing) che esistono solo nelle build di debug e dev. Opt-in.
+//
+//   implementation project(':engine-diagnostics')
+//
+// Librerie: androidx.metrics:metrics-performance (JankStats, Apache-2.0) e androidx.tracing (Apache-2.0, gia' portata da
+// androidx.core). Nessun permesso: l'invio usa INTERNET, che l'app dichiara se passa un indirizzo.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.diagnostics'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Le prove del crash, della coda e delle chiusure di sistema girano in Robolectric (Context, SharedPreferences,
+      // ActivityManager con le ApplicationExitInfo finte, ShadowTrace per le tracce).
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: le firme pubbliche parlano Compose (il foglio del consenso, la pagina dei dati) e i tipi di engine-ui.
+  api project(':engine-ui')
+  api project(':engine-foundation')
+  // JankStats: i fotogrammi lenti per pagina, sopra FrameMetrics (Android 7+). Una libreria piccola (circa 60 kB).
+  implementation "androidx.metrics:metrics-performance:${engine.metricsPerformance}"
+  // Le tracce dei tempi: solo la build di debug le scrive (src/debug). La release ha la sua versione vuota (src/release)
+  // e non chiama mai Trace: lo prova FluidTraceReleaseTest, che gira con testReleaseUnitTest.
+  debugImplementation "androidx.tracing:tracing:${engine.tracing}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove con Context, file e ActivityManager veri di Android, mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

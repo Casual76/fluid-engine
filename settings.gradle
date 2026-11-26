@@ -88,6 +88,11 @@ include ':engine-transcript'
 // F8.16 · Il disegno e le annotazioni (engine-ink, sopra androidx.ink): il foglio, la tavolozza di vetro, la penna dello
 // stilo, le forme, annulla e ripristina, l'annotazione di una foto o di un PDF che consegna un file nuovo. Opt-in.
 include ':engine-ink'
+// F8.26 · Luoghi e salute: la mappa con MapLibre e OpenStreetMap (engine-map: comandi di vetro, segnaposto a grappolo, foglio
+// sopra la mappa, cartolina ferma) e Health Connect (engine-health: permessi misura per misura, fonti, buchi e doppioni,
+// sincronizzazione per differenze, dati cifrati nella cassaforte, anelli e card). Opt-in tutti e due.
+include ':engine-map'
+include ':engine-health'
 // F8.22 · Ricerca: l'indice sul telefono come Core Spotlight e «Cerca in Pampa» col ponte firmato (engine-search), e il
 // modello del significato con LiteRT-LM (engine-search-semantic, a parte perche' pesa). Opt-in tutti e due.
 include ':engine-search'
@@ -108,6 +113,12 @@ include ':engine-scan-core'
 // ricevuta, il formato versionato; il Data Layer di Play services e' compileOnly, lo porta l'app). Opt-in, senza
 // interfaccia; le Tile e le complicazioni stanno in engine-wear, la vetrina dei widget in engine-widget.
 include ':engine-wear-sync'
+
+// F8.24 · La diagnostica dal campo (engine-diagnostics: crash, blocchi, chiusure decise dal sistema e fotogrammi lenti per
+// pagina col consenso chiesto una volta, il registro circolare, le tracce dei tempi solo in debug) e «Segnala un problema»
+// (engine-feedback: lo screenshot segnato col dito, il file per WhatsApp, la issue su GitHub). Opt-in tutti e due.
+include ':engine-diagnostics'
+include ':engine-feedback'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

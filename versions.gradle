@@ -111,4 +111,17 @@ ext.engine = [
   tesseract      : '5.5.3-1.5.14',
   leptonica      : '1.87.0-1.5.14',
   javacpp        : '1.5.14',
+  // engine-map (F8.26): la mappa con MapLibre Native (BSD-2-Clause), l'artefatto `android-sdk-opengl` (OpenGL ES; quello
+  // senza suffisso dalla serie 12 e' il motore Vulkan). La 13.7.1 (15/10/2026), la stessa di MyCloud Gallery 2 e FluidWeather:
+  // un'app che ha gia' la sua mappa non si trova due versioni. Porta a runtime OkHttp 4.12.0, Timber, geojson, turf e i gesti
+  // di MapLibre. Le tessere sono di OpenStreetMap (ODbL) servite da OpenFreeMap: niente chiave e niente account.
+  maplibre       : '13.7.1',
+  // engine-health (F8.26): Health Connect (Apache-2.0), la stabile 1.1.0 (la 1.2 e' ancora alpha). Porta Guava (android) e
+  // kotlinx-coroutines-guava. connect-testing non si usa: la 1.0.0-alpha04 pretende connect-client 1.2.0-alpha05.
+  healthConnect  : '1.1.0',
+  // engine-diagnostics (F8.24): JankStats (Apache-2.0), la stabile 1.0.0 (ottobre 2025; porta solo androidx.core 1.5 e
+  // collection 1.4.2), e AndroidX Tracing 1.2.0 per le tracce della build di debug: e' la versione che androidx.core 1.18
+  // porta gia' a ogni app (metadati del modulo letti il 26/11/2026), quindi non aggiunge niente all'APK.
+  metricsPerformance: '1.0.0',
+  tracing        : '1.2.0',
 ]

@@ -1,0 +1,14 @@
+# F8.26 · Le icone della mappa (engine-map), allo stesso peso del set dell'engine. Si rigenerano dalla radice
+# dell'engine con:
+#
+#   python tools/icons/gen_fluid_icons.py --app engine-map/icons/icone-map.txt \
+#       --package dev.antigravity.fluidengine.map.icons \
+#       --out engine-map/src/main/kotlin/dev/antigravity/fluidengine/map/icons
+#
+# Le sagome scelte guardando i comandi e la scheda del luogo di Mappe in iOS 26 (F8.26).
+
+## I comandi sopra la mappa
+near_me pieno                 # la posizione: vuota spenta, piena quando la mappa ti segue (la freccia di Mappe)
+
+## La scheda del luogo
+directions                    # «Indicazioni», la freccia che gira

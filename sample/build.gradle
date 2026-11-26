@@ -253,6 +253,14 @@ dependencies {
   implementation project(':engine-wear')
   implementation project(':engine-wear-sync')
   implementation "androidx.wear.tiles:tiles-renderer:${engine.wearTiles}"
+  // F8.26: la mappa (MapLibre, le tessere di OpenFreeMap nella debug e nella bench) e la salute (Health Connect, solo dati finti nella galleria).
+  implementation project(':engine-map')
+  implementation project(':engine-health')
+  // F8.24 · La diagnostica (engine-diagnostics: il consenso, la coda, i fotogrammi per pagina, le tracce di debug) e «Segnala
+  // un problema» (engine-feedback). La diagnostica si accende solo quando si apre una sua scena: il primo fotogramma della
+  // galleria non cambia, e niente parte senza il si' (e solo verso il PC, `adb reverse tcp:8787 tcp:8787`).
+  implementation project(':engine-diagnostics')
+  implementation project(':engine-feedback')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

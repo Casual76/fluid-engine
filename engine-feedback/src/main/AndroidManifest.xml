@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F8.24 · engine-feedback non chiede permessi. Il browser (la issue di GitHub) e WhatsApp li apre Android; lo screenshot
+    va in Download con MediaStore, che da Android 10 non chiede niente.
+
+    Le due app di WhatsApp si nominano qui perche' da Android 11 un'app vede solo i pacchetti che dichiara: serve a
+    mettere «WhatsApp» in cima al foglio Condividi quando c'e'. Il foglio vede comunque tutte le app da «Altre app…».
+  -->
+  <queries>
+    <package android:name="com.whatsapp" />
+    <package android:name="com.whatsapp.w4b" />
+  </queries>
+</manifest>

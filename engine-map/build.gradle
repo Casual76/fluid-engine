@@ -1,0 +1,67 @@
+// F8.26 · La mappa e i luoghi (`mappa-e-luoghi`), come Mappe di iOS 26 e MapKit per SwiftUI: la mappa con i comandi di
+// vetro (posizione, bussola, livelli), i segnaposto anche a grappolo, il foglio a piu' altezze sopra la mappa con la scheda
+// del luogo (Indicazioni, Condividi, Copia coordinate) e la cartolina, una mappa piccola e ferma per una riga o per il
+// pannello info del visore (FluidViewerLocation), che toccata si apre. Opt-in:
+//
+//   implementation project(':engine-map')
+//
+// Una sola libreria: MapLibre Native per Android (BSD-2-Clause), con le mappe di OpenStreetMap (dati ODbL, attribuzione
+// obbligatoria: la disegna il modulo) servite di serie da OpenFreeMap, senza chiave e senza account. Niente Google Maps,
+// che non e' libero. La proiezione, i grappoli, i comandi e la cartolina sono codice dell'engine: la mappa vera e' una
+// superficie dietro un'interfaccia (FluidMapEngine), e nelle prove (e senza rete) la disegna il «disegno» dell'engine.
+//
+// Peso: MapLibre porta libmaplibre.so per quattro ABI (arm64-v8a, armeabi-v7a, x86, x86_64); le misure per ABI sono nella
+// scheda del modulo (moduli/map.md della skill). Il permesso della posizione non lo dichiara il modulo: lo dichiara l'app
+// che mostra la posizione vera.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.map'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // I comandi, i segnaposto, la cartolina e l'attribuzione si provano col dito vero sul disegno dell'engine
+      // (Robolectric, grafica nativa). MapLibre non si disegna in Robolectric: la mappa vera si prova sul telefono.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: la mappa parla i vetri, le parole e i visori di engine-ui.
+  api project(':engine-ui')
+  implementation "org.maplibre.gl:android-sdk-opengl:${engine.maplibre}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+  testImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
+  debugImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}

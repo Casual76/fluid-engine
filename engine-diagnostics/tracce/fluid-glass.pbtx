@@ -1,0 +1,30 @@
+# F8.24 · La configurazione di Perfetto per le tracce dei tempi (FluidTrace) di un'app Pampa, build di debug.
+# Si prende cosi', dalla radice dell'engine, con l'app aperta (15 secondi di traccia):
+#
+#   cat engine-diagnostics/tracce/fluid-glass.pbtx | adb shell perfetto --txt -c - -o /data/misc/perfetto-traces/fluid-glass.pftrace
+#   adb pull /data/misc/perfetto-traces/fluid-glass.pftrace
+#
+# e si apre in ui.perfetto.dev. Per un'altra app si cambia atrace_apps col suo pacchetto (quello della build di debug,
+# col suffisso). La release non scrive niente: le sue chiamate sono vuote.
+buffers {
+  size_kb: 65536
+  fill_policy: RING_BUFFER
+}
+data_sources {
+  config {
+    name: "linux.ftrace"
+    ftrace_config {
+      atrace_categories: "view"
+      atrace_categories: "gfx"
+      atrace_categories: "input"
+      atrace_apps: "dev.antigravity.fluidglass.debug"
+    }
+  }
+}
+data_sources {
+  config {
+    name: "linux.process_stats"
+    target_buffer: 0
+  }
+}
+duration_ms: 15000

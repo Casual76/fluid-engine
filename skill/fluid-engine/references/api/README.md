@@ -17,14 +17,14 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
 | [Vetro](vetro.md) | 33 | 264 |
-| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 7 | 96 |
+| [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 8 | 107 |
 | [Tema, forma, tipo](tema.md) | 11 | 149 |
 | [Icone (FluidIcons)](icone.md) | 5 | 217 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 27 | 386 |
+| [engine-foundation](foundation.md) | 28 | 407 |
 | [engine-storage](storage.md) | 4 | 30 |
 | [engine-net](net.md) | 4 | 32 |
 | [engine-config](config.md) | 1 | 10 |
@@ -59,6 +59,10 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-search](search.md) | 8 | 152 |
 | [engine-search-semantic](search-semantic.md) | 2 | 9 |
 | [engine-scan e engine-scan-core](scan.md) | 11 | 129 |
+| [engine-map](map.md) | 13 | 179 |
+| [engine-health](health.md) | 8 | 148 |
+| [engine-diagnostics](diagnostics.md) | 9 | 107 |
+| [engine-feedback](feedback.md) | 4 | 63 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

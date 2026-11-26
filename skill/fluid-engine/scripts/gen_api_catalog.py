@@ -172,6 +172,8 @@ UI_FLUID_DIRS = {
     # la condivisione (F8.10): il foglio, la copia preparata, il contratto del QR; e le uscite (immagine, PDF, stampa)
     "ui/fluid/share": "condivisione",
     "ui/fluid/output": "condivisione",
+    # il Laboratorio (F8.24): la pagina delle funzioni in prova e la sua riga, accanto alle altre sezioni delle impostazioni
+    "ui/fluid/lab": "impostazioni",
 }
 
 # cartella (sotto .../fluidengine/) -> famiglia; vale per tutto cio' che non e' in ui/fluid
@@ -244,6 +246,12 @@ DIR_FAMILY = {
     # lo scanner di documenti (F8.17) e il suo nucleo senza fotocamera (engine-scan-core, F8.17d, stesso pacchetto);
     # «Leggi testo» (viewer/ocr) va con engine-viewer
     "scan": "scan",
+    # la mappa e i luoghi (F8.26), e la salute con Health Connect (F8.26)
+    "map": "map",
+    "health": "health",
+    # la diagnostica dal campo e «Segnala un problema» (F8.24)
+    "diagnostics": "diagnostics",
+    "feedback": "feedback",
 }
 
 FAMILY_TITLES = {
@@ -300,6 +308,10 @@ FAMILY_TITLES = {
     "search": "engine-search",
     "search-semantic": "engine-search-semantic",
     "scan": "engine-scan e engine-scan-core",
+    "map": "engine-map",
+    "health": "engine-health",
+    "diagnostics": "engine-diagnostics",
+    "feedback": "engine-feedback",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

@@ -102,11 +102,15 @@ $EngineModules = [ordered]@{
   "engine-playback"   = @("engine-foundation", "engine-ui")
   "engine-transcript" = @("engine-foundation", "engine-ui")
   "engine-ink"        = @("engine-foundation", "engine-ui")
+  "engine-map"        = @("engine-foundation", "engine-ui")
+  "engine-health"     = @("engine-foundation", "engine-ui", "engine-vault")
   "engine-search"     = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai", "engine-ai-bridge")
   "engine-search-semantic" = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai", "engine-ai-bridge", "engine-search")
   "engine-editor"     = @("engine-foundation", "engine-ui")
   "engine-scan-core"  = @()
   "engine-scan"       = @("engine-foundation", "engine-ui", "engine-scan-core")
+  "engine-diagnostics" = @("engine-foundation", "engine-ui")
+  "engine-feedback"   = @("engine-foundation", "engine-ui", "engine-diagnostics", "engine-ink")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -154,7 +158,7 @@ $EngineModules = [ordered]@{
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
 # engine-files (F8.18: lo sfoglia-file, sopra engine-viewer) idem: lo chiede un'app che fa sfogliare o scegliere file
 # (-Modules ...,engine-files). Nessun permesso: le cartelle arrivano dal selettore di sistema.
-$OptInModules = @("engine-wear", "engine-wear-sync", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic", "engine-editor", "engine-scan-core", "engine-scan")
+$OptInModules = @("engine-wear", "engine-wear-sync", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic", "engine-editor", "engine-scan-core", "engine-scan", "engine-map", "engine-health", "engine-diagnostics", "engine-feedback")
 # engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
 # nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
 # l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
@@ -166,6 +170,11 @@ $OptInModules = @("engine-wear", "engine-wear-sync", "engine-ai-ui", "engine-ric
 # engine-ink (F8.16: il disegno e le annotazioni, sopra androidx.ink, Apache-2.0; porta la libreria nativa libink.so per
 # le ABI di Android, circa 1,3 MB per ABI) idem: lo chiede solo un'app che disegna o annota (-Modules ...,engine-ink).
 # Nessun permesso. I crediti: FluidInkLicenses in fluidLicensesSection.
+# engine-map (F8.26: la mappa con MapLibre Native, BSD-2-Clause, e le tessere di OpenStreetMap da OpenFreeMap, senza
+# chiave; porta libmaplibre.so, circa 11 MB per ABI) idem: -Modules ...,engine-map. La posizione la dichiara l'app solo
+# se la mostra (moduli/map.md della skill). Crediti: FluidMapLicenses in fluidLicensesSection.
+# engine-health (F8.26: Health Connect, Apache-2.0, con Guava; porta engine-vault per la copia cifrata) idem:
+# -Modules ...,engine-health. I permessi dei dati li dichiara l'app, solo quelli che usa (moduli/health.md della skill).
 # engine-search (F8.22: l'indice sul telefono in SQLite FTS4, la ricerca con gli errori di battitura e i pezzi
 # evidenziati, "Cerca in Pampa" col ponte firmato; porta engine-ui, engine-ai-bridge, engine-vault e WorkManager) idem:
 # -Modules ...,engine-search. engine-search-semantic (il modello del significato con LiteRT-LM: 22 MB di libreria
@@ -185,6 +194,11 @@ $OptInModules = @("engine-wear", "engine-wear-sync", "engine-ai-ui", "engine-ric
 # (play-services-wearable, gratuito ma non open source: permesso della GPL-3.0 par. 7) e' compileOnly: lo aggiunge
 # l'app che usa l'adattatore. engine-wear porta ora anche le Tile e le complicazioni (Tiles chiede compileSdk 35 e
 # AGP 8.6 all'app dell'orologio).
+# engine-diagnostics (F8.24: crash, blocchi, chiusure decise dal sistema e fotogrammi lenti per pagina, col consenso
+# chiesto una volta e la coda sul telefono; il registro circolare; le tracce dei tempi solo nella build di debug; porta
+# JankStats, Apache-2.0) idem: -Modules ...,engine-diagnostics. Senza un indirizzo nella sua configurazione non apre mai
+# la rete. engine-feedback (F8.24: "Segnala un problema", lo screenshot segnato col dito, lo ZIP per WhatsApp, la issue
+# su GitHub nel browser) porta engine-diagnostics ed engine-ink: -Modules ...,engine-feedback. Nessun permesso.
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -410,10 +424,14 @@ $notes = @(
   @("engine-playback", "riproduzione di sistema con Media3: notifica, schermata di blocco, cuffie, timer (opt-in)"),
   @("engine-transcript", "ascolto dal paragrafo: tempi per parola e paragrafo, salto, la pagina che segue la voce (opt-in)"),
   @("engine-ink", "disegno e annotazioni: foglio, tavolozza di vetro, penna dello stilo, forme, foto e PDF annotati (opt-in)"),
+  @("engine-map", "mappa: MapLibre e OpenStreetMap, comandi di vetro, segnaposto a grappolo, foglio, cartolina (opt-in; peso: 11 MB nativi per ABI)"),
+  @("engine-health", "salute con Health Connect: permessi per misura, fonti, unione senza doppioni, copia cifrata, anelli e card (opt-in)"),
   @("engine-search", "ricerca: indice sul telefono (FTS4, errori di battitura, pezzi evidenziati, cassaforte), Cerca in Pampa col ponte (opt-in)"),
   @("engine-search-semantic", "ricerca per significato: EmbeddingGemma 2 con LiteRT-LM, il modello lo porta l'app (opt-in; peso: 22 MB nativi arm64)"),
   @("engine-editor", "modifica delle foto: ritaglio, raddrizza, regolazioni con la ruota, Auto, originale sempre recuperabile (opt-in)"),
-  @("engine-scan", "scanner di documenti: fotocamera di vetro, bordi dal vivo, filtri, fila delle pagine, PDF per URI (opt-in)")
+  @("engine-scan", "scanner di documenti: fotocamera di vetro, bordi dal vivo, filtri, fila delle pagine, PDF per URI (opt-in)"),
+  @("engine-diagnostics", "diagnostica dal campo: crash, blocchi, chiusure di sistema, scatti per pagina, col consenso; tracce solo in debug (opt-in)"),
+  @("engine-feedback", "Segnala un problema: screenshot segnato, PDF per WhatsApp, issue su GitHub; porta engine-ink (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

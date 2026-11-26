@@ -496,6 +496,7 @@ private fun FluidSheetPane(
   } else null
   val currentOnDismiss by rememberUpdatedState(onDismiss)
   val currentReduced by rememberUpdatedState(reducedMotion)
+  val currentVisible by rememberUpdatedState(visible)
   val statusBars = WindowInsets.statusBars
   // Il velo che a tutta altezza fa del foglio una pagina: il colore della pagina del tema (bianco sul chiaro, il grigio
   // rialzato #1B1B1E sullo scuro: quelli del foglio di Apple).
@@ -583,6 +584,14 @@ private fun FluidSheetPane(
       motion.job?.cancel()
       motion.job = null
       currentOnDismiss()
+      // F8.26: un foglio che l'app tiene aperto (il foglio sopra la mappa, che come in Mappe non si chiude) torna al
+      // detent piu' basso con la molla, invece di restare dove l'ha lasciato il dito. Due fotogrammi: il tempo perche'
+      // un `visible = false` dell'app arrivi fin qui.
+      if (motion.detented) motion.job = scope.launch {
+        withFrameNanos { }
+        withFrameNanos { }
+        if (currentVisible) animateTo(0, velocityUp)
+      }
       return
     }
     animateTo(target, velocityUp)

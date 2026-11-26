@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F8.26 · Nessun permesso dei dati: l'app dichiara solo quelli che usa, misura per misura
+    (android.permission.health.READ_STEPS, WRITE_SLEEP, ...: la scheda del modulo ha le righe). Il modulo porta:
+    - la visibilita' di Health Connect per Android 13 e prima, dove e' un'app a parte;
+    - la pagina della privacy che Health Connect apre dal suo elenco dei permessi (Android 13 e prima: l'azione
+      ACTION_SHOW_PERMISSIONS_RATIONALE; Android 14 e poi: VIEW_PERMISSION_USAGE con la categoria HEALTH_PERMISSIONS,
+      protetta da START_VIEW_PERMISSION_USAGE, che solo il sistema ha). Mostra cosa l'app chiede e il suo indirizzo della
+      privacy, scritto dall'app nel meta-data dev.antigravity.fluidengine.health.PRIVACY_URL.
+  -->
+  <queries>
+    <package android:name="com.google.android.apps.healthdata" />
+  </queries>
+
+  <application>
+    <activity
+        android:name="dev.antigravity.fluidengine.health.FluidHealthPrivacyActivity"
+        android:exported="true"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+      <intent-filter>
+        <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+      </intent-filter>
+    </activity>
+    <activity-alias
+        android:name="dev.antigravity.fluidengine.health.FluidHealthPermissionUsage"
+        android:exported="true"
+        android:targetActivity="dev.antigravity.fluidengine.health.FluidHealthPrivacyActivity"
+        android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+        <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+      </intent-filter>
+    </activity-alias>
+  </application>
+</manifest>

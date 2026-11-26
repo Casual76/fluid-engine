@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F8.26 · Il modulo dichiara solo la rete, per le tessere della mappa (MapLibre la dichiara gia' da se'). La posizione
+    vera (ACCESS_COARSE_LOCATION e, se serve, ACCESS_FINE_LOCATION) la dichiara l'app che la mostra: la scheda del modulo
+    dice le righe. Un'app che mostra solo dei punti, o la cartolina di una foto, non chiede niente.
+  -->
+  <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

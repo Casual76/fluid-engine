@@ -1,0 +1,59 @@
+// F8.24 · «Segnala un problema» (`segnala-problema`, rivista da Alessio): un flusso che non disturba, aperto da
+// «Informazioni» o dal Laboratorio (mai a ogni screenshot), con lo screenshot di una pagina dell'app da segnare col dito
+// (engine-ink), il campo «Cosa non va?», tutto quello che parte in vista, e due strade a scelta: uno ZIP con tutte le
+// informazioni (LEGGIMI.txt, il JSON, lo screenshot, il registro) da mandare su WhatsApp (il foglio Condividi), o una issue pubblica su GitHub, precompilata nel
+// browser, che da' i crediti a chi segnala. Il registro circolare e il filtro dei dati personali stanno in
+// engine-diagnostics. Opt-in.
+//
+//   implementation project(':engine-feedback')
+//
+// Nessuna libreria nuova, nessun permesso: il browser e WhatsApp li apre Android, la issue la scrive l'utente dal suo
+// account GitHub. Porta engine-ink (androidx.ink e la sua libreria nativa, circa 1,3 MB per ABI).
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.feedback'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: le firme pubbliche parlano Compose, FluidLab (engine-foundation) e il registro di engine-diagnostics.
+  api project(':engine-ui')
+  api project(':engine-diagnostics')
+  // Lo screenshot si segna col foglio di Markup dell'engine: un dettaglio del flusso, non della sua firma.
+  implementation project(':engine-ink')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

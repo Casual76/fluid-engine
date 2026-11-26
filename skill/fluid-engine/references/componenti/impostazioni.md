@@ -59,6 +59,9 @@ Il tema che queste righe modificano e' descritto in [tema.md](tema.md); il modul
 | un'app in inglese | `FluidLabels.english()` alla radice, `FluidUpdateStrings.english()`, e `FluidAppearanceStrings(...)` scritto a mano |
 | la qualità di registrazione scelta dall'utente (voce per l'IA, standard, alta, senza perdita, con lo spazio di un'ora) | `FluidRecordingQualityRow(selected, onSelected)` in un `FluidListGroup(glass = true)` ([controlli-gesto](controlli-gesto.md), «L'audio») |
 | i crediti nella pagina «Informazioni» | `fluidLicensesSection()` (obbligatorio dalla 3.0) |
+| le funzioni sperimentali da accendere nelle impostazioni (il Laboratorio, come «Feature Flags» di Safari) | `FluidLab.create(context, esperimenti)` una volta, `FluidLabRow(lab, onClick)` nelle impostazioni e `FluidLabPage(lab, onBack, onReportProblem)` |
+| «Segnala un problema» nella pagina «Informazioni» | `FluidFeedbackRow()` di `engine-feedback` ([../moduli/feedback.md](../moduli/feedback.md)) |
+| «Condividi con lo sviluppatore» e «Dati di diagnostica» nella pagina «Privacy» | `FluidDiagnosticsSettingsGroup` di `engine-diagnostics` ([../moduli/diagnostics.md](../moduli/diagnostics.md)) |
 | i crediti in una pagina fatta di `Column` | `FluidLicenseGroup()` o `FluidLicenseDetails()` |
 | controllare le versioni dell'engine fuori dall'interfaccia | non qui: `engine-update` (`../moduli/update.md`) |
 
@@ -559,6 +562,44 @@ numero in attesa scorre (`FluidNumericText`); con «Riduci movimento» cambia di
 
 Le parole: `FluidNotifyPageLabels` (`english()`). I tag dei test: `FluidNotifyPageTags`.
 
+## Il Laboratorio: FluidLab, FluidLabPage, FluidLabRow (F8.24)
+
+**Cos'e'.** Le **funzioni sperimentali** dell'app, che l'utente accende da sé da una pagina «Laboratorio» nelle
+impostazioni, come la pagina «Feature Flags» di Safari su iPhone (Impostazioni › App › Safari › Avanzate › Feature Flags):
+interruttori raggruppati e «Ripristina tutto» in fondo. Nota di Alessio sulla scheda `flag-graduali`: «qualcosa di
+nativo dell'engine per le funzioni sperimentali e l'opzione di attivarle nelle impostazioni, ma il flag remoto non mi
+interessa». Quindi **niente rete e niente flag remoti nuovi**: la scelta resta sul telefono. Il kill switch e i flag
+degli incidenti di PampAI restano in `engine-config` ([../config-remota.md](../config-remota.md)).
+
+**La parte senza interfaccia sta in `engine-foundation`** (`foundation.lab`): la legge anche il codice che non disegna.
+
+```kotlin
+val NuovoEditor = FluidExperiment("nuovo-editor", "Nuovo editor", "L'editor che arriva con la 4.1.", group = "Interfaccia")
+val MotoreNuovo = FluidExperiment("motore-db", "Motore nuovo", "Il database nuovo.", applies = FluidExperimentApplies.NextLaunch)
+val lab = FluidLab.create(context, listOf(NuovoEditor, MotoreNuovo))      // uno per processo, nell'Application
+if (lab.isEnabled(NuovoEditor)) { … }                                    // una mappa, niente disco
+```
+
+- `FluidExperiment`: `key` stabile (minuscole, cifre, `-`, `_`, `.`, fino a 48), `title`, `summary`, `group`,
+  `defaultEnabled` (di serie spenta), `applies`, `expires`.
+- `FluidExperimentApplies.Immediately` (di serie): chi legge dopo la scelta vede il valore nuovo.
+  `FluidExperimentApplies.NextLaunch`: `isEnabled` resta quello di quando il processo è partito, e la pagina dice «Al
+  prossimo avvio» (per ciò che si decide una volta: un motore, il materiale prima del primo fotogramma).
+- `expires`: dopo l'ultimo giorno la funzione **sparisce** dalla pagina e torna com'è di serie (finita nell'app o tolta),
+  come le voci di Safari. La scelta di una funzione che non c'è più si dimentica: un nome riusato non si ritrova acceso.
+- La memoria: le `SharedPreferences` `fluid-lab` (`FluidLabStore.preferences`), scritte con `apply()`; una scelta uguale
+  al valore di serie non resta scritta. `FluidLabStore.inMemory()` per le prove.
+- `lab.state` (`FluidLabState`, un valore intero sostituito a ogni cambio: la regola di F7.21) dice la scelta di ogni
+  funzione e quelle che aspettano il riavvio; `lab.enabledExperiments()` serve a una segnalazione.
+
+**La pagina** (`FluidLabPage`, in `engine-ui`, `ui.fluid.lab`): una pagina intera (`FluidScreen`) con la nota in cima
+(«Funzioni nuove ancora in prova…»), un gruppo per `group` (quello senza nome in cima), un `FluidToggleRow` per funzione
+col riassunto sotto, «Ripristina tutto» con la conferma, e `onReportProblem` come ultima riga (di solito
+`feedback.open()` di [`engine-feedback`](../moduli/feedback.md)). Senza funzioni dice «Niente in prova». Righe di
+impostazioni, niente vetro; gli interruttori li muove il dito e restano nitidi. **`FluidLabRow`** è la riga che la apre
+(«Laboratorio», «2 funzioni accese»), e con `hideWhenEmpty` (di serie) non c'è se l'app non ha niente in prova. Le
+parole: `FluidLabLabels` (`english()`); i tag: `FluidLabTags`.
+
 ## Cosa e' verificato dai test
 
 - `FluidAppearanceTest` (`engine-ui`, 19 casi): le voci di tema sono tre e `AMOLED` non e' una di loro; il nero vale per il tema `AMOLED` come per l'interruttore; scegliere un tema
@@ -574,6 +615,11 @@ Le parole: `FluidNotifyPageLabels` (`english()`). I tag dei test: `FluidNotifyPa
   col suo messaggio.
 - `FluidEnglishStringsTest` (`engine-ui`): vedi sopra (le versioni inglesi non lasciano campi italiani; l'italiano resta il default; `lastSyncLabel` dice le frasi che gli si danno).
 - `FluidLabelsTest` (`sample`): di serie le parole sono italiane; un'app tradotta le passa alla radice e valgono anche dentro gli host (la X della pagina intera, l'indietro, l'occhio).
+- `FluidLabTest` (`engine-foundation`, JVM): accendi, spegni, il riavvio sulla stessa memoria, la scelta uguale al
+  valore di serie che non resta scritta, «Al prossimo avvio», «Ripristina tutto», le funzioni scadute e i nomi che non
+  ci sono più, i nomi validi. `F8p24DiagnosticsUiTest` (`sample`, Robolectric): l'interruttore col dito e TalkBack
+  (ruolo e stato), «Al prossimo avvio», il riavvio con un `FluidLab` nuovo sullo stesso file, «Ripristina tutto» solo
+  dopo la conferma, la riga che non c'è senza funzioni, «Riduci movimento».
 - **Non coperti**: i crediti (nessun test su `fluidLicensesSection`, ne' sul fatto che la lista sia allineata a `LICENSES/`); il disegno della sezione di aggiornamento su un
   telefono; il vetro dei gruppi.
 
@@ -587,6 +633,8 @@ Le parole: `FluidNotifyPageLabels` (`english()`). I tag dei test: `FluidNotifyPa
 | `FluidUpdateUi.kt` | `fluidUpdateSection`, `FluidUpdatePrompt`, `FluidUpdatePromptSheet`, `FluidUpdateChannelStyle` |
 | `FluidLabels.kt` | `FluidLabels`, `FluidSyncStrings`, `LocalFluidLabels` (+ `english()`) |
 | `FluidLicenses.kt` | `FluidLicense`, `FluidEngineLicenses`, `fluidLicensesSection`, `FluidLicenseGroup`, `FluidLicenseDetails` |
+| `lab/FluidLabPage.kt` | `FluidLabPage`, `FluidLabRow`, `FluidLabLabels`, `FluidLabTags` (F8.24) |
+| `engine-foundation/…/lab/FluidLab.kt` | `FluidLab`, `FluidExperiment`, `FluidExperimentApplies`, `FluidLabState`, `FluidLabStore` (F8.24) |
 | `engine-foundation/…/AppUpdate.kt` | `AppUpdater`, `AvailableAppUpdate`, `AppUpdateInstallState`, `AppUpdateErrorKind`, `UpdateChannel` |
 | `LICENSES/` (radice del repo) | i testi di LibrePods, AndroidLiquidGlass, Inter |
 | `sample/…/SettingsTab.kt`, `catalog/RowsAndSheetsDemo.kt`, `catalog/MoreComponentsDemo.kt` | aspetto, crediti e aggiornamento cablati come in un'app vera |

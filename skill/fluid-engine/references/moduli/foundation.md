@@ -38,6 +38,7 @@ con `fluidAddressCallerTrusted`. La [scheda delle pagine](../componenti/pagine.m
 | confrontare due testi a pezzi (parole o righe) con un tetto di lavoro (F8.21) | `FluidTextDiff.words(t)`, `FluidTextDiff.lines(t)`, `FluidTextDiff.diff(a, b, maxEdits)` → `FluidDiff` (`matchInB`, `hunks`) o null oltre il tetto |
 | un'altra implementazione dell'aggiornamento in-app (non GitHub) | implementare `AppUpdater`; l'UI parla solo questo contratto |
 | un campo di configurazione **senza** default sicuro | non e' un flag: va nella build (vedi `EngineFlag`) |
+| una funzione sperimentale che l'utente accende da sé nel Laboratorio, senza rete (F8.24) | `FluidExperiment(key, titolo, riassunto)` e `FluidLab.create(context, esperimenti)`; `lab.isEnabled(esperimento)`. La pagina: `FluidLabPage` di `engine-ui` ([impostazioni](../componenti/impostazioni.md), «Il Laboratorio») |
 | un numero con la sua unità, convertito senza `Double` (F8.3) | `FluidQuantity(valore, FluidUnits.Kilometer).to(FluidUnits.Mile)`, `FluidUnits.convert(…)` |
 | scrivere o leggere «12,5 km», «€12.50» nella lingua | `FluidUnitFormat.format(quantità, locale)`, `FluidUnitFormat.parse(testo, locale)` |
 | le regole di una password, la forza, una password forte (F8.3) | `FluidPasswordRules.parse(…)`, `FluidPasswordStrength.estimate(…)`, `rules.generate()` |

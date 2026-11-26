@@ -1,0 +1,66 @@
+// F8.26 · Salute e movimento (`salute-e-movimento`), come HealthKit e l'app Salute: legge e scrive i dati di Health
+// Connect (passi, sonno, battito, allenamenti, peso, acqua) con i permessi misura per misura e la fonte di ogni dato in
+// vista, unisce le fonti senza dire cose false (i buchi restano buchi, i doppioni si contano una volta), si sincronizza
+// per differenze e tiene la sua copia cifrata nella cassaforte (engine-vault), fuori da ogni telemetria. Porta i pezzi
+// d'interfaccia: gli anelli del giorno (non quelli di Apple), le card con la fonte, la settimana sui grafici dell'engine,
+// le righe dei permessi. Opt-in:
+//
+//   implementation project(':engine-health')
+//
+// Una sola libreria: Health Connect (androidx.health.connect:connect-client, Apache-2.0). Il modulo non dichiara nessun
+// permesso dei dati: li dichiara l'app, solo quelli che usa (la scheda del modulo dice le righe), insieme alla pagina della
+// privacy che Health Connect chiede (FluidHealthPrivacyActivity e' pronta).
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.health'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Gli anelli, le card e i permessi si provano col dito finto e TalkBack (Robolectric, grafica nativa); l'unione delle
+      // fonti, la sincronizzazione e la cifratura sulla JVM; il ponte con Health Connect con un client finto che
+      // implementa l'interfaccia vera (connect-testing pretende una connect-client alpha).
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: le card parlano i vetri e i grafici di engine-ui; la copia cifrata e' una sezione di engine-vault.
+  api project(':engine-ui')
+  api project(':engine-vault')
+  api "androidx.health.connect:connect-client:${engine.healthConnect}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+  testImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
+  debugImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}

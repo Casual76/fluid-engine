@@ -204,6 +204,8 @@ dependencies {
   implementation project(':engine-playback')
   implementation project(':engine-transcript')
   implementation "androidx.media3:media3-session:${viewerMedia3}"
+  // F8.16 · Il disegno e le annotazioni (engine-ink, sopra androidx.ink): lo schizzo, la foto e il PDF annotati, la firma.
+  implementation project(':engine-ink')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

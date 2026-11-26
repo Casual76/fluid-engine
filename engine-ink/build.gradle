@@ -1,0 +1,75 @@
+// F8.16 · Disegno e annotazioni (`disegno-e-annotazioni`). Il foglio su cui si disegna col dito o con la penna, la
+// tavolozza di vetro che galleggia, le forme riconosciute tenendo fermo il tratto, annulla e ripristina, e
+// l'annotazione sopra una foto o una pagina di PDF che consegna un file nuovo. Come Markup di iOS 26 (PencilKit). Opt-in,
+// come i visori: un'app che non disegna non lo include.
+//
+//   implementation project(':engine-ink')
+//
+// Dentro:
+// - il **modello** dei tratti (`FluidInkStroke`, `FluidInkState`): i punti con pressione e inclinazione, gli strumenti,
+//   la cronologia di annulla e ripristina, la selezione col lazo, la gomma a oggetti e a pixel, il salvataggio compatto
+//   (`FluidInkCodec`). Tutto in Kotlin puro: si prova sul computer;
+// - il **foglio** (`FluidInkCanvas`) e la **tavolozza di vetro** (`FluidInkPalette`); l'**editor** a tutto schermo
+//   (`FluidInkEditor`) e la **consegna** (`FluidInkExport`: un PNG o un JPEG, un PDF nuovo con le pagine e i tratti).
+//
+// androidx.ink (Apache-2.0, LICENSES/AndroidxInk.md) da' il tratto a bassa latenza (InProgressStrokesView, il front
+// buffer di graphics-core), i pennelli e la resa dei tratti finiti. Le sue librerie native ci sono per le ABI di Android
+// e per Linux, non per Windows: sul computer (Robolectric) l'engine disegna gli stessi tratti con il suo ripiego in
+// `Path` (`FluidInk.nativeAvailable`), e il modello non cambia.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.ink'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // La consegna (PNG, PDF) passa dalle bitmap e dal PdfDocument veri di Android: si prova in Robolectric.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: il foglio e la tavolozza parlano il vetro, i colori e i tasti di engine-ui.
+  api project(':engine-ui')
+
+  // androidx.ink: il tratto a bassa latenza (authoring), i pennelli, i tratti, la geometria e la resa su Canvas.
+  // `implementation`: l'API dell'engine non espone nessun tipo di androidx.ink, cosi' un salto di versione resta qui.
+  implementation "androidx.ink:ink-authoring:${engine.ink}"
+  implementation "androidx.ink:ink-brush:${engine.ink}"
+  implementation "androidx.ink:ink-geometry:${engine.ink}"
+  implementation "androidx.ink:ink-rendering:${engine.ink}"
+  implementation "androidx.ink:ink-strokes:${engine.ink}"
+  // La predizione del tratto: un fotogramma avanti, come chiede InProgressStrokesView per la latenza piu' bassa.
+  implementation "androidx.input:input-motionprediction:${engine.motionPrediction}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove della consegna con le bitmap e il PdfDocument veri di Android, mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

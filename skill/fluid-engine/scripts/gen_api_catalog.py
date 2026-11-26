@@ -228,6 +228,8 @@ DIR_FAMILY = {
     "sharein": "share-in",
     # foto e allegati: il selettore, il contratto delle sorgenti, il pannello degli allegati (F8.14)
     "media": "media",
+    # il disegno e le annotazioni sopra androidx.ink (F8.16)
+    "ink": "ink",
 }
 
 FAMILY_TITLES = {
@@ -267,6 +269,7 @@ FAMILY_TITLES = {
     "qr": "engine-qr",
     "share-in": "engine-share-in",
     "media": "engine-media",
+    "ink": "engine-ink",
     "notify": "engine-notify",
     "account": "engine-account",
     "account-host": "engine-account-host",

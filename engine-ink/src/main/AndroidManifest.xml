@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F8.16 · Nessun permesso. L'immagine o il PDF da annotare arrivano dall'app come indirizzo leggibile (il selettore di
+    engine-media, il Photo Picker, un file dell'app); il file nuovo lo scrive l'app dove vuole.
+  -->
+</manifest>

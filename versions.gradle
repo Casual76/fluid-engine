@@ -80,4 +80,10 @@ ext.engine = [
   // engine-push-fcm (F10.6): il campanello dello Store. Firebase Messaging non è libera: solo in quel modulo, che usa solo
   // lo Store, col permesso della GPL-3.0 § 7 (LICENSES/Permesso-librerie-Google.md). Versione della BoM 34.x di Codex.
   firebaseMessaging: '25.1.2',
+  // engine-ink (F8.16): il disegno e le annotazioni sopra androidx.ink (Apache-2.0), la stabile 1.0.0 (dicembre 2025:
+  // tratti, pennelli, geometria, resa e il tratto a bassa latenza). Chiede compileSdk 35 e AGP 8.6 all'app ospite
+  // (metadati dell'AAR, letti il 25/11/2026), solo a chi include engine-ink, che e' opt-in. La 1.1 e' ancora alpha.
+  // La predizione del dito (MotionEventPredictor) e' la stessa libreria che usa androidx.ink.
+  ink            : '1.0.0',
+  motionPrediction: '1.0.1',
 ]

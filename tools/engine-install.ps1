@@ -100,6 +100,7 @@ $EngineModules = [ordered]@{
   "engine-audio"      = @("engine-foundation")
   "engine-playback"   = @("engine-foundation", "engine-ui")
   "engine-transcript" = @("engine-foundation", "engine-ui")
+  "engine-ink"        = @("engine-foundation", "engine-ui")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -147,7 +148,7 @@ $EngineModules = [ordered]@{
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
 # engine-files (F8.18: lo sfoglia-file, sopra engine-viewer) idem: lo chiede un'app che fa sfogliare o scegliere file
 # (-Modules ...,engine-files). Nessun permesso: le cartelle arrivano dal selettore di sistema.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript")
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink")
 # engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
 # nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
 # l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
@@ -156,6 +157,12 @@ $OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-view
 # l'app: notifica, schermata di blocco, cuffie, timer) ed engine-transcript (F8.13: l'ascolto dal paragrafo, i tempi per
 # parola e il salto) idem: -Modules ...,engine-audio,engine-playback,engine-transcript. Il tasto rosso, il pannello e
 # l'onda stanno gia' in engine-ui.
+# engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
+# nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
+# l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
+# engine-ink (F8.16: il disegno e le annotazioni, sopra androidx.ink, Apache-2.0; porta la libreria nativa libink.so per
+# le ABI di Android, circa 1,3 MB per ABI) idem: lo chiede solo un'app che disegna o annota (-Modules ...,engine-ink).
+# Nessun permesso. I crediti: FluidInkLicenses in fluidLicensesSection.
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -378,7 +385,8 @@ $notes = @(
   @("engine-media", "foto e allegati: selettore di foto e video, sorgenti di altre app (MyCloud Gallery), pannello del + (opt-in)"),
   @("engine-audio", "registratore: microfono, pausa e ripresa, AAC o WAV, onda dal vivo, taglio dei silenzi (opt-in)"),
   @("engine-playback", "riproduzione di sistema con Media3: notifica, schermata di blocco, cuffie, timer (opt-in)"),
-  @("engine-transcript", "ascolto dal paragrafo: tempi per parola e paragrafo, salto, la pagina che segue la voce (opt-in)")
+  @("engine-transcript", "ascolto dal paragrafo: tempi per parola e paragrafo, salto, la pagina che segue la voce (opt-in)"),
+  @("engine-ink", "disegno e annotazioni: foglio, tavolozza di vetro, penna dello stilo, forme, foto e PDF annotati (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

@@ -45,6 +45,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-qr](qr.md) | 1 | 3 |
 | [engine-share-in](share-in.md) | 3 | 51 |
 | [engine-media](media.md) | 13 | 179 |
+| [engine-ink](ink.md) | 12 | 179 |
 | [engine-notify](notify.md) | 9 | 65 |
 | [engine-account](account.md) | 11 | 267 |
 | [engine-account-host](account-host.md) | 25 | 302 |

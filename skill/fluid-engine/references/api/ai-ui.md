@@ -119,6 +119,13 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val motionNow: Float get()` — Il moto di adesso, 0 fermo e 1 pieno: il giro di luce e il respiro ci sono quanto vale.
 - `@Composable fun rememberFluidAssistantFieldHalo(mood: FluidHaloMood, focused: Boolean, level: () -> Float = { 0f }, colours: FluidHaloColours = FluidHaloColours.fromTheme(), blend: BlendMode = haloBlendForTheme()): FluidAssistantFieldHalo` — L'alone del campo per [mood] (di solito [fluidAssistantFieldMood]): [focused] è il campo aperto, [level] il livello del microfono, letto solo dal loop di fotogrammi. Il campo dice anche da sé se è aperto ([FluidComposerHalo.fieldActiveChanged]): basta l'uno o l'altro.
 
+## `engine-ai-ui/aiui/chat/FluidComposerPagePill.kt`
+
+- `data class FluidPageContextStrings(val label: String = "Questa pagina", val addLabel: String = "Aggiungi questa pagina", val included: String = "Passa a PampAI con la domanda", val excluded: String = "Non passa", val description: String = "Questa pagina: %1\$s", val show: String = "Mostra cosa passa", val remove: String = "Togli la pagina", val add: String = "Aggiungi la pagina")` — Le parole del chip «Questa pagina» (F9.1), con i default italiani e [english].
+  - `companion object`
+    - `fun english(): FluidPageContextStrings`
+- `@Composable fun FluidComposerPagePill(title: String, included: Boolean, onIncludedChange: (Boolean) -> Unit, onShowContents: () -> Unit, modifier: Modifier = Modifier, strings: FluidPageContextStrings = FluidPageContextStrings())` — Il chip «Questa pagina» (F9.1, `assistente-vede-la-pagina`): sta fra le pillole del composer e dice se la pagina che l'utente ha davanti parte con la domanda. Acceso e' la pillola dell'accento con la X: un tocco sul nome mostra cosa passa ([onShowContents], di solito un foglio col testo di `AiAssistPage.preview()`), un tocco sulla X la toglie. Spento e' «+ Aggiungi questa pagina», e un tocco la rimette.
+
 ## `engine-ai-ui/aiui/chat/FluidFollowBottom.kt`
 
 - `enum class FluidFollowAction` — Cosa fare dopo aver guardato la lista: niente, andare in fondo (con la molla), o inseguire la crescita senza animare.

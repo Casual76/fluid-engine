@@ -257,6 +257,9 @@ private class OrbitSession private constructor(
   private val renderer = engine.createRenderer()
   private val scene = engine.createScene()
   private val view = engine.createView()
+  // R2: il modello si carica prima di creare le entità. Se Filament lo rifiuta, `create` distrugge l'engine, che porta
+  // con sé renderer, scena, vista e luce; le entità di `EntityManager` sono del processo e resterebbero orfane.
+  private val loaded = model.load(engine)
   private val cameraEntity = manager.create()
   private val camera = engine.createCamera(cameraEntity)
   private val sun = manager.create()
@@ -264,7 +267,6 @@ private class OrbitSession private constructor(
   private val display = DisplayHelper(texture.context)
   private val frames = Choreographer.getInstance()
   private val lighting = KTX1Loader.createIndirectLight(engine, texture.assetBuffer(StudioAsset))
-  private val loaded = model.load(engine)
   private val ground: ShadowGround
   private val orbit = Manipulator.Builder().viewport(1, 1).panning(true)
     .targetPosition(0f, 0f, 0f).orbitHomePosition(OrbitProfile.EyeX, OrbitProfile.EyeY, OrbitProfile.EyeZ)

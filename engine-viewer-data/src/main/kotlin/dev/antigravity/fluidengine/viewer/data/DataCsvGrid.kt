@@ -28,7 +28,9 @@ import java.nio.charset.Charset
  *
  * In memoria resta solo dove comincia ogni riga (8 byte per riga: 100.000 righe sono 800 KB). Un blocco di celle si
  * rilegge dal file con una lettura posizionale e si analizza con le stesse regole del conteggio ([DataCsv.records]),
- * così le righe del conto e quelle lette coincidono anche con a capo dentro le virgolette.
+ * così le righe del conto e quelle lette coincidono anche con a capo dentro le virgolette. Un blocco si legge in una
+ * volta fino a [DataProfile.MaxCsvBlockBytes]; oltre (R2: una riga enorme) una riga alla volta, e di ogni riga al più
+ * [DataProfile.MaxCsvRowBytes].
  *
  * Il file deve essere in un charset in cui gli a capo, le virgolette e i separatori sono un byte solo (UTF-8 e i
  * charset a un byte): un UTF-16 lo trascrive prima in UTF-8 chi crea la griglia ([DataFamilyCsv]).
@@ -215,25 +217,31 @@ internal class DataCsvGrid(
 
   override suspend fun cells(sheet: Int, rows: IntRange, columns: IntRange): List<FluidGridCell> {
     if (sheet != 0 || rows.isEmpty() || columns.isEmpty()) return emptyList()
-    val (first, last, from, to) = synchronized(lock) {
+    val (first, last, starts) = synchronized(lock) {
       if (rows.first >= completed) return emptyList()
       val first = rows.first.coerceAtLeast(0)
       val last = minOf(rows.last, completed - 1)
-      Quad(first, last, offsets[first], offsets[last + 1])
+      Triple(first, last, offsets.copyOfRange(first, last + 2))
     }
+    val from = starts.first()
+    val to = starts.last()
     if (to <= from) return emptyList()
-    val text = withContext(Dispatchers.IO) {
-      val length = (to - from).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-      val buffer = ByteBuffer.allocate(length)
-      var read = 0
-      while (read < length) {
-        val n = channel.read(buffer, from + read)
-        if (n <= 0) break
-        read += n
+    val records = withContext(Dispatchers.IO) {
+      if (to - from <= DataProfile.MaxCsvBlockBytes) {
+        DataCsv.records(read(from, (to - from).toInt()), dialect, maxRecords = last - first + 1)
+      } else {
+        // R2 · Un blocco oltre il tetto (una riga enorme, il campo-blob di un export): una riga alla volta, e di ogni
+        // riga solo l'inizio. Una riga tagliata finisce con «…» nell'ultima cella letta.
+        List(last - first + 1) { k ->
+          ensureActive()
+          val length = starts[k + 1] - starts[k]
+          val record = DataCsv.records(read(starts[k], minOf(length, DataProfile.MaxCsvRowBytes.toLong()).toInt()), dialect,
+            maxRecords = 1).firstOrNull().orEmpty()
+          if (length <= DataProfile.MaxCsvRowBytes || record.isEmpty()) record
+          else record.dropLast(1) + (record.last().removeSuffix("…") + "…")
+        }
       }
-      DataText.decodeWith(buffer.array(), 0, read, charset)
     }
-    val records = DataCsv.records(text, dialect, maxRecords = last - first + 1)
     val out = ArrayList<FluidGridCell>()
     records.forEachIndexed { k, record ->
       val row = first + k
@@ -248,6 +256,18 @@ internal class DataCsvGrid(
     return out
   }
 
+  /** [length] byte dal file a [position], con la lettura posizionale, decodificati. */
+  private fun read(position: Long, length: Int): String {
+    val buffer = ByteBuffer.allocate(length)
+    var read = 0
+    while (read < length) {
+      val n = channel.read(buffer, position + read)
+      if (n <= 0) break
+      read += n
+    }
+    return DataText.decodeWith(buffer.array(), 0, read, charset)
+  }
+
   override fun close() {
     scope.cancel()
     try {
@@ -256,8 +276,6 @@ internal class DataCsvGrid(
     }
     closeResources()
   }
-
-  private data class Quad(val first: Int, val last: Int, val from: Long, val to: Long)
 
   companion object {
     private val HeaderStyle = FluidGridStyle(bold = true)

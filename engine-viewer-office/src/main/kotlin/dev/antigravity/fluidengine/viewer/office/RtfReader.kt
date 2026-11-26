@@ -106,11 +106,13 @@ internal fun readRtf(bytes: ByteArray, info: OfficeInfo): List<Section> {
   var green = 0
   var blue = 0
   for (v in root.groups("colortbl").firstOrNull()?.items.orEmpty()) when (v) {
+    // R2: un valore fuori da 0..255 (\red999, fuori specifica) si taglia, come fanno i lettori di RTF; senza, i bit in
+    // più di un canale finiscono negli altri e il colore esce sbagliato.
     is Control ->
       when (v.name) {
-        "red" -> red = v.n ?: 0
-        "green" -> green = v.n ?: 0
-        "blue" -> blue = v.n ?: 0
+        "red" -> red = (v.n ?: 0).coerceIn(0, 255)
+        "green" -> green = (v.n ?: 0).coerceIn(0, 255)
+        "blue" -> blue = (v.n ?: 0).coerceIn(0, 255)
       }
     is String ->
       repeat(v.count { it == ';' }) {

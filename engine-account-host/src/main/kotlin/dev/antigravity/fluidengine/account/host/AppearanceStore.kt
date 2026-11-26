@@ -133,6 +133,15 @@ class AppearanceStore(
   )
 
   private var cached: State? = null
+
+  /**
+   * Il file dell'aspetto che non si leggeva più (rimasto a metà, cambiato a mano), messo da parte accanto
+   * (`aspetto.json.rotto-<ora>`), o `null`. L'aspetto riparte da «di serie» invece di far cadere il provider e la pagina
+   * Aspetto; con l'account le scelte tornano dal server. Lo Store lo dice (R2).
+   */
+  @Volatile var setAside: File? = null
+    private set
+
   private var clockOrNull: SyncClock? = null
   private val clock: SyncClock
     get() = clockOrNull ?: SyncClock(HostNode.of(dir), wall).also { clockOrNull = it }
@@ -140,36 +149,43 @@ class AppearanceStore(
   @Synchronized
   private fun load(): State {
     cached?.let { return it }
-    val st = State()
-    if (file.exists()) {
-      val o = Json.parseToJsonElement(file.readText()) as JsonObject
-      st.version = (o["version"] as? JsonPrimitive)?.longOrNull ?: 0
-      st.seq = (o["seq"] as? JsonPrimitive)?.longOrNull ?: 0
-      st.accepted = (o["accepted"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content }?.toSet()
-      val entries = o["entries"] as? JsonArray
-      if (entries != null) {
-        for (e in entries) {
-          val x = e as JsonObject
-          val entry = Entry((x["s"] as JsonPrimitive).content, (x["k"] as JsonPrimitive).content, x["v"] ?: JsonNull, (x["h"] as JsonPrimitive).content, (x["d"] as? JsonPrimitive)?.booleanOrNull == true)
-          st.entries[id(entry.scope, entry.key)] = entry
-          PrefsHlc.parse(entry.hlc)?.let(clock::observe)
-        }
-      } else {
-        // Il file di F10.4 (mai uscito): global, overrides, follow, senza orologio. Entra con l'HLC zero e da mandare.
-        val zero = PrefsHlc.format(SyncHlc(0, 0, clock.node))
-        (o["global"] as? JsonObject)?.forEach { (k, v) -> PrefsContract.typed(k, (v as JsonPrimitive).content)?.let { st.entries[id(GLOBAL, k)] = Entry(GLOBAL, k, it, zero, true) } }
-        (o["overrides"] as? JsonObject)?.forEach { (p, m) -> (m as JsonObject).forEach { (k, v) -> PrefsContract.typed(k, (v as JsonPrimitive).content)?.let { st.entries[id(p, k)] = Entry(p, k, it, zero, true) } } }
-        (o["follow"] as? JsonObject)?.forEach { (p, f) -> st.entries[id(p, PrefsContract.FOLLOW_GLOBAL)] = Entry(p, PrefsContract.FOLLOW_GLOBAL, f, zero, true) }
-      }
+    val st = if (!file.exists()) State() else try {
+      read()
+    } catch (e: Exception) {
+      setAside = setAsideBroken(file)
+      State()
     }
     cached = st
     return st
   }
 
+  private fun read(): State {
+    val st = State()
+    val o = Json.parseToJsonElement(file.readText()) as JsonObject
+    st.version = (o["version"] as? JsonPrimitive)?.longOrNull ?: 0
+    st.seq = (o["seq"] as? JsonPrimitive)?.longOrNull ?: 0
+    st.accepted = (o["accepted"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content }?.toSet()
+    val entries = o["entries"] as? JsonArray
+    if (entries != null) {
+      for (e in entries) {
+        val x = e as JsonObject
+        val entry = Entry((x["s"] as JsonPrimitive).content, (x["k"] as JsonPrimitive).content, x["v"] ?: JsonNull, (x["h"] as JsonPrimitive).content, (x["d"] as? JsonPrimitive)?.booleanOrNull == true)
+        st.entries[id(entry.scope, entry.key)] = entry
+        PrefsHlc.parse(entry.hlc)?.let(clock::observe)
+      }
+    } else {
+      // Il file di F10.4 (mai uscito): global, overrides, follow, senza orologio. Entra con l'HLC zero e da mandare.
+      val zero = PrefsHlc.format(SyncHlc(0, 0, clock.node))
+      (o["global"] as? JsonObject)?.forEach { (k, v) -> PrefsContract.typed(k, (v as JsonPrimitive).content)?.let { st.entries[id(GLOBAL, k)] = Entry(GLOBAL, k, it, zero, true) } }
+      (o["overrides"] as? JsonObject)?.forEach { (p, m) -> (m as JsonObject).forEach { (k, v) -> PrefsContract.typed(k, (v as JsonPrimitive).content)?.let { st.entries[id(p, k)] = Entry(p, k, it, zero, true) } } }
+      (o["follow"] as? JsonObject)?.forEach { (p, f) -> st.entries[id(p, PrefsContract.FOLLOW_GLOBAL)] = Entry(p, PrefsContract.FOLLOW_GLOBAL, f, zero, true) }
+    }
+    return st
+  }
+
   @Synchronized
   private fun save(st: State) {
-    dir.mkdirs()
-    file.writeText(buildJsonObject {
+    writeReplacing(file, buildJsonObject {
       put("v", 2)
       put("version", st.version)
       put("seq", st.seq)
@@ -179,7 +195,7 @@ class AppearanceStore(
           put("s", e.scope); put("k", e.key); put("v", e.value); put("h", e.hlc); put("d", e.dirty)
         }
       }
-    }.toString())
+    }.toString().toByteArray())
   }
 
   @Synchronized

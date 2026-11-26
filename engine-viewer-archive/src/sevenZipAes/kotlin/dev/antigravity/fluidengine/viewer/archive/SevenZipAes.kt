@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.viewer.archive
 
 import android.os.ParcelFileDescriptor
 import dev.antigravity.fluidengine.viewer.FluidViewerSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.apache.commons.compress.MemoryLimitException
@@ -88,9 +89,37 @@ internal object SevenZipAes {
     } catch (e: PasswordRequiredException) {
       throw ArchiveProblem.Locked.error(e)
     } catch (e: IOException) {
-      throw if (e.message == "7z AES work factor exceeds supported limit") ArchiveProblem.Limit.error(e)
-      else ArchiveProblem.WrongPassword.error(e)
+      throw when {
+        e.message == "7z AES work factor exceeds supported limit" -> ArchiveProblem.Limit.error(e)
+        // R2 · Commons Compress non dice mai «password sbagliata»: con la password sbagliata dà «Compressed data is
+        // corrupt» o «no Header», con un file tronco «nextHeaderOffset is out of bounds». Se l'archivio non si legge
+        // nemmeno senza password è rotto, e lo si dice invece di richiedere la password all'infinito. Un errore dentro
+        // i dati cifrati resta «password sbagliata», come per 7-Zip («Wrong password?»): i due casi non si separano.
+        brokenWithoutPassword(source) -> ArchiveProblem.Broken.error(e)
+        else -> ArchiveProblem.WrongPassword.error(e)
+      }
     }
+  }
+
+  /**
+   * R2 · Vero se l'archivio non si apre nemmeno senza password: firma, intestazione in coda o suo CRC rotti, file tronco.
+   * Un'intestazione cifrata che chiede la password vuol dire che fin lì l'archivio è sano.
+   */
+  private suspend fun brokenWithoutPassword(source: FluidViewerSource): Boolean = try {
+    ParcelFileDescriptor.AutoCloseInputStream(source.seekable()).use { input ->
+      SevenZFile.builder().setSeekableByteChannel(input.channel).setMaxMemoryLimitKiB(MaxDecoderMemoryKiB).get().close()
+    }
+    false
+  } catch (e: CancellationException) {
+    throw e
+  } catch (_: PasswordRequiredException) {
+    false
+  } catch (_: MemoryLimitException) {
+    false
+  } catch (_: IOException) {
+    true
+  } catch (_: Exception) {
+    false
   }
 
   private val SevenZArchiveEntry.kind: ArchiveKind

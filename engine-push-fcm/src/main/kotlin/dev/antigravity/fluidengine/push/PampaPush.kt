@@ -78,7 +78,14 @@ object PampaPush {
     FirebaseMessaging.getInstance().isAutoInitEnabled = true
   }
 
-  /** Il gettone FCM di questo Store, da registrare sul server; `null` se FCM è spento. */
+  /**
+   * Il gettone FCM di questo Store, da registrare sul server; `null` se FCM è spento.
+   *
+   * Con FCM acceso e il gettone che non arriva (niente rete, Play services assente o da aggiornare) lancia l'errore di
+   * Firebase (R1): non è «spento», è «riprova». Lo Store lo prende e riprova più tardi, o aspetta `onNewToken`.
+   * [disable] invece lo ingoia: all'uscita conta spegnere FCM, e l'avvio automatico resta spento anche se la
+   * cancellazione del gettone non riesce.
+   */
   suspend fun token(context: Context): String? {
     if (!isEnabled(context)) return null
     return FirebaseMessaging.getInstance().token.await()

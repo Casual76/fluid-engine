@@ -133,6 +133,16 @@ class FakeKeysServer(val accountId: String = "acc_bancoprova00000000000000") {
     t.mac = seal.mac
   }
 
+  /** Lo stato di un passaggio, come lo dice il server vero: `waiting`, `sealed` o `taken`. */
+  fun transferState(id: String): String {
+    val t = transfers[id] ?: throw Refused("not_found")
+    return when {
+      t.taken -> "taken"
+      t.sealed != null -> "sealed"
+      else -> "waiting"
+    }
+  }
+
   /** `GET /v1/keys/transfers/{id}`: una volta sola. */
   fun takeTransfer(id: String): TransferSeal {
     val t = transfers[id] ?: throw Refused("not_found")

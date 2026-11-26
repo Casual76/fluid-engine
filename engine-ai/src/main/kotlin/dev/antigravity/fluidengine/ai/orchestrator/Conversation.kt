@@ -5,6 +5,7 @@ import dev.antigravity.fluidengine.ai.provider.Message
 import dev.antigravity.fluidengine.ai.provider.ProviderId
 import dev.antigravity.fluidengine.ai.tools.AiToolCategory
 import dev.antigravity.fluidengine.ai.tools.AiToolGroup
+import dev.antigravity.fluidengine.ai.tools.ToolText
 
 /**
  * Uno scambio finito, per la card: la domanda, la risposta, i chip. [attachments] sono le parti
@@ -47,6 +48,14 @@ class Conversation(val id: Long, val startedAtMillis: Long) {
   /** Le categorie aperte: quelle dei gruppi aperti, piu' quelle aperte senza sottocategoria. */
   val loadedCategories: LinkedHashSet<AiToolCategory> = linkedSetOf()
 
+  /**
+   * I tool caricati uno per uno dalla ricerca (4.0, F9.2: `cerca_strumenti` e il precaricamento), per
+   * nome, dal meno al piu' recente. Restano per la conversazione come i gruppi aperti, entro il tetto
+   * `AiOrchestratorConfig.maxSearchedTools` (cadono i piu' vecchi). Un'app che salva la conversazione
+   * salva anche questi nomi e li rimette qui.
+   */
+  val loadedTools: LinkedHashSet<String> = linkedSetOf()
+
   var lastActivityMillis: Long = startedAtMillis
   var provider: ProviderId? = null
 
@@ -78,14 +87,29 @@ object HistoryCompactor {
   const val OLD_ANSWER_CHARS = 600
   const val CHARS_PER_TOKEN = 3.5
 
+  /** Sotto questo tetto un risultato riproposto non dice piu' niente (4.0, F9.2). */
+  const val MIN_REPLAY_CHARS = 200
+
   fun compact(
     conversation: Conversation,
     budgetTokens: Int,
     includeToolRound: Boolean = true,
     includeAttachments: Boolean = true,
+    /**
+     * Il tetto di ogni risultato di tool riproposto (4.0, F9.2): il traffico tool dell'ultima domanda
+     * torna con la testa dei suoi risultati, non per intero. `Int.MAX_VALUE` = intero, come prima.
+     */
+    toolResultChars: Int = Int.MAX_VALUE,
   ): List<Message> {
     val exchanges = conversation.exchanges.takeLast(MAX_PAIRS)
     if (exchanges.isEmpty()) return emptyList()
+    val toolRound = if (toolResultChars == Int.MAX_VALUE) conversation.lastToolRound else conversation.lastToolRound.map { message ->
+      if (message is Message.ToolResult && message.content.length > toolResultChars) {
+        message.copy(content = ToolText.limit(message.content, toolResultChars.coerceAtLeast(MIN_REPLAY_CHARS)))
+      } else {
+        message
+      }
+    }
     fun build(pairs: List<Exchange>, withToolRound: Boolean, withAttachments: Boolean): List<Message> {
       val out = mutableListOf<Message>()
       pairs.forEachIndexed { index, exchange ->
@@ -95,7 +119,7 @@ object HistoryCompactor {
         } else {
           Message.User(exchange.question)
         }
-        if (last && withToolRound) out += conversation.lastToolRound
+        if (last && withToolRound) out += toolRound
         out += Message.Assistant(text = if (last) exchange.answer else exchange.answer.take(OLD_ANSWER_CHARS))
       }
       return out

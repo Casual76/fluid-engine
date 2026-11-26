@@ -6,9 +6,10 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import java.util.zip.CRC32
 import java.util.zip.Inflater
 
-/** Una voce di uno ZIP: dove comincia, come è compressa, quanto è grande. */
+/** Una voce di uno ZIP: dove comincia, come è compressa, quanto è grande, e il suo CRC-32 (R2; -1 se non si sa). */
 internal class DataZipEntry(
   val name: String,
   val method: Int,
@@ -16,6 +17,7 @@ internal class DataZipEntry(
   val compressedSize: Long,
   val size: Long,
   val localHeader: Long,
+  val crc: Long = -1L,
 ) {
   val encrypted: Boolean get() = flags and 1 != 0
   val directory: Boolean get() = name.endsWith("/")
@@ -28,7 +30,8 @@ internal class DataZipEntry(
  * - una voce più grande di [DataProfile.MaxEntryBytes], o compressa oltre [DataProfile.MaxCompressionRatio]:1, non si
  *   estrae (zip bomb);
  * - un nome con «..» o assoluto non esce mai: le voci si cercano per nome, non si scrivono su disco;
- * - una voce cifrata dice di esserlo, e non si legge.
+ * - una voce cifrata dice di esserlo, e non si legge;
+ * - una voce tronca o rovinata (misura o CRC-32 diversi da quelli dell'indice) è un errore, non un capitolo a metà (R2).
  * Non è un archivio: gli archivi sono di `engine-viewer-archive` (libarchive).
  */
 internal class DataZip(private val channel: FileChannel, private val onClose: () -> Unit = {}) : Closeable {
@@ -84,6 +87,7 @@ internal class DataZip(private val channel: FileChannel, private val onClose: ()
       if (p + 46 > dir.limit() || dir.getInt(p) != 0x02014b50) return out
       val flags = dir.getShort(p + 8).toInt() and 0xFFFF
       val method = dir.getShort(p + 10).toInt() and 0xFFFF
+      val crc = dir.getInt(p + 16).toLong() and 0xFFFFFFFFL
       var compressed = dir.getInt(p + 20).toLong() and 0xFFFFFFFFL
       var uncompressed = dir.getInt(p + 24).toLong() and 0xFFFFFFFFL
       val nameLength = dir.getShort(p + 28).toInt() and 0xFFFF
@@ -107,7 +111,7 @@ internal class DataZip(private val channel: FileChannel, private val onClose: ()
         }
         e += 4 + len
       }
-      out.putIfAbsent(name.removePrefix("/"), DataZipEntry(name.removePrefix("/"), method, flags, compressed, uncompressed, local))
+      out.putIfAbsent(name.removePrefix("/"), DataZipEntry(name.removePrefix("/"), method, flags, compressed, uncompressed, local, crc))
       p += 46 + nameLength + extraLength + commentLength
     }
     return out
@@ -145,7 +149,7 @@ internal class DataZip(private val channel: FileChannel, private val onClose: ()
     val dataStart = entry.localHeader + 30 + nameLength + extraLength
     if (entry.compressedSize > Int.MAX_VALUE) throw IOException("voce $name troppo grande")
     val raw = readFully(dataStart, entry.compressedSize.toInt())
-    return when (entry.method) {
+    val bytes = when (entry.method) {
       0 -> ByteArray(raw.remaining()).also { raw.get(it) }
       8 -> {
         val inflater = Inflater(true)
@@ -167,6 +171,11 @@ internal class DataZip(private val channel: FileChannel, private val onClose: ()
       }
       else -> throw IOException("metodo di compressione ${entry.method} non supportato")
     }
+    // R2: la misura e il CRC-32 dell'indice, come fa la famiglia Office: una voce tronca o rovinata è un errore come le
+    // altre voci illeggibili, non un capitolo a metà o un'immagine sbagliata.
+    if (bytes.size.toLong() != entry.size) throw IOException("la voce $name è incompleta")
+    if (entry.crc >= 0 && CRC32().apply { update(bytes) }.value != entry.crc) throw IOException("la voce $name è danneggiata")
+    return bytes
   }
 
   private companion object {

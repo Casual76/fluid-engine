@@ -7,4 +7,15 @@
        e controlla da se' la firma di chi chiama (`AiToolHostProvider.isCallerTrusted`); il cliente
        non chiede niente, gli basta il `<queries>` per vedere i provider. -->
 
+  <!-- F9.1 · L'assistenza: ogni app che include il ponte puo' chiedere a PampAI (`AiAssistClient`), quindi deve
+       vederla (Android 11+). Due pacchetti con il loro nome, niente QUERY_ALL_PACKAGES: PampAI e PampAI di
+       sviluppo. Non e' un permesso: chi risponde lo decide PampAI, dalla firma. -->
+  <queries>
+    <package android:name="dev.pampa.pampai" />
+    <package android:name="dev.pampa.pampai.debug" />
+    <!-- F9.1b · «Installa PampAI» apre Pampa Store, se c'e', alla pagina di PampAI. -->
+    <package android:name="com.pampa.store" />
+    <package android:name="com.pampa.store.debug" />
+  </queries>
+
 </manifest>

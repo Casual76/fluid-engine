@@ -198,6 +198,8 @@ dependencies {
   // altre. Porta con se' il permesso RECORD_AUDIO di engine-ai, che la galleria non chiede mai (il composer della pagina
   // ha requestMicPermission = false).
   implementation project(':engine-ai-ui')
+  // F9.2 · I connettori MCP: la pagina «Connettori» della galleria, su due server finti in memoria.
+  implementation project(':engine-ai-mcp')
   implementation "androidx.media3:media3-exoplayer:${viewerMedia3}"
   implementation project(':engine-viewer') // F6C.4, opt-in: i decodificatori dei visori (PDF, testo, GIF e WebP animate) per la galleria
   // F6C.15 · Il visore universale, come lo includerebbe Universal Converter: engine-viewer e tutte le famiglie, che si

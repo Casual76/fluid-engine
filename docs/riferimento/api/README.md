@@ -50,9 +50,9 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-editor](editor.md) | 14 | 145 |
 | [engine-notify](notify.md) | 9 | 65 |
 | [engine-account](account.md) | 11 | 267 |
-| [engine-account-host](account-host.md) | 25 | 302 |
+| [engine-account-host](account-host.md) | 25 | 306 |
 | [engine-account-ui](account-ui.md) | 2 | 20 |
-| [engine-people](people.md) | 20 | 371 |
+| [engine-people](people.md) | 20 | 372 |
 | [engine-push-fcm](push-fcm.md) | 1 | 11 |
 | [engine-transfer](transfer.md) | 5 | 59 |
 | [engine-files](files.md) | 6 | 82 |
@@ -67,10 +67,11 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-diagnostics](diagnostics.md) | 9 | 107 |
 | [engine-feedback](feedback.md) | 4 | 63 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
-| [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
-| [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |
-| [engine-ai-bridge](ai-bridge.md) | 4 | 99 |
-| [engine-ai-ui](ai-ui.md) | 31 | 281 |
+| [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 13 | 206 |
+| [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 149 |
+| [engine-ai-bridge](ai-bridge.md) | 12 | 191 |
+| [engine-ai-mcp](ai-mcp.md) | 10 | 157 |
+| [engine-ai-ui](ai-ui.md) | 32 | 284 |
 
 Le icone fanno eccezione: in [icone.md](icone.md) il set è una tabella con una riga per icona (il nome, quello di Material Symbols, la variante piena), non una riga per dichiarazione.
 

@@ -32,6 +32,8 @@ include ':engine-wear'
 include ':engine-ai'
 include ':engine-ai-bridge'
 include ':engine-ai-ui'
+// F9.2 · I connettori MCP: il protocollo, l'accesso con l'account, i gettoni cifrati e la pagina «Connettori». Opt-in.
+include ':engine-ai-mcp'
 include ':engine-richtext'
 include ':engine-viewer'
 include ':engine-viewer-archive'

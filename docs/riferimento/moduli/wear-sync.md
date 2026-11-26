@@ -128,6 +128,9 @@ FluidWearDataLayer(Wearable.getDataClient(context), sync).flush()
   vecchio aveva salvato senza far tornare la ricevuta si salva anche sul nuovo (registri diversi). Non provato su
   dispositivi veri.
 - **Payload**: al massimo 64 KiB in UTF-8 (il Data Layer tiene 100 KB per elemento). Per un file serve un `Asset`.
+- **Uscire mentre si legge**: se la schermata che chiama `pullStatuses` esce prima che Play services consegni, il
+  `DataItemBuffer` arrivato tardi lo rilascia l'attesa stessa (R1): ogni risultato `Releasable` di un `Task` atteso
+  dall'adattatore si rilascia se chi aspetta se n'è andato.
 
 ## Verifica
 
@@ -137,8 +140,9 @@ FluidWearDataLayer(Wearable.getDataClient(context), sync).flush()
   telefono lontano e dopo un riavvio, poi «Registrato»; la consegna ripetuta (anche a un telefono riavviato) salvata una
   volta e con la stessa ricevuta; la scadenza al polso e al telefono; la ricevuta che vince sulla scadenza; la versione
   futura; i ruoli; la pulizia; la coda rotta; `handle`.
-- `FluidWearStatusStoreTest` (4) e `FluidWearDataLayerTest` (5, Robolectric con le classi vere del Data Layer: richiesta
-  urgente all'indirizzo giusto, `DataMap` coi byte, smistamento di `onDataChanged`).
+- `FluidWearStatusStoreTest` (4) e `FluidWearDataLayerTest` (6, Robolectric con le classi vere del Data Layer: richiesta
+  urgente all'indirizzo giusto, `DataMap` coi byte, smistamento di `onDataChanged`, il buffer arrivato dopo
+  l'annullamento che si rilascia).
 - **Non provato**: il Data Layer vero fra un telefono e un orologio (non c'è un orologio). Va provato con un orologio
   abbinato: stato pubblicato ad app dell'orologio chiusa, evento col Bluetooth spento e poi acceso, riavvio dell'orologio
   con un evento in coda.

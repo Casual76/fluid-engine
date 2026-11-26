@@ -81,18 +81,29 @@ class AndroidAppNotifier(private val context: Context) : AppNotifier {
  */
 class PeopleDispatcher(private val people: PeopleClient, private val notifier: AppNotifier, private val clock: () -> Long = System::currentTimeMillis) {
 
+  /**
+   * Smista le consegne che il ritiro ha lasciato da smistare ([PeopleState.undispatched]), comprese quelle di un giro
+   * caduto a metà (un errore alla pagina dopo, la scadenza del campanello, un riavvio dello Store): la posta delle app e
+   * la coda si scrivono nello stesso salvataggio (R1). Le consegne di [events] che vengono dal ritiro sono già nella
+   * coda, o già smistate da un altro giro: di [events] contano solo quelle oltre il cursore, fatte a mano.
+   */
   suspend fun dispatch(events: List<PeopleEvent>): Set<String> {
     val apps = LinkedHashSet<String>()
     val notices = ArrayList<StoreNotice>()
     people.edit { st ->
-      for (e in events) when (e) {
+      val todo = st.undispatched.toList() + events.filter { it.n > st.cursor }
+      st.undispatched.clear()
+      for (e in todo) when (e) {
         is PeopleEvent.Message -> handleMessage(st, e, apps, notices)
         is PeopleEvent.FromMyDevices -> {
           val address = (e.payload["address"] as? JsonPrimitive)?.content
           val title = (e.payload["title"] as? JsonPrimitive)?.content?.takeIf { it.isNotEmpty() } ?: "Una pagina dal tuo dispositivo"
           notices += StoreNotice(title, address ?: "Tocca per aprire", address)
         }
-        is PeopleEvent.Request -> notices += StoreNotice("${e.request.card.name} vuole aggiungerti", e.request.greeting.ifEmpty { "Apri Persone per accettare" })
+        // Una richiesta già accettata, ignorata o bloccata nel frattempo non si annuncia più.
+        is PeopleEvent.Request -> if (st.requests.containsKey(e.n)) {
+          notices += StoreNotice("${e.request.card.name} vuole aggiungerti", e.request.greeting.ifEmpty { "Apri Persone per accettare" })
+        }
         is PeopleEvent.TooNew -> notices += StoreNotice("Ti hanno mandato qualcosa", "Aggiorna Pampa Store per vederlo")
         else -> Unit
       }

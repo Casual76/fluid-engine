@@ -35,6 +35,9 @@ Regola 4 dell'engine ([`../regole.md`](../regole.md)): un tipo di `engine-ai` ch
 | un tool che porta un PDF o uno screenshot | `ToolOutput(text, parts = listOf(ContentPart.Document(...)))` |
 | un tool che porta roba da ragionarci sopra | `ToolOutput(text, escalate = true)` |
 | un elenco lungo di strumenti (piu' app, piu' aree) | catalogo gerarchico: `AiToolCategory` + `AiRouter(categories = ...)` |
+| gli strumenti delle altre app e dei connettori raggiungibili ma **non caricati di serie** (4.0) | `ToolRegistry(..., deferred = gruppi)`: il modello li trova con `cerca_strumenti` |
+| niente chiamata al router (la ricerca e il pre-router bastano) (4.0) | `AskInput.skipRouter = true` |
+| la storia che non rimanda interi i risultati della domanda prima (4.0) | di serie: `AiOrchestratorConfig.historyToolResultChars` (1200) |
 | il conto dei consumi per modello, anche delle chiamate fallite | `AiOrchestrator(usageSink = AiUsageSink { ... })` |
 | la pagina «Diagnostica» (ultime dieci domande, limiti) | `AiDiagnosticsLog.entries` / `rateLimits` |
 | scrivere lo stato «in attesa di conferma» | `gate.bindState(state)`, non un collettore su `current` |
@@ -375,6 +378,41 @@ class ElementoArchiviaTool : AiTool<AppContext> {
 - `AiTool.isAction` non spegne il tool da sola: sparisce con **il suo gruppo**, se e' l'`actionGroup` del registry. Un tool azione in un gruppo normale resta anche con le azioni spente.
 - `needsConfirmation`, `longRunning`, `isAction` e `describe` sono **metadati per chi esegue il tool da fuori** (il ponte verso un altro assistente) e per la UI; dentro l'app un tool che scrive chiede conferma da se' col suo cancello. L'unico effetto interno e' il tempo (`awaitsConfirmation`).
 - `ToolOutput.escalate = true` su un tool che gira gia' sul profondo non fa niente (e senza un profondo diverso nemmeno).
+
+## La ricerca dei tool e i gruppi differiti (4.0, F9.2)
+
+La misura di F9.2 (il rapporto della sessione, col tokenizer di Qwen3 sul catalogo vero di PampAI): il catalogo intero
+di PampAI e delle cinque app collegate e' di 208 tool e ~31.400 gettoni; il prompt del router lo elenca a ogni domanda,
+`apri_categoria` lo riassume a ogni giro, e il prompt di sistema e' rimandato a ogni giro. Da qui:
+
+- **I gruppi differiti** (`ToolRegistry.deferred`): le altre app e i connettori. Stanno in `groups` (i loro tool hanno un
+  gruppo dichiarato) ma non entrano mai da soli: non sono in `categories` (ora solo quelle di casa; le altre sono
+  `deferredCategories`), ne' in `visibleGroups`, `moreTools`, `openGroupTool`, ne' nella «lista intera» per OpenRouter.
+  Al router si danno `registry.homeGroups` e `registry.categories`. Il pre-router dell'app puo' sempre preselezionarli
+  (`preselectedGroups`): e' una decisione dell'app, e costa zero.
+- **`cerca_strumenti`** (`ToolRegistry.SEARCH_TOOLS`, `searchTool`): si offre quando ci sono gruppi differiti. La
+  descrizione nomina solo le app raggiungibili (una riga). Una chiamata `{"cosa": "previsioni meteo domani"}` gira la
+  ricerca (`ToolRegistry.search`, `ToolSearch`: BM25 su nome, descrizione, parametri, riga e parole del gruppo, categoria;
+  l'italiano senza accenti e parole vuote; una radice di cinque lettere) e carica **i tool trovati uno per uno**
+  (`Conversation.loadedTools`, al piu' `maxSearchedTools`, di serie 12), al giro dopo. Conta come un'apertura
+  (`maxOpens`). Un tool trovato e usato resta da solo: il suo gruppo non si apre.
+- **Il precaricamento** (`searchPreload`, di serie 3): prima del primo giro la ricerca gira sulla domanda; se il primo
+  risultato supera `searchPreloadMinScore` (8) entrano fino a tre tool della **stessa app**, e si risparmia il giro della
+  ricerca. Col router solo dai gruppi differiti, con `skipRouter` anche da casa.
+- **Le parole in piu'** (`ToolRegistry.searchTerms`): il vocabolario di un'app collegata, le parole del mestiere
+  («voti media verifiche...»), il nome di un connettore. Contano come la riga del gruppo.
+- **`AskInput.skipRouter`**: niente stadio 1; i gruppi sono quelli del pre-router o suggeriti, il resto lo apre o lo cerca
+  il modello.
+- **Gli schemi gia' mandati restano al loro posto** da un giro all'altro, i nuovi in coda: il prefisso della richiesta resta
+  uguale, e i provider con la cache del prefisso lo fanno pagare meno.
+- **La storia ripropone la testa dei risultati** della domanda prima (`historyToolResultChars`, 1200; `Int.MAX_VALUE` =
+  intero come prima), e **l'intestazione dei risultati** (`modelText`) non scrive piu' i campi sconosciuti
+  (`coverage=UNKNOWN` ...): ~170 caratteri in meno su ogni risultato. I tool built-in rispondono con esito completato.
+
+**Trappole.** Un'app che salva la conversazione salva anche `loadedTools` (i nomi) e li rimette. Un gruppo in `deferred`
+che non e' in `groups` fa fallire il registry. Il router costruito con `registry.groups` (tutti) invece di `homeGroups`
+rimette le altre app nel prompt dello stadio 1. Il banco della ricerca e' `ToolSearchBenchTest` (58 domande col catalogo
+vero di PampAI); le prove dei comportamenti `AiToolSearchTest`.
 
 ## `AssistantState` e `FailureKind` (la macchina a stati)
 

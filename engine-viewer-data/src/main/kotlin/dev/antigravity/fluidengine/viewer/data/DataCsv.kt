@@ -63,6 +63,11 @@ internal object DataCsv {
     var quotedField = false
     var i = 0
     val n = text.length
+    // R2: un campo smette di crescere oltre il tetto di una cella (un carattere in più basta a sapere che va tagliato):
+    // un campo di centinaia di MB fra virgolette non si tiene tutto in memoria per mostrarne mille caratteri.
+    fun add(c: Char) {
+      if (field.length <= DataProfile.MaxCellChars) field.append(c)
+    }
     fun endField() {
       fields += if (field.length > DataProfile.MaxCellChars) field.substring(0, DataProfile.MaxCellChars) + "…" else field.toString()
       field.setLength(0)
@@ -78,13 +83,13 @@ internal object DataCsv {
       if (inQuotes) {
         if (c == dialect.quote) {
           if (i + 1 < n && text[i + 1] == dialect.quote) {
-            field.append(c)
+            add(c)
             i++
           } else {
             inQuotes = false
           }
         } else {
-          field.append(c)
+          add(c)
         }
       } else {
         when (c) {
@@ -93,7 +98,7 @@ internal object DataCsv {
             quotedField = true
           } else {
             // Una virgoletta in mezzo a un campo senza virgolette resta com'è (file scritti a mano).
-            field.append(c)
+            add(c)
           }
           dialect.delimiter -> endField()
           '\r' -> {
@@ -101,7 +106,7 @@ internal object DataCsv {
             endRecord()
           }
           '\n' -> endRecord()
-          else -> field.append(c)
+          else -> add(c)
         }
       }
       i++

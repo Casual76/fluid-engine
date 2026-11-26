@@ -25,6 +25,7 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-security` | `security` | 7 / 1 720 | il blocco con l'impronta: l'app che si blocca al rientro, la schermata di vetro, il PIN dell'app, il contenuto protetto, l'anteprima oscurata nelle recenti, la riga delle impostazioni — **opt-in**, dalla 4.0 (F8.23, `moduli/security.md`) | **ui**, **vault** |
 | `engine-ai-ui` | `aiui` | 28 / 6 846 | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (opt-in) | **ui**, **ai** |
 | `engine-ai-bridge` | `ai.bridge` | 4 / 912 | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | ai |
+| `engine-ai-mcp` | `ai.mcp` | 10 / 2 646 | i connettori MCP: protocollo, accesso con l'account, gettoni cifrati, difese, pagina «Connettori» (opt-in, 4.0) | ai, ui |
 | `engine-richtext` | `richtext` | 9 / 3 997 | l'editor di testo con formattazione (elenchi e citazioni annidati, link, barra sopra la tastiera) e i lettori/scrittori di HTML ristretto, Markdown e testo semplice — **opt-in**, dalla 3.1.0 (la scheda: `moduli/richtext.md`) | foundation, **ui** |
 | `engine-qr` | `qr` | 1 / 63 | il QR di «Mostra come QR» nel foglio di condivisione, con ZXing core (Apache-2.0); il contratto e il disegno stanno in `engine-ui` — **opt-in**, dalla 4.0 (F8.10, `moduli/qr.md`) | **ui** (zxing core) |
 | `engine-share-in` | `sharein` | 3 / 916 | gli arrivi da altre app: `SEND`, `SEND_MULTIPLE`, `PROCESS_TEXT`, `VIEW` letti in un modo solo, la copia subito con tetto e avanzamento, il foglio sopra l'app di partenza, le scorciatoie di condivisione — **opt-in**, dalla 4.0 (F8.10, `moduli/share-in.md`) | **ui** |
@@ -102,6 +103,7 @@ engine-foundation <- engine-notify         (opt-in; androidx.core; niente Compos
 engine-foundation <- engine-audio          (opt-in; nessuna libreria; niente Compose: il registratore e l'onda in engine-ui)
 engine-ui <- engine-playback               (opt-in; Media3 compileOnly: session ed exoplayer li porta l'app)
 engine-ui <- engine-transcript             (opt-in; nessuna libreria)
+engine-ui + engine-ai <- engine-ai-mcp        (opt-in, F9.2; i connettori MCP; nessuna libreria: HttpURLConnection e il parser SSE di engine-ai)
 engine-storage <- engine-account <- engine-account-host   (opt-in; Bouncy Castle; l'host solo nello Store, con engine-auth, engine-vault e WorkManager)
 engine-ui + engine-account <- engine-account-ui           (opt-in; nessuna chiave)
 engine-account + engine-sync <- engine-people             (opt-in; Bouncy Castle; Store e Pampa Mail)
@@ -125,6 +127,7 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | ha widget Glance | + `engine-widget` |
 | ha un assistente | + `engine-ai` (+ `engine-ai-ui` se vuoi la sua interfaccia) |
 | espone o chiama tool di altre app | + `engine-ai-bridge` |
+| usa strumenti di un servizio esterno con MCP (i connettori) | + `engine-ai-mcp` (**opt-in**: `-Modules …,engine-ai-mcp`; porta `engine-ai`, `engine-ui` e `engine-vault`; nessuna libreria) |
 | custodisce password, token, chiavi, documenti cifrati | + `engine-vault` (**opt-in**; entra comunque con `engine-ai`) |
 | si blocca con l'impronta, o ha una cartella o un album protetti | + `engine-security` (**opt-in**; porta `engine-ui` e `engine-vault`) |
 | fa scegliere foto e video dentro l'app (allegati, foto del profilo), legge da MyCloud Gallery, ha il «+» degli allegati | + `engine-media` (**opt-in**; i permessi delle foto li dichiara l'app solo se usa la griglia del telefono) |

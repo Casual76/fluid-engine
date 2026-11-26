@@ -1,17 +1,26 @@
 package dev.antigravity.fluidengine.wear.sync
 
 import android.net.Uri
+import android.os.Looper
+import com.google.android.gms.common.api.Releasable
+import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataItem
 import com.google.android.gms.wearable.DataItemAsset
 import com.google.android.gms.wearable.PutDataRequest
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -68,6 +77,37 @@ class FluidWearDataLayerTest {
     val sync = FluidWearSync(FluidWearRole.Phone, FluidWearMemoryStore(), clock = { 2 })
     val routed = handle(sync, listOf(FakeEvent(DataEvent.TYPE_CHANGED, FakeItem(request.uri, request.data))))
     assertEquals(listOf(FluidWearRouted.EventArrived(event)), routed)
+  }
+
+  /**
+   * R1 (Sol, maggiore): la schermata che chiama `pullStatuses` esce mentre Play services legge. Il `Task` completa dopo
+   * l'annullamento con un buffer: il `finally` a valle non lo riceve, quindi lo deve rilasciare l'attesa stessa.
+   */
+  @Test
+  fun `un buffer arrivato dopo l'annullamento si rilascia`() = runBlocking {
+    val source = TaskCompletionSource<FakeBuffer>()
+    val waiting = launch(start = CoroutineStart.UNDISPATCHED) { source.task.await() }
+    waiting.cancel()
+    val buffer = FakeBuffer()
+    source.setResult(buffer)
+    shadowOf(Looper.getMainLooper()).idle()
+    waiting.join()
+    assertTrue("il buffer arrivato tardi resta aperto", buffer.released)
+    // Un risultato arrivato in tempo resta a chi aspetta, che lo rilascia lui.
+    val inTime = FakeBuffer()
+    val ok = TaskCompletionSource<FakeBuffer>()
+    val got = async(start = CoroutineStart.UNDISPATCHED) { ok.task.await() }
+    ok.setResult(inTime)
+    shadowOf(Looper.getMainLooper()).idle()
+    assertEquals(inTime, got.await())
+    assertFalse(inTime.released)
+  }
+
+  private class FakeBuffer : Releasable {
+    var released = false
+    override fun release() {
+      released = true
+    }
   }
 
   // Lo smistamento non usa il client: e' la stessa funzione che il servizio chiama dentro onDataChanged.

@@ -166,7 +166,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ai/ai/net/SseParser.kt`
 
-- `class SseParser` — Un parser di Server-Sent Events riga per riga, come dice la specifica: le righe `data:` di un evento si accumulano, una riga vuota lo chiude, i commenti (`: OPENROUTER PROCESSING`, i keep-alive di Groq) e i campi `event:`/`id:`/`retry:` non ci interessano. Una istanza per stream; [flush] recupera un ultimo evento non terminato a fine connessione.
+- `class SseParser` — Un parser di Server-Sent Events riga per riga, come dice la specifica: le righe `data:` di un evento si accumulano, una riga vuota lo chiude, i commenti (`: OPENROUTER PROCESSING`, i keep-alive di Groq) non ci interessano. Una istanza per stream; [flush] recupera un ultimo evento non terminato a fine connessione.
+  - `var lastEventId: String?` — L'ultimo `id:` letto: come dice la specifica vale subito, anche per un evento senza dati (il "priming" dei server MCP: un id e un `data:` vuoto), e resta finche' un altro id non lo sostituisce.
+  - `var lastEventName: String?` — L'`event:` dell'ultimo evento completo, o null se non ne aveva (vale "message").
   - `fun feed(rawLine: String): String?` — Ritorna il payload di un evento appena completo, altrimenti null.
   - `fun flush(): String?`
 

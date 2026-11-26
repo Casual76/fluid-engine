@@ -102,6 +102,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val inbox`
   - `val seenMessages` — Gli id dei messaggi già presi (PMX1): lo stesso messaggio non entra due volte.
   - `val mutedInApps` — I dispositivi che non mostrano più «Da X» in un'app: `app|codice`.
+  - `val undispatched` — Le consegne del ritiro ancora da smistare alle app (R1): le cose condivise, «I tuoi dispositivi», le richieste e le buste per uno Store più nuovo ([forApps]). Il ritiro le scrive nello stesso salvataggio del cursore e degli id visti, e `PeopleDispatcher` le toglie nello stesso salvataggio della posta: un errore alla pagina dopo, la scadenza del campanello o un riavvio a metà non le perdono.
   - `val spaces` — Gli spazi condivisi di cui ho la chiave (`SharedSpaces`), così come arrivano: id → stato.
   - `var cursor: Long`
   - `var rubricaVersion: Long`
@@ -443,7 +444,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
     - `const val CHANNEL`
 - `class PeopleDispatcher(private val people: PeopleClient, private val notifier: AppNotifier, private val clock: () -> Long = System::currentTimeMillis)` — Quello che il ritiro ha portato, passato alle app (`d\server-e-chiavi.md` § 6, punto 3): una cosa condivisa va nella posta in arrivo dell'app giusta, e l'app riceve l'avviso esplicito `CHANGED` con `share`; una risposta torna all'app che aveva mandato; «I tuoi dispositivi» e le richieste diventano notifiche dello Store. Rispetta blocchi (già fatti dal ritiro) e gli interruttori «Non mostrare più da X in questa app».
-  - `suspend fun dispatch(events: List<PeopleEvent>): Set<String>`
+  - `suspend fun dispatch(events: List<PeopleEvent>): Set<String>` — Smista le consegne che il ritiro ha lasciato da smistare ([PeopleState.undispatched]), comprese quelle di un giro caduto a metà (un errore alla pagina dopo, la scadenza del campanello, un riavvio dello Store): la posta delle app e la coda si scrivono nello stesso salvataggio (R1).
 - `class PeopleBell(private val people: PeopleClient, private val dispatcher: PeopleDispatcher)` — Il campanello (`d\server-e-chiavi.md` § 6): una notifica FCM **vuota**, data-only con il solo `k`, sveglia lo Store. Con `k = posta` lo Store ritira, apre e passa le cose alle app. Niente nome, niente tipo, niente anteprima: tutto quello che si vede lo scrive il telefono dopo aver aperto le buste.
   - `suspend fun ring(data: Map<String, String>): Set<String>` — [data] è il contenuto del messaggio FCM (o del campanello finto). Torna le app avvisate.
 - `class PeopleProviderMethods(private val people: PeopleClient, private val hasOtherDevices: () -> Boolean = { true }, private val deviceName: () -> String = { "Telefono" }) : AccountPeopleMethods` — I metodi delle persone del provider dello Store (`b\api.md` § 5.3), per `AccountProtocolHandler`: la fila, mandare, ricevere, rispondere, nascondere e «I tuoi dispositivi». Ogni app vede **id suoi** (un HMAC col sale dello Store e il suo pacchetto): un id di Notes non vale in Transit, e nessuna app vede codici, caselle o chiavi.

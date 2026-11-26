@@ -156,11 +156,25 @@ interface AiTool<C> {
  * Se qualche gruppo ha una categoria il catalogo e' **gerarchico** ([hierarchical]): al posto di
  * `altri_tool` il modello riceve `apri_categoria` e `apri_sottocategoria`, e l'orchestratore tiene
  * aperti per tutta la conversazione i gruppi gia' aperti.
+ *
+ * Dalla 4.0 (F9.2) alcuni gruppi possono essere **differiti** ([deferred]): sono gli strumenti delle
+ * altre app e dei connettori, raggiungibili ma non di serie. Un gruppo differito sta in [groups] (i suoi
+ * tool hanno un gruppo dichiarato) ma non entra mai da solo nel giro: non e' fra le categorie di
+ * `apri_categoria` ne' fra i gruppi di `altri_tool` e di `apri_sottocategoria`, non e' nella "lista
+ * intera" che si manda a OpenRouter, e il router non lo vede se l'app gli passa [homeGroups] e
+ * [categories]. I suoi tool si trovano con il tool built-in `cerca_strumenti` ([searchTool]), che
+ * carica i tool trovati uno per uno, o li apre l'app (un pre-router che sa gia' cosa serve li passa in
+ * `AskInput.preselectedGroups`). [searchTerms] sono le parole in piu' per la ricerca: il vocabolario di
+ * un'app collegata (materie, fermate, localita'), le parole del mestiere.
  */
 class ToolRegistry<C>(
   val tools: List<AiTool<C>>,
   val groups: List<AiToolGroup>,
   val actionGroup: AiToolGroup? = null,
+  /** I gruppi raggiungibili solo con la ricerca o dall'app (4.0, F9.2); vuoto = tutto come prima. */
+  val deferred: Set<AiToolGroup> = emptySet(),
+  /** Parole in piu' per la ricerca dei tool, per gruppo (4.0, F9.2). */
+  val searchTerms: Map<AiToolGroup, List<String>> = emptyMap(),
 ) {
 
   init {
@@ -174,12 +188,33 @@ class ToolRegistry<C>(
     require(orphans.isEmpty()) { "gruppi con un padre non dichiarato: $orphans" }
     val homeless = groups.filter { it.parent != null && it.resolvedCategory == null }.map { it.id }
     require(homeless.isEmpty()) { "gruppi con un padre ma senza categoria: $homeless" }
+    val undeclared = deferred.filter { it !in groups }.map { it.id }
+    require(undeclared.isEmpty()) { "gruppi differiti non dichiarati: $undeclared" }
   }
 
-  /** Le categorie, nell'ordine in cui compaiono nei gruppi; vuoto se il catalogo e' piatto. */
-  val categories: List<AiToolCategory> = groups.mapNotNull { it.resolvedCategory }.distinct()
+  /**
+   * I gruppi di casa (4.0, F9.2): tutti meno i [deferred]. Sono quelli da dare al router
+   * (`AiRouter(groups = registry.homeGroups, categories = registry.categories, ...)`).
+   */
+  val homeGroups: List<AiToolGroup> = groups.filter { it !in deferred }
+
+  /**
+   * Le categorie, nell'ordine in cui compaiono nei gruppi; vuoto se il catalogo e' piatto. Dalla 4.0
+   * solo quelle dei gruppi di casa: una categoria con tutti i gruppi differiti (un'altra app, un
+   * connettore) sta in [deferredCategories].
+   */
+  val categories: List<AiToolCategory> = homeGroups.mapNotNull { it.resolvedCategory }.distinct()
+
+  /** Le categorie raggiungibili solo con la ricerca (4.0, F9.2): le altre app, i connettori. */
+  val deferredCategories: List<AiToolCategory> = groups.filter { it in deferred }.mapNotNull { it.resolvedCategory }.distinct() - categories.toSet()
 
   val hierarchical: Boolean get() = categories.isNotEmpty()
+
+  /** Vero se c'e' qualcosa da cercare: almeno un gruppo differito con dei tool (4.0, F9.2). */
+  val searchable: Boolean = tools.any { it.group in deferred }
+
+  /** La ricerca su tutti i tool del catalogo (4.0, F9.2): si costruisce alla prima domanda che la usa. */
+  val search: ToolSearch<C> by lazy { ToolSearch(tools, searchTerms) }
 
   fun specsFor(groups: Set<AiToolGroup>): List<ToolSpec> = tools.filter { it.group in groups }.map { it.spec }
 
@@ -209,17 +244,37 @@ class ToolRegistry<C>(
   /** Quanti tool stanno in un insieme di gruppi: per il tetto dell'orchestratore. */
   fun toolCount(groups: Set<AiToolGroup>): Int = tools.count { it.group in groups }
 
-  /** I gruppi che il modello puo' vedere: tutti, meno quello delle azioni se sono spente. */
+  /**
+   * I gruppi che il modello puo' vedere senza cercarli: tutti quelli di casa, meno quello delle azioni
+   * se sono spente. Dalla 4.0 i [deferred] non ci sono.
+   */
   fun visibleGroups(actionsEnabled: Boolean): List<AiToolGroup> =
-    groups.filter { actionsEnabled || it != actionGroup }
+    homeGroups.filter { actionsEnabled || it != actionGroup }
 
   val moreTools: ToolSpec = ToolSpec(
     name = MORE_TOOLS,
     description = "Chiede altri strumenti di un gruppo non ancora disponibile. Gruppi: " +
-      groups.joinToString("; ") { "${it.id} = ${it.hint}" },
+      homeGroups.joinToString("; ") { "${it.id} = ${it.hint}" },
     parameters = Schema.obj(
-      mapOf("gruppo" to Schema.str("il gruppo di strumenti che serve", groups.map { it.id })),
+      mapOf("gruppo" to Schema.str("il gruppo di strumenti che serve", homeGroups.map { it.id })),
       required = listOf("gruppo"),
+    ),
+  )
+
+  /**
+   * Il tool con cui il modello cerca gli strumenti che non ha (4.0, F9.2): le altre app, i connettori,
+   * e i gruppi di casa non ancora aperti. Al giro dopo arrivano i tool trovati, uno per uno. La
+   * descrizione nomina le app e i connettori raggiungibili (solo il nome: una riga per tutti), perche'
+   * il modello sappia che esistono; le loro righe e i loro schemi non costano niente finche' non servono.
+   */
+  val searchTool: ToolSpec = ToolSpec(
+    name = SEARCH_TOOLS,
+    description = "Cerca e carica strumenti che non hai ancora, quando quelli attuali non bastano" +
+      (if (deferredCategories.isNotEmpty()) ". Ci sono anche: " + deferredCategories.joinToString(", ") { it.label } else "") +
+      ". Scrivi cosa ti serve in poche parole; gli strumenti trovati arrivano al passo dopo.",
+    parameters = Schema.obj(
+      mapOf("cosa" to Schema.str("cosa serve, in poche parole (es. \"previsioni meteo domani\")")),
+      required = listOf("cosa"),
     ),
   )
 
@@ -245,7 +300,7 @@ class ToolRegistry<C>(
    * non ancora aperte, con la loro riga. Null se non c'e' niente da aprire.
    */
   fun openGroupTool(loadedCategories: Set<AiToolCategory>, loaded: Set<AiToolGroup>, actionsEnabled: Boolean): ToolSpec? {
-    val openable = groups.filter { g ->
+    val openable = homeGroups.filter { g ->
       g !in loaded && g.resolvedCategory in loadedCategories && (actionsEnabled || g != actionGroup)
     }
     if (openable.isEmpty()) return null
@@ -279,8 +334,11 @@ class ToolRegistry<C>(
     const val OPEN_CATEGORY = "apri_categoria"
     const val OPEN_GROUP = "apri_sottocategoria"
 
+    /** Il tool built-in della ricerca dei tool (4.0, F9.2): [searchTool]. */
+    const val SEARCH_TOOLS = "cerca_strumenti"
+
     /** I nomi che l'orchestratore gestisce da se', senza cercarli fra i tool dell'app. */
-    val BUILT_IN: Set<String> = setOf(MORE_TOOLS, DEEP_MODEL, OPEN_CATEGORY, OPEN_GROUP)
+    val BUILT_IN: Set<String> = setOf(MORE_TOOLS, DEEP_MODEL, OPEN_CATEGORY, OPEN_GROUP, SEARCH_TOOLS)
   }
 }
 

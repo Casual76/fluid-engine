@@ -192,6 +192,20 @@ proprio processo. Modulo a parte, `engine-install.ps1 -Modules engine-ai-bridge`
   120 s se il modello pensa o col profondo, 45 s altrimenti, entro il budget.
 - `ProviderFactory(decorate = ...)` per un iniettore di guasti nelle build di debug.
 
+## Dalla 4.0 (F9.2): meno gettoni in ingresso, e i connettori
+
+- **I tool di base sono quelli dell'app da cui si parla.** Gli strumenti delle altre app (dal ponte) e dei connettori
+  vanno in `ToolRegistry(..., deferred = gruppi, searchTerms = parole)`: non sono nel prompt del router, in
+  `apri_categoria` ne' in `altri_tool`, e il modello li trova col tool built-in `cerca_strumenti`, che li carica uno per
+  uno. Il router si costruisce con `registry.homeGroups` e `registry.categories`. Il precaricamento
+  (`AiOrchestratorConfig.searchPreload`) porta subito i tool di un'altra app quando la domanda la nomina chiaramente.
+- `AskInput.skipRouter = true` toglie la chiamata dello stadio 1.
+- La storia ripropone la testa dei risultati della domanda prima (`historyToolResultChars`, 1200) e l'intestazione dei
+  risultati non scrive i campi sconosciuti: meno gettoni a ogni giro, senza perdere niente.
+- **I connettori MCP** sono il modulo opt-in `engine-ai-mcp` (`moduli/ai-mcp.md`): `McpConnectors`, `FluidConnectorsPage`,
+  `registry.withConnectors(connectors.toolSets(McpToolHost.gate(gate)))`. Ogni scrittura chiede conferma.
+- Le misure (col tokenizer di Qwen3 sul catalogo vero di PampAI) sono nel rapporto di F9.2 e in `moduli/ai-orchestrator.md`.
+
 ## Additive typed tool contract (unreleased)
 
 `ToolOutput(text, parts, escalate)` remains source compatible; appended `result: ToolResultDetails?`

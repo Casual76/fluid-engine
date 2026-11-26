@@ -25,6 +25,7 @@ parole in [ai-ui-stringhe.md](ai-ui-stringhe.md); le firme complete in [../api/a
 | la barra in fondo (campo, +, chip del modello, microfono/invio/stop) | `FluidComposer` (il composer di prima, che resta) |
 | quale tasto mostrare a destra del composer | `fluidComposerAction(...)` |
 | il testo scritto dal composer, anche scritto da fuori | `FluidComposerState` / `rememberFluidComposerState()` |
+| il chip «Questa pagina» fra le pillole: la pagina passa a PampAI con la domanda (F9.1) | `FluidComposerPagePill(title, included, onIncludedChange, onShowContents)` |
 | l'alone mentre ascolta, e la riga con le parole che arrivano | `rememberFluidListeningGlow` + `FluidComposerVoiceLine` |
 | icona sotto un messaggio (Copia, Condividi) | `FluidSmallAction`; con la parola accanto `FluidPillAction` |
 | copiare o condividere una risposta | `fluidCopyToClipboard`, `fluidShareText` |
@@ -316,6 +317,18 @@ lo sfondo (un contenitore con un pezzo solo). **La capsula del composer gira** (
 (`fluidGlassPanel`, ruolo `Floating`, la sua pellicola, `large = false`) in un contenitore con un pezzo solo, l'alone resta
 fuori, attorno a lei: [ai-ui-overlay.md](ai-ui-overlay.md), «Il vetro e il lato».
 
+### Il chip «Questa pagina» (F9.1)
+
+`FluidComposerPagePill(title, included, onIncludedChange, onShowContents, modifier, strings = FluidPageContextStrings())` sta fra le **pillole** del composer
+(`pills = { … }`) e dice se la pagina che l'utente ha davanti parte con la domanda a PampAI (`AiAssistPage` di `engine-ai-bridge`, [ai-bridge.md](ai-bridge.md),
+«L'assistenza»). **Acceso** e' la pillola dell'accento con l'icona del documento, «Questa pagina» e la X: un tocco sul nome chiama `onShowContents` (l'app mostra un foglio
+con `AiAssistPage.preview()`, lo stesso testo che passa), un tocco sulla X chiama `onIncludedChange(false)`. **Spento** e' «+ Aggiungi questa pagina», e un tocco la rimette.
+Alto come le altre pillole (30 dp in `FluidComposer`, 40 nel composer del campo) col bersaglio da 48 dp; la X ha il suo bersaglio largo 40. Non si anima.
+
+- **TalkBack**: un nodo solo (`clearAndSetSemantics`), «Questa pagina: <titolo>», lo stato («Passa a PampAI con la domanda» / «Non passa»), il tocco (mostra o aggiunge)
+  e le azioni «Mostra cosa passa» e «Togli la pagina» (spento: «Aggiungi la pagina»). Le parole in `FluidPageContextStrings` (`english()` per l'inglese).
+- **Trappola**: il chip non decide niente. Il sì per la pagina lo chiede PampAI (`AiAssistClient.consentIntent()`); l'app manda `page` solo se il chip e' acceso.
+
 ## Il composer dentro il campo
 
 **Cos'è.** Il composer **nuovo** dell'assistente (F6B.7), costruito sul campo della barra di `engine-ui` invece che su una
@@ -425,7 +438,7 @@ Bolle, card, dock, voce e condivisione lo passano da soli; chi disegna una rispo
 riaggancio tornando in fondo, molla per item lontani e inseguimento per crescite piccole, dito lasciato vicino al fondo resta fermo), la card che segue la risposta, le chiavi della lista (una per
 conversazione, la chat che nasce su disco **eredita**, una chat nuova senza domanda in corso non ruba la chiave), il tasto del composer per ogni combinazione (incl. «ascoltando e' sempre lo stop
 dell'ascolto» su tutte le 8 combinazioni e «senza microfono il campo vuoto non offre la voce»), `fill`/`sent`, la tabella degli esiti. `FluidEnglishStringsTest`: la riga della voce resta anche mentre
-trascrive (`fluidComposerShowsVoiceLine`). **Non verificati** (si guardano in mano): il vetro del composer, l'alone, il movimento delle bolle, il fondo su una lista vera.
+trascrive (`fluidComposerShowsVoiceLine`). `FluidPageContextStringsTest`: le parole del chip «Questa pagina» tradotte tutte; il chip per TalkBack e il bersaglio da 48 dp sono in `F9p1AssistUiTest` (sample, Robolectric). **Non verificati** (si guardano in mano): il vetro del composer, l'alone, il movimento delle bolle, il fondo su una lista vera.
 
 ## Dove guardare
 

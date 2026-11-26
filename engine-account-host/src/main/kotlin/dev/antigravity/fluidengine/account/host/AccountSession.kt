@@ -94,6 +94,20 @@ class AccountSession(
     notify(listOf("state"))
   }
 
+  /**
+   * F10.7 · La sessione nata dal codice di recupero è diventata normale sul server: una passkey aggiunta o Google
+   * collegato (`b\api.md` § 2). Lo diventa anche qui, e le app lo vedono (`sessionKind`). Dopo, la custodia può scrivere
+   * la porta di questo dispositivo (`CustodyService.ensureDeviceDoor`). Una sessione già normale non cambia.
+   */
+  fun promote() {
+    val s = runCatching { sessions.load() }.getOrNull() ?: return
+    if (s.kind != SessionKind.RECOVERY) return
+    val full = StoredSession(s.accountId, s.deviceId, s.refreshToken, SessionKind.FULL, s.displayName, s.storePackage)
+    sessions.save(full)
+    _state.value = HostSession.SignedIn(full.accountId, full.deviceId, full.displayName, full.kind)
+    notify(listOf("state"))
+  }
+
   /** Il campo `device` delle richieste d'ingresso: nome, pacchetto dello Store, e la pubblica della chiave del dispositivo. */
   fun deviceField(name: String, storePackage: String, osApi: Int?, storeVersion: String): JsonObject = buildJsonObject {
     put("name", name)

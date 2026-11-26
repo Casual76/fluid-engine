@@ -230,6 +230,8 @@ DIR_FAMILY = {
     "ai/speech": "ai-chiavi-rete-voce",
     "ai/tools": "ai-orchestrator",
     "ai/bridge": "ai-bridge",
+    # i connettori MCP: il protocollo, l'accesso, i gettoni, la pagina «Connettori» (F9.2)
+    "ai/mcp": "ai-mcp",
     "aiui": "ai-ui",
     # i moduli facoltativi della condivisione (F8.10)
     "qr": "qr",
@@ -316,6 +318,7 @@ FAMILY_TITLES = {
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",
     "ai-bridge": "engine-ai-bridge",
+    "ai-mcp": "engine-ai-mcp",
     "ai-ui": "engine-ai-ui",
     "altro": "Non classificato",
 }

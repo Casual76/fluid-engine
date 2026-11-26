@@ -70,6 +70,7 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-ai` | l'assistente senza dominio: provider BYOK, chiavi, SSE, failover, router e orchestratore, voce | `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md` |
 | `engine-ai-ui` | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (**opt-in**) | `moduli/ai-ui*.md` |
 | `engine-ai-bridge` | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | `moduli/ai-bridge.md` |
+| `engine-ai-mcp` | i connettori MCP: gli strumenti di un server come `AiTool` caricati solo quando servono, l'accesso con l'account (OAuth con PKCE), i gettoni cifrati, le difese sulle descrizioni e sui risultati, la pagina «Connettori» (**opt-in**, dalla 4.0) | `moduli/ai-mcp.md` |
 | `engine-vault` | la cassaforte: valori, file e DataStore cifrati col Keystore, sezioni all'impronta che si richiudono da sole, i byte sigillati dell'account (**opt-in**, dalla 4.0) | `moduli/vault.md` |
 | `engine-security` | il blocco dell'app con l'impronta, la schermata di vetro, il PIN dell'app, il contenuto protetto, l'anteprima oscurata nelle recenti (**opt-in**, dalla 4.0) | `moduli/security.md` |
 | `engine-qr` | il QR di «Mostra come QR» nel foglio di condivisione, con ZXing core (**opt-in**, dalla 4.0) | `moduli/qr.md` |
@@ -174,6 +175,8 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | cifrare una password, un file, un DataStore; una cartella che si apre con l'impronta e si richiude da sola; il caso «chiave non più valida» | `moduli/vault.md` (opt-in) |
 | bloccare l'app con l'impronta al rientro, il PIN dell'app, un album o le note che restano chiusi, l'anteprima nelle recenti | `moduli/security.md` (opt-in) |
 | un assistente IA | `ai.md`, `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md`, e l'interfaccia in `moduli/ai-ui.md` (+ `ai-ui-overlay`, `-chat`, `-impostazioni`, `-stringhe`) |
+| meno gettoni in ingresso: gli strumenti delle altre app raggiungibili ma non di serie, `cerca_strumenti`, niente router | `moduli/ai-orchestrator.md`, «La ricerca dei tool e i gruppi differiti» |
+| collegare l'assistente a un servizio (calendario, NAS, domotica) con MCP, la pagina «Connettori» | `moduli/ai-mcp.md` (opt-in) |
 
 ## Le cinque regole che non si negoziano
 

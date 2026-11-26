@@ -47,6 +47,18 @@ internal object DataProfile {
   /** Il testo al più di una cella: un CSV con un campo di un megabyte non impagina un megabyte. A occhio. */
   const val MaxCellChars: Int = 1_000
 
+  /**
+   * R2 · I byte letti al più in una volta per un blocco di righe della griglia CSV: oltre (una riga enorme, il campo-blob
+   * di un export, un file fatto apposta) si legge una riga alla volta. A occhio, 26 novembre 2026.
+   */
+  const val MaxCsvBlockBytes: Int = 4 * 1024 * 1024
+
+  /**
+   * R2 · I byte letti al più di una riga di CSV: ci stanno [MaxCsvColumns] colonne di 60 caratteri. Oltre, la riga si
+   * legge fino a qui e la sua ultima cella letta finisce con «…». A occhio, 26 novembre 2026.
+   */
+  const val MaxCsvRowBytes: Int = 1024 * 1024
+
   /** La larghezza di una colonna di CSV: dal testo più lungo delle prime righe, fra questi due estremi (dp). A occhio. */
   const val CsvMinColumn: Float = 56f
   const val CsvMaxColumn: Float = 280f

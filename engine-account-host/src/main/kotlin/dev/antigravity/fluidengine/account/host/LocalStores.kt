@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.account.host
 import dev.antigravity.fluidengine.account.Place
 import dev.antigravity.fluidengine.account.PlacesAccess
 import dev.antigravity.fluidengine.account.host.custody.CustodyKeyKind
+import dev.antigravity.fluidengine.account.host.custody.CustodyLockedException
 import dev.antigravity.fluidengine.account.host.custody.CustodyVault
 import dev.antigravity.fluidengine.account.host.custody.KeyClassPolicy
 import dev.antigravity.fluidengine.sync.BlobSyncStore
@@ -75,6 +76,15 @@ class PlacesStore(
 
   @Volatile private var syncOrNull: FluidSync? = null
 
+  /**
+   * L'ultimo file dei luoghi che non si apriva più (i permessi o il registro), messo da parte accanto
+   * (`<nome>.rotto-<ora>`), o `null`. Succede con una chiave persa o con un file rimasto a metà: i permessi ripartono
+   * «mai chiesti» e il registro vuoto (con l'account i luoghi tornano dal server), invece di far cadere ogni chiamata.
+   * Lo Store lo dice (R2). Con la classe chiusa (prima del primo sblocco) non si tocca niente: si riprova dopo.
+   */
+  @Volatile var setAside: File? = null
+    private set
+
   /** Lo spazio di `engine-sync` dei luoghi. [PlacesSync] gli dà relay e sigillo quando c'è l'account. */
   internal val sync: FluidSync
     get() = syncOrNull ?: synchronized(this) { syncOrNull ?: newSync().also { syncOrNull = it } }
@@ -83,8 +93,8 @@ class PlacesStore(
     dir.mkdirs()
     return FluidSync(
       store = BlobSyncStore(
-        load = { if (registryFile.exists()) vault.open(keyClass, registryFile.readBytes(), REGISTRY_AAD) else null },
-        save = { registryFile.writeBytes(vault.seal(keyClass, it, REGISTRY_AAD)) },
+        load = { if (registryFile.exists()) openOrSetAside(registryFile) { vault.open(keyClass, it, REGISTRY_AAD) } else null },
+        save = { writeReplacing(registryFile, vault.seal(keyClass, it, REGISTRY_AAD)) },
       ),
       relay = relay,
       sealer = sealer,
@@ -102,10 +112,26 @@ class PlacesStore(
     this.sealer.target = sealer
   }
 
+  /** Il file dei permessi (e dei luoghi di F10.4), o `null` se non c'è o se non si apriva più (allora è da parte). */
+  @Synchronized
+  private fun readFile(): JsonObject? {
+    if (!file.exists()) return null
+    return openOrSetAside(file) { Json.parseToJsonElement(vault.open(keyClass, it, AAD).decodeToString()) as JsonObject }
+  }
+
+  /** Apre [f] con [open]; se non si apre più (non per la classe chiusa) lo mette da parte e rende `null`. */
+  private fun <T : Any> openOrSetAside(f: File, open: (ByteArray) -> T): T? = try {
+    open(f.readBytes())
+  } catch (e: CustodyLockedException) {
+    throw e
+  } catch (e: Exception) {
+    setAside = setAsideBroken(f)
+    null
+  }
+
   @Synchronized
   private fun readAccess(): Map<String, PlaceAccess> {
-    if (!file.exists()) return emptyMap()
-    val o = Json.parseToJsonElement(vault.open(keyClass, file.readBytes(), AAD).decodeToString()) as JsonObject
+    val o = readFile() ?: return emptyMap()
     return (o["access"] as? JsonObject)?.mapNotNull { (k, v) ->
       runCatching { PlaceAccess.valueOf((v as JsonPrimitive).content) }.getOrNull()?.let { k to it }
     }?.toMap().orEmpty()
@@ -113,9 +139,8 @@ class PlacesStore(
 
   @Synchronized
   private fun writeAccess(access: Map<String, PlaceAccess>) {
-    dir.mkdirs()
     val json = buildJsonObject { putJsonObject("access") { for ((k, v) in access) put(k, v.name) } }
-    file.writeBytes(vault.seal(keyClass, json.toString().toByteArray(), AAD))
+    writeReplacing(file, vault.seal(keyClass, json.toString().toByteArray(), AAD))
   }
 
   /** La scelta dell'utente per [packageName], o `null` se non gliel'hanno mai chiesta. */
@@ -150,14 +175,15 @@ class PlacesStore(
   fun setAccess(packageName: String, access: PlaceAccess): Boolean {
     val entry = policy.entryFor(packageName) ?: return false
     if (entry.places == AppPolicy.Places.NEVER && access != PlaceAccess.NONE) return false
-    writeAccess(readAccess() + (packageName to access))
+    // Leggere e riscrivere sotto lo stesso lucchetto: due scelte insieme non rimettono la mappa di prima (R1).
+    synchronized(this) { writeAccess(readAccess() + (packageName to access)) }
     onChange(listOf(WHAT))
     return true
   }
 
   /** Dimentica la scelta: l'app tornerà a chiedere (la pagina dell'account, «Chiedi di nuovo»). */
   fun forget(packageName: String) {
-    writeAccess(readAccess() - packageName)
+    synchronized(this) { writeAccess(readAccess() - packageName) }
     onChange(listOf(WHAT))
   }
 
@@ -207,9 +233,12 @@ class PlacesStore(
    * chiama. Dopo, i luoghi ripartono vuoti.
    */
   fun wipe() {
-    for (f in listOf(file, registryFile)) if (f.exists()) {
-      runCatching { f.writeBytes(ByteArray(f.length().toInt())) }
-      f.delete()
+    for (f in listOf(file, registryFile)) {
+      if (f.exists()) {
+        runCatching { f.writeBytes(ByteArray(f.length().toInt())) }
+        f.delete()
+      }
+      removeSetAside(f)
     }
     vault.destroy()
     syncOrNull = null
@@ -230,15 +259,14 @@ class PlacesStore(
    * non è mai uscito; c'è perché un telefono di prova non perda i suoi luoghi.
    */
   suspend fun migrateLegacy() {
-    if (!file.exists()) return
-    val o = Json.parseToJsonElement(vault.open(keyClass, file.readBytes(), AAD).decodeToString()) as JsonObject
+    val o = readFile() ?: return
     val legacy = (o["places"] as? JsonArray) ?: return
     for (p in legacy) {
       val x = p as JsonObject
       fun s(k: String) = (x[k] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content
       put(null, Place(s("id") ?: continue, s("name") ?: "", s("kind") ?: Place.OTHER, (x["lat"] as? JsonPrimitive)?.doubleOrNull ?: 0.0, (x["lon"] as? JsonPrimitive)?.doubleOrNull ?: 0.0, s("address")))
     }
-    writeAccess(readAccess())
+    synchronized(this) { writeAccess(readAccess()) }
   }
 
   private fun placeOf(doc: SyncDocument): Place? {

@@ -1,7 +1,7 @@
 # engine-ai-bridge
 
 I **tool federati**: un'app espone i **propri** tool (quelli che il suo assistente interno gia' usa) a un assistente esterno firmato con la stessa chiave, che li scopre a runtime, li fonde nel suo catalogo e li esegue **nel processo dell'app ospite**,
-dove stanno i dati e la sessione. E' una chiamata Binder fra due app dello stesso firmatario, non un servizio in rete. Pacchetto `dev.antigravity.fluidengine.ai.bridge`, quattro file (`BridgeProtocol.kt`, `AiToolHostProvider.kt`, `AiToolClient.kt`, `RemoteTools.kt`).
+dove stanno i dati e la sessione. E' una chiamata Binder fra due app dello stesso firmatario, non un servizio in rete. Pacchetto `dev.antigravity.fluidengine.ai.bridge`, quattro file (`BridgeProtocol.kt`, `AiToolHostProvider.kt`, `AiToolClient.kt`, `RemoteTools.kt`). Dalla 4.0 (F9.1) anche il **percorso inverso**, un'app che chiede a PampAI: il pacchetto `...ai.bridge.assist` (sezione «L'assistenza»).
 **Senza Compose, senza permessi, senza `Context` d'interfaccia**: dipende da `engine-ai` (i tipi dei tool) e basta.
 
 Due ruoli, un protocollo:
@@ -29,6 +29,9 @@ Modello mentale: **il cliente decide e conferma, l'ospite esegue e si difende**.
 | consegnare uno screenshot/un PDF | `ToolOutput(parts = ...)` + `partsAuthority()` + un `FileProvider` |
 | restringere chi puo' chiamare a pochi pacchetti | sovrascrivere `isCallerTrusted` **chiamando `super`**; mai allargarlo |
 | provare un tool remoto senza un telefono | un `BridgeCalls` finto (e' un'interfaccia: i test del modulo lo fanno) |
+| far **chiedere a PampAI** dalla mia app (rispondere, riscrivere, riassumere, coi miei tool) | `AiAssistClient(context).ask(AiAssistRequest(...))` (sezione «L'assistenza») |
+| mandare a PampAI la pagina che l'utente ha davanti | `AiAssistPage` nella richiesta, il chip `FluidComposerPagePill`, il sì con `consentIntent()` |
+| essere **PampAI** per le altre app | una sottoclasse di `AiAssistHostProvider` con un `AiAssistHost` e il tuo `AiAssistExecutor` |
 | un permesso `AI_TOOLS` | non esiste piu' (dalla 3.0.0): vedi sicurezza |
 
 ## Sicurezza e fiducia (la regola trasversale)
@@ -146,7 +149,7 @@ class AgendaToolHostProvider : AiToolHostProvider<AgendaToolContext>() {      //
 
 **Non usarlo quando.** L'app non ha un assistente interno con tool (non c'e' niente da esporre), o i tool dipendono da una `Activity`/da un'interazione sullo schermo.
 
-**Versione.** Il modulo e' dalla 1.27.0 (metadati dei tool dalla 1.26.0). **3.0.0:** `AI_TOOLS` rimosso, cancello di firma in `isCallerTrusted`/`compareSignatures`, `BridgeProtocol.PERMISSION` deprecata, avviso in `attachInfo`. **3.0.6:** identita' dell'operazione obbligatoria per le scritture (`requestId`), `negotiate` (protocollo 2 con risultati tipizzati; il catalogo resta `protocol = 1`), argomenti validati, l'orchestratore che passa l'identita'.
+**Versione.** **4.0.0 (F9.1):** l'assistenza, protocollo 3, nel pacchetto `assist`; i tool non cambiano. Il modulo e' dalla 1.27.0 (metadati dei tool dalla 1.26.0). **3.0.0:** `AI_TOOLS` rimosso, cancello di firma in `isCallerTrusted`/`compareSignatures`, `BridgeProtocol.PERMISSION` deprecata, avviso in `attachInfo`. **3.0.6:** identita' dell'operazione obbligatoria per le scritture (`requestId`), `negotiate` (protocollo 2 con risultati tipizzati; il catalogo resta `protocol = 1`), argomenti validati, l'orchestratore che passa l'identita'.
 
 ## Il cliente: `AiToolClient`, `RemoteToolSet`, `RemoteTool`, `RemoteToolHost`
 
@@ -212,6 +215,85 @@ val registry = ToolRegistry(localTools + tools.flatMap { it.tools }, localGroups
 
 **Non usarlo quando.** Chiami un tuo servizio in rete (e' un altro canale: `engine-ai` ha i provider); o hai bisogno di piu' di una chiamata sincrona per volta senza `longRunning`.
 
+## L'assistenza: un'app chiede a PampAI (F9.1, protocollo 3)
+
+**Cos'e'.** Il percorso inverso dei tool: un'app Pampa (ClasseViva, Fluid Transit, Fluid Weather, Pampa Notes, Pampa Mail, MyCloud Gallery, Universal Converter) manda una domanda a **PampAI** e riceve la risposta, anche a pezzi, con le righe semplici di cosa fa PampAI e le ricevute delle azioni. Le chiavi e i modelli **restano in PampAI**: l'app non configura niente e non riceve mai una chiave, un fornitore o un modello. Pacchetto `dev.antigravity.fluidengine.ai.bridge.assist`. Il contratto per intero, con le scelte e i numeri, e' `artifacts/liquid-glass/sessioni/f9-1/contratto.md` (fuori da git).
+
+| ruolo | chi e' | classi |
+|---|---|---|
+| **app** | chi chiede | `AiAssistClient`, `AiAssistClientConfig`, `AiAssistRequest`, `AiAssistTask`, `AiAssistPage`, `AiAssistProgress`, `AiAssistError`, `AiAssistStatus`, `AiAssistEntry` (il tasto, F9.1b), `AiAssistConsentAnswer`, `AiAssistTexts` |
+| **PampAI** | l'ospite dell'assistenza | `AiAssistHostProvider` (il `ContentProvider`), `AiAssistHost` (il cuore, senza Android), `AiAssistExecutor` + `AiAssistSink` (il lavoro, di PampAI), `AiAssistPolicy` (la tabella), `AiAssistConsentStore` + `AiAssistConsent` (il sì per l'app e per la pagina, in un foglio solo), `AiAssistHistory` + `AiAssistHistoryEntry` + `InMemoryAiAssistHistory` (la chat «Dalle app», F9.1b), `AiAssistLimits` |
+| **il chip** | nel composer | `FluidComposerPagePill` di `engine-ai-ui` ([ai-ui-chat.md](ai-ui-chat.md)) |
+
+**Uso, lato app.**
+
+```kotlin
+val pampai = AiAssistClient(context)                                      // trova PampAI (in sviluppo prima PampAI di sviluppo)
+val status = pampai.check()                                               // ready, tasks, page, pageConsent, error
+val page = AiAssistPage("Matematica · verifica del 12 novembre", listOf("Voto 5½, peso 100%", "Media 6,8 (prima 7,1)"))
+pampai.ask(AiAssistRequest(AiAssistTask.answer("Perché questo voto abbassa la media?"), page = page)).collect { p ->
+  riga = p.status?.line; testo = p.text; errore = p.error?.message()      // ogni elemento e' lo stato intero
+}
+val riassunto = pampai.run(AiAssistRequest(AiAssistTask.summarize(circolare, AiAssistTask.FormKeyPoints)))
+// Il sì per la pagina: l'Activity di PampAI, con StartActivityForResult (solo cosi' PampAI sa dal sistema chi chiede).
+launcher.launch(pampai.consentIntent()); /* nel risultato: */ AiAssistConsent.resultOf(resultCode, data)
+```
+
+**Uso, lato PampAI.**
+
+```kotlin
+val host = AiAssistHost(executor = PampaiAssistExecutor(...), consents = SharedPreferencesAiAssistConsentStore(context),
+  policy = AiAssistPolicy(devBuild = isDebuggable), ready = { if (keys.any()) ReadyState(true) else ReadyState(false, "aggiungi una chiave") })
+class PampaiAssistHost : AiAssistHostProvider() { override fun host() = graph().assistHost }   // lo stesso oggetto per tutto il processo
+```
+
+```xml
+<provider android:name=".assist.PampaiAssistHost" android:authorities="${applicationId}.ai.assist" android:exported="true">
+  <meta-data android:name="dev.antigravity.fluidengine.ai.ASSIST_HOST" android:value="3" />   <!-- niente android:permission -->
+</provider>
+```
+
+**Chi chiama: l'identita' dal sistema.** `AiAssistHostProvider.call`, l'unica porta, **prima di leggere la richiesta e su ogni metodo**: (1) `checkSignatures(callingUid, myUid) == SIGNATURE_MATCH`, altrimenti `SecurityException` (l'app vede `not_authorized`); (2) `getPackagesForUid(uid)` deve dare **un pacchetto solo** (niente uid condivisi), e il nome scritto dall'app non conta: il formato non ha un campo per chi chiama; (3) la tabella (`AiAssistPolicy`), il blocco dell'utente e il sì per la pagina, in `AiAssistHost`. Le varianti `.debug`/`.dev` contano solo se PampAI e' una build di sviluppo. **Il controllo inverso**: `AiAssistClient` parla solo con il pacchetto atteso, col provider `<pacchetto>.ai.assist` e il meta-data, e **la stessa firma dell'app**; una PampAI firmata da altri «non c'e'». Il canale di ritorno accetta solo l'uid di PampAI (o il proprio processo).
+
+**L'ambito.** `AiAssistPolicy.Scope*`: `answer` (una domanda), `rewrite` (gli stili di Writing Tools: `StyleProofread`, `StyleRewrite`, `StyleFriendly`, `StyleProfessional`, `StyleConcise`), `summarize` (`FormSummary`, `FormKeyPoints`, `FormList`, `FormTable`), `tools` (PampAI usa i tool **dell'app che chiama**: l'ospite dei tool del suo pacchetto, trovato da PampAI, arriva all'esecutore in `AiAssistCall.caller.toolsAuthority`), `page`. La tabella di serie: ClasseViva, Pampa Notes e Pampa Mail hanno tutto; Fluid Transit, Fluid Weather, MyCloud Gallery e Universal Converter `answer`, `tools`, `page`. `AiAssistRequest.tools`: `ToolsCaller` (di serie: i tool dell'app sono la base, le altre app raggiungibili ma non caricate), `ToolsCallerOnly`, `ToolsNone`; riscrivere e riassumere non usano mai tool. Un compito o uno stile sconosciuti: `needs_update`.
+
+**La pagina** (`AiAssistPage`): titolo (120), tipo (40), fino a 8 righe da 160, selezione (2000), **in tutto 2400 caratteri**; nient'altro (niente identificativi o dati nascosti: il formato non li ha); cio' che sfora si taglia e `truncated` lo dice; `preview()` e' il testo che passa e che il chip mostra. Parte **solo dentro una domanda**. **Il sì** lo chiede PampAI la prima volta (`AiAssistConsent.begin(callerOf(activity))` → `Step.Ask.question` → `answer`), mai l'app; prima del sì una domanda con la pagina riceve `consent_required` e **all'esecutore non arriva niente**. Dalle impostazioni di PampAI: `host.setPageConsent(pkg, Denied)` (ferma le domande in corso con la pagina), `host.setBlocked(pkg, true)` (ferma tutte le sue domande), `host.forget(pkg)`.
+
+**Il risultato.** `Flow<AiAssistProgress>`: `text` (a parole intere), `status` (`line` e `app` per l'icona: «Controllo il meteo», F9.4), `receipts` (`line`, `app`, `outcome` `done`/`uncertain`/`failed`), `done`, `error`. Gli errori sono **codici fissi** (`AiAssistError.*`) con le parole dell'engine (`message()`, italiano e inglese): `not_installed` «PampAI non c'è», `needs_update`, `not_authorized`, `consent_required`, `not_ready` (con la riga di PampAI), `limit_reached` (con `retryAfterMillis`: «riprova fra 2 minuti»), `busy`, `too_large`, `cancelled` «Annullata», `timeout`, `interrupted` «PampAI si è fermata», `failed`. Un'eccezione dell'esecutore esce come `failed` **senza il suo messaggio**; l'esecutore da' un codice con `AiAssistException`.
+
+**Comportamento: i tempi e l'annullamento.** `assist_ask` risponde subito; la domanda ha un tempo massimo (di serie 60 s, tenuto fra 1 e 120 s) allo scadere del quale l'ospite chiude con `timeout` **all'ora giusta anche se l'esecutore non si ferma** (e lo cancella). L'app ha la sua guardia: tempo + `graceMillis` (5 s). Cancellare chi raccoglie manda `assist_cancel` (al massimo 2 s di attesa); se l'app muore il canale muore e l'ospite annulla; se PampAI muore il gettone muore e l'app chiude con `interrupted`. Se PampAI tace per 2 s l'app controlla con `assist_poll` (un tool lungo, o un invio perso: anche la fine persa arriva cosi').
+
+**Il trasporto.** `ContentResolver.call` (la porta di sempre, un cancello solo) e un **canale di ritorno**: l'app mette nel `Bundle` di `assist_ask` un suo `Binder`, l'ospite ci manda gli invii come transazioni a senso unico (`linkToDeath` in tutti e due i sensi). L'app tiene aperto il `ContentProviderClient` per tutta la domanda: il processo di PampAI resta alla sua priorita'. Gli invii partono al massimo ogni 50 ms (la fine subito), il testo a parole intere e **ripulito** (`AiAssistRedaction`: `gsk_…`, `AIza…`, `sk-or-…`, `sk-…`, `Bearer …`, JWT, `api_key=…` diventano «[chiave nascosta]»; a parole intere una chiave non si spezza mai fra due invii). Riserva: `AiAssistClientConfig(pollIntervalMillis = …)` fa chiedere i pezzi con `assist_poll`.
+
+**F9.1b: la prima volta, il tasto spento, «Dalle app»** (le scelte di Alessio del 26/11/2026).
+- **La prima volta che un'app usa PampAI, PampAI chiede.** Il registro ha due scelte per app (`AiAssistConsentState`: `NotAsked`, `Allowed`, `Denied`): `appConsent` e `pageConsent`. Con `appConsent` da chiedere la domanda riceve `consent_required` con `needs = [app]` (con la pagina `[app, page]`) e all'esecutore non arriva niente; `AiAssistStatus.appConsent` lo dice prima, e il tasto resta acceso. L'app apre `consentIntent(page = conPagina)`: **un foglio solo** (`AiAssistConsent.begin(caller, withPage)` → `Step.Ask(askApp, askPage)` con `question` e `choices`: «Consenti», «Senza la pagina», «Non consentire»; `answer(ask, choice)` → `Step.Decided(app, page)`; `resultIntent(decided)`; l'app legge `AiAssistConsent.resultOf` → `AiAssistConsentAnswer(app, page)`). **Il «no» si ricorda**: `not_authorized`, nessun foglio di nuovo (`begin` → `Decided` col no), si cambia da «App che usano PampAI» con `host.setAppConsent` (`setBlocked` resta come scorciatoia). A un'app rifiutata `assist_scope` risponde solo `{error}`.
+- **Il tasto «Chiedi a PampAI» si vede spento, non sparisce**: `AiAssistEntry.of(status)` → `enabled`, `note`, `action`, `actionLabel`. `not_installed` → «Installa PampAI», `needs_update` → «Aggiorna PampAI», `not_ready` → «Apri PampAI» (`openIntent()`), `not_authorized` → **nessuna azione** (non si rivela niente di PampAI). `installIntent()` apre Pampa Store (`com.pampa.store`, in sviluppo prima `.debug`, con la firma dell'app) con `dev.pampa.account.OPEN`, sezione `app`, extra `app = dev.pampa.pampai` (lo Store lo impara col passaggio al 4.0; uno Store vecchio si apre sulla prima pagina); null senza lo Store, e l'app mostra `AiAssistTexts.installHint()`. Il modulo dichiara i `<queries>` dei due Store.
+- **La chat «Dalle app»** (F9.1c: le scelte 8 B e 9 B di Alessio): `AiAssistHost(history = …)` riceve un `AiAssistHistoryEntry` per ogni domanda finita (anche fermata o fallita; mai una rifiutata prima di partire): app, nome, ora (`wallClock`), compito e stile, **la domanda intera** (per riscrivere e riassumere **il testo di partenza intero**, e la sua lunghezza), **della pagina solo il titolo**, **la risposta intera**, le ricevute, l'esito. Niente righe o selezione della pagina, niente righe di stato, niente fornitore o modello; tutto passa dalla pulizia delle chiavi. **Le voci restano finche' l'utente non le toglie**, una per una o tutte (`InMemoryAiAssistHistory.remove`, `forget`): l'engine non ne cancella nessuna da solo. Il database e la pagina sono di PampAI.
+
+**I metodi** (`Bundle("json" → testo)`, piu' `callback` e `token` come `IBinder`):
+
+| metodo | richiesta | risposta |
+|---|---|---|
+| `negotiate` | `{versions:[3], capabilities:["assist","assist_stream"]}` | `{protocol:3, capabilities}`; un'altra versione → `{error}` |
+| `assist_scope` | `{protocol:3}` | `{protocol, tasks, tools, page, consent, app, ready, reason?}` o `{error:codice}` (senza `app`, un ospite di F9.1: vale `allowed`) |
+| `assist_ask` | `{protocol, task:{kind, text, style?}, page?:{title, kind?, lines, selection?}, tools, lang, timeoutMillis}` + `callback` | `{requestId}` + `token`, o `{error, retryAfterMillis?, reason?, needs?}` |
+| `assist_poll` | `{requestId, after}` | `{events, finished}` |
+| `assist_cancel` | `{requestId}` | `{cancelled}` |
+
+Gli eventi (sul canale e in `assist_poll`) hanno `seq` (da 1, senza buchi) e `type`: `status {line, app?}`, `text {delta}`, `receipt {line, app?, outcome}`, `done {text}`, `failed {code, retryAfterMillis?, reason?, needs?}`.
+
+**Le misure** (`AiAssistLimits`, «a occhio» col perche' nel KDoc): compito fino a 24 000 caratteri, risposta fino a 32 000 (poi si chiude con quello che c'e'), 2 domande in corso per app e 4 in tutto (`busy`), 30 al minuto per app (`limit_reached`), invii ogni 50 ms, una domanda finita leggibile 60 s.
+
+**Compatibilita'.** La 3 e' solo dell'ospite dell'assistenza, che sta su un provider a parte: **i tool restano alla 1 e alla 2** (`BridgeProtocol` non cambia, `MAX_PROTOCOL = 2`). Un'app che chiamasse per sbaglio un ospite dei tool riceve «nessun protocollo comune» → `needs_update`.
+
+**Trappole.**
+- **L'`AiAssistHost` e' uno per processo**: il provider lo chiede a ogni chiamata (`host()`), e le domande in corso vivono li'. Le impostazioni di PampAI passano da lui (non dal registro), se no una revoca non ferma le domande in corso.
+- **Le prove e i PampAI finti devono dare il sì all'app** (`setAppConsent(pkg, Allowed)`), se no ogni domanda e' la prima volta e riceve `consent_required`.
+- **L'Activity del consenso deve stare nel processo del provider** se il registro e' `SharedPreferencesAiAssistConsentStore` (un file, un processo). Va aperta con `startActivityForResult`: senza, `callerOf` e' null e la pagina non chiede niente (`Step.Refused`).
+- **I nomi dei modelli nelle righe di stato li scrive l'esecutore**: la pulizia toglie le chiavi, non i nomi. Le righe sono quelle semplici di F9.4 («Controllo il meteo»).
+- **Il modulo dichiara `<queries>` per `dev.pampa.pampai` e `dev.pampa.pampai.debug`** (Android 11+): un'app che cerca un PampAI con un altro pacchetto (la galleria cerca se stessa) deve vederlo da se'.
+- `AiAssistSink` non sospende: l'ospite raccoglie; un pezzo dopo la fine si scarta.
+
 ## Token, costanti, Defaults
 
 | nome | valore |
@@ -234,6 +316,7 @@ val registry = ToolRegistry(localTools + tools.flatMap { it.tools }, localGroups
 - `ManifestTest` (4): il manifest del modulo **non dichiara ne' chiede permessi** (un `<permission>` farebbe fallire l'installazione di due app con firme diverse); la costante `PERMISSION` esiste ma e' deprecata.
 - `AiToolHostProviderGuardTest` (5, **nel sample** con Robolectric, perche' un'app che include il modulo non deve scaricare Robolectric): una chiamata dello stesso processo passa; un chiamante con un'altra firma riceve `SecurityException` **su ogni metodo**; il cancello sceglie per uid; la regola di serie si fida solo di `SIGNATURE_MATCH`; senza contesto non si fida di nessuno.
   Il `PackageManager` di Robolectric risponde sempre «firme uguali», quindi il confronto vero e' isolato in `compareSignatures`, `protected open`, per poter provare la regola.
+- **L'assistenza (F9.1).** `AiAssistHostTest` (17, JVM col tempo virtuale): pezzi a parole intere al massimo ogni 50 ms e la fine col testo intero; un'app fuori tabella o bloccata, un compito non concesso (`not_authorized`) o sconosciuto (`needs_update`) senza che l'esecutore parta; la pagina senza il sì (`consent_required`, all'esecutore non arriva niente) e la revoca che ferma la domanda in corso; annullare, il tempo massimo all'ora giusta anche con un esecutore che non si ferma, il canale morto; `busy`, `limit_reached` con l'attesa, `too_large`; `not_ready` ripulito; un'eccezione con una chiave che esce come `failed`; chiavi spezzate fra due pezzi ripulite; il tetto della risposta; `assist_poll` solo a chi ha chiesto. `AiAssistClientTest` (13): PampAI assente o vecchia, i pezzi in ordine, `assist_poll`, l'annullamento che arriva all'esecutore, PampAI che tace (tempo + grazia), che muore (`interrupted`), invii persi recuperati (anche l'ultimo), `check`, un ospite dei tool chiamato per sbaglio, niente chiavi in tutto quello che passa. `AiAssistPageTest` (6): i tetti, i caratteri di controllo, solo i quattro campi sul filo. `AiAssistCostTest` (2): il costo del JSON e la negoziazione dei tool che non cambia. `AiAssistFirstUseTest` (7, F9.1b): la prima volta (`needs` app e app+pagina, niente all'esecutore), il foglio unico coi tre tasti, il «no» ricordato e rimesso, dimenticare che ferma le domande, il tasto spento per ogni stato, «Dalle app» senza le righe della pagina, l'inizio del testo da riscrivere, le fermate salvate e le rifiutate no, `needs` sul filo. Nel sample, con Robolectric: `F9p1AssistBridgeTest` (14: il cancello per firma, uid condiviso e tabella; il ponte vero con la galleria e il suo PampAI finto: pezzi, pagina e sì, blocco, assenza, annullamento, tempi, l'Activity del consenso) e `F9p1AssistUiTest` (3: il chip per TalkBack, la risposta che arriva sfocata, «Riduci movimento»). F9.1b aggiunge il primo uso col foglio vero del PampAI finto, il «no» ricordato, il tasto spento senza PampAI e con l'app bloccata, «Dalle app» (`F9p1AssistBridgeTest`), il tocco che apre il foglio con la pagina e la scena «Senza PampAI» per TalkBack (`F9p1AssistUiTest`).
 - **Non verificato:** `AiToolClient` (Binder, `discover`, `availability`), `BridgeJobs`, l'esportazione delle parti, i timeout, `describe` e `ready` dell'ospite. Servono due app sullo stesso dispositivo.
 
 ## Dove guardare

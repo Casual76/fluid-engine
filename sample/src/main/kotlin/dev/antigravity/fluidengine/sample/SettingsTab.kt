@@ -31,6 +31,13 @@ import dev.antigravity.fluidengine.ui.fluid.FluidPickerOption
 import dev.antigravity.fluidengine.ui.fluid.FluidPickerRow
 import dev.antigravity.fluidengine.ui.fluid.FluidSliderRow
 import dev.antigravity.fluidengine.ui.fluid.FluidEngineLicenses
+import dev.antigravity.fluidengine.ui.fluid.FluidLicense
+import dev.antigravity.fluidengine.ink.FluidInkLicenses
+import dev.antigravity.fluidengine.playback.FluidPlaybackLicenses
+import dev.antigravity.fluidengine.qr.FluidQrLicenses
+import dev.antigravity.fluidengine.scan.FluidScanLicenses
+import dev.antigravity.fluidengine.search.semantic.FluidSemanticSearchLicenses
+import dev.antigravity.fluidengine.viewer.ocr.FluidOcrLicenses
 import dev.antigravity.fluidengine.ui.fluid.fluidLicensesSection
 import dev.antigravity.fluidengine.sample.viewer.VisoriLicenses
 import dev.antigravity.fluidengine.ui.theme.FluidToneTile
@@ -87,9 +94,19 @@ internal fun SettingsTab(
     // I crediti stanno qui apposta: sono la stessa sezione che ogni app deve mettere nella propria
     // pagina "informazioni", e vale la pena guardarla girare sopra il canvas. F6C.15: con le librerie e i caratteri
     // che i moduli dei visori portano nella galleria (libarchive, AndroidSVG, Filament, i caratteri OFL di Office).
-    fluidLicensesSection(glass = true, licences = FluidEngineLicenses + VisoriLicenses)
+    fluidLicensesSection(glass = true, licences = GalleryLicenses)
   }
 }
+
+/**
+ * Le opere di terzi che la galleria distribuisce: quelle dell'engine e quelle di ogni modulo che include
+ * (`sample/build.gradle`, uguale in debug e in bench). R1: c'erano solo l'engine e i visori, mancavano Jetpack Ink,
+ * CameraX, Tesseract (che arriva con `engine-viewer-all`), Media3, ZXing e LiteRT-LM. Un modulo nuovo con librerie sue
+ * va aggiunto qui (`GalleryLicensesTest` lo controlla).
+ */
+internal val GalleryLicenses: List<FluidLicense>
+  get() = (FluidEngineLicenses + VisoriLicenses + FluidOcrLicenses + FluidInkLicenses + FluidScanLicenses +
+    FluidPlaybackLicenses + FluidQrLicenses + FluidSemanticSearchLicenses).distinctBy { it.name to it.licence }
 
 /** Il selettore, lo slider e le righe di scelta con una piastrella dell'app, in un gruppo di vetro. */
 @Composable

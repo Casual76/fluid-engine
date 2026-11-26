@@ -5,7 +5,8 @@
       "audiences": {
         "sync": [
           "sync.places",
-          "sync.backup"
+          "sync.backup",
+          "sync.data"
         ],
         "persone": [
           "persone"

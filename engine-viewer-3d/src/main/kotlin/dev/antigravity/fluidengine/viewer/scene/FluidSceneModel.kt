@@ -171,6 +171,8 @@ internal suspend fun readModel(source: FluidViewerSource, suggestedFormat: Strin
     if (data.size < requiredBytes) sceneCorrupt("Il file $path è incompleto")
     resources[uri] = data
   }
+  // R2: le texture si misurano prima di Filament, che le decodifica in nativo fuori dai bilanci di memoria dell'engine.
+  checkSceneTextures(json, bytes, format != "gltf", resources)
   FluidSceneModel(document.renderBytes(bytes, format != "gltf"), resources, stats, document.animationNames())
 }
 

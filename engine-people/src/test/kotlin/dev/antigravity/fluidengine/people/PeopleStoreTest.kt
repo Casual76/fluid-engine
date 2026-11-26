@@ -1,13 +1,20 @@
 package dev.antigravity.fluidengine.people
 
 import dev.antigravity.fluidengine.account.AccountProtocol
+import dev.antigravity.fluidengine.people.client.PeopleApi
+import dev.antigravity.fluidengine.people.client.PeopleHttp
+import dev.antigravity.fluidengine.people.client.PeopleRequest
 import dev.antigravity.fluidengine.people.store.AppNotifier
 import dev.antigravity.fluidengine.people.store.PeopleBell
 import dev.antigravity.fluidengine.people.store.PeopleDispatcher
 import dev.antigravity.fluidengine.people.store.PeopleProviderMethods
 import dev.antigravity.fluidengine.people.store.StoreNotice
 import dev.antigravity.fluidengine.people.testing.FakePeopleServer
+import java.io.File
+import java.io.IOException
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -135,6 +142,80 @@ class PeopleStoreTest {
     assertEquals("https://pampa-apps.com/a/transit/fermata/123", n.address)
     // Il campanello dell'account (`k = account`) non è per le persone.
     assertTrue(tablet.bell.ring(mapOf("k" to "account")).isEmpty())
+  }
+
+  /**
+   * R1 (Sol, bloccante): il ritiro a pagine. La prima pagina porta una condivisione, la seconda cade (rete, o la
+   * scadenza del campanello FCM). Il cursore e gli id visti sono già salvati: la condivisione deve essere salvata con
+   * loro, e arrivare a Notes al giro dopo, anche se lo Store nel frattempo è ripartito.
+   */
+  @Test
+  fun `R1 - una condivisione letta prima di un errore del ritiro arriva al giro dopo, anche dopo un riavvio`() = runBlocking {
+    val server = FakePeopleServer()
+    val alessio = BenchPerson(server, "Alessio")
+    val mamma = BenchPerson(server, "Mamma", deviceCount = 1)
+    befriend(alessio, mamma)
+    val storeA = StoreSide(alessio)
+    val to = storeA.call(NOTES, AccountProtocol.METHOD_PEOPLE_ROW)["row"]!!.jsonArray[1].jsonObject["id"]!!.jsonPrimitive.content
+    for (title in listOf("Uno", "Due")) storeA.call(NOTES, AccountProtocol.METHOD_SHARE_SEND, buildJsonObject { put("to", to); put("title", title) })
+
+    // Il ritiro della mamma a pagine da una busta; la seconda pagina cade una volta.
+    val d = mamma.first
+    var pages = 0
+    val flaky = PeopleHttp { r ->
+      if (r.method == "GET" && r.path.startsWith("/v1/casella/buste") && !r.path.contains("limit=")) {
+        pages++
+        if (pages == 2) throw IOException("rete persa a metà ritiro")
+        d.device.http.execute(PeopleRequest(r.method, r.path + "&limit=1", r.body, r.token))
+      } else {
+        d.device.http.execute(r)
+      }
+    }
+    val notifier = Notifier(setOf(NOTES))
+    val client = PeopleClient(d.persona, d.stateStore, PeopleApi(flaky, d.device.auth), clock = { server.now })
+    val bell = PeopleBell(client, PeopleDispatcher(client, notifier, clock = { server.now }))
+    assertTrue("il primo giro cade a metà", runCatching { bell.ring(mapOf("k" to "posta")) }.exceptionOrNull() is IOException)
+
+    // Lo Store riparte: stato riletto dal disco, client e campanello nuovi.
+    val restarted = PeopleClient(d.persona, PeopleStateStore(File(d.dir, "persone.bin"), d.vault), PeopleApi(flaky, d.device.auth), clock = { server.now })
+    val bell2 = PeopleBell(restarted, PeopleDispatcher(restarted, notifier, clock = { server.now }))
+    assertEquals(setOf(NOTES), bell2.ring(mapOf("k" to "posta")))
+    val items = PeopleProviderMethods(restarted).handle(NOTES, AccountProtocol.METHOD_SHARE_RECEIVED, JsonObject(emptyMap()))["items"]!!.jsonArray
+    assertEquals(listOf("Uno", "Due"), items.map { it.jsonObject["title"]!!.jsonPrimitive.content })
+    // Un altro giro non la ripete.
+    restarted.pickup()
+    bell2.ring(mapOf("k" to "posta"))
+    assertEquals(2, PeopleProviderMethods(restarted).handle(NOTES, AccountProtocol.METHOD_SHARE_RECEIVED, JsonObject(emptyMap()))["items"]!!.jsonArray.size)
+  }
+
+  /** R1: lo stesso tratto interrotto dalla scadenza del campanello (l'annullamento a metà del ritiro). */
+  @Test
+  fun `R1 - una condivisione letta prima della scadenza del campanello arriva al giro dopo`() = runBlocking {
+    val server = FakePeopleServer()
+    val alessio = BenchPerson(server, "Alessio")
+    val mamma = BenchPerson(server, "Mamma", deviceCount = 1)
+    befriend(alessio, mamma)
+    val storeA = StoreSide(alessio)
+    val to = storeA.call(NOTES, AccountProtocol.METHOD_PEOPLE_ROW)["row"]!!.jsonArray[1].jsonObject["id"]!!.jsonPrimitive.content
+    for (title in listOf("Uno", "Due")) storeA.call(NOTES, AccountProtocol.METHOD_SHARE_SEND, buildJsonObject { put("to", to); put("title", title) })
+    val d = mamma.first
+    var pages = 0
+    val slow = PeopleHttp { r ->
+      if (r.method == "GET" && r.path.startsWith("/v1/casella/buste") && !r.path.contains("limit=")) {
+        pages++
+        if (pages == 2) awaitCancellation()
+        d.device.http.execute(PeopleRequest(r.method, r.path + "&limit=1", r.body, r.token))
+      } else {
+        d.device.http.execute(r)
+      }
+    }
+    val notifier = Notifier(setOf(NOTES))
+    val client = PeopleClient(d.persona, d.stateStore, PeopleApi(slow, d.device.auth), clock = { server.now })
+    val bell = PeopleBell(client, PeopleDispatcher(client, notifier, clock = { server.now }))
+    assertEquals(null, withTimeoutOrNull(2_000) { bell.ring(mapOf("k" to "posta")) })
+    bell.ring(mapOf("k" to "posta"))
+    val items = PeopleProviderMethods(client).handle(NOTES, AccountProtocol.METHOD_SHARE_RECEIVED, JsonObject(emptyMap()))["items"]!!.jsonArray
+    assertEquals(listOf("Uno", "Due"), items.map { it.jsonObject["title"]!!.jsonPrimitive.content })
   }
 
   companion object {

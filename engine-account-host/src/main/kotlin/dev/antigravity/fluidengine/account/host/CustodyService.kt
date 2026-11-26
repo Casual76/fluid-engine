@@ -15,6 +15,7 @@ import dev.antigravity.fluidengine.account.host.custody.TransferOffer
 import dev.antigravity.fluidengine.account.host.custody.TransferQr
 import dev.antigravity.fluidengine.account.host.custody.TransferSeal
 import dev.antigravity.fluidengine.account.host.server.AccountServerClient
+import dev.antigravity.fluidengine.account.host.server.SessionKind
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -32,6 +33,15 @@ sealed interface AppKeyOutcome {
   /** L'app non è nella tabella per questo scopo (K3). */
   data object NotAllowed : AppKeyOutcome
 }
+
+/** Il passaggio col QR non ha ancora il sigillo del telefono vecchio: si riprova fra poco ([CustodyService.pollTransfer]). */
+class TransferPendingException(val transferId: String) : IllegalStateException("il passaggio $transferId aspetta ancora il sigillo")
+
+/**
+ * Il passaggio col QR non darà più un sigillo: rifiutato dal telefono vecchio (`refused`) o già ritirato (`taken`).
+ * L'offerta è dimenticata; per riprovare ne serve una nuova ([CustodyService.beginTransfer]).
+ */
+class TransferEndedException(val transferId: String, val state: String) : IllegalStateException("il passaggio $transferId è finito ($state)")
 
 /**
  * La custodia al lavoro con il server (`b\chiavi.md` § 4): prende lo stato (`GET /v1/keys`), lo fa verificare a
@@ -148,14 +158,22 @@ class CustodyService(
   /**
    * Apre la chiave dei dati da una porta: il telefono nuovo, il Keystore che l'ha persa (§ 11 punto 7), o il telefono
    * rimasto indietro di un'epoca. Verifica tutto (K8, K9) prima di chiudere il risultato.
+   *
+   * F10.7 · Con una **sessione di recupero** (entrata col codice) la porta di questo dispositivo non si scrive: il server
+   * la accetta solo da una sessione normale (`not_this_device`, `b\api.md` § 2). Si scrive dopo, quando una passkey
+   * nuova o Google rendono normale la sessione: [AccountSession.promote], poi [ensureDeviceDoor].
    */
   suspend fun openWithDoor(door: DoorSecret): KeyCustody {
     val view = keysView()
     val mine = runCatching { keyring.loadCustody() }.getOrNull()
     val custody = mine?.catchUp(view, door) ?: KeyCustody.openWithDoor(requireNotNull(accountId()), view, door)
     keyring.saveCustody(custody, grants())
+    if (recoverySession()) return custody
     return ensureDeviceDoor(custody)
   }
+
+  /** La sessione di questo telefono è nata dal codice di recupero e non è ancora normale. */
+  private fun recoverySession(): Boolean = (session.state.value as? HostSession.SignedIn)?.kind == SessionKind.RECOVERY
 
   // --- Il passaggio fra telefoni (`b\chiavi.md` § 4.2) ------------------------------------------------------------
 
@@ -179,10 +197,32 @@ class CustodyService(
     }, session.storeToken())
   }
 
-  /** Il telefono **nuovo** ritira, verifica, chiude nel suo Keystore e dimentica `n` e `s`. */
-  suspend fun completeTransfer(offer: TransferOffer): KeyCustody {
+  /**
+   * Il telefono **nuovo** guarda se il vecchio ha già sigillato. Finché il server non ha il sigillo (`waiting`) risponde
+   * `null` e l'offerta resta com'è: lo Store riprova ogni pochi secondi, mentre il QR è sullo schermo. Col sigillo fa
+   * come [completeTransfer]. Se il passaggio è finito senza sigillo (rifiutato, o già ritirato) dimentica l'offerta e
+   * lancia [TransferEndedException].
+   */
+  suspend fun pollTransfer(offer: TransferOffer): KeyCustody? {
     val r = client.call("GET", "/v1/keys/transfers/${offer.transferId}", token = session.storeToken())
-    val seal = TransferSeal((r["sealed"] as JsonPrimitive).content, (r["mac"] as JsonPrimitive).content)
+    val sealed = (r["sealed"] as? JsonPrimitive)?.content
+    val mac = (r["mac"] as? JsonPrimitive)?.content
+    if (sealed == null || mac == null) {
+      val state = (r["state"] as? JsonPrimitive)?.content ?: "waiting"
+      if (state == "waiting" || state == "sealed") return null
+      offer.forget()
+      throw TransferEndedException(offer.transferId, state)
+    }
+    return receiveTransfer(offer, TransferSeal(sealed, mac))
+  }
+
+  /**
+   * Il telefono **nuovo** ritira, verifica, chiude nel suo Keystore e dimentica `n` e `s`. Se il sigillo non c'è
+   * ancora, [TransferPendingException] e l'offerta resta buona (prima di F10.7 qui cadeva un `NullPointerException`).
+   */
+  suspend fun completeTransfer(offer: TransferOffer): KeyCustody = pollTransfer(offer) ?: throw TransferPendingException(offer.transferId)
+
+  private suspend fun receiveTransfer(offer: TransferOffer, seal: TransferSeal): KeyCustody {
     try {
       val custody = KeyCustody.receiveTransfer(requireNotNull(accountId()), offer, seal, keysView())
       keyring.saveCustody(custody, grants())

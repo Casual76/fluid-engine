@@ -132,8 +132,15 @@ class FakeAccountHttp(val keys: FakeKeysServer = FakeKeysServer()) : Dispatcher(
         ok(JsonObject(emptyMap()))
       }
       method == "GET" && path.matches(Regex("^/v1/keys/transfers/[^/]+$")) -> {
-        val seal = keys.takeTransfer(path.split("/")[4])
-        ok(buildJsonObject { put("state", "taken"); put("sealed", seal.sealed); put("mac", seal.mac) })
+        // Come il server vero (`src/routes/keys.ts`): senza sigillo risponde lo stato, non un errore.
+        val id = path.split("/")[4]
+        when (val state = keys.transferState(id)) {
+          "sealed" -> {
+            val seal = keys.takeTransfer(id)
+            ok(buildJsonObject { put("state", "taken"); put("sealed", seal.sealed); put("mac", seal.mac) })
+          }
+          else -> ok(buildJsonObject { put("transferId", id); put("state", state) })
+        }
       }
       else -> error(404, "not_found")
     }

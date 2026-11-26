@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.wear.sync
 
 import android.net.Uri
+import com.google.android.gms.common.api.Releasable
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEvent
@@ -13,6 +14,7 @@ import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 
@@ -212,7 +214,15 @@ abstract class FluidWearListenerService : WearableListenerService() {
   protected open suspend fun onDeliveryChanged(delivery: FluidWearDelivery) = Unit
 }
 
-/** Un `Task` di Play services come sospensione, senza la libreria `kotlinx-coroutines-play-services`. */
+/**
+ * Un `Task` di Play services come sospensione, senza la libreria `kotlinx-coroutines-play-services`. Un risultato da
+ * rilasciare (un `DataItemBuffer`) che arriva quando chi aspetta se n'è già andato (la schermata è uscita durante la
+ * lettura) si rilascia qui (R1): il `finally` di chi aspetta non lo riceve mai.
+ *
+ * `resume` con la pulizia è sperimentale nella 1.8.1 delle coroutine (quella del modulo) e c'è uguale nelle 1.9 e
+ * 1.10 delle app, che chiedono di passare alla forma con tre argomenti, assente nella 1.8.1.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 internal suspend fun <T> Task<T>.await(): T {
   if (isComplete) {
     exception?.let { throw it }
@@ -228,7 +238,8 @@ internal suspend fun <T> Task<T>.await(): T {
         task.isCanceled -> continuation.cancel()
         else -> {
           @Suppress("UNCHECKED_CAST")
-          continuation.resume(task.result as T)
+          val result = task.result as T
+          continuation.resume(result) { (result as? Releasable)?.release() }
         }
       }
     }

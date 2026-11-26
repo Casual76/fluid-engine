@@ -32,6 +32,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import dev.antigravity.fluidengine.account.host.server.SessionKind
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import org.junit.Assert.assertNull
+import org.junit.Assert.fail
 
 /**
  * La sessione dello Store e la custodia **su HTTP**, contro il server finto dietro un vero socket: il rinnovo con la
@@ -270,5 +275,62 @@ class AccountSessionTest {
     val reopened = p.custody.openWithDoor(DoorSecret.recovery(code))
     assertEquals(first.epochs, reopened.epochs)
     assertNotNull((p.custody.appKey("dev.pampa.pampai", AppKeyPurpose.APP) as AppKeyOutcome.Ok).keys)
+  }
+  @Test
+  fun `F10_7 - il telefono nuovo guarda prima del sigillo - null, l'offerta resta buona, poi ritira una volta sola`() = runBlocking {
+    val keys = FakeKeysServer()
+    val old = Phone(keys)
+    old.signIn()
+    old.custody.startEncryption(RecoveryCode.generate())
+    val new = Phone(keys)
+    new.signIn()
+    val offer = new.custody.beginTransfer()
+    // Il QR è sullo schermo, il telefono vecchio non l'ha ancora inquadrato: «non ancora», senza toccare l'offerta.
+    assertNull(new.custody.pollTransfer(offer))
+    try {
+      new.custody.completeTransfer(offer)
+      fail("senza sigillo completeTransfer deve dire che aspetta")
+    } catch (e: TransferPendingException) {
+      assertEquals(offer.transferId, e.transferId)
+    }
+    old.custody.confirmTransfer(TransferQr.parse(offer.qr)!!)
+    val got = new.custody.pollTransfer(offer)
+    assertNotNull(got)
+    assertTrue(new.custody.appKey("dev.pampa.pampai", AppKeyPurpose.APP) is AppKeyOutcome.Ok)
+    // Il sigillo si ritira una volta sola: chi ci riprova sa che il passaggio è finito.
+    try {
+      new.custody.pollTransfer(offer)
+      fail("un passaggio già ritirato non dà un altro sigillo")
+    } catch (e: TransferEndedException) {
+      assertEquals("taken", e.state)
+    }
+  }
+
+  @Test
+  fun `F10_7 - con la sessione di recupero la porta del dispositivo aspetta, e dopo promote si scrive`() = runBlocking {
+    val keys = FakeKeysServer()
+    val old = Phone(keys)
+    old.signIn()
+    val code = RecoveryCode.generate()
+    old.custody.startEncryption(code)
+    // Il telefono nuovo entra col codice: la sessione è di recupero (b\api.md § 2).
+    val fresh = Phone(keys)
+    fresh.session.adopt(JsonObject(fresh.fake.login(fresh.deviceKey.publicJwk) + ("kind" to JsonPrimitive("recovery"))), "Alessio", "com.pampa.store")
+    assertEquals(SessionKind.RECOVERY, (fresh.session.state.value as HostSession.SignedIn).kind)
+    fresh.custody.openWithDoor(DoorSecret.recovery(code))
+    assertTrue("la chiave dei dati è aperta", fresh.keyring.hasCustody)
+    assertTrue(fresh.custody.appKey("dev.pampa.pampai", AppKeyPurpose.APP) is AppKeyOutcome.Ok)
+    assertTrue("niente porta del dispositivo da una sessione di recupero", fresh.fake.recorded.none { it.path.startsWith("/v1/keys/doors/device:") })
+    // Una passkey aggiunta (o Google collegato) l'ha resa normale sul server: lo Store la promuove e scrive la porta.
+    fresh.notified.clear()
+    fresh.session.promote()
+    assertEquals(SessionKind.FULL, (fresh.session.state.value as HostSession.SignedIn).kind)
+    assertEquals(listOf(listOf("state")), fresh.notified.toList())
+    fresh.custody.ensureDeviceDoor()
+    assertTrue(keys.honestView().doors.any { it.doorId == "device:${fresh.fake.deviceId}" })
+    // Promuovere una sessione già normale non cambia niente.
+    fresh.notified.clear()
+    fresh.session.promote()
+    assertTrue(fresh.notified.isEmpty())
   }
 }

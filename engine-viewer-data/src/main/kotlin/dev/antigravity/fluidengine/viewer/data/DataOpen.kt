@@ -11,11 +11,17 @@ import dev.antigravity.fluidengine.viewer.FluidViewerFailure
 import dev.antigravity.fluidengine.viewer.FluidViewerLiveDetails
 import dev.antigravity.fluidengine.viewer.FluidViewerOpened
 import dev.antigravity.fluidengine.viewer.FluidViewerRequest
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.io.BufferedInputStream
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.FilterOutputStream
 import java.io.InputStreamReader
+import java.io.OutputStream
+import java.io.OutputStreamWriter
 import java.io.RandomAccessFile
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -159,12 +165,25 @@ internal class DataOpen(private val request: FluidViewerRequest, private val set
           closeResources = { descriptor.close() }, onFinished = finish)
       } else {
         // UTF-16 e UTF-32: gli a capo sono due o quattro byte. Si trascrive una volta in UTF-8, in cache.
+        // R2: a pezzi, col tetto delle copie in cache (FluidViewerOptions.sourceMaxCopyBytes), e si ferma se l'apertura
+        // è annullata; la copia a metà si cancella qui sotto.
         val dir = File(request.context.cacheDir, "fluid-viewer-data").apply { mkdirs() }
         val file = File.createTempFile("csv-", ".txt", dir)
         temp = file
+        val limit = request.options.sourceMaxCopyBytes
         source.open().use { input ->
           val reader = InputStreamReader(BufferedInputStream(input).also { it.skip(charset.bomLength.toLong()) }, charset.charset)
-          file.writer(Charsets.UTF_8).use { reader.copyTo(it) }
+          val sink = CountingOutput(FileOutputStream(file))
+          OutputStreamWriter(sink, Charsets.UTF_8).use { writer ->
+            val chars = CharArray(8 * 1024)
+            while (true) {
+              currentCoroutineContext().ensureActive()
+              val n = reader.read(chars)
+              if (n < 0) break
+              writer.write(chars, 0, n)
+              if (sink.written > limit) throw FluidViewerException(FluidViewerFailure.TooLarge, "CSV oltre $limit byte da trascrivere")
+            }
+          }
         }
         val channel = RandomAccessFile(file, "r").channel
         DataCsvGrid(name, channel, { FileInputStream(file) }, 0L, dialect, Charsets.UTF_8, header, widths, columns,
@@ -504,4 +523,20 @@ internal fun colorsLabel(colors: DataWebColors): String = when (colors) {
   DataWebColors.None -> "nessun colore suo: nel tema scuro prende quelli del tema"
   DataWebColors.Scheme -> "dichiara il suo schema chiaro e scuro"
   DataWebColors.Own -> "colori suoi, rispettati anche nel tema scuro"
+}
+
+/** Un flusso che conta i byte scritti: il tetto della trascrizione di un CSV in UTF-16 (R2). */
+private class CountingOutput(out: OutputStream) : FilterOutputStream(out) {
+  var written = 0L
+    private set
+
+  override fun write(b: Int) {
+    out.write(b)
+    written++
+  }
+
+  override fun write(b: ByteArray, off: Int, len: Int) {
+    out.write(b, off, len)
+    written += len
+  }
 }

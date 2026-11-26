@@ -32,6 +32,7 @@ import dev.antigravity.fluidengine.ai.tools.modelText
 import dev.antigravity.fluidengine.ai.tools.ToolOutput
 import dev.antigravity.fluidengine.ai.tools.ToolRegistry
 import dev.antigravity.fluidengine.ai.tools.ToolText
+import dev.antigravity.fluidengine.ai.tools.ToolSearch
 import java.util.UUID
 import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
@@ -135,6 +136,14 @@ class AskInput<C>(
   val prepareToolParts: suspend (List<ContentPart>) -> List<ContentPart> = { it },
   /** Opt-in Aria: valida argomenti e distingue timeout incerti e tracce typed. Default: semantica 3.0.6. */
   val strictToolExecution: Boolean = false,
+  /**
+   * Niente stadio 1 (4.0, F9.2): nessuna chiamata al router. I gruppi sono quelli del pre-router
+   * ([preselectedGroups]), o quelli suggeriti ([routerHint]) e quelli gia' aperti nella conversazione;
+   * il resto il modello lo apre (`apri_categoria`) o lo cerca (`cerca_strumenti`). Con la ricerca dei
+   * tool il router serve meno: la sua chiamata manda a ogni domanda tutto il catalogo delle categorie, e
+   * aggiunge un'attesa prima della risposta. Di serie spento: tutto come prima.
+   */
+  val skipRouter: Boolean = false,
 )
 
 /** I numeri dell'orchestratore, tutti in un posto: l'app li alza o li abbassa per il suo caso. */
@@ -201,6 +210,31 @@ data class AiOrchestratorConfig(
    * messaggio; uno che non regge passa da [AskInput.attachmentFallback].
    */
   val deepTierEnabled: Boolean = true,
+  /** Quanti tool porta al massimo una chiamata a `cerca_strumenti` (4.0, F9.2). */
+  val searchLimit: Int = ToolSearch.DEFAULT_LIMIT,
+  /**
+   * Il precaricamento (4.0, F9.2): prima del primo giro la ricerca dei tool gira sulla domanda, e fino a
+   * questi tool **dei gruppi differiti** (con `AskInput.skipRouter` anche quelli di casa) entrano subito, senza aspettare che il modello li cerchi. Risparmia
+   * un giro intero (che rimanda sistema, storia e schemi) quando la domanda nomina chiaramente un'altra
+   * app ("che voti ho preso?"); quando non la nomina non entra niente. Vale solo con un catalogo che ha
+   * gruppi differiti ([ToolRegistry.searchable]); 0 = spento. Tre: misurato sul banco di F9.2.
+   */
+  val searchPreload: Int = 3,
+  /**
+   * Il punteggio minimo del primo risultato perche' il precaricamento carichi qualcosa (4.0, F9.2), e gli
+   * altri devono arrivare almeno a meta' del primo. A occhio sul banco di F9.2 (26/11/2026): sotto, una
+   * domanda generica ("spiegami la fotosintesi") trovava per caso un tool con una parola in comune.
+   */
+  val searchPreloadMinScore: Double = 5.0,
+  /** Quanti tool caricati dalla ricerca restano aperti in una conversazione: oltre, cadono i piu' vecchi (4.0, F9.2). */
+  val maxSearchedTools: Int = 12,
+  /**
+   * Il tetto di ogni risultato di tool **riproposto nella storia** (4.0, F9.2): il traffico tool della
+   * domanda di prima torna una volta nella domanda dopo, per i "e domani?". Prima tornava intero (fino a
+   * [toolTextChars] per tool, quattro tool = ~3.000 gettoni a ogni giro della domanda dopo); ora la sua
+   * testa, che e' dove i tool mettono il riepilogo. `Int.MAX_VALUE` = come prima.
+   */
+  val historyToolResultChars: Int = 1_200,
 ) {
 
   /**
@@ -329,7 +363,8 @@ class AiOrchestrator<C>(
     var groups: Set<AiToolGroup> = when {
       attempt.provider.provider.id == ProviderId.OPENROUTER && !hierarchical -> allGroups(input)
       !preselected.isNullOrEmpty() -> preselected
-      attempt.provider.provider.id == ProviderId.OPENROUTER -> input.routerHint.filter { input.actionsEnabled || it != registry.actionGroup }.toSet()
+      attempt.provider.provider.id == ProviderId.OPENROUTER || input.skipRouter ->
+        input.routerHint.filter { input.actionsEnabled || it != registry.actionGroup }.toSet()
       else -> {
         state.value = AssistantState.Classifying(question, attempt.provider.provider.id)
         routerUsed = true
@@ -347,6 +382,9 @@ class AiOrchestrator<C>(
     // Il tool "modello_avanzato" si offre solo finche' c'e' qualcosa da guadagnarci: si sta ancora
     // lavorando col modello della chat, e il provider ne ha davvero uno piu' capace.
     fun deepOffered(): Boolean = tier == ModelTier.CHAT && attempt.provider.model(ModelTier.DEEP) != attempt.provider.model(ModelTier.CHAT)
+    // Il precaricamento (4.0, F9.2): i tool delle altre app che la domanda nomina chiaramente entrano
+    // subito, senza il giro di `cerca_strumenti`.
+    preload(question, groups, input)
     var tools: List<ToolSpec> = specsFor(groups, input, deepOffered())
     var moreToolsUsed = 0
     var opens = 0
@@ -354,7 +392,11 @@ class AiOrchestrator<C>(
     val system = Message.System(input.systemPrompt)
     val messages = mutableListOf<Message>()
     messages += system
-    messages += fit(HistoryCompactor.compact(conversation, budgetTokens = historyBudget(attempt.provider.provider.id)), capabilities(attempt.provider, tier), input.language)
+    messages += fit(
+      HistoryCompactor.compact(conversation, budgetTokens = historyBudget(attempt.provider.provider.id), toolResultChars = config.historyToolResultChars),
+      capabilities(attempt.provider, tier),
+      input.language,
+    )
     // Dove finisce la storia e comincia questa domanda: [trimForContext] riscrive solo la prima parte.
     var historyEnd = messages.size
     messages += Message.User(userTurn.parts)
@@ -454,9 +496,9 @@ class AiOrchestrator<C>(
                 groups = groups + group
                 moreToolsUsed++
                 if (hierarchical) open(conversation, listOf(group))
-                ToolOutput("ok: gli strumenti del gruppo ${group.id} saranno disponibili dal prossimo passo")
+                builtIn("ok: gli strumenti del gruppo ${group.id} saranno disponibili dal prossimo passo")
               }
-              group in groups -> ToolOutput("ok: gli strumenti del gruppo ${group.id} sono gia' disponibili")
+              group in groups -> builtIn("ok: gli strumenti del gruppo ${group.id} sono gia' disponibili")
               else -> ToolOutput.error("non si possono aprire altri gruppi in questa domanda: rispondi con quello che hai")
             }
           }
@@ -481,12 +523,31 @@ class AiOrchestrator<C>(
             opened[call.id] = when {
               group == null -> ToolOutput.error("sottocategoria sconosciuta")
               group == registry.actionGroup && !input.actionsEnabled -> ToolOutput.error("le azioni nell'app sono disattivate dall'utente")
-              group in groups -> ToolOutput("ok: gli strumenti di ${group.id} sono gia' disponibili")
+              group in groups -> builtIn("ok: gli strumenti di ${group.id} sono gia' disponibili")
               opens >= config.maxOpens -> ToolOutput.error("non si possono aprire altre sottocategorie in questa domanda: rispondi con quello che hai")
               else -> {
                 opens++
                 open(conversation, listOf(group))
-                ToolOutput("ok: gli strumenti di ${group.id} saranno disponibili dal prossimo passo")
+                builtIn("ok: gli strumenti di ${group.id} saranno disponibili dal prossimo passo")
+              }
+            }
+          }
+          ToolRegistry.SEARCH_TOOLS -> {
+            val query = call.arguments["cosa"].string()?.trim().orEmpty()
+            opened[call.id] = when {
+              query.isEmpty() -> ToolOutput.error("scrivi in poche parole cosa ti serve")
+              opens >= config.maxOpens -> ToolOutput.error("non si possono cercare altri strumenti in questa domanda: rispondi con quello che hai")
+              else -> {
+                opens++
+                val available = tools.mapTo(HashSet()) { it.name }
+                val hits = registry.search.find(query, config.searchLimit, exclude = available)
+                  .filter { input.actionsEnabled || it.tool.group != registry.actionGroup }
+                if (hits.isEmpty()) {
+                  builtIn("nessuno strumento trovato per \"$query\": prova con altre parole, oppure rispondi con quello che hai")
+                } else {
+                  loadTools(conversation, hits.map { it.tool.name })
+                  builtIn("ok: dal prossimo passo hai " + hits.joinToString(", ") { hit -> "${hit.tool.name} (${originOf(hit.tool)})" })
+                }
               }
             }
           }
@@ -501,7 +562,13 @@ class AiOrchestrator<C>(
         toolRound += message
         toolChars += run.output.text.length
         parts += input.prepareToolParts(run.output.parts)
-        if (hierarchical) registry.find(run.call.name)?.let { conversation.touch(listOf(it.group)) }
+        registry.find(run.call.name)?.let { tool ->
+          // Un tool trovato dalla ricerca resta da solo: toccarne il gruppo aprirebbe tutto il gruppo.
+          when {
+            tool.name in conversation.loadedTools -> loadTools(conversation, listOf(tool.name))
+            hierarchical -> conversation.touch(listOf(tool.group))
+          }
+        }
       }
 
       // Un allegato: va al modello come parte di un messaggio se il livello profondo lo regge,
@@ -549,7 +616,10 @@ class AiOrchestrator<C>(
       }
 
       if (hierarchical) groups = activeGroups(conversation, input)
-      tools = specsFor(groups, input, deepOffered())
+      // Gli schemi gia' mandati restano al loro posto e i nuovi vanno in coda (4.0, F9.2): il prefisso
+      // della richiesta resta lo stesso da un giro all'altro, e i provider che tengono in cache il
+      // prefisso (Gemini, OpenRouter, Groq su alcuni modelli) lo fanno pagare meno.
+      tools = stableOrder(tools, specsFor(groups, input, deepOffered()))
     }
     val finalAnswer = answer ?: throw AssistantFailure(FailureKind.TIMEOUT, null, provider = attempt.provider.provider.id, switches = attempt.switches.toList())
     val (cleanText, chips) = ChipParser.extract(finalAnswer, input.chipFilter)
@@ -676,21 +746,68 @@ class AiOrchestrator<C>(
 
   private fun specsFor(groups: Set<AiToolGroup>, input: AskInput<C>, deep: Boolean = false): List<ToolSpec> {
     val visible = groups.filter { it != registry.actionGroup || input.actionsEnabled }.toSet()
-    val specs = registry.specsFor(visible)
+    // I tool trovati dalla ricerca (4.0, F9.2): dopo quelli dei gruppi, nell'ordine in cui sono arrivati.
+    val searched = input.conversation.loadedTools.mapNotNull { name -> registry.find(name) }
+      .filter { it.group !in visible && (it.group != registry.actionGroup || input.actionsEnabled) }
+      .map { it.spec }
+    val specs = registry.specsFor(visible) + searched
+    val search = registry.searchTool.takeIf { registry.searchable }
     if (registry.hierarchical) {
       val loadedCategories = input.conversation.loadedCategories.toSet()
       val categoriesMissing = registry.categories.any { it !in loadedCategories }
       return specs + listOfNotNull(
         registry.openCategoryTool.takeIf { categoriesMissing },
         registry.openGroupTool(loadedCategories, visible, input.actionsEnabled),
+        search,
         registry.deepTool.takeIf { deep },
       )
     }
     val missing = registry.visibleGroups(input.actionsEnabled).any { it !in visible }
     return specs + listOfNotNull(
       registry.moreTools.takeIf { missing },
+      search,
       registry.deepTool.takeIf { deep },
     )
+  }
+
+  /**
+   * Il precaricamento (4.0, F9.2, [AiOrchestratorConfig.searchPreload]): la ricerca sulla domanda, e i
+   * tool dei gruppi differiti che superano la soglia entrano nella conversazione prima del primo giro.
+   */
+  private fun preload(question: String, groups: Set<AiToolGroup>, input: AskInput<C>) {
+    if (!registry.searchable || config.searchPreload <= 0) return
+    val available = registry.tools.filter { it.group in groups }.mapTo(HashSet()) { it.name } + input.conversation.loadedTools
+    val hits = registry.search.find(question, limit = config.searchPreload * 3, exclude = available)
+      // Col router i gruppi di casa li ha gia' scelti lui: si precaricano solo le altre app. Senza router la
+      // ricerca fa da router anche per casa.
+      .filter { (input.skipRouter || it.tool.group in registry.deferred) && (input.actionsEnabled || it.tool.group != registry.actionGroup) }
+    val first = hits.firstOrNull() ?: return
+    if (first.score < config.searchPreloadMinScore) return
+    // Solo dalla stessa app del primo: una domanda che ne sfiora due non e' chiara, e il modello cerchera' lui.
+    val category = first.tool.group.categoryOrNull()
+    loadTools(input.conversation, hits.filter { it.score >= first.score / 2 && it.tool.group.categoryOrNull() == category }.take(config.searchPreload).map { it.tool.name })
+  }
+
+  /** Mette in coda (o riporta in coda) dei tool caricati uno per uno, entro il tetto della conversazione. */
+  private fun loadTools(conversation: Conversation, names: List<String>) {
+    names.forEach { name ->
+      conversation.loadedTools.remove(name)
+      conversation.loadedTools.add(name)
+    }
+    while (conversation.loadedTools.size > config.maxSearchedTools.coerceAtLeast(1)) {
+      conversation.loadedTools.remove(conversation.loadedTools.first())
+    }
+  }
+
+  /** Da dove viene un tool, per la riga di `cerca_strumenti`: la sua app (la categoria) o il suo gruppo. */
+  private fun originOf(tool: AiTool<C>): String = tool.group.categoryOrNull()?.label ?: tool.group.id
+
+  /** Gli schemi di [next] con quelli gia' in [previous] al loro posto, e i nuovi in coda. */
+  private fun stableOrder(previous: List<ToolSpec>, next: List<ToolSpec>): List<ToolSpec> {
+    val byName = next.associateBy { it.name }
+    val kept = previous.mapNotNull { byName[it.name] }
+    val keptNames = kept.mapTo(HashSet()) { it.name }
+    return kept + next.filter { it.name !in keptNames }
   }
 
   private fun historyBudget(provider: ProviderId): Int = if (provider == ProviderId.GROQ) config.historyBudgetGroq else config.historyBudgetOther
@@ -704,7 +821,7 @@ class AiOrchestrator<C>(
   private fun statusKeyFor(calls: List<ToolCall>): String {
     val first = calls.firstOrNull() ?: return "thinking"
     if (first.name == ToolRegistry.DEEP_MODEL) return "deep_model"
-    if (first.name == ToolRegistry.MORE_TOOLS || first.name == ToolRegistry.OPEN_CATEGORY || first.name == ToolRegistry.OPEN_GROUP) return "more_tools"
+    if (first.name == ToolRegistry.MORE_TOOLS || first.name == ToolRegistry.OPEN_CATEGORY || first.name == ToolRegistry.OPEN_GROUP || first.name == ToolRegistry.SEARCH_TOOLS) return "more_tools"
     return registry.find(first.name)?.group?.statusKey ?: "thinking"
   }
 
@@ -1128,7 +1245,7 @@ class AiOrchestrator<C>(
           val started = clock()
           var execution: ToolExecution? = null
           val output = decided[call.id] ?: if (call.name == ToolRegistry.DEEP_MODEL) {
-            ToolOutput("ok: dal prossimo passo rispondi tu, con il modello piu' capace; continua da dove sei, non ricominciare", escalate = true)
+            builtIn("ok: dal prossimo passo rispondi tu, con il modello piu' capace; continua da dove sei, non ricominciare", escalate = true)
           } else {
             val tool = registry.find(call.name)
             if (tool == null) {
@@ -1161,6 +1278,14 @@ class AiOrchestrator<C>(
     outcomes.map { it.first }
   }
 }
+
+/**
+ * La risposta di un tool built-in (aperture, ricerca, modello avanzato): un esito completato (4.0, F9.2).
+ * Senza esito ogni "ok: ..." portava l'intestazione dei risultati non verificati, con il suo "non dire
+ * che e' fatto" che a un'apertura di categoria non serve.
+ */
+private fun builtIn(text: String, escalate: Boolean = false): ToolOutput =
+  ToolOutput(text, escalate = escalate, result = dev.antigravity.fluidengine.ai.tools.ToolResultDetails(ToolOutcome.COMPLETED))
 
 /** Sotto questo tetto un risultato di tool accorciato non dice piu' niente: e' il pavimento di [AiOrchestrator]'s trim. */
 private const val TRIMMED_TOOL_TEXT_MIN = 400

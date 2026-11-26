@@ -18,7 +18,7 @@ Catalogo completo delle firme: [`../api/push-fcm.md`](../api/push-fcm.md).
 |---|---|
 | ricevere il campanello | la `Application` dello Store implementa `PampaPushHost` (`onBell(data)`, `onPushToken(token)`) |
 | accendere FCM all'accesso | `PampaPush.enable(context, PampaPush.options(appId, apiKey, projectId, senderId))` |
-| il gettone da registrare sul server | `PampaPush.token(context)` → `PUT /v1/devices/{id}/push` |
+| il gettone da registrare sul server | `PampaPush.token(context)` → `PUT /v1/devices/{id}/push` (`null` se FCM è spento; lancia se il gettone non arriva: riprovare) |
 | spegnerlo all'uscita | `PampaPush.disable(context)` |
 
 ## Come funziona

@@ -187,7 +187,9 @@ override fun registry() = ToolRegistry(
 Il tool si chiama `cerca_in_pampa` (`FluidSearchBridge.ToolName`): risponde coi **risultati tipizzati** del protocollo 2
 (titolo, pezzo e dove sono le parole, tipo, ora, indirizzo) e col testo per un modello, cosi' **anche PampAI** puo'
 cercare nelle note e nella posta senza un tool scritto a mano per ogni app. Legge e basta: nessuna conferma. I campi
-riservati non si cercano e non escono mai; un'app bloccata risponde «bloccata» senza dati.
+riservati non si cercano e non escono mai; un'app bloccata risponde «bloccata» senza dati. Il blocco (`locked`) si
+rilegge prima di interrogare l'indice e prima di consegnare (R1): se la persona blocca l'app mentre il modello calcola il
+vettore, la risposta è «bloccata» e vuota.
 
 **Chi cerca**: [`FluidPampaSearch`](../api/search.md) trova le app (`discoverApps`: il catalogo di ogni ospite del ponte,
 che stabilisce anche il protocollo 2), le chiama **insieme** (2,5 s al piu' per app) e restituisce un valore a ogni

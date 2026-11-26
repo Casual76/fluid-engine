@@ -33,10 +33,16 @@ sorgenti di quelle librerie: è il caso di Google Play services.
 > com.google.android.gms libraries, such as play-services-auth), the Google Identity library
 > (com.google.android.libraries.identity.googleid), the Credential Manager support for Google Play services
 > (androidx.credentials:credentials-play-services-auth, together with the Google Play services libraries it depends
-> on) or Firebase Cloud Messaging (com.google.firebase:firebase-messaging) (or a modified version of those
-> libraries), containing parts covered by the terms of the Android Software Development Kit License or of the other
-> license terms under which Google distributes those libraries, the licensors of this Program grant you additional
-> permission to convey the resulting work.
+> on) or Firebase Cloud Messaging (com.google.firebase:firebase-messaging, together with the Firebase and Google Play
+> services libraries it depends on) (or a modified version of those libraries), containing parts covered by the terms
+> of the Android Software Development Kit License or of the other license terms under which Google distributes those
+> libraries, the licensors of this Program grant you additional permission to convey the resulting work.
+
+**Il 26 novembre 2026 (F10.7, scelta di Alessio)** il testo per Firebase dice anche «together with the Firebase and
+Google Play services libraries it depends on», come già per il ponte di Credential Manager: `firebase-messaging` porta
+con sé altre librerie di Firebase (`firebase-common`, `firebase-installations`, il trasporto dei dati) che prima non
+erano nominate. È lo stesso testo della licenza di Pampa Store (`LICENSES/Permesso-librerie-Google.md` del suo
+repository).
 
 **La fonte.** Free Software Foundation, *Frequently Asked Questions about the GNU Licenses*, voce «What legal issues
 come up if I use GPL-incompatible libraries with GPL software?», <https://www.gnu.org/licenses/gpl-faq.html#GPLIncompatibleLibs>

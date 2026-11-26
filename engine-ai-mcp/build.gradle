@@ -1,0 +1,62 @@
+// F9.2 · I connettori MCP: gli strumenti che stanno su un server (il calendario del servizio che usi, la domotica, il
+// tuo NAS) diventano gli stessi AiTool di sempre, caricati solo quando servono (la ricerca dei tool di engine-ai), con
+// le conferme dell'app per ogni scrittura. Dentro: il protocollo (JSON-RPC su HTTP con i flussi di eventi, le versioni
+// 2025-03-26, 2025-06-18 e 2025-11-25), l'accesso con l'account (OAuth 2.1 con PKCE), i gettoni cifrati come le chiavi
+// dei provider, le difese sulle descrizioni e sui risultati che arrivano da fuori, e la pagina «Connettori» di vetro.
+// Opt-in.
+//
+// Senza librerie: l'SDK Kotlin ufficiale (MIT, 0.16.0) pesa ~1,6 MB piu' ~3,7 MB di Ktor e vuole Kotlin 2.4,
+// kotlinx-serialization 1.11 e coroutines 1.11 (l'engine e' su 2.2.20, 1.6.3 e 1.8.1): i numeri sono nel rapporto
+// di F9.2. Qui bastano HttpURLConnection, come in AiHttp, e il parser SSE di engine-ai.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.ai.mcp'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // La pagina «Connettori» si prova in Robolectric (TalkBack, «Riduci movimento»); il protocollo sul JVM, contro
+      // un server finto in memoria e uno vero su una porta libera del computer.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: le firme pubbliche parlano AiTool, ToolRegistry, SecretCipher (engine-ai) e Compose (la pagina).
+  api project(':engine-ai')
+  api project(':engine-ui')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+  testImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
+  debugImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}

@@ -62,7 +62,9 @@ class AppPolicy(val apps: Map<String, AppEntry> = DEFAULT, val devBuild: Boolean
 
     /** La tabella di partenza, uguale a `apps.json` del contratto v1 (una prova le confronta). */
     val DEFAULT: Map<String, AppEntry> = listOf(
-      AppEntry(STORE, "Pampa Store", mapOf("sync" to setOf("sync.places", "sync.backup"), "persone" to setOf("persone"))),
+      // F10.7 · `sync.data` per le copie della persona e della rubrica (raccolte `persona` e `rubrica`, cifrate con
+      // K_com), così un telefono nuovo le ritrova: `apps.json` del server dalla F10.7.
+      AppEntry(STORE, "Pampa Store", mapOf("sync" to setOf("sync.places", "sync.backup", "sync.data"), "persone" to setOf("persone"))),
       AppEntry("dev.pampa.pampanotes", "Pampa Notes", mapOf("notes" to setOf("notes.sync", "notes.share", "notes.relay", "notes.computer"))),
       AppEntry("dev.pampa.pampai", "PampAI", sync("sync.data", "sync.backup"), Places.ASK, setOf("calendar.events", "calendar.readonly")),
       AppEntry("dev.antigravity.classevivaexpressive", "ClasseViva Expressive", sync("sync.backup"), Places.ASK),

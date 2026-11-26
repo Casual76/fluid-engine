@@ -11,6 +11,24 @@
     <profileable
         android:shell="true"
         tools:targetApi="29" />
+    <!--
+      F9.1 · Il PampAI finto della scena «PampAI per le app»: l'ospite dell'assistenza (AiAssistHostProvider) e la sua
+      pagina del consenso e delle impostazioni, in un processo a parte (`:pampai`), cosi' la domanda della galleria passa
+      da un vero Binder fra due processi come fra un'app e PampAI. Non esportati: rispondono solo alla galleria stessa, e
+      nessuna app del telefono li trova. Il modello e' finto: nessuna rete, nessuna chiave.
+    -->
+    <provider android:name="dev.antigravity.fluidengine.sample.novita.F9p1FakePampaiHost"
+        android:authorities="${applicationId}.ai.assist" android:exported="false" android:process=":pampai">
+      <meta-data android:name="dev.antigravity.fluidengine.ai.ASSIST_HOST" android:value="3" />
+    </provider>
+    <activity android:name="dev.antigravity.fluidengine.sample.novita.F9p1FakePampaiActivity"
+        android:exported="false" android:process=":pampai" android:theme="@style/Theme.FluidSample"
+        android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|density|fontScale|keyboardHidden">
+      <intent-filter>
+        <action android:name="dev.antigravity.fluidengine.ai.action.ASSIST_CONSENT" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+    </activity>
   </application>
 
 </manifest>

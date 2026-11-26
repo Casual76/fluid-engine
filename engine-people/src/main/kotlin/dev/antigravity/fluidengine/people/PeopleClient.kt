@@ -439,6 +439,10 @@ class PeopleClient(
    * Il ritiro di questo dispositivo: prende tutto dopo il suo punto, lo apre e lo controlla, poi conferma fin dove è
    * arrivato, così la casella può cancellare ciò che tutti i dispositivi hanno preso. Ogni cosa che non torna è un
    * [PeopleEvent.Detected]: il telefono non la usa.
+   *
+   * Le consegne per le app (le cose condivise, «I tuoi dispositivi», le richieste) restano anche in
+   * [PeopleState.undispatched], salvate con il cursore: se il ritiro cade a metà, `PeopleDispatcher` le smista al giro
+   * dopo (R1).
    */
   suspend fun pickup(): List<PeopleEvent> = mutex.withLock {
     val st = stateStore.reload()
@@ -446,7 +450,11 @@ class PeopleClient(
     var guard = 0
     while (guard++ < MAX_PAGES) {
       val page = api.pickup(st.cursor)
-      for (e in page.envelopes) events += openEnvelope(st, e)
+      for (e in page.envelopes) {
+        val opened = openEnvelope(st, e)
+        events += opened
+        opened.filterTo(st.undispatched) { it.forApps }
+      }
       st.cursor = maxOf(st.cursor, page.last)
       stateStore.save(st)
       if (!page.more) break

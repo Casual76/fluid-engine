@@ -458,7 +458,7 @@ fun FluidComposerField(
 private val ComposerPillHeight = 40.dp
 
 /** L'altezza del composer di prima, che resta com'è (scelta di Alessio del 21 novembre 2026). */
-private val ComposerPillHeightBefore = 30.dp
+internal val ComposerPillHeightBefore = 30.dp
 
 /** L'altezza disegnata dei chip e delle pillole qui sotto: 40 dp, 30 nel composer di prima. */
 internal val LocalComposerPillHeight = staticCompositionLocalOf { ComposerPillHeight }
@@ -470,7 +470,7 @@ private val ComposerPillTarget = 48.dp
  * F6B.8b: il chip (o la pillola) disegnato alto [height] in un bersaglio alto [ComposerPillTarget]. Il genitore vede
  * l'altezza disegnata; il nodo che segue (la pressione e la semantica) è alto quanto il bersaglio, centrato sul disegno.
  */
-private fun Modifier.composerTarget(height: Dp): Modifier = layout { measurable, constraints ->
+internal fun Modifier.composerTarget(height: Dp): Modifier = layout { measurable, constraints ->
   val drawn = height.roundToPx()
   val target = maxOf(drawn, ComposerPillTarget.roundToPx())
   val inner = measurable.measure(constraints.copy(minHeight = target, maxHeight = target))
@@ -478,7 +478,7 @@ private fun Modifier.composerTarget(height: Dp): Modifier = layout { measurable,
 }
 
 /** Il contenuto alto [height], al centro del bersaglio di [composerTarget]. */
-private fun Modifier.composerTargetInner(height: Dp): Modifier = layout { measurable, constraints ->
+internal fun Modifier.composerTargetInner(height: Dp): Modifier = layout { measurable, constraints ->
   val drawn = height.roundToPx()
   val child = measurable.measure(constraints.copy(minHeight = drawn, maxHeight = drawn))
   val outer = constraints.constrainHeight(maxOf(drawn, ComposerPillTarget.roundToPx()))
@@ -486,7 +486,7 @@ private fun Modifier.composerTargetInner(height: Dp): Modifier = layout { measur
 }
 
 /** La capsula del chip, alta [height] al centro del bersaglio. */
-private fun DrawScope.drawComposerPill(color: Color, height: Dp) {
+internal fun DrawScope.drawComposerPill(color: Color, height: Dp) {
   val h = height.toPx().coerceAtMost(size.height)
   drawRoundRect(color, topLeft = Offset(0f, (size.height - h) / 2f), size = Size(size.width, h), cornerRadius = CornerRadius(h / 2f))
 }

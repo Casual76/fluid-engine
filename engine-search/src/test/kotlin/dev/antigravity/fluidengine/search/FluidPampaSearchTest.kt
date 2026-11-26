@@ -183,6 +183,31 @@ class FluidPampaSearchTest {
     assertNull(group.error)
   }
 
+  /**
+   * R1 (Sol, bloccante): la persona blocca l'app mentre il modello calcola il vettore della domanda. Il tool aveva letto
+   * il blocco una volta, prima delle sospensioni, e consegnava titoli e pezzi con `locked=false`.
+   */
+  @Test
+  fun bloccataAMetaRicercaNonConsegnaDati() = runBlocking {
+    var locked = false
+    val model = FixtureEmbedder()
+    val lockingModel = object : FluidTextEmbedder {
+      override val space: FluidEmbeddingSpace = model.space
+      override suspend fun embed(texts: List<String>): List<FloatArray> {
+        locked = true // la persona blocca l'app durante il calcolo
+        return model.embed(texts)
+      }
+    }
+    val tool = FluidSearchBridge.searchTool<Unit>(indexes.getValue("notes"), FluidSearchExposure(kindLabels = FluidSearchSamples.kinds, locked = { locked }, embedder = lockingModel))
+    val out = tool.run(kotlinx.serialization.json.buildJsonObject { put("query", kotlinx.serialization.json.JsonPrimitive("riunione")) }, Unit)
+    assertTrue("il modello è stato chiamato", locked)
+    val data = out.result!!.data!!
+    assertEquals("true", (data["locked"] as kotlinx.serialization.json.JsonPrimitive).content)
+    assertEquals(0, (data["total"] as kotlinx.serialization.json.JsonPrimitive).content.toInt())
+    assertTrue((data["hits"] as kotlinx.serialization.json.JsonArray).isEmpty())
+    assertFalse(out.text.contains("Riunione"))
+  }
+
   @Test
   fun iCampiRiservatiNonEsconoMai() = runBlocking {
     val secretSchema = FluidSearchSchema("riservate", 1, listOf(FluidSearchField("title", 3f), FluidSearchField("secret", sensitive = true)))

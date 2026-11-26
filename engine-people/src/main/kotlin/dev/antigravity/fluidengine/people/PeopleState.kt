@@ -157,6 +157,13 @@ class PeopleState {
   val seenMessages = LinkedHashSet<String>()
   /** I dispositivi che non mostrano più «Da X» in un'app: `app|codice`. */
   val mutedInApps = sortedSetOf<String>()
+  /**
+   * Le consegne del ritiro ancora da smistare alle app (R1): le cose condivise, «I tuoi dispositivi», le richieste e
+   * le buste per uno Store più nuovo ([forApps]). Il ritiro le scrive nello stesso salvataggio del cursore e degli id
+   * visti, e `PeopleDispatcher` le toglie nello stesso salvataggio della posta: un errore alla pagina dopo, la scadenza
+   * del campanello o un riavvio a metà non le perdono.
+   */
+  val undispatched = ArrayList<PeopleEvent>()
   /** Gli spazi condivisi di cui ho la chiave (`SharedSpaces`), così come arrivano: id → stato. */
   val spaces = TreeMap<String, JsonObject>()
   var cursor: Long = 0
@@ -185,10 +192,14 @@ class PeopleState {
     putJsonArray("inbox") { inbox.forEach { add(inboxJson(it)) } }
     putJsonArray("seen") { seenMessages.toList().takeLast(SEEN_KEEP).forEach { add(JsonPrimitive(it)) } }
     putJsonArray("muted") { mutedInApps.forEach { add(JsonPrimitive(it)) } }
+    putJsonArray("undispatched") { undispatched.takeLast(UNDISPATCHED_KEEP).forEach { e -> eventJson(e)?.let { add(it) } } }
   }
 
   companion object {
     private const val SEEN_KEEP = 5000
+
+    /** Un tetto per chi ritira senza mai smistare (le prove, un client senza `PeopleDispatcher`). */
+    private const val UNDISPATCHED_KEEP = 500
 
     fun fromJson(o: JsonObject): PeopleState = PeopleState().apply {
       cursor = o.long("cursor")
@@ -209,6 +220,28 @@ class PeopleState {
       o.arr("inbox").forEach { inbox += inboxItem(it.jsonObject) }
       o.arr("seen").forEach { seenMessages += (it as JsonPrimitive).content }
       o.arr("muted").forEach { mutedInApps += (it as JsonPrimitive).content }
+      // Dopo le richieste: una richiesta da annunciare si ritrova lì.
+      o.arr("undispatched").forEach { e -> event(this, e.jsonObject)?.let { undispatched += it } }
+    }
+
+    private fun eventJson(e: PeopleEvent): JsonObject? = when (e) {
+      is PeopleEvent.Message -> buildJsonObject {
+        put("k", "m"); put("n", e.n); put("code", e.code); put("thread", e.thread); put("payload", e.payload); put("id", e.messageId)
+        e.group?.let { put("group", it) }
+      }
+      is PeopleEvent.FromMyDevices -> buildJsonObject { put("k", "d"); put("n", e.n); put("payload", e.payload) }
+      // La richiesta intera sta già in [requests].
+      is PeopleEvent.Request -> buildJsonObject { put("k", "r"); put("n", e.n) }
+      is PeopleEvent.TooNew -> buildJsonObject { put("k", "t"); put("n", e.n); put("minStore", e.minStore) }
+      else -> null
+    }
+
+    private fun event(st: PeopleState, o: JsonObject): PeopleEvent? = when (o.opt("k")) {
+      "m" -> PeopleEvent.Message(o.long("n"), o.str("code"), o.str("thread"), o["payload"]!!.jsonObject, o.str("id"), o.opt("group"))
+      "d" -> PeopleEvent.FromMyDevices(o.long("n"), o["payload"]!!.jsonObject)
+      "r" -> st.requests[o.long("n")]?.let { PeopleEvent.Request(it.n, it) }
+      "t" -> PeopleEvent.TooNew(o.long("n"), o.str("minStore"))
+      else -> null
     }
 
     fun contactJson(c: Contact): JsonObject = buildJsonObject {
@@ -290,6 +323,10 @@ class PeopleState {
   }
 }
 
+/** Una consegna che `PeopleDispatcher` passa alle app o mostra come notifica: il ritiro la tiene finché non è smistata. */
+internal val PeopleEvent.forApps: Boolean
+  get() = this is PeopleEvent.Message || this is PeopleEvent.FromMyDevices || this is PeopleEvent.Request || this is PeopleEvent.TooNew
+
 private fun JsonObject.str(k: String): String = (this[k] as JsonPrimitive).content
 private fun JsonObject.opt(k: String): String? = (this[k] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content
 private fun JsonObject.long(k: String): Long = (this[k] as? JsonPrimitive)?.longOrNull ?: (this[k] as? JsonPrimitive)?.intOrNull?.toLong() ?: 0L
@@ -300,12 +337,37 @@ private fun JsonObject.arr(k: String): List<JsonElement> = (this[k] as? JsonArra
 class PeopleStateStore(private val file: File, private val vault: PersonVault) {
   @Volatile private var cached: PeopleState? = null
 
+  /**
+   * Il file dello stato che non si apriva più, messo da parte accanto all'originale (`persone.bin.rotto-<ora>`), o
+   * `null` se lo stato si è sempre aperto. Succede con una chiave del Keystore persa o invalidata, o con un file
+   * troncato: lo stato riparte vuoto invece di far cadere ogni chiamata. Lo Store lo dice e riprende la rubrica dalla
+   * copia del server ([PeopleClient.importRubrica]). Il file non si butta mai.
+   */
+  @Volatile var setAside: File? = null
+    private set
+
   @Synchronized
   fun load(): PeopleState {
     cached?.let { return it }
-    val state = if (file.exists()) PeopleState.fromJson(Json.parseToJsonElement(vault.open(PersonKeyRole.WORK, file.readBytes(), AAD).decodeToString()).jsonObject) else PeopleState()
+    val state = if (file.exists()) read() else PeopleState()
     cached = state
     return state
+  }
+
+  private fun read(): PeopleState = try {
+    PeopleState.fromJson(Json.parseToJsonElement(vault.open(PersonKeyRole.WORK, file.readBytes(), AAD).decodeToString()).jsonObject)
+  } catch (e: PersonLockedException) {
+    // La classe consegna è chiusa (prima del primo sblocco): è di passaggio, si riprova dopo senza toccare niente.
+    throw e
+  } catch (e: Exception) {
+    // La chiave persa o invalidata, il file troncato o cambiato, il JSON rotto: via dai piedi, mai buttato.
+    val aside = File(file.parentFile, "${file.name}.rotto-${System.currentTimeMillis()}")
+    if (!file.renameTo(aside)) {
+      file.copyTo(aside, overwrite = true)
+      file.delete()
+    }
+    setAside = aside
+    PeopleState()
   }
 
   @Synchronized
@@ -329,9 +391,11 @@ class PeopleStateStore(private val file: File, private val vault: PersonVault) {
 
   @Synchronized
   fun wipe() {
-    if (file.exists()) {
-      runCatching { file.writeBytes(ByteArray(file.length().toInt())) }
-      file.delete()
+    // Anche i file messi da parte ([setAside]): l'uscita toglie tutto.
+    val aside = file.parentFile?.listFiles { f -> f.name.startsWith(file.name + ".rotto-") }.orEmpty()
+    for (f in listOf(file) + aside) if (f.exists()) {
+      runCatching { f.writeBytes(ByteArray(f.length().toInt())) }
+      f.delete()
     }
     cached = null
   }

@@ -72,7 +72,11 @@ vanno agli altri con una CDXB a sé stessi; un telefono nuovo riprende persona e
 
 **Lo Store e le app.** `PeopleDispatcher` mette ciò che arriva nella posta dell'app giusta e la avvisa col broadcast
 esplicito `CHANGED` (`what = share`); l'app rilegge dal provider firmato (`share.received`) e mostra la sua notifica. Se
-l'app non c'è, lo Store mostra lui una notifica semplice (T21).
+l'app non c'è, lo Store mostra lui una notifica semplice (T21). **Niente si perde a metà ritiro** (R1): il ritiro scrive
+le consegne da smistare (`PeopleState.undispatched`: le cose condivise, «I tuoi dispositivi», le richieste) nello stesso
+salvataggio del cursore e degli id visti, e `PeopleDispatcher.dispatch` le toglie nello stesso salvataggio della posta.
+Se la seconda pagina cade, il campanello scade o lo Store riparte, la condivisione arriva al giro dopo, una volta sola.
+Una richiesta già accettata o ignorata nel frattempo non si annuncia più.
 
 ## Trappole
 
@@ -81,12 +85,20 @@ l'app non c'è, lo Store mostra lui una notifica semplice (T21).
 - `SharedSpace.put/add/remove` senza gettone di scrittura sono `IllegalStateException`: una scrittura che il server
   rifiuterebbe resterebbe in coda e fermerebbe anche la lettura dello spazio.
 - Il canale aperto (`PeopleSocket`) va solo ad app aperta; in sottofondo suona il campanello ([push-fcm](push-fcm.md)).
+- Chi ritira con `pickup()` senza `PeopleDispatcher` lascia le consegne nella coda (fino a 500): il primo `dispatch` le
+  smista. Di `dispatch(events)` contano solo la coda e le consegne fatte a mano, oltre il cursore.
+- **Lo stato che non si apre più** (R1): con la chiave del Keystore persa o invalidata, o il file troncato,
+  `PeopleStateStore` mette da parte il file accanto (`persone.bin.rotto-<ora>`, mai buttato), riparte vuoto e lo dice in
+  `setAside`. Lo Store lo mostra e riprende la rubrica dal server (`importRubrica`). Con la classe consegna chiusa
+  (`PersonLockedException`, prima del primo sblocco) non tocca niente: si riprova dopo.
 
 ## Le prove
 
 `CodexVectorsTest` (i vettori degli standard di Codex e gli stessi byte della copia di riferimento di Codex),
 `ServerVectorsTest` (i vettori del server), `PeopleCryptoTest`, `PersonaTest`, `PeopleBenchTest` (tre persone con due
 dispositivi, gruppi da 30 e 100, server ostile, telefono rubato, campanello finto, coda in uscita, tetti),
-`PeopleHttpTest` (MockWebServer e il WebSocket di OkHttp), `SharedSpaceTest`, `NearbyPairingTest`, `PeopleStoreTest`,
+`PeopleHttpTest` (MockWebServer e il WebSocket di OkHttp), `SharedSpaceTest`, `NearbyPairingTest`, `PeopleStoreTest`
+(anche il ritiro che cade alla seconda pagina o scade, con lo Store che riparte), `PeopleStateStoreTest` (il file che non
+si apre),
 `PeopleWorkTest` (la coda con WorkManager, senza rete e col telefono in tasca).
 Il passaggio Store → app col provider vero è `PeopleBridgeTest` in `engine-account-host`.

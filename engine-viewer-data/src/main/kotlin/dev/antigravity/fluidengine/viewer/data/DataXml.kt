@@ -56,6 +56,13 @@ internal object DataXml {
           XmlPullParser.START_TAG -> {
             flush()
             val depth = stack.size
+            // R2: lo stesso tetto del JSON ([DataProfile.MaxTreeDepth]). Oltre, un errore con la riga e quanto letto fin
+            // qui, non uno stack esaurito più avanti: il plist, «Testo» e le righe dell'albero ricorrono sui nodi.
+            if (depth > DataProfile.MaxTreeDepth) {
+              error = DataTreeError(parser.lineNumber.coerceAtLeast(1), parser.columnNumber.coerceAtLeast(1),
+                "annidato troppo in profondità (oltre ${DataProfile.MaxTreeDepth} livelli)")
+              break
+            }
             val node = builder.node(DataKind.Element, parser.name, null, parser.lineNumber, depth) ?: break
             for (i in 0 until parser.attributeCount) {
               val name = parser.getAttributeName(i)

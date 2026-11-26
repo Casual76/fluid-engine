@@ -108,7 +108,7 @@ Le attese della ricerca, per arm64 (`visori-2.md`), contro la misura: archivi 2,
 
 **API.** `FluidOfficeFamily`; `FluidViewerDocument.officeInfo()` per il pannello (autore, date nella lingua e nel fuso del dispositivo, applicazione, parole, misure della pagina, caratteri e sostituzioni, fogli e formule, slide, note, oggetti omessi); `FluidOfficeLicenses`.
 
-**Limiti.** Le corrispondenze dei caratteri sono misurate solo sul corpo di prova. Intestazioni, piè e note hanno un corpo semplificato; i blocchi ancorati stanno al paragrafo d'ancoraggio; campi complessi, caselle di testo, più colonne e tabelle annidate vanno ancora coperti; i collegamenti nel testo non si attivano. I fogli mostrano i risultati di formula salvati (niente ricalcolo; per ODS il testo di presentazione), con tetti alle parti e alle celle. Grafici, SmartArt e alcuni oggetti diventano un segnaposto col titolo. Prestazioni sul Tab S9: la prima pagina del documento di 300 pagine in 431 ms, il foglio di 100.000 celle in 65 ms, al più +128 MiB di memoria.
+**Limiti.** Le corrispondenze dei caratteri sono misurate solo sul corpo di prova. Intestazioni, piè e note hanno un corpo semplificato; i blocchi ancorati stanno al paragrafo d'ancoraggio; campi complessi, caselle di testo, più colonne e tabelle annidate vanno ancora coperti; i collegamenti nel testo non si attivano. I fogli mostrano i risultati di formula salvati (niente ricalcolo; per ODS il testo di presentazione), con tetti alle parti e alle celle; un formato numero oltre 255 caratteri (il tetto di Excel) non si applica e il numero si mostra com'è, e i formati si preparano una volta per foglio (R2). Grafici, SmartArt e alcuni oggetti diventano un segnaposto col titolo. Prestazioni sul Tab S9: la prima pagina del documento di 300 pagine in 431 ms, il foglio di 100.000 celle in 65 ms, al più +128 MiB di memoria.
 
 ## engine-viewer-archive
 
@@ -116,7 +116,7 @@ Le attese della ricerca, per arm64 (`visori-2.md`), contro la misura: archivi 2,
 
 **API.** `FluidArchiveFamily(onExtractAll)`: «Estrai tutto» c'è solo se l'app passa la callback, che riceve una `FluidArchiveExtraction` (le voci `FluidArchiveEntry`, `writeFiles` con l'avanzamento `FluidArchiveProgress`; solo i file regolari con percorso relativo). `fluidArchiveViewerInfo()` per il pannello (con la versione di libarchive); `FluidArchiveLicenses`. Un `FileProvider` del modulo, non esportato, concede la sola lettura delle anteprime mandate fuori su richiesta.
 
-**Sicurezza e limiti.** Niente percorsi assoluti né con `..` (zip slip); i collegamenti simbolici e gli hard link si vedono ma restano inattivi; anteprima al più 128 MiB per voce, lettura complessiva al più 512 MiB e 10.000 voci, rapporto al più 200:1 sopra 1 MiB, controllato durante la copia (zip bomb); la cache usa nomi casuali. Uno ZIP senza nomi Unicode parte in CP437, e il selettore offre Shift-JIS e UTF-8. Il ripiego 7z decodifica al più 64 MiB, con AES al più 2^24 iterazioni.
+**Sicurezza e limiti.** Niente percorsi assoluti né con `..` (zip slip); i collegamenti simbolici e gli hard link si vedono ma restano inattivi; anteprima al più 128 MiB per voce, lettura complessiva al più 512 MiB e 10.000 voci, rapporto al più 200:1 sopra 1 MiB, controllato durante la copia (zip bomb); la cache usa nomi casuali. Uno ZIP senza nomi Unicode parte in CP437, e il selettore offre Shift-JIS e UTF-8. Il ripiego 7z decodifica al più 64 MiB, con AES al più 2^24 iterazioni; un 7z cifrato che non si legge nemmeno senza password (tronco, intestazione rovinata) dice «Archivio danneggiato» invece di richiedere la password, mentre un errore dentro i dati cifrati resta «password sbagliata», come in 7-Zip (R2).
 
 **La dipendenza nativa.** L'AAR Maven dichiara `minCompileSdk=37`, mentre l'engine compila con SDK 36: il modulo verifica l'impronta dell'AAR (`prepareLibarchive`), include i binari JNI intatti e controlla i riferimenti contro `android.jar` 36 (`checkLibarchiveAndroidApi36`). Va tolto quando l'engine compilerà con SDK 37.2.
 
@@ -137,7 +137,7 @@ Le attese della ricerca, per arm64 (`visori-2.md`), contro la misura: archivi 2,
 
 **`Custom` dentro `Custom`.** Il telaio ha una barra sola per pagina e vince l'ultimo preset che la registra: un allegato aperto dentro una mail prende la barra, e la mail la riprende quando lo si chiude. Se la barra del telaio diventasse una pila, il giro non servirebbe più.
 
-**Limiti.** Niente «Trova» nell'albero; gli EPUB a impaginazione fissa scorrono.
+**Limiti.** Niente «Trova» nell'albero; gli EPUB a impaginazione fissa scorrono. I tetti dei file costruiti apposta (R2): una cella di CSV mostra al più 1.000 caratteri, un blocco di righe si legge al più 4 MiB alla volta e di una riga al più 1 MiB (oltre, l'ultima cella letta finisce con «…»); un CSV in UTF-16 o UTF-32 si trascrive in cache al più `FluidViewerOptions.sourceMaxCopyBytes`, e la trascrizione si ferma se l'apertura è annullata; JSON, XML e plist oltre 512 livelli sono un errore con la riga, e l'albero letto fin lì resta; una voce di EPUB tronca o col CRC sbagliato è un errore, non un capitolo a metà.
 
 ## engine-viewer-graphics
 
@@ -153,7 +153,7 @@ Le attese della ricerca, per arm64 (`visori-2.md`), contro la misura: archivi 2,
 
 **API.** `FluidSceneFamily`, `FluidSceneViewerLicenses`; per un'app che vuole il modello nel suo renderer, `openFluidSceneModel(source)` → `FluidSceneModel` (`stats`: `FluidSceneStats`; `load(engine)` → `FluidLoadedScene`, da chiudere prima dell'engine sullo stesso thread). I file a fianco di un glTF arrivano da una `FluidSceneSource` (`openRelative(path)`); da una sorgente semplice un glTF con file esterni non si apre (la galleria mostra un GLB). `FluidSceneViewerExtension` è l'aggancio per l'AR.
 
-**Limiti.** GLB e glTF al più 1.000.000 di triangoli, 3.000.000 di vertici e 96 MiB fra file e risorse; STL e OBJ al più 250.000 triangoli. Percorsi esterni, URL remoti e Draco danno un ripiego esplicito. USDZ resta sconosciuto.
+**Limiti.** GLB e glTF al più 1.000.000 di triangoli, 3.000.000 di vertici e 96 MiB fra file e risorse; STL e OBJ al più 250.000 triangoli. Le texture si misurano dalle intestazioni prima di Filament (R2): al più 8192 pixel per lato e 64 Mi di pixel in tutto (256 MiB decodificati), in PNG, JPEG, KTX2 o WebP; un altro formato non si apre. Percorsi esterni, URL remoti e Draco danno un ripiego esplicito. USDZ resta sconosciuto.
 
 ## engine-viewer-ar
 

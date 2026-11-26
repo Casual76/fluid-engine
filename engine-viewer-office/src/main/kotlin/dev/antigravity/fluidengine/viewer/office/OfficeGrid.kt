@@ -71,9 +71,27 @@ private val builtins =
     49 to "@",
   )
 
-internal fun formatNumber(raw: String, code: String?, epoch1904: Boolean, locale: Locale): String {
+/**
+ * R2 · Il format code più lungo che si applica: il tetto di Excel per un formato personalizzato, 255 caratteri (fiducia
+ * media: la finestra «Formato celle» non ne accetta di più). Uno più lungo viene da un file costruito apposta, e il
+ * numero si mostra com'è, come «Generale»: il lavoro e il testo di una cella non crescono con la lunghezza del formato.
+ */
+internal const val MaxNumberFormatChars = 255
+
+/**
+ * Il numero [raw] col format code [code] di SpreadsheetML. [prepared] tiene i formatter di Java già fatti per sezione
+ * (R2): con un foglio di 250.000 celle si preparano una volta per formato, non a ogni cella. Non è thread-safe: uno per
+ * foglio, che si legge su un filo alla volta.
+ */
+internal fun formatNumber(
+  raw: String,
+  code: String?,
+  epoch1904: Boolean,
+  locale: Locale,
+  prepared: MutableMap<String, Any>? = null,
+): String {
   val n = raw.toDoubleOrNull()?.takeIf { it.isFinite() } ?: return raw
-  if (code.isNullOrEmpty() || code == "General" || code == "@") {
+  if (code.isNullOrEmpty() || code == "General" || code == "@" || code.length > MaxNumberFormatChars) {
     val text = raw.removeSuffix(".0")
     return if ('.' in text)
       text.replace('.', DecimalFormatSymbols.getInstance(locale).decimalSeparator)
@@ -83,23 +101,37 @@ internal fun formatNumber(raw: String, code: String?, epoch1904: Boolean, locale
   val format =
     if (n < 0 && sections.size > 1) sections[1]
     else if (n == 0.0 && sections.size > 2) sections[2] else sections[0]
+  val formatter = prepared?.getOrPut(format) { prepareFormat(format, locale) } ?: prepareFormat(format, locale)
+  return runCatching {
+      when (formatter) {
+        is DateTimeFormatter -> {
+          val day = kotlin.math.floor(n).toLong()
+          val base =
+            if (epoch1904) LocalDate.of(1904, 1, 1)
+            else if (day < 60) LocalDate.of(1899, 12, 31) else LocalDate.of(1899, 12, 30)
+          base
+            .plusDays(day)
+            .atStartOfDay()
+            .plusSeconds(kotlin.math.round((n - day) * 86400).toLong())
+            .format(formatter)
+        }
+        is DecimalFormat -> formatter.format(if (n < 0 && sections.size > 1) -n else n)
+        else -> raw
+      }
+    }
+    .getOrDefault(raw)
+}
+
+/** Il formatter di Java di una sezione di format code: un `DateTimeFormatter`, un `DecimalFormat`, o [Unit] se non si legge. */
+private fun prepareFormat(format: String, locale: Locale): Any {
   val pattern =
     format
       .replace(Regex("""\[\$([^\]-]*)[^\]]*]"""), "$1")
       .replace(Regex("""\[[^]]*]"""), "")
       .replace(Regex("""[_*]."""), "")
   val clean = pattern.replace(Regex("\"[^\"]*\""), "").lowercase(Locale.ROOT)
-  return runCatching {
+  return runCatching<Any> {
       if (Regex("[ydh]|m{3}|m+[/-]").containsMatchIn(clean)) {
-        val day = kotlin.math.floor(n).toLong()
-        val base =
-          if (epoch1904) LocalDate.of(1904, 1, 1)
-          else if (day < 60) LocalDate.of(1899, 12, 31) else LocalDate.of(1899, 12, 30)
-        val date =
-          base
-            .plusDays(day)
-            .atStartOfDay()
-            .plusSeconds(kotlin.math.round((n - day) * 86400).toLong())
         val fmt =
           pattern
             .replace(Regex("AM/PM", RegexOption.IGNORE_CASE), "a")
@@ -113,16 +145,13 @@ internal fun formatNumber(raw: String, code: String?, epoch1904: Boolean, locale
             }
             .replace('"', '\'')
             .replace("\\", "")
-        date.format(
-          DateTimeFormatter.ofPattern(if ('a' !in fmt) fmt.replace('h', 'H') else fmt, locale)
-        )
+        DateTimeFormatter.ofPattern(if ('a' !in fmt) fmt.replace('h', 'H') else fmt, locale)
       } else {
         val java = pattern.replace('"', '\'').replace(Regex("""\\(.)"""), "'$1'").replace("?", "#")
         DecimalFormat(java, DecimalFormatSymbols.getInstance(locale))
-          .format(if (n < 0 && sections.size > 1) -n else n)
       }
     }
-    .getOrDefault(raw)
+    .getOrDefault(Unit)
 }
 
 internal class ExcelReader(
@@ -206,6 +235,9 @@ internal class ExcelReader(
 
   private fun sheet(name: String, file: String): SheetCells {
     val table = SheetCells(name)
+    // R2: i formatter dei numeri di questo foglio, fatti una volta per formato. Uno per foglio: un foglio grande si
+    // legge a pezzi dentro `cells`, sotto il lucchetto del suo foglio, e due fogli possono avanzare insieme.
+    val prepared = HashMap<String, Any>()
     var rows = 0
     var cols = 0
     var row = 0
@@ -308,7 +340,7 @@ internal class ExcelReader(
                       "str",
                       "e",
                       "d" -> raw
-                      else -> formatNumber(raw, formats[id] ?: builtins[id], epoch, locale)
+                      else -> formatNumber(raw, formats[id] ?: builtins[id], epoch, locale, prepared)
                     }
                   line +=
                     FluidGridCell(

@@ -190,10 +190,12 @@ object FluidSearchBridge {
         asked.isEmpty() -> allowed
         else -> asked.intersect(allowed)
       }
-      val locked = exposure.locked()
-      if (locked || text.isBlank() || (allowed != null && kinds.isEmpty())) {
-        val empty = FluidSearchResults(query = text, hits = emptyList(), total = 0)
-        return ToolOutput(modelText(empty, exposure, locked), result = ToolResultDetails(ToolOutcome.COMPLETED, data = resultJson(empty, exposure, locked)))
+      val empty = FluidSearchResults(query = text, hits = emptyList(), total = 0)
+      // La risposta «bloccata», senza dati: anche quando la persona blocca l'app durante il calcolo (R1).
+      val lockedOutput = ToolOutput(modelText(empty, exposure, true), result = ToolResultDetails(ToolOutcome.COMPLETED, data = resultJson(empty, exposure, true)))
+      if (exposure.locked()) return lockedOutput
+      if (text.isBlank() || (allowed != null && kinds.isEmpty())) {
+        return ToolOutput(modelText(empty, exposure, false), result = ToolResultDetails(ToolOutcome.COMPLETED, data = resultJson(empty, exposure, false)))
       }
       // Il vettore della domanda: quello che manda chi cerca (stesso spazio), o quello del modello dell'app.
       val space = (args["space"] as? JsonPrimitive)?.contentOrNull
@@ -205,7 +207,11 @@ object FluidSearchBridge {
           meaning = runCatching { model.embed(listOf(text.trim())).firstOrNull() }.getOrNull()
         }
       }
+      // Il blocco si rilegge dopo ogni sospensione: il vettore e la ricerca prendono tempo, e la persona può bloccare
+      // l'app nel frattempo. Bloccata, niente indice e niente risultati.
+      if (exposure.locked()) return lockedOutput
       val results = index.search(FluidSearchQuery(text, kinds, limit, typos = true, meaning = meaning, includeSensitive = false))
+      if (exposure.locked()) return lockedOutput
       return ToolOutput(modelText(results, exposure, false), result = ToolResultDetails(ToolOutcome.COMPLETED, data = resultJson(results, exposure, false)))
     }
   }

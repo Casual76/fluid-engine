@@ -79,6 +79,7 @@ $EngineModules = [ordered]@{
   "engine-ai"         = @("engine-foundation", "engine-vault")
   "engine-ai-bridge"  = @("engine-foundation", "engine-ai")
   "engine-ai-ui"      = @("engine-foundation", "engine-ui", "engine-ai")
+  "engine-ai-mcp"     = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai")
   "engine-wear"       = @("engine-foundation", "engine-ui", "engine-wear-sync")
   "engine-wear-sync"  = @("engine-foundation")
   "engine-richtext"   = @("engine-foundation", "engine-ui")
@@ -119,6 +120,9 @@ $EngineModules = [ordered]@{
 # engine-ai-ui (l'interfaccia dell'assistente: aureola, card, impostazioni, kit della chat) e' lo
 # stesso caso: un'app senza assistente non deve compilare un modulo che non usa, e chiederlo per
 # nome porta con se' engine-ui, engine-ai e engine-foundation: -Modules ...,engine-ai-ui.
+# engine-ai-mcp (F9.2, i connettori MCP: gli strumenti di un server come AiTool caricati solo quando servono,
+# l'accesso con l'account, i gettoni cifrati, la pagina Connettori) idem: lo chiede solo un'app con un assistente
+# che parla con dei servizi, e porta con se' engine-ai, engine-ui e engine-vault: -Modules ...,engine-ai-mcp.
 # engine-richtext (l'editor con formattazione: modello a intervalli, barra sopra la tastiera, lettori di
 # HTML e Markdown) idem: lo chiede solo un'app che scrive testo formattato, e chiederlo per nome porta
 # con se' engine-ui e engine-foundation: -Modules ...,engine-richtext.
@@ -158,7 +162,7 @@ $EngineModules = [ordered]@{
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
 # engine-files (F8.18: lo sfoglia-file, sopra engine-viewer) idem: lo chiede un'app che fa sfogliare o scegliere file
 # (-Modules ...,engine-files). Nessun permesso: le cartelle arrivano dal selettore di sistema.
-$OptInModules = @("engine-wear", "engine-wear-sync", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic", "engine-editor", "engine-scan-core", "engine-scan", "engine-map", "engine-health", "engine-diagnostics", "engine-feedback")
+$OptInModules = @("engine-wear", "engine-wear-sync", "engine-ai-ui", "engine-ai-mcp", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic", "engine-editor", "engine-scan-core", "engine-scan", "engine-map", "engine-health", "engine-diagnostics", "engine-feedback")
 # engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
 # nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
 # l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
@@ -401,6 +405,7 @@ $notes = @(
   @("engine-ai", "assistente IA: provider, chiavi, orchestratore"),
   @("engine-ai-bridge", "tool federati: esporre i tool a un assistente esterno, o chiamarli"),
   @("engine-ai-ui", "interfaccia dell'assistente: aureola, card, impostazioni, kit della chat (opt-in)"),
+  @("engine-ai-mcp", "connettori MCP: strumenti di un server come AiTool, accesso con account, pagina Connettori (opt-in)"),
   @("engine-wear", "design system su Wear OS, Tile e complicazioni Fluid (solo nel modulo dell'orologio)"),
   @("engine-wear-sync", "ponte telefono-orologio: stato pubblicato, evento del polso con ricevuta; Data Layer dell'app (opt-in)"),
   @("engine-richtext", "editor con formattazione: grassetto, elenchi, link, HTML/Markdown (opt-in)"),

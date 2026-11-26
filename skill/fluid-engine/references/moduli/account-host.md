@@ -18,10 +18,11 @@ Catalogo completo delle firme: [`../api/account-host.md`](../api/account-host.md
 | esporre l'account alle app | una sottoclasse di `AccountHostProvider` che da' un `AccountProtocolHandler` |
 | esporre le persone alle app (F10.6) | `AccountProtocolHandler(…, people = PeopleProviderMethods(peopleClient))` di [persone](persone.md): solo alle app della tabella, solo con qualcuno dentro |
 | entrare, rinnovare, uscire | `AccountSession`: `adopt(risposta d'ingresso)`, `storeToken()`, `appToken(…)`, `signOut()`, `onRevoked(motivo)` |
+| la sessione di recupero diventata normale (passkey aggiunta, Google collegato) | `AccountSession.promote()`, poi `CustodyService.ensureDeviceDoor()` |
 | la prima cifratura, il codice di recupero, una porta | `CustodyService.startEncryption(codice)`, `createRecoveryCode()`, `addPrfDoor(…)` |
 | ruotare la chiave dopo un «perso o rubato» | `CustodyService.rotate(EpochKind.LOST)` |
 | ricevere in silenzio l'epoca creata da un altro dispositivo | `CustodyService.catchUp()`, con la porta del dispositivo (`ensureDeviceDoor`) |
-| il telefono nuovo | `openWithDoor(DoorSecret.recovery(codice))` o `DoorSecret.fromPasskey(risultato)`; col QR `beginTransfer()` → `completeTransfer(offer)` |
+| il telefono nuovo | `openWithDoor(DoorSecret.recovery(codice))` o `DoorSecret.fromPasskey(risultato)`; col QR `beginTransfer()` → `pollTransfer(offer)` ogni pochi secondi (`null` finché non c'è il sigillo) |
 | le opzioni e la risposta della passkey | `StorePrf.assertionRequest(opzioni)` / `creationRequest(…)`, poi `FluidWebAuthnJson.readAssertion` (`engine-auth`) → `DoorSecret.fromPasskey` |
 | il telefono vecchio nel passaggio | `TransferQr.parse(testo)` → `transferInfo(qr)` (la conferma) → `confirmTransfer(qr)` |
 | le chiavi di un'app (`appKey`) | `CustodyService.appKey(pacchetto, scopo)` → `AppKeyOutcome` |
@@ -43,7 +44,8 @@ Catalogo completo delle firme: [`../api/account-host.md`](../api/account-host.md
 (`checkSignatures(callingUid, myUid)`, altrimenti `SecurityException`, che l'app legge come «Store assente»), il
 pacchetto da `getPackagesForUid` (dal sistema; un UID condiviso e' rifiutato), poi la tabella delle app (`AppPolicy`,
 uguale a `contract/v1/apps.json`). `negotiate`, `state` e `appearance` rispondono a ogni app con la firma dello Store;
-token, chiavi e luoghi solo a chi e' nella tabella, e solo per cio' che e' suo (K3).
+token, chiavi e luoghi solo a chi e' nella tabella, e solo per cio' che e' suo (K3). Lo Store ha `sync.places`,
+`sync.backup` e, da F10.7, `sync.data`, per le copie della persona e della rubrica (raccolte `persona` e `rubrica`).
 
 **La sessione.** Il token di rinnovo sta solo nel file della sessione (`SessionStore`), chiuso con la cassaforte e
 dentro `noBackupFilesDir`: escluso dal backup di Android. Ogni rinnovo porta la **prova del dispositivo**
@@ -70,7 +72,17 @@ valori indipendenti: `auth` (l'unico che va al server) e il seme della porta, ch
 lo copre; `parse` perdona minuscole, spazi e `0/1/8` al posto di `O/I/B`.
 
 **Il passaggio col QR** (critica S2). Il nuovo mostra `{ transferId, N, s }`; il vecchio lo inquadra, conferma, sigilla
-tutte le epoche verso `N` (HPKE base) e aggiunge `mac` col segreto `s`. Il server non vede ne' `N` ne' `s`.
+tutte le epoche verso `N` (HPKE base) e aggiunge `mac` col segreto `s`. Il server non vede ne' `N` ne' `s`. Il nuovo
+chiede il sigillo con `pollTransfer(offer)`: `null` finche' il server risponde `waiting` (l'offerta resta buona),
+`TransferEndedException` se il passaggio e' stato rifiutato o il sigillo gia' ritirato (si ritira una volta sola).
+`completeTransfer` e' la stessa cosa, ma senza sigillo lancia `TransferPendingException` (F10.7; prima cadeva con un
+`NullPointerException`).
+
+**La sessione di recupero** (`SessionKind.RECOVERY`, entrata col codice). Il server la tiene ridotta (`b\api.md` § 2)
+finche' non si aggiunge una passkey o si collega Google, e non le lascia scrivere la porta del dispositivo
+(`not_this_device`): `openWithDoor` allora apre e chiude la chiave dei dati ma salta quella porta. Quando la sessione
+diventa normale, lo Store chiama `AccountSession.promote()` (le app vedono `sessionKind = full`) e poi
+`ensureDeviceDoor()` (F10.7).
 
 **Le due classi** (K10, **Q7 in attesa**: `KeyClassPolicy`). Con la raccomandazione A: «consegna» (dopo il primo
 sblocco, anche a telefono bloccato) per la chiave del dispositivo, la sessione e le chiavi di lavoro gia' ricavate;
@@ -94,6 +106,14 @@ luoghi (R1); solo un'uscita da remoto li cancella (`PlacesStore.wipe()`). Il per
 scritto = negato; la domanda è dello Store (`PlacesConsent`), dopo un «no» non si ripete. Fra i dispositivi viaggiano
 sopra `/v1/sync/places` (ambito `sync.places`, solo dello Store) con `K_com(places)` e i dati associati del contratto
 (`AccountSyncRelay`, `PlacesSealer`); due creazioni dello stesso luogo senza vedersi lasciano la più recente.
+
+**I file dei luoghi e dell'aspetto** (R1 e R2). Si scrivono accanto e poi si scambiano, come la custodia e la sessione:
+un processo che muore a metà lascia il file di prima. Un file che non si apre più (una chiave persa, un file a metà)
+si mette da parte accanto (`<nome>.rotto-<ora>`) e si riparte: i permessi «mai chiesti», il registro dei luoghi vuoto
+(con l'account tornano dal server), l'aspetto di serie. `PlacesStore.setAside` e `AppearanceStore.setAside` lo dicono
+allo Store; con la classe chiusa (prima del primo sblocco) non si tocca niente. L'uscita da remoto cancella anche i file
+messi da parte. Le scelte dei luoghi si leggono e si riscrivono sotto lo stesso lucchetto: due scelte insieme restano
+tutte e due.
 
 **Gli avvisi alle app (F10.8)** (`AccountChangedBroadcaster`). Un broadcast esplicito per app, solo a quelle col
 ricevitore di `engine-account` **e la firma dello Store**. Il manifest del modulo porta la `<queries>` per vederle.
@@ -141,11 +161,14 @@ Sul Tab S9 (Android 16, 25/11): TEE ~8 ms a chiusura o apertura, StrongBox ~120 
   doppione, il server che scambia due righe, l'uscita che non li toglie.
 - `PlacesConsentTest` (F10.8, Robolectric): negato, concesso, revocato, «chiedi di nuovo», la scrittura in più, Gallery
   mai; l'avviso solo alle app con la firma dello Store.
+- `PlacesAccessRaceTest` (R1): quattro scelte dei luoghi insieme, da quattro fili, restano tutte. `LocalStoresRecoveryTest`
+  (R2): i permessi e l'aspetto rimasti a metà, la classe chiusa che non tocca niente, l'uscita da remoto.
 
 ## File
 
 `engine-account-host/src/main/kotlin/dev/antigravity/fluidengine/account/host/`: `AccountHostProvider.kt` (provider e
 gestore del protocollo), `AccountSession.kt`, `CustodyService.kt`, `AppPolicy.kt`, `LocalStores.kt` (luoghi),
-`AppearanceStore.kt` (aspetto, `PrefsContract`, `PrefsHlc`), `PlacesConsent.kt`, `AccountChangedBroadcaster.kt`,
+`AppearanceStore.kt` (aspetto, `PrefsContract`, `PrefsHlc`), `HostFiles.kt` (scrivere accanto, mettere da parte),
+`PlacesConsent.kt`, `AccountChangedBroadcaster.kt`,
 `sync/` (`AccountSyncRelay`, `PlacesSealer`, `PlacesSync`, `AppearanceSync`), `custody/` (la custodia), `server/`
 (client, chiave del dispositivo, sessione, token), `backup/`, `testing/`.

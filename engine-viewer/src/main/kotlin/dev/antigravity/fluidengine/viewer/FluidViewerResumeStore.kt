@@ -92,6 +92,8 @@ class FluidViewerResumeStore @VisibleForTesting internal constructor(
   private val loading: Future<*> = io.submit { load() }
   private var pending: ScheduledFuture<*>? = null
   private var dirty = false
+  // R2: le scritture fallite di fila, per allungare l'attesa del tentativo dopo.
+  private var failures = 0
   private val listeners = CopyOnWriteArrayList<(Entry) -> Unit>()
 
   /** Le posizioni salvate, dalla meno usata alla più usata. */
@@ -258,16 +260,33 @@ class FluidViewerResumeStore @VisibleForTesting internal constructor(
   }
 
   private fun write() {
-    val (text, needed) = synchronized(lock) {
+    val text = synchronized(lock) {
       if (!dirty) return
       dirty = false
       buildString {
         append(Header).append(" pruned=").append(prunedAtMillis).append('\n')
         for (entry in entries.values) append(entry.encode()).append('\n')
-      } to true
+      }
     }
-    if (!needed) return
-    writeFileAtomically(file, text.toByteArray(Charsets.UTF_8))
+    val written = writeFileAtomically(file, text.toByteArray(Charsets.UTF_8))
+    synchronized(lock) {
+      if (written) {
+        failures = 0
+        return
+      }
+      // R2: il disco non ha preso la scrittura (pieno un attimo, una cartella che non si crea). Le posizioni restano da
+      // scrivere: un flush o l'uscita in background riprovano subito, e da sé si riprova dopo un'attesa che raddoppia
+      // a ogni errore, fino a [MaxRetryDelayMillis].
+      dirty = true
+      failures++
+      if (pending == null) {
+        val delay = (saveDelayMillis shl minOf(failures, 16)).coerceIn(1L, MaxRetryDelayMillis)
+        pending = io.schedule({
+          synchronized(lock) { pending = null }
+          write()
+        }, delay, TimeUnit.MILLISECONDS)
+      }
+    }
   }
 
   companion object {
@@ -281,6 +300,9 @@ class FluidViewerResumeStore @VisibleForTesting internal constructor(
     const val PruneIntervalMillis: Long = 24L * 60 * 60 * 1000
 
     private const val Header = "#fluid-viewer-resume v1"
+
+    /** R2 · L'attesa più lunga fra due tentativi di scrittura dopo un errore del disco: un minuto. A occhio, 26 novembre 2026. */
+    private const val MaxRetryDelayMillis: Long = 60_000L
     private val stores = HashMap<String, FluidViewerResumeStore>()
 
     /**

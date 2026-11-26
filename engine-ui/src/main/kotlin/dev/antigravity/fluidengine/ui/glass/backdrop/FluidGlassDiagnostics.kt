@@ -313,7 +313,11 @@ object FluidGlassDiagnostics {
     // Lo sfondo del contestuale (`ctxscrim=a|b|c`, correzione dopo S9): le catture a schermo intero dei tre livelli per
     // la scelta di Alessio. Una scelta di gusto ancora aperta, non un numero del profilo. Senza, il livello di serie.
     val scrim = FluidContextScrimTuning.apply(knobs)
-    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge + flip + bar + scrim
+    // Il bianco del tasto premuto (`pressglow=b4|vetro`, F7.23): B4 di Apple o un vetro che resta vetro, per il confronto
+    // affiancato chiesto ad Alessio. Una scelta di gusto ancora aperta. Senza, B4.
+    val glow = dev.antigravity.fluidengine.ui.glass.interaction.FluidPressGlowTuning.apply(knobs)
+    tuning = (tuned?.accepted ?: emptyMap()) + listOfNotNull(rim?.let { GlassDropTuning.Knob to it }) + edge + flip + bar +
+      scrim + glow
   }
 
   // ---- Ganci dei test che montano composable ------------------------------------------------------------------

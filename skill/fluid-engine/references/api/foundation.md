@@ -183,6 +183,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun number(value: Double, locale: Locale = Locale.getDefault(), fractionDigits: Int? = null): String` — Un numero con i separatori della lingua: «1.234,5». [fractionDigits] fissa le cifre decimali (di serie 0–2).
   - `fun percent(fraction: Double, locale: Locale = Locale.getDefault(), fractionDigits: Int = 0): String` — Una frazione come percentuale: 0,425 è «43%» (o «42,5%» con una cifra), con la forma della lingua.
   - `fun compact(value: Double, locale: Locale = Locale.getDefault(), width: FluidFormatWidth = FluidFormatWidth.Short): String` — Un numero grande in breve: «1,2 Mln», «3,4 Mrd» in italiano, «1.2K» in inglese, come `.notation(.compactName)` di Apple (`CompactDecimalFormat` delle ICU, stesse tabelle CLDR). In italiano le migliaia non si abbreviano: CLDR scrive «1200», come iOS.
+  - `fun inText(format: DateFormat, date: Date, locale: Locale = Locale.getDefault()): String` — F7.22 · La data dentro una riga: il mese e il giorno della settimana minuscoli nelle lingue che li scrivono minuscoli («25 nov 2026», «giovedì»). Il contesto «in mezzo alla frase» delle ICU alza le iniziali dove la lingua lo vuole, ma non le abbassa: le ICU del Tab S9 (Android 16, One UI 8) danno «Nov» già nel modello `d MMM y` dell'italiano, con la lingua dell'app `it-IT` (letto sul tablet il 26 novembre 2026, `F7p2…
 
 ## `engine-foundation/foundation/FluidPageAddress.kt`
 

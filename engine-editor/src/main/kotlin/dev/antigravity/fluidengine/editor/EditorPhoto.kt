@@ -37,6 +37,13 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.systemGestureExclusion
+import androidx.compose.runtime.derivedStateOf
+import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -130,6 +137,7 @@ private class PhotoHolder {
 internal fun EditorPhoto(state: FluidImageEditorState, strings: FluidImageEditorStrings, modifier: Modifier = Modifier) {
   val image = state.image
   val holder = remember { PhotoHolder() }
+  var areaSize by remember { mutableStateOf(IntSize.Zero) }
   val scheme = MaterialTheme.colorScheme
   val density = LocalDensity.current
   val haptics = LocalFluidHaptics.current
@@ -301,12 +309,27 @@ internal fun EditorPhoto(state: FluidImageEditorState, strings: FluidImageEditor
     }
   }
 
+  // La cornice a riposo, per escludere i suoi angoli dai gesti di sistema; null mentre il dito muove.
+  val exclusion by remember(state, image) {
+    derivedStateOf {
+      val img = image ?: return@derivedStateOf null
+      if (state.interacting || areaSize == IntSize.Zero) return@derivedStateOf null
+      val g = state.edit.geometry
+      val (ow, oh) = g.orientedSize(img.width, img.height)
+      val area = ScreenRect(0f, 0f, areaSize.width.toFloat(), areaSize.height.toFloat())
+      val cp = cropProgress.value
+      CropMath.frame(CropMath.fit(area, marginXpx * cp, marginYpx * cp, g, ow, oh), g, ow, oh)
+    }
+  }
   val photoLabel = strings.photo
   Box(
     modifier
       .fillMaxSize()
       .clipToBounds()
-      .onSizeChanged { holder.area = ScreenRect(0f, 0f, it.width.toFloat(), it.height.toFloat()) }
+      .onSizeChanged {
+        holder.area = ScreenRect(0f, 0f, it.width.toFloat(), it.height.toFloat())
+        areaSize = it
+      }
       .then(gestures)
       .semantics {
         contentDescription = photoLabel
@@ -413,7 +436,29 @@ internal fun EditorPhoto(state: FluidImageEditorState, strings: FluidImageEditor
         if (crop > 0f) drawCropOverlay(frame, crop, grid.value, fineGrid, g.aspect.round, handleColor, cornerT, cornerL,
           edgeMark, frameLine, gridLine)
       },
-  )
+  ) {
+    // F8.15b · Gli angoli della cornice stanno a 24 dp dal bordo dello schermo: dentro la fascia da cui Android 10 e
+    // oltre fa partire «indietro» (da tutti e due i lati). Sul tablet, nel formato del telefono, tirare un angolo chiudeva
+    // l'editor. Gli angoli si escludono dai gesti di sistema (4 riquadri da 52 dp: 104 dp per lato, sotto i 200 che il
+    // sistema concede). Solo in «Ritaglia» e a riposo: durante il gesto il dito e' gia' dell'editor, e i riquadri non
+    // cambiano a ogni fotogramma.
+    if (image != null && state.mode == FluidEditorMode.Crop && exclusion != null) {
+      val box = EditorCropLook.Touch * 2
+      for (corner in 0 until 4) {
+        Box(
+          Modifier
+            .offset {
+              val f = exclusion ?: return@offset IntOffset.Zero
+              val x = if (corner % 2 == 0) f.left else f.right
+              val y = if (corner < 2) f.top else f.bottom
+              IntOffset((x - touch).roundToInt(), (y - touch).roundToInt())
+            }
+            .size(box)
+            .systemGestureExclusion(),
+        )
+      }
+    }
+  }
 }
 
 /** L'originale: la foto com'era, intera, adatta allo spazio. */

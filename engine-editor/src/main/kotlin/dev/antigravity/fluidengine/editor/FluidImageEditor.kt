@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -293,7 +294,8 @@ private fun EditorSecondBar(
     }
     Box(Modifier.align(Alignment.Center)) {
       if (mode == FluidEditorMode.Crop) {
-        val changed = !state.edit.geometry.isIdentity
+        // Si legge solo «e' cambiata?»: la riga non si ricompone a ogni fotogramma mentre il dito sposta la foto (F8.15b).
+        val changed by remember(state) { derivedStateOf { !state.edit.geometry.isIdentity } }
         Text(
           strings.reset.uppercase(),
           color = if (changed) scheme.primary else Color.Transparent,
@@ -403,7 +405,8 @@ private fun EditorPhotoLabel(state: FluidImageEditorState, strings: FluidImageEd
 /** Il righello di «Raddrizza»: ±45°, il neutro attira, la cornice resta dentro la foto. */
 @Composable
 private fun EditorStraighten(state: FluidImageEditorState, strings: FluidImageEditorStrings, modifier: Modifier) {
-  val angle = state.edit.geometry.angle
+  // Solo l'angolo: spostare o pizzicare la foto non ricompone il righello (F8.15b).
+  val angle by remember(state) { derivedStateOf { state.edit.geometry.angle } }
   FluidRulerDial(
     value = angle,
     onValueChange = { v ->
@@ -427,7 +430,8 @@ private fun EditorAspectPanel(
   state: FluidImageEditorState, strings: FluidImageEditorStrings, aspects: List<FluidCropAspect>, modifier: Modifier,
 ) {
   val scheme = MaterialTheme.colorScheme
-  val g = state.edit.geometry
+  // Solo le proporzioni e le rotazioni di 90°: il resto della ricetta cambia a ogni fotogramma dei gesti (F8.15b).
+  val g by remember(state) { derivedStateOf { state.edit.geometry.let { FluidCropGeometry(it.quarterTurns, aspect = it.aspect) } } }
   val size = state.sourceSize
   val ratio = size?.let { (w, h) -> g.orientedSize(w, h).let { (ow, oh) -> ow.toFloat() / oh } } ?: 1f
   val canTurn = !g.aspect.isFreeform && g.aspect.width != g.aspect.height
@@ -527,7 +531,8 @@ private fun EditorSplit(state: FluidImageEditorState, strings: FluidImageEditorS
     val density = LocalDensity.current
     val w = constraints.maxWidth.toFloat()
     val h = constraints.maxHeight.toFloat()
-    val g = state.edit.geometry
+    // La geometria sola: il righello delle regolazioni non ricompone la tendina (F8.15b).
+    val g by remember(state) { derivedStateOf { state.edit.geometry } }
     val (ow, oh) = g.orientedSize(img.width, img.height)
     val view = CropMath.fit(ScreenRect(0f, 0f, w, h), 0f, 0f, g, ow, oh)
     val frame = CropMath.frame(view, g, ow, oh)

@@ -48,6 +48,23 @@ object FluidInk {
   internal var forceFallback: Boolean = false
 }
 
+/**
+ * Disegna [block] con il canvas portato nelle coordinate del tratto: `CanvasStrokeRenderer.draw` di androidx.ink **non**
+ * applica al canvas la matrice che riceve (la usa solo per la precisione dei bordi: «will not be applied to the canvas in
+ * any way»), e chi chiama deve metterla sul canvas lui (`canvas.withMatrix`). Senza, i tratti finiti uscivano nelle
+ * coordinate del foglio prese per pixel: piccoli di un fattore pari alla scala e spostati verso l'angolo (visto sul Tab S9
+ * il 26/11/2026, F8.16c). Il ripiego in `Path` porta i punti da se' e non passa di qui.
+ */
+internal inline fun drawInStrokeSpace(canvas: Canvas, toCanvas: Matrix, block: (Canvas) -> Unit) {
+  val save = canvas.save()
+  try {
+    canvas.concat(toCanvas)
+    block(canvas)
+  } finally {
+    canvas.restoreToCount(save)
+  }
+}
+
 /** Il disegno dei tratti finiti su un `Canvas` Android, dal foglio alla consegna. */
 internal interface InkRenderer {
   /** Disegna [stroke] con [toCanvas] (dalle coordinate del foglio a quelle del canvas). */
@@ -172,7 +189,7 @@ internal class InkNativeRenderer : InkRenderer {
       Log.w("FluidInk", "Tratto ${stroke.id} disegnato col ripiego: ${e.message}")
       null
     }
-    if (native == null) fallback.draw(canvas, stroke, toCanvas) else renderer.draw(canvas, native, toCanvas)
+    if (native == null) fallback.draw(canvas, stroke, toCanvas) else drawInStrokeSpace(canvas, toCanvas) { renderer.draw(it, native, toCanvas) }
   }
 
   override fun retain(live: List<FluidInkStroke>) {

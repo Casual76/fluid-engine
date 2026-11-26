@@ -303,10 +303,6 @@ internal class InkView(val scale: Float, val ox: Float, val oy: Float) {
 internal val OverlayInk = Color(0xFF636366)
 internal val RulerFill = Color(0x598E8E93)
 
-/** Il tag del log della latenza del tratto, e quanti campioni tiene per tratto. */
-internal const val LatencyTag = "FluidInkLatency"
-internal const val LatencySamples = 2048
-
 /** Le pagine del PDF da preparare e a che larghezza. */
 internal data class InkPdfRequest(val pages: List<Int>, val widthPx: Int)
 
@@ -426,30 +422,21 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
   // --- La misura della latenza (solo con `adb shell setprop log.tag.FluidInkLatency DEBUG`) ---------------------------
 
   private var latencyOn = false
-  private val inputDelays = LongArray(LatencySamples)
-  private var inputCount = 0
-  private val renderDelays = LongArray(LatencySamples)
-  private var renderCount = 0
+  private val latency by lazy(LazyThreadSafetyMode.NONE) { InkLatencyProbe() }
 
-  /** Dal momento in cui il sensore ha visto il dito a quello in cui il tratto veloce lo riceve (la consegna di Compose). */
+  /** Dal momento in cui il sensore ha visto il dito a quello in cui il foglio lo riceve (la consegna di Compose). */
   private fun recordInputDelay(motion: MotionEvent?) {
-    if (!latencyOn || motion == null || inputCount >= LatencySamples) return
+    if (!latencyOn || motion == null) return
     val event = if (Build.VERSION.SDK_INT >= 34) motion.eventTimeNanos else motion.eventTime * 1_000_000L
-    inputDelays[inputCount++] = System.nanoTime() - event
+    latency.input(event, System.nanoTime())
   }
 
-  /** A tratto finito: le mediane e i 95° percentili delle due parti della latenza, nel log, poi da capo. */
+  /** A tratto consegnato (i dati di resa di androidx.ink arrivano dopo l'ultimo disegno): una riga nel log, poi da capo. */
   private fun logLatency() {
     if (!latencyOn) return
-    fun stats(values: LongArray, count: Int): String {
-      if (count == 0) return "n=0"
-      val sorted = values.copyOf(count).also { it.sort() }
-      fun ms(v: Long) = "%.1f".format(v / 1_000_000.0)
-      return "n=$count p50=${ms(sorted[count / 2])} p95=${ms(sorted[(count * 95 / 100).coerceAtMost(count - 1)])} max=${ms(sorted[count - 1])} ms"
-    }
-    android.util.Log.d(LatencyTag, "ingresso: ${stats(inputDelays, inputCount)} | resa: ${stats(renderDelays, renderCount)}")
-    inputCount = 0
-    renderCount = 0
+    if (latency.inputCount + latency.renderCount + latency.totalCount == 0) return
+    android.util.Log.d(LatencyTag, latency.summary())
+    latency.reset()
   }
 
   @OptIn(androidx.ink.authoring.ExperimentalLatencyDataApi::class)
@@ -459,12 +446,15 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
     predictor = MotionEventPredictor.newInstance(view)
     latencyOn = android.util.Log.isLoggable(LatencyTag, android.util.Log.DEBUG)
     if (latencyOn) {
-      // Dalla chiamata ad androidx.ink ai pixel stimati sullo schermo (il front buffer), per ogni punto vero.
+      // I dati di androidx.ink per ogni punto vero: dalla sua chiamata, e dal sensore, ai pixel stimati sullo schermo.
       view.setLatencyDataCallback { data ->
-        if (data.strokeAction == androidx.ink.authoring.latency.LatencyData.StrokeAction.ADD &&
-          data.isStrokesViewGetsActionSet && data.estimatedPixelPresentationTime != Long.MIN_VALUE && renderCount < LatencySamples) {
-          renderDelays[renderCount++] = data.estimatedPixelPresentationTime - data.strokesViewGetsAction
-        }
+        latency.ink(
+          add = data.strokeAction == androidx.ink.authoring.latency.LatencyData.StrokeAction.ADD,
+          osDetectsNanos = if (data.isOsDetectsEventSet) data.osDetectsEvent else Long.MIN_VALUE,
+          getsActionNanos = if (data.isStrokesViewGetsActionSet) data.strokesViewGetsAction else Long.MIN_VALUE,
+          presentationNanos = data.estimatedPixelPresentationTime,
+          frontBufferDoneNanos = data.canvasFrontBufferStrokesRenderHelperData.let { if (it.isFinishesDrawCallsSet) it.finishesDrawCalls else Long.MIN_VALUE },
+        )
       }
     }
     view.addFinishedStrokesListener(object : InProgressStrokesFinishedListener {
@@ -477,6 +467,7 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
         }
         // Nello stesso giro del thread: il foglio disegna i tratti nel fotogramma in cui il tratto veloce li lascia.
         view.removeFinishedStrokes(strokes.keys)
+        logLatency()
       }
     })
   }
@@ -569,7 +560,6 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
       }
       nativePending[id] = stroke
       state.wetHeld.add(stroke.id)
-      logLatency()
       true
     } catch (e: RuntimeException) {
       try { view.cancelStroke(id, null) } catch (_: RuntimeException) {}
@@ -594,7 +584,63 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
     val view = native ?: return
     val id = nativeId ?: return
     nativeId = null
+    nativeByMotion = false
     try { view.cancelStroke(id, null) } catch (_: RuntimeException) {}
+  }
+
+  // La via degli eventi veri: androidx.ink legge da se' i punti storici, pressione, inclinazione e orientamento della penna,
+  // e compila i suoi dati di latenza ([InkLatencyProbe]). Gli eventi sono nelle coordinate della radice di Compose.
+  private var nativeByMotion = false
+  private var nativePointer = -1
+
+  private fun nativeBeginMotion(event: MotionEvent, pointerId: Int, local: Offset, v: InkView) {
+    val view = native ?: return
+    try {
+      val index = event.findPointerIndex(pointerId)
+      if (index < 0) return
+      val t = InkMotionTransforms(local.x - event.getX(index), local.y - event.getY(index), v.scale, v.ox, v.oy)
+      view.motionEventToViewTransform = t.toView
+      val brush = InkBrushes.brush(wetTool, wetArgb, wetSize, InkBrushes.epsilonFor(1f / v.scale))
+      nativeBrush = brush
+      nativeId = view.startStroke(event, pointerId, brush, t.toWorld, Matrix())
+      nativeByMotion = true
+      nativePointer = pointerId
+    } catch (e: RuntimeException) {
+      nativeId = null
+      nativeByMotion = false
+    }
+  }
+
+  private fun nativeAddMotion(event: MotionEvent?, prediction: MotionEvent?) {
+    val view = native ?: return
+    val id = nativeId ?: return
+    if (event == null || event.findPointerIndex(nativePointer) < 0) return
+    try {
+      view.addToStroke(event, nativePointer, id, prediction)
+    } catch (e: RuntimeException) {
+      // Un evento che androidx.ink rifiuta: il tratto continua nel modello, e il foglio lo disegna a fine gesto.
+    }
+  }
+
+  /** Chiude il tratto veloce degli eventi veri; falso se non si e' potuto (il foglio disegna subito il tratto). */
+  private fun nativeFinishMotion(event: MotionEvent?, stroke: FluidInkStroke): Boolean {
+    val view = native ?: return false
+    val id = nativeId ?: return false
+    nativeId = null
+    nativeByMotion = false
+    if (event == null || event.findPointerIndex(nativePointer) < 0) {
+      try { view.cancelStroke(id, null) } catch (_: RuntimeException) {}
+      return false
+    }
+    return try {
+      view.finishStroke(event, nativePointer, id)
+      nativePending[id] = stroke
+      state.wetHeld.add(stroke.id)
+      true
+    } catch (e: RuntimeException) {
+      try { view.cancelStroke(id, null) } catch (_: RuntimeException) {}
+      false
+    }
   }
 
   // --- I gesti -------------------------------------------------------------------------------------------------------
@@ -732,7 +778,14 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
     first.consume()
     wetActive = true
     wetRevision++
-    nativeBegin(input, v)
+    // Gli eventi veri ad androidx.ink (con la sua latenza misurata), tranne il tratto lungo il righello, che l'engine sposta.
+    val startMotion = currentEvent.motionEvent
+    if (native != null && inkUsesMotionEvents(edge != null, startMotion != null, pointerId != null)) {
+      recordInputDelay(startMotion)
+      nativeBeginMotion(startMotion!!, pointerId!!, first.position, v)
+    } else {
+      nativeBegin(input, v)
+    }
     var anchor = first.position
     var stillSince = first.uptimeMillis
     var lastUptime = first.uptimeMillis
@@ -788,7 +841,7 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
       if (!change.pressed) {
         if (recognized == null) samples(event, change, pointerId, stylus) { x, y, t, p, tilt, o -> add(x, y, t, p, tilt, o) }
         change.consume()
-        finishInk(tool, input, recognized)
+        finishInk(tool, input, recognized, event.motionEvent)
         return
       }
       if (change.positionChanged()) {
@@ -801,12 +854,16 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
           if (native != null) {
             val motion = event.motionEvent
             val prediction = if (motion != null) predictor?.predict() else null
-            val local = if (motion != null && pointerId != null && motion.findPointerIndex(pointerId) >= 0) {
-              val i = motion.findPointerIndex(pointerId)
-              Offset(change.position.x - motion.getX(i), change.position.y - motion.getY(i))
-            } else Offset.Zero
             recordInputDelay(motion)
-            nativeAppend(input, builder.size, prediction, local, v)
+            if (nativeByMotion) {
+              nativeAddMotion(motion, prediction)
+            } else {
+              val local = if (motion != null && pointerId != null && motion.findPointerIndex(pointerId) >= 0) {
+                val i = motion.findPointerIndex(pointerId)
+                Offset(change.position.x - motion.getX(i), change.position.y - motion.getY(i))
+              } else Offset.Zero
+              nativeAppend(input, builder.size, prediction, local, v)
+            }
             prediction?.recycle()
           }
         }
@@ -829,7 +886,7 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
     state.isInteracting = false
   }
 
-  private fun finishInk(tool: FluidInkTool, input: FluidInkInput, recognized: InkRecognizedShape?) {
+  private fun finishInk(tool: FluidInkTool, input: FluidInkInput, recognized: InkRecognizedShape?, last: MotionEvent?) {
     val color = Color(wetArgb)
     if (recognized != null) {
       val shaped = shapePreview
@@ -837,7 +894,7 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
       if (shaped != null) state.add(shaped.copy(id = state.newStrokeId()))
     } else if (builder.size > 0) {
       val stroke = FluidInkStroke(state.newStrokeId(), tool, color, wetSize, builder.build(), input)
-      nativeFinish(stroke, input)
+      if (nativeByMotion) nativeFinishMotion(last, stroke) else nativeFinish(stroke, input)
       state.add(stroke)
     }
     wetActive = false

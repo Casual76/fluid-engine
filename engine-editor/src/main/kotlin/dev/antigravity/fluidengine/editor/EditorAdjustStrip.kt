@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -185,7 +186,10 @@ private fun StripItem(state: FluidImageEditorState, a: FluidAdjustment?, strings
   val accent = scheme.primary
   val selected = state.selected == a
   val auto = a == null
-  val autoOn = auto && state.edit.isAuto
+  // Ogni voce legge solo il suo valore: il righello che gira ridisegna la voce scelta, non tutte e quindici (F8.15b).
+  val autoState = remember(state) { derivedStateOf { state.edit.isAuto } }
+  val valueState = remember(state, a) { derivedStateOf { if (a == null) 0f else state.edit.adjustments[a] } }
+  val autoOn = auto && autoState.value
   val name = if (a == null) strings.auto else strings.adjustmentName(a)
   Box(
     Modifier
@@ -199,7 +203,7 @@ private fun StripItem(state: FluidImageEditorState, a: FluidAdjustment?, strings
         stateDescription = if (a == null) {
           if (autoOn) strings.autoOn else strings.autoOff
         } else {
-          state.edit.adjustments[a].roundToInt().toString()
+          valueState.value.roundToInt().toString()
         }
       }
       .drawBehind {
@@ -209,7 +213,7 @@ private fun StripItem(state: FluidImageEditorState, a: FluidAdjustment?, strings
         drawCircle(ink, r, style = Stroke(stroke), alpha = EditorStripLook.RingInk)
         if (a != null) {
           // L'arco del valore: dall'alto, in senso orario per i positivi e antiorario per i negativi.
-          val v = state.edit.adjustments[a] / 100f
+          val v = valueState.value / 100f
           if (v != 0f) {
             val arc = EditorStripLook.ValueArc.toPx()
             drawArc(
@@ -239,7 +243,7 @@ private fun StripItem(state: FluidImageEditorState, a: FluidAdjustment?, strings
 @Composable
 private fun SelectedValue(state: FluidImageEditorState, a: FluidAdjustment, accent: androidx.compose.ui.graphics.Color,
   ink: androidx.compose.ui.graphics.Color) {
-  val value = state.edit.adjustments[a].roundToInt()
+  val value by remember(state, a) { derivedStateOf { state.edit.adjustments[a].roundToInt() } }
   if (value == 0) {
     FluidIcon(adjustmentIcon(a), contentDescription = null, tint = accent, size = EditorStripLook.Icon)
   } else {
@@ -259,7 +263,7 @@ internal fun EditorAdjustRuler(state: FluidImageEditorState, strings: FluidImage
   val a = state.selected
   Box(modifier.fillMaxWidth().height(EditorChromeLook.RulerHeight), contentAlignment = Alignment.BottomCenter) {
     if (a == null) return@Box
-    val value = state.edit.adjustments[a]
+    val value by remember(state, a) { derivedStateOf { state.edit.adjustments[a] } }
     FluidRulerDial(
       value = value,
       onValueChange = { v ->

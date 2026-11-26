@@ -21,6 +21,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -46,6 +47,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Dialog
@@ -168,6 +170,20 @@ fun FluidPagesPreset(
     // F8.18 · Il bilancio: la risoluzione di lettura e delle anteprime segue il profilo di memoria del processo.
     val process = rememberFluidViewerResources()
     cache.budget = ViewerPagesBudget.of(process.viewerProfile)
+    // F7.22: i due segnali del processo si raccolgono una volta per il documento, non in ogni pagina: a ogni salto della
+    // maniglia entrano due o tre pagine nuove, e ognuna avviava due raccolte sue.
+    val uiVisible = process.uiVisible.collectAsState()
+    val prefetchAllowed = process.prefetchAllowed.collectAsState()
+    val pageSignals = remember(uiVisible, prefetchAllowed) { ViewerPageSignals(uiVisible, prefetchAllowed) }
+    // F7.22 · I salti della maniglia (e di TalkBack) passano da qui: mentre la lista salta, le pagine attraversate restano
+    // fogli di carta e quella dove ci si ferma riceve prima l'anteprima, poi la pagina nitida a maniglia ferma.
+    val jumps = remember(pages) { ViewerJumpTarget(pages) }
+    LaunchedEffect(jumps) {
+      snapshotFlow { jumps.count }.collectLatest {
+        delay(ViewerJumpSettleMillis)
+        jumps.jumping = false
+      }
+    }
     val backdrop = rememberGlassBackdrop()
     val outerModal = LocalFluidGlassModalHostState.current
     val modal = outerModal ?: rememberFluidGlassModalHostState()
@@ -219,7 +235,7 @@ fun FluidPagesPreset(
       }
     }
     val transform = rememberTransformableState { zoom, _, _ -> currentZoomTo(scale * zoom) }
-    val preview by remember { derivedStateOf { scrolling || transform.isTransformInProgress } }
+    val preview by remember { derivedStateOf { scrolling || transform.isTransformInProgress || jumps.jumping } }
     val current by remember(pages, count) {
       derivedStateOf {
         selectedPage?.takeIf { it < count && pages.layoutInfo.visibleItemsInfo.any { item -> item.index == it } }
@@ -282,10 +298,14 @@ fun FluidPagesPreset(
         val bottom = viewerBottomCapsuleTop() + gap
         PageCounterLayout(top, 16.dp, (maxWidth - column) / 2 + 16.dp, counter = {
           if (chromeVisible) {
+            // F7.22: la pagina per TalkBack si legge qui, nella composizione. Letta dentro il blocco `semantics` (che gira
+            // più tardi e non osserva niente) la lambda restava la stessa a ogni pagina e la descrizione si fermava al
+            // primo salto: la lista arrivava a pagina 1000, il contatore diceva ancora «Pagina 3999».
+            val pageState = strings.page(current + 1, count)
             Row(Modifier.viewerGlass(backdrop).fluidPressable(onClick = { thumbnails = true }, role = Role.Button)
               .semantics(mergeDescendants = true) {
                 contentDescription = strings.thumbnails
-                stateDescription = strings.page(current + 1, count)
+                stateDescription = pageState
               }.heightIn(min = if (info == null) FluidGlassSize.Regular.touchTarget else 34.dp)
               .padding(horizontal = 12.dp, vertical = if (info == null) 4.dp else 0.dp),
               verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -312,24 +332,23 @@ fun FluidPagesPreset(
               .horizontalScroll(horizontal, enabled = FluidZoom.isZoomed(scale))
               .wrapContentWidth(Alignment.Start, unbounded = true).width(pageWidth + edge * 2),
             state = pages,
-            contentPadding = PaddingValues(start = edge, top = firstPageTop, end = edge, bottom = bottom),
+            contentPadding = remember(edge, bottom, firstPageTop) { ViewerColumnPadding(edge, firstPageTop, bottom) },
             verticalArrangement = Arrangement.spacedBy(gap),
           ) {
             items(count) { index ->
-              val onScreen by remember(pages, index) { derivedStateOf {
-                pages.layoutInfo.visibleItemsInfo.any { it.index == index } || index == pages.firstVisibleItemIndex
-              } }
+              val onScreen by remember(pages, index) { derivedStateOf { viewerPageOnScreen(pages, index) } }
               ViewerPage(cache, index, pixelWidth, preview, false, strings, strings.page(index + 1, count),
-                match?.takeIf { finding && it.page == index }, entrance = entrance.takeIf { index == pages.firstVisibleItemIndex }, onScreen = onScreen)
+                match?.takeIf { finding && it.page == index }, entrance = entrance.takeIf { index == pages.firstVisibleItemIndex },
+                onScreen = onScreen, signals = pageSignals)
             }
           }
         }
         // F8.18 · La barra di scorrimento di tutto il documento (la nota di Alessio sul bilancio): la maniglia porta a
         // qualunque pagina, anche alla millesima, e si disegnano solo le pagine che si vedono.
-        if (count >= ViewerPagesBudget.ScrubberMinPages) FluidFastScroller(pages, label = { strings.page(it + 1, count) },
+        if (count >= ViewerPagesBudget.ScrubberMinPages) FluidFastScroller(jumps, label = { strings.page(it + 1, count) },
           modifier = Modifier.fillMaxSize().padding(top = top, bottom = bottom), backdrop = backdrop,
           minItems = ViewerPagesBudget.ScrubberMinPages, contentDescription = strings.scrubber)
-        if (presenting) ViewerSlideShow(cache, count, current, strings) { presenting = false }
+        if (presenting) ViewerSlideShow(cache, count, current, strings, pageSignals) { presenting = false }
         ViewerGoToAlert(goingTo, if (slides) strings.goToSlide else strings.goToPage,
           if (slides) strings.slideNumber else strings.pageNumber, strings.range(count), numeric = true,
           parse = { text -> text.trim().toIntOrNull()?.takeIf { it in 1..count } },
@@ -370,7 +389,8 @@ fun FluidPagesPreset(
                 val onScreen by remember(grid, index) { derivedStateOf {
                   grid.layoutInfo.visibleItemsInfo.any { it.index == index } || index == grid.firstVisibleItemIndex
                 } }
-                ViewerPage(cache, index, ThumbnailEdge, preview = true, thumbnail = true, strings = strings, description = null, onScreen = onScreen)
+                ViewerPage(cache, index, ThumbnailEdge, preview = true, thumbnail = true, strings = strings, description = null,
+                  onScreen = onScreen, signals = pageSignals)
                 Text("${index + 1}", Modifier.clearAndSetSemantics { hideFromAccessibility() },
                   style = MaterialTheme.typography.labelMedium)
               }
@@ -385,7 +405,7 @@ fun FluidPagesPreset(
 
 @Composable
 private fun ViewerSlideShow(cache: ViewerPageRenderCache, count: Int, initial: Int,
-  strings: FluidPagesPresetStrings, close: () -> Unit) {
+  strings: FluidPagesPresetStrings, signals: ViewerPageSignals, close: () -> Unit) {
   val state = rememberPagerState(initial.coerceIn(0, count - 1)) { count }
   Dialog(close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
@@ -400,7 +420,7 @@ private fun ViewerSlideShow(cache: ViewerPageRenderCache, count: Int, initial: I
                 state.currentPage == page || state.layoutInfo.visiblePagesInfo.any { it.index == page }
               } }
               ViewerPage(cache, page, with(density) { width.roundToPx() }, false, false, strings, strings.page(page + 1, count),
-                onScreen = onScreen)
+                onScreen = onScreen, signals = signals)
             }
           }
         }
@@ -417,7 +437,16 @@ private fun ViewerSlideShow(cache: ViewerPageRenderCache, count: Int, initial: I
  * Its clearance belongs to the start of the scrollable list; only the counter stays pinned.
  */
 @Composable
-private fun PageCounterLayout(top: Dp, gap: Dp, margin: Dp, counter: @Composable () -> Unit, pages: @Composable (Dp) -> Unit) {
+private fun PageCounterLayout(top: Dp, gap: Dp, margin: Dp, counter: @Composable () -> Unit, pages: @Composable (firstPageTop: () -> Dp) -> Unit) {
+  // F7.22: la colonna si compone con un contenuto che non cambia a ogni misura. Prima ogni misura passava a
+  // `subcompose("pages")` una lambda nuova (con dentro la distanza della prima pagina), e la colonna intera, con le pagine in
+  // vista, si ricomponeva ogni volta che la capsula cambiava larghezza: a ogni salto della maniglia e a ogni pagina nuova
+  // di un lancio («37 di 3000», «2742 di 3000»). Ora la distanza è uno stato che la colonna legge nella sua misura (il
+  // padding di `ViewerColumnPadding`): una distanza nuova vale già in questa misura, e la composizione non si rifà.
+  val firstPageTopState = remember { mutableStateOf(0.dp) }
+  val firstPageTop = remember { { firstPageTopState.value } }
+  val currentPages by rememberUpdatedState(pages)
+  val pagesSlot: @Composable () -> Unit = remember { { currentPages(firstPageTop) } }
   SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->
     val edge = margin.roundToPx()
     val inset = top.roundToPx()
@@ -425,13 +454,26 @@ private fun PageCounterLayout(top: Dp, gap: Dp, margin: Dp, counter: @Composable
       minWidth = 0, maxWidth = (constraints.maxWidth - 2 * edge).coerceAtLeast(0),
       minHeight = 0, maxHeight = (constraints.maxHeight - inset).coerceAtLeast(0),
     ))
-    val firstPageTop = inset + (chip?.let { it.height + gap.roundToPx() } ?: 0)
-    val list = subcompose("pages") { pages(firstPageTop.toDp()) }.single().measure(constraints)
+    val distance = (inset + (chip?.let { it.height + gap.roundToPx() } ?: 0)).toDp()
+    if (firstPageTopState.value != distance) firstPageTopState.value = distance
+    val list = subcompose("pages", pagesSlot).single().measure(constraints)
     layout(list.width, list.height) {
       list.placeRelative(0, 0)
       chip?.placeRelative(edge, inset, zIndex = 1f)
     }
   }
+}
+
+/**
+ * F7.22 · Il padding della colonna delle pagine con la distanza della prima pagina letta nella misura della lista (non
+ * nella composizione): vedi [PageCounterLayout].
+ */
+@Stable
+private class ViewerColumnPadding(private val edge: Dp, private val top: () -> Dp, private val bottom: Dp) : PaddingValues {
+  override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = edge
+  override fun calculateTopPadding(): Dp = top()
+  override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = edge
+  override fun calculateBottomPadding(): Dp = bottom
 }
 
 private class ViewerPageReaders { val reads = mutableSetOf<FluidPageRead>() }
@@ -440,10 +482,9 @@ private class ViewerPageReaders { val reads = mutableSetOf<FluidPageRead>() }
 private fun ViewerPage(
   cache: ViewerPageRenderCache, index: Int, width: Int, preview: Boolean, thumbnail: Boolean,
   strings: FluidPagesPresetStrings, description: String?, match: FluidViewerPageMatch? = null,
-  entrance: ViewerEntranceClaim? = null, onScreen: Boolean = true,
+  entrance: ViewerEntranceClaim? = null, onScreen: Boolean = true, signals: ViewerPageSignals,
 ) {
-  val process = rememberFluidViewerResources()
-  val visible = process.uiVisible.collectAsState().value && (onScreen || process.prefetchAllowed.collectAsState().value)
+  val visible = signals.uiVisible.value && (onScreen || signals.prefetchAllowed.value)
   val owners = remember(cache, index, visible, onScreen) { ViewerPageReaders() }
   DisposableEffect(owners) { onDispose { owners.reads.forEach { it.close() }; owners.reads.clear() } }
   var currentRead by remember(owners) { mutableStateOf<FluidPageRead?>(null) }
@@ -504,7 +545,9 @@ private fun ViewerPage(
             Offset(rect.left * this.size.width, rect.top * this.size.height), Size(rect.width * this.size.width, rect.height * this.size.height))
         }
       }, contentScale = ContentScale.Fit)
-    } else if (!thumbnail && !waiting) {
+    } else if (!thumbnail && !waiting && (!preview || failed)) {
+      // F7.22: mentre la lista corre o salta la pagina che aspetta è solo carta, come in Anteprima: niente scritta che
+      // entra e esce a ogni pagina (e niente testo da comporre e misurare per ognuna). A lista ferma torna «Caricamento».
       Column(Modifier.padding(FluidScreenDefaults.HorizontalPadding), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(if (failed) strings.error else strings.loading, style = MaterialTheme.typography.bodyMedium)
         if (failed) Text(strings.retry, Modifier.heightIn(min = FluidGlassSize.Regular.touchTarget)
@@ -521,6 +564,53 @@ private fun rememberFluidViewerResources(): FluidGlassResources {
   return remember(context) { FluidGlassResources.get(context) }
 }
 
+/** F7.22 · I due segnali del processo per le pagine, raccolti una volta dal preset ([FluidGlassResources]). */
+@Stable
+internal class ViewerPageSignals(val uiVisible: State<Boolean>, val prefetchAllowed: State<Boolean>)
+
+/**
+ * F7.22 · Se la pagina [index] è in vista. Durante un salto la pagina nuova entra in composizione nella misura della
+ * lista, quando `layoutInfo` dice ancora le pagine di prima: con il solo `visibleItemsInfo` nasceva «fuori vista» e si
+ * ricomponeva subito dopo la misura (nuovi lettori, effetti rifatti), due composizioni per pagina a ogni salto. Le
+ * pagine da `firstVisibleItemIndex` (già quella nuova) per quante se ne vedevano prima sono in vista anche prima della
+ * misura. Una pagina preparata in anticipo dalla lista (oltre l'ultima in vista) resta fuori, come prima.
+ */
+internal fun viewerPageOnScreen(pages: LazyListState, index: Int): Boolean {
+  val first = pages.firstVisibleItemIndex
+  val visible = pages.layoutInfo.visibleItemsInfo
+  return index >= first && index < first + maxOf(visible.size, 1) || visible.any { it.index == index }
+}
+
+/**
+ * F7.22 · Lo scorrimento rapido del documento, che sa quando salta: lo stesso di `rememberFluidFastScrollTarget` su una
+ * lista, più [jumping] (vero dal primo salto fino a [ViewerJumpSettleMillis] dopo l'ultimo) e [count]. Il preset lo
+ * legge come uno scorrimento: le pagine attraversate restano carta, e quella dove la maniglia si ferma arriva prima in
+ * anteprima e poi nitida, senza che niente si veda o si regoli.
+ */
+@Stable
+internal class ViewerJumpTarget(private val state: LazyListState) : FluidFastScrollTarget {
+  var jumping: Boolean by mutableStateOf(false)
+  var count: Int by mutableIntStateOf(0)
+    private set
+  override val totalItems: Int get() = state.layoutInfo.totalItemsCount
+  override val visibleItems: Int get() = state.layoutInfo.visibleItemsInfo.size
+  override val firstIndex: Int get() = state.firstVisibleItemIndex
+  override val fractionalFirstIndex: Float
+    get() = FluidFastScroll.fractionalFirstIndex(
+      firstIndex = state.firstVisibleItemIndex,
+      firstOffsetPx = state.firstVisibleItemScrollOffset,
+      firstSizePx = state.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0,
+    )
+  override val isScrollInProgress: Boolean get() = state.isScrollInProgress
+  override suspend fun scrollToIndex(index: Int) {
+    if (index != state.firstVisibleItemIndex) {
+      jumping = true
+      count++
+    }
+    state.scrollToItem(index)
+  }
+}
+
 internal fun visibleViewerPage(
   layout: LazyListLayoutInfo, canScrollBackward: Boolean, canScrollForward: Boolean, count: Int,
 ): Int {
@@ -534,6 +624,11 @@ internal fun visibleViewerPage(
 }
 
 private const val DefaultPageAspect = 0.7071f
+/**
+ * F7.22: quanto dopo l'ultimo salto della maniglia la pagina passa dall'anteprima a quella nitida. 150 ms, a occhio
+ * (25 novembre 2026): più corto di un battito di ciglia, più lungo dei 16 ms fra due eventi del dito che trascina piano.
+ */
+internal const val ViewerJumpSettleMillis = 150L
 /** F8.18: quanto la pagina resta ferma prima di salvare la posizione. 400 ms, a occhio (25 novembre 2026). */
 internal const val ViewerResumeSettleMillis = 400L
 private const val MaxPageAspect = 20f

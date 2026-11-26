@@ -82,7 +82,7 @@ object FluidFormat {
     style: FormatStyle = FormatStyle.MEDIUM,
     locale: Locale = Locale.getDefault(),
     zone: ZoneId = ZoneId.systemDefault(),
-  ): String = icuDate(style, locale, zone).format(Date.from(instant))
+  ): String = icuDate(style, locale, zone).formatInText(Date.from(instant), locale)
 
   /**
    * La data di un giorno del calendario, senza ora né fuso (una foto, una scadenza): come [date], «24 nov 2026». Il
@@ -161,8 +161,8 @@ object FluidFormat {
       day == today.minusDays(1) -> dayAndTime(instant, now, locale, zone, includeTime = false)
       // Dalle ICU e non da `java.time`, come [date]: su Android il giorno e il mese uscivano con la maiuscola.
       day.isAfter(today.minusDays(7)) && !day.isAfter(today) ->
-        icuSkeleton("EEEE", locale, zone).format(Date.from(instant))
-      day.year == today.year -> icuSkeleton("dMMM", locale, zone).format(Date.from(instant))
+        icuSkeleton("EEEE", locale, zone).formatInText(Date.from(instant), locale)
+      day.year == today.year -> icuSkeleton("dMMM", locale, zone).formatInText(Date.from(instant), locale)
       else -> date(instant, FormatStyle.SHORT, locale, zone)
     }
   }
@@ -439,6 +439,47 @@ object FluidFormat {
       format.timeZone = android.icu.util.TimeZone.getTimeZone(TimeZone.getTimeZone(zone).id)
       format.setContext(DisplayContext.CAPITALIZATION_FOR_MIDDLE_OF_SENTENCE)
     }
+
+  /**
+   * F7.22 · La data dentro una riga: il mese e il giorno della settimana minuscoli nelle lingue che li scrivono minuscoli
+   * («25 nov 2026», «giovedì»). Il contesto «in mezzo alla frase» delle ICU alza le iniziali dove la lingua lo vuole, ma
+   * non le abbassa: le ICU del Tab S9 (Android 16, One UI 8) danno «Nov» già nel modello `d MMM y` dell'italiano, con la
+   * lingua dell'app `it-IT` (letto sul tablet il 26 novembre 2026, `F7p22Lingua`), mentre la JVM delle prove dà «nov».
+   * Si abbassano solo i campi del mese e del giorno, con le regole della lingua. Serve anche a un'app che formatta con un
+   * modello o uno scheletro suo (`DateFormat.getInstanceForSkeleton`) e mette la data dentro una riga.
+   */
+  fun inText(format: DateFormat, date: Date, locale: Locale = Locale.getDefault()): String {
+    if (locale.language !in LowercaseNameLanguages) return format.format(date)
+    val iterator = format.formatToCharacterIterator(date)
+    val text = StringBuilder(iterator.endIndex - iterator.beginIndex)
+    var index = iterator.beginIndex
+    while (index < iterator.endIndex) {
+      iterator.setIndex(index)
+      val limit = iterator.runLimit
+      val attributes = iterator.attributes.keys
+      val name = DateFormat.Field.MONTH in attributes || DateFormat.Field.DAY_OF_WEEK in attributes
+      val run = StringBuilder(limit - index)
+      var c = iterator.current()
+      while (iterator.index < limit) {
+        run.append(c)
+        c = iterator.next()
+      }
+      text.append(if (name) run.toString().lowercase(locale) else run)
+      index = limit
+    }
+    return text.toString()
+  }
+
+  private fun DateFormat.formatInText(date: Date, locale: Locale): String = inText(this, date, locale)
+
+  /**
+   * F7.22 · Le lingue che scrivono minuscoli i mesi e i giorni dentro una frase (CLDR, `contextTransforms`): le romanze, le
+   * nordiche, le slave, l'olandese, l'ungherese, le baltiche. Non l'inglese, il tedesco, il greco, il turco.
+   */
+  private val LowercaseNameLanguages = setOf(
+    "it", "es", "fr", "pt", "ca", "gl", "ro", "nl", "sv", "da", "nb", "nn", "no", "fi", "is",
+    "pl", "cs", "sk", "sl", "hr", "bs", "sr", "ru", "uk", "be", "bg", "mk", "lt", "lv", "et", "hu", "eu",
+  )
 
   /** «altri 3», «3 others», «3 autres», «otros 3», «3 weitere», o «+3». */
   internal fun defaultOthers(count: Int, locale: Locale): String = when (locale.language) {

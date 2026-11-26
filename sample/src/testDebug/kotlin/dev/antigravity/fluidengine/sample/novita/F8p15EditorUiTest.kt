@@ -415,6 +415,27 @@ class F8p15EditorUiTest {
     assertEquals(2, cancelled)
   }
 
+  /**
+   * F8.15b, dal tablet: nel formato del telefono gli angoli della cornice stanno nella fascia da cui Android fa partire
+   * «indietro». In «Ritaglia» i quattro angoli sono esclusi dai gesti di sistema; in «Regola» niente.
+   */
+  @Test
+  fun gliAngoliDellaCorniceNonSonoDelGestoIndietro() {
+    show()
+    assertTrue(view.systemGestureExclusionRects.isEmpty())
+    click(FluidImageEditorTags.ModeCrop)
+    advance(800)
+    val rects = view.systemGestureExclusionRects
+    assertEquals(4, rects.size)
+    val f = cropFrame()
+    for ((x, y) in listOf(f.left to f.top, f.right to f.top, f.left to f.bottom, f.right to f.bottom)) {
+      assertTrue("angolo $x,$y fuori da $rects", rects.any { it.contains(x.toInt(), y.toInt()) })
+    }
+    click(FluidImageEditorTags.ModeAdjust)
+    advance(800)
+    assertTrue(view.systemGestureExclusionRects.isEmpty())
+  }
+
   private fun window(): Bitmap {
     val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
     compose.runOnIdle {

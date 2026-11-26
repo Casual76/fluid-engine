@@ -1213,6 +1213,10 @@ class GlassNodeCountTest {
 
     // S4g-bis (b): nei menu col vetro dell'ancora un layer esplicito in piu' per il pannello, lo strato della lente delle voci
     // (`FluidGlassMenuPanel`, `inkLens`) che si sposta dentro la finestra; l'effetto e la sua opacita' stavano sul nodo delle voci.
+    // F7.23: `capsula-premuta/tieni` da 129 a 130 catture nella fase (2,2 s). Per esclusione è la velocità filtrata della
+    // flessione: senza la tirata verso il dito, e con la deriva di prima, restano 130. La flessione ora cambia con
+    // continuità anche dove il dito quasi si ferma, e un vetro che cambia ricattura. Stessa cattura per fotogramma (una,
+    // 198 × 94 px).
     // Massimi osservati a 800 × 1280 px con il clock della prova. Ordine di Peak.counters:
     // Liquid/nodi/ombre · layer cattura/posa/materiale/ombra · catture/frame e a piena finestra ·
     // cattura L/H · finiture/frame, L/H e a piena finestra · catture totali · layer espliciti e
@@ -1222,7 +1226,7 @@ class GlassNodeCountTest {
       tasto/fermo                  1/1/1   1/1/0/1   0/0     0/0        0/0/0/0         0      0/0    0/0
       capsula-premuta/monta        1/2/1   2/2/0/1   2/0     800/110    0/0/0/0         2      3/0    0/0
       capsula-premuta/fermo        1/2/1   2/2/0/1   1/0     158/54     0/0/0/0         1      3/0    0/0
-      capsula-premuta/tieni        1/2/1   2/2/0/1   1/0     198/94     0/0/0/0         129    3/0    0/0
+      capsula-premuta/tieni        1/2/1   2/2/0/1   1/0     198/94     0/0/0/0         130    3/0    0/0
       capsula-premuta/dopo-tieni   1/2/1   2/2/0/1   0/0     0/0        0/0/0/0         0      3/0    0/0
       gruppo/monta                 1/1/0   1/1/0/0   1/0     370/258    0/0/0/0         1      0/0    0/0
       gruppo/fermo                 1/1/0   1/1/0/0   0/0     0/0        0/0/0/0         0      0/0    0/0

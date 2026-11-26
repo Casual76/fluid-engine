@@ -509,4 +509,50 @@ class F8p16InkUiTest {
     assertEquals(FluidInkInput.Stylus, state.strokes.single().input)
     assertTrue(state.stylusSeen)
   }
+
+  /** La finestra in una bitmap, coi pixel veri del foglio (PixelCopy, come le catture). */
+  private fun windowPixels(): android.graphics.Bitmap {
+    val window = compose.activity.window
+    val decor = window.decorView
+    val image = android.graphics.Bitmap.createBitmap(decor.width, decor.height, android.graphics.Bitmap.Config.ARGB_8888)
+    var result = -1
+    android.view.PixelCopy.request(window, image, { result = it }, android.os.Handler(Looper.getMainLooper()))
+    shadowOf(Looper.getMainLooper()).idle()
+    assertEquals("PixelCopy", android.view.PixelCopy.SUCCESS, result)
+    return image
+  }
+
+  /**
+   * F8.16c · Un tratto fatto col dito vero (eventi in pixel) su un foglio a densita' 2,625 (un telefono a 420 dpi, come il
+   * formato telefono del tablet) cade sotto il dito: il centro della riga d'inchiostro sta entro 1 px dalla riga del dito,
+   * e il tratto comincia e finisce dove il dito comincia e finisce. Sul Tab S9 i tratti finiti uscivano piccoli di 2,625
+   * volte (la matrice non messa sul canvas): questa prova guarda la catena intera evento → foglio → schermo.
+   */
+  @Config(qualifiers = "w411dp-h891dp-420dpi")
+  @Test fun aStrokeLandsUnderTheFingerAt420dpi() {
+    show()
+    val c = middle()
+    val y = kotlin.math.round(c.y)
+    val from = Offset(kotlin.math.round(c.x - 300f), y)
+    val to = Offset(kotlin.math.round(c.x + 300f), y)
+    fingerLine(from, to, steps = 24)
+    advance(600)
+    assertEquals(1, state.strokes.size)
+    val image = windowPixels()
+    val origin = IntArray(2).also { view.getLocationInWindow(it) }
+    fun dark(x: Int, y: Int): Boolean {
+      val p = image.getPixel(x + origin[0], y + origin[1])
+      return android.graphics.Color.red(p) < 100 && android.graphics.Color.green(p) < 100 && android.graphics.Color.blue(p) < 100
+    }
+    val column = c.x.toInt()
+    val rows = (y.toInt() - 40..y.toInt() + 40).filter { dark(column, it) }
+    assertTrue("nessun inchiostro sotto il dito", rows.isNotEmpty())
+    val center = rows.average().toFloat() + 0.5f
+    assertEquals("il centro del tratto (righe $rows) sotto il dito", y, center, 1f)
+    // Comincia e finisce dove il dito comincia e finisce (lo spessore della punta tonda, 3,5 dp, oltre gli estremi).
+    assertTrue(dark(from.x.toInt() + 6, y.toInt()))
+    assertTrue(dark(to.x.toInt() - 6, y.toInt()))
+    assertFalse(dark(from.x.toInt() - 30, y.toInt()))
+    assertFalse(dark(to.x.toInt() + 30, y.toInt()))
+  }
 }

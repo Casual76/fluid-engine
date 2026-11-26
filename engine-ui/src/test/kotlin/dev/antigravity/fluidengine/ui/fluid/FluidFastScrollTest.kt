@@ -64,6 +64,17 @@ class FluidFastScrollTest {
     assertEquals(0, FluidFastScroll.indexForFraction(-3f, 100, 12))
   }
 
+  @Test
+  fun `a request at the bottom goes to the last item, whatever is visible now`() {
+    // F7.22: in fondo si chiede l'ultimo elemento, non `totale - visibili` contati dove la lista era prima (con righe di
+    // altezze diverse l'ultima riga restava appena sotto lo schermo e la pagina dopo di una cartella non arrivava mai).
+    assertEquals(99, FluidFastScroll.requestedIndex(1f, 100, 12))
+    assertEquals(99, FluidFastScroll.requestedIndex(1f, 100, 3))
+    assertEquals(FluidFastScroll.indexForFraction(0.5f, 100, 12), FluidFastScroll.requestedIndex(0.5f, 100, 12))
+    assertEquals(0, FluidFastScroll.requestedIndex(0f, 100, 12))
+    assertEquals(0, FluidFastScroll.requestedIndex(1f, 0, 0))
+  }
+
   // --- il dito e' 1:1 -------------------------------------------------------------------------------
 
   @Test

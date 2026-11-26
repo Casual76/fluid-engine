@@ -66,11 +66,14 @@ import dev.antigravity.fluidengine.ui.haptics.FluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHapticGrainConfig
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import dev.antigravity.fluidengine.ui.haptics.NoOpFluidHaptics
+import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -398,8 +401,35 @@ class FluidPressState internal constructor(
 
   private var gelReaders = 0
   private var lastMoveMs: Long? = null
-  private val gelVelocity = lazy { Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold) }
-  internal val fingerSpeed: Offset get() = if (gelVelocity.isInitialized()) gelVelocity.value.value else Offset.Zero
+
+  /**
+   * La velocità del dito per la flessione del gel (F7.23), in pixel al secondo: filtrata, e letta solo in disegno.
+   *
+   * Fino a F7.23 era la velocità di **un evento** (`spostamento / dt`), messa a posto con uno `snapTo` a ogni evento e
+   * lasciata cadere con una molla: con il tocco del Tab S9 (un evento ogni 4 ms, rumore di un pixel o due) il verso
+   * cambiava da un evento all'altro anche col dito che girava piano, e l'ellisse saltava d'orientamento fra due
+   * fotogrammi (il video di Alessio del 25/11, fotogrammi 8-10). Ora ci sono tre filtri, tutti senza allocazioni:
+   *
+   *  1. la velocità di ogni evento è misurata su una **base di [FluidGel.FlexWindowMs]** (lo spostamento dal campione più
+   *     vecchio della finestra, come fa `VelocityTracker`), non sull'ultimo intervallo: il rumore di posizione si divide
+   *     per 60 ms invece che per 4;
+   *  2. una media esponenziale sugli eventi ([FluidGel.FlexEventSmoothMs]);
+   *  3. un inseguimento per fotogramma ([FluidGel.FlexFrameSmoothMs]): fra due fotogrammi il valore si muove al più di
+   *     una frazione della distanza dal bersaglio, quindi la matrice della flessione è continua anche quando gli eventi
+   *     arrivano a scatti. A dito fermo il bersaglio cade da solo dopo [FluidGel.FlexIdleGraceMs].
+   */
+  private var flexSpeed by mutableStateOf(Offset.Zero)
+  private var flexTarget = Offset.Zero
+  private var flexFresh = false
+  private var flexIdleMs = 0f
+  private var flexLoop: Job? = null
+  private val flexTimes = LongArray(FlexSamples)
+  private val flexX = FloatArray(FlexSamples)
+  private val flexY = FloatArray(FlexSamples)
+  private var flexCount = 0
+  private var flexHead = 0
+
+  internal val fingerSpeed: Offset get() = flexSpeed
 
   internal fun bindGel(delta: Int) {
     gelReaders += delta
@@ -422,7 +452,13 @@ class FluidPressState internal constructor(
   /** Il dito e' sceso in [position]. Da qui si misura la strada percorsa. */
   internal fun touchDown(position: Offset, uptimeMillis: Long? = null) {
     lastMoveMs = uptimeMillis
-    if (gelVelocity.isInitialized()) scope.launch { gelVelocity.value.snapTo(Offset.Zero) }
+    flexLoop?.cancel()
+    flexLoop = null
+    flexTarget = Offset.Zero
+    flexFresh = false
+    flexIdleMs = 0f
+    flexCount = 0
+    if (flexSpeed != Offset.Zero) flexSpeed = Offset.Zero
     downInTouchTarget = position
     travel = Offset.Zero
     scope.launch {
@@ -448,18 +484,24 @@ class FluidPressState internal constructor(
     pxPerDp: Float,
     grainEnabled: Boolean = true,
   ) {
+    travel += positionChange
     if (gelReaders > 0 && !reducedMotion && feedback.followsFinger) {
       val dt = lastMoveMs?.let { uptimeMillis - it }
       lastMoveMs = uptimeMillis
+      if (flexCount == 0 && dt != null && dt > 0) recordFlexSample(uptimeMillis - dt, travel - positionChange)
+      recordFlexSample(uptimeMillis, travel)
       if (dt != null && dt > 0) {
-        val speed = positionChange * (1000f / dt)
-        scope.launch {
-          gelVelocity.value.snapTo(speed)
-          gelVelocity.value.animateTo(Offset.Zero, FluidGel.SpeedDecay)
+        val base = flexBase(uptimeMillis)
+        if (base >= 0) {
+          val span = (uptimeMillis - flexTimes[base]).toFloat()
+          val window = Offset((travel.x - flexX[base]) * 1000f / span, (travel.y - flexY[base]) * 1000f / span)
+          val follow = 1f - exp(-dt / FluidGel.FlexEventSmoothMs)
+          flexTarget += (window - flexTarget) * follow
+          flexFresh = true
+          startFlexLoop()
         }
       }
     }
-    travel += positionChange
     val target = travel
     scope.launch { leanAnimation.snapTo(target) }
     val intensity = grain.onMove(positionChange.getDistance(), pxPerDp, uptimeMillis)
@@ -470,6 +512,10 @@ class FluidPressState internal constructor(
 
   /** Il dito se n'e' andato: la strada percorsa torna a zero con la molla critica. */
   internal fun touchEnd() {
+    // F7.23: senza dito non arrivano più eventi, quindi la velocità filtrata cade da subito, senza l'attesa del dito fermo:
+    // la flessione dal moto non tiene acceso il vetro dopo che pressione e strada sono tornate.
+    flexIdleMs = FluidGel.FlexIdleGraceMs
+    flexFresh = false
     scope.launch {
       val gel = gelReaders > 0 && !reducedMotion
       val initial = leanAnimation.value
@@ -481,6 +527,65 @@ class FluidPressState internal constructor(
       }
       if (gel && !motion.held) leanAnimation.snapTo(Offset.Zero)
     }
+  }
+
+  /** Un campione (istante, strada percorsa) nell'anello della finestra della velocità: niente allocazioni. */
+  private fun recordFlexSample(uptimeMillis: Long, at: Offset) {
+    flexHead = (flexHead + 1) % FlexSamples
+    flexTimes[flexHead] = uptimeMillis
+    flexX[flexHead] = at.x
+    flexY[flexHead] = at.y
+    if (flexCount < FlexSamples) flexCount++
+  }
+
+  /**
+   * Il campione più vecchio dentro la finestra di [FluidGel.FlexWindowMs] prima di [now], se è lontano almeno
+   * [FluidGel.FlexMinSpanMs]; -1 se non ce n'è uno (il primo evento dopo il contatto, eventi tutti nello stesso istante).
+   */
+  private fun flexBase(now: Long): Int {
+    var best = -1
+    for (k in 1 until flexCount) {
+      val i = ((flexHead - k) % FlexSamples + FlexSamples) % FlexSamples
+      val age = now - flexTimes[i]
+      if (age > FluidGel.FlexWindowMs) break
+      best = i
+    }
+    if (best < 0) return -1
+    return if (now - flexTimes[best] >= FluidGel.FlexMinSpanMs) best else -1
+  }
+
+  /**
+   * L'inseguimento per fotogramma della velocità (F7.23): vive solo mentre c'è qualcosa da inseguire, e si ferma da solo
+   * quando bersaglio e valore sono a riposo (un tasto fermo non chiede fotogrammi).
+   */
+  private fun startFlexLoop() {
+    if (flexLoop?.isActive == true) return
+    flexLoop = scope.launch {
+      var last = Long.MIN_VALUE
+      var settled = false
+      while (!settled) {
+        withFrameNanos { now ->
+          val dtMs = if (last == Long.MIN_VALUE) FluidGel.FlexFirstFrameMs else ((now - last) / 1_000_000f).coerceIn(0f, 50f)
+          last = now
+          if (flexFresh) {
+            flexFresh = false
+            flexIdleMs = 0f
+          } else {
+            flexIdleMs += dtMs
+            if (flexIdleMs > FluidGel.FlexIdleGraceMs) flexTarget *= exp(-dtMs / FluidGel.FlexDecayMs)
+          }
+          val next = flexSpeed + (flexTarget - flexSpeed) * (1f - exp(-dtMs / FluidGel.FlexFrameSmoothMs))
+          settled = next.getDistance() < FluidGel.FlexRestSpeed && flexTarget.getDistance() < FluidGel.FlexRestSpeed
+          flexSpeed = if (settled) Offset.Zero else next
+          if (settled) flexTarget = Offset.Zero
+        }
+      }
+    }
+  }
+
+  private companion object {
+    /** I campioni dell'anello: 240 eventi al secondo per [FluidGel.FlexWindowMs] ci stanno con margine. */
+    const val FlexSamples = 32
   }
 }
 
@@ -635,7 +740,80 @@ internal object FluidGel {
   val In = spring<Float>(1f, 1100f, 0.001f)
   val Out = spring<Float>(0.57f, 385f, 0.001f)
   val PositionOut = spring<Offset>(0.58f, 180f, Offset.VisibilityThreshold)
-  val SpeedDecay = spring<Offset>(1f, 700f, Offset.VisibilityThreshold)
+
+  /**
+   * La costante dell'elastico di iOS (F7.23): `f(x) = (1 − 1/(x·c/d + 1))·d = x·d·c/(d + c·x)`, con `c = 0,55`, la
+   * resistenza oltre il bordo di `UIScrollView` ricavata da Grant Paul nel 2013 e ripresa da allora da chi rifà lo
+   * scorrimento di iOS. Fiducia media: è la curva dello scorrimento, che Apple usa per ciò che il dito tira oltre un
+   * limite; per il tasto premuto Apple non pubblica numeri. `c` è anche la pendenza all'origine: nei primi millimetri il
+   * vetro fa il 55% della strada del dito, poi sempre meno, senza un tetto rigido.
+   */
+  const val RubberBandC = 0.55f
+
+  /**
+   * Il `d` dell'elastico della deriva di un tasto che si muove col proprio layer, in lati corti (F7.23). Con 0,75 un
+   * trascinamento di 0,71 lati (quello del banco di F6.1, −30 e 9 dp su un tondo da 44) sposta il vetro di 0,26 lati,
+   * Apple 0,23 a occhio (B4) e F6.1 0,20; a 3 lati 0,52, a 6 lati 0,61, e lì il vetro fa ancora il 2% della strada
+   * del dito. Prima (F6.1) la deriva si fermava a 0,25 lati in un lato di strada, asse per asse: il riquadro.
+   */
+  const val DriftReach = 0.75f
+
+  /**
+   * Il `d` per un pezzo **fuso** in un grappolo di un `FluidGlassContainer` (una barra, un gruppo di tasti): lo stesso
+   * elastico, ma verso 0,25 lati, il margine che il nodo del grappolo ha sempre avuto (`FluidGlassPressGeometry.reachPx`).
+   * Il nodo di una barra non si allarga per un dito: costi e catture a riposo restano quelli di prima.
+   */
+  const val FusedDriftReach = 0.25f
+
+  /**
+   * Quanto la tirata verso il dito allunga il gel, per lato corto di strada (F7.23). Con 0,67, a 0,71 lati di strada e
+   * dito fermo l'ellisse sta a 1,15:1, il tenuto di Apple (B4, «segue il dito: spostato di 0,23 D, ellisse 1,15:1», a
+   * occhio). È l'allungamento verso il dito dei tasti di prima (LibrePods), che cresceva con la strada; qui con la
+   * stessa curva morbida della velocità, e lo stesso tetto della flessione ([MaxStretch]).
+   */
+  const val PullFlex = 0.67f
+
+  /** La base della velocità: lo spostamento dal campione più vecchio entro 60 ms (F7.23). */
+  const val FlexWindowMs = 60L
+
+  /** Sotto questa base la velocità non si misura: due eventi quasi nello stesso istante darebbero un numero a caso. */
+  const val FlexMinSpanMs = 6L
+
+  /** La media esponenziale sugli eventi, in ms (F7.23, a occhio sul rumore del Tab S9 del 25/11). */
+  const val FlexEventSmoothMs = 24f
+
+  /** L'inseguimento per fotogramma, in ms: a 120 Hz un fotogramma copre al più il 30% della distanza dal bersaglio. */
+  const val FlexFrameSmoothMs = 24f
+
+  /** Dopo quanto, senza eventi, il dito si considera fermo e la velocità comincia a cadere. */
+  const val FlexIdleGraceMs = 24f
+
+  /** La caduta della velocità a dito fermo, in ms: la flessione dal moto si scioglie in un decimo di secondo o poco più. */
+  const val FlexDecayMs = 40f
+
+  /** Il passo del primo fotogramma dell'inseguimento, che non ha un fotogramma prima: uno a 120 Hz. */
+  const val FlexFirstFrameMs = 8.33f
+
+  /**
+   * Sotto questa velocità (px/s) la flessione dal moto è a riposo e l'inseguimento si ferma. A 2 px/s, su un tondo da
+   * 44 dp a 420 dpi, la flessione cambia di circa un decimo di pixel: oltre non si vede, e un vetro fermo non ridisegna.
+   */
+  const val FlexRestSpeed = 2f
+}
+
+/**
+ * La deriva del gel (F7.23): la strada del dito [lean] passa dall'elastico di iOS ([FluidGel.RubberBandC]) sulla sua
+ * **lunghezza**, e il verso resta quello del dito. Radiale: non c'è più un riquadro (F6.1 faceva `tanh` asse per asse, e
+ * in diagonale il vetro andava 1,41 volte più lontano che in orizzontale, dentro un quadrato). Cresce sempre meno senza
+ * fermarsi: la pendenza è [FluidGel.RubberBandC] all'origine e scende come `1/(1 + x·c/d)²`, senza mai arrivare a zero.
+ * Il valore resta sotto `reach · short`, che è il margine che serve al nodo di chi lo disegna. Pura.
+ */
+internal fun fluidGelDrift(lean: Offset, short: Float, reach: Float): Offset {
+  val distance = lean.getDistance()
+  if (!(distance > 0f) || !(short > 0f) || !(reach > 0f)) return Offset.Zero
+  val d = reach * short
+  val moved = (1f - 1f / (distance * FluidGel.RubberBandC / d + 1f)) * d
+  return lean * (moved / distance)
 }
 
 /** Il blur segue contatto e distacco anche durante un nuovo tocco a metà rientro. */
@@ -664,10 +842,25 @@ internal fun fluidGelGrowth(feedback: FluidPressFeedback, width: Float, height: 
   return fluidPressGrowth(feedback, width, height, dp)
 }
 
-/** Il tetto 1,2 è della flessione rispetto alla taglia premuta. La crescita uniforme è una scelta indipendente. */
+/**
+ * La posa del gel premuto: crescita, flessione, rigonfiamento verso il dito e deriva. Il tetto 1,2 è della flessione
+ * rispetto alla taglia premuta. La crescita uniforme è una scelta indipendente.
+ *
+ * Dalla correzione F7.23 (25/11, il video di Alessio sul Play da 62 dp del Tab S9):
+ *
+ *  * **la deriva** è [fluidGelDrift]: l'elastico di iOS sulla lunghezza della strada del dito, radiale, verso
+ *    [driftReach] lati corti senza mai arrivarci. In F6.1 era `0,25 · short · tanh(1,6 · lean / short)` **asse per
+ *    asse**: in un lato di strada il vetro era già al 92% del tetto e poi stava fermo, dentro un quadrato (il «riquadro»);
+ *  * **la flessione** ha un asse che è la somma di due vettori continui: la **tirata** verso il dito ([lean] per
+ *    [FluidGel.PullFlex]: il gel tirato resta allungato verso il dito anche a dito fermo, come il tenuto di Apple in B4
+ *    e come i tasti di prima) e la **velocità filtrata** ([speed], vedi `FluidPressState.fingerSpeed`). In F6.1 era la
+ *    sola velocità di un evento, che a ogni evento cambiava verso. L'asse è una direzione senza verso (la matrice di
+ *    `u` e di `−u` è la stessa), e dove il vettore si annulla la flessione è l'identità: la matrice è continua ovunque.
+ */
 internal fun fluidGelPose(
   feedback: FluidPressFeedback, progress: Float, lean: Offset, speed: Offset, finger: Offset,
   width: Float, height: Float, dp: Float, reduced: Boolean,
+  driftReach: Float = FluidGel.DriftReach,
 ): FluidGelPose {
   val short = min(width, height)
   val long = max(width, height)
@@ -676,12 +869,14 @@ internal fun fluidGelPose(
   // B4: fino al 2,7% sotto riposo. Pendenza continua a zero.
   val size = 1f + if (!reduced && feedback.expands && delta < 0f) 0.027f * tanh(delta / 0.027f) else delta
   if (reduced || !feedback.followsFinger || short <= 0f) return FluidGelPose(size, 1f, 0f, 1f, Offset.Zero, Offset.Zero)
-  val drift = Offset(short * 0.25f * tanh(lean.x / short * 1.6f), short * 0.25f * tanh(lean.y / short * 1.6f))
-  val speedLength = speed.getDistance()
-  val axis = if (speedLength > 0f) speed / speedLength else Offset.Zero
+  val drift = fluidGelDrift(lean, short, driftReach)
+  // La tirata e la velocità nella stessa unità: la velocità come in F6.1 (`speed / 4 lati`), la tirata in lati di strada.
+  val flex = lean * (FluidGel.PullFlex / short) + speed / (short * 4f)
+  val flexLength = flex.getDistance()
+  val axis = if (flexLength > 0f) flex / flexLength else Offset.Zero
   // Il testo delle capsule lunghe resta agganciato al centro. Riserviamo il 3% della corsa al rigonfiamento locale.
   val room = (FluidGel.MaxStretch - 1f) * short / long
-  val stretch = 1f + room * 0.82f * tanh(speedLength / (short * 4f))
+  val stretch = 1f + room * 0.82f * tanh(flexLength)
   val across = 1f / stretch
   val toward = Offset((finger.x - width / 2f).coerceIn(-width / 2f, width / 2f),
     (finger.y - height / 2f).coerceIn(-height / 2f, height / 2f))
@@ -691,8 +886,8 @@ internal fun fluidGelPose(
 }
 
 internal fun FluidPressState.gelPose(width: Float, height: Float, density: Float, reduced: Boolean = reducedMotion,
-  value: Float = progress) =
-  fluidGelPose(feedback, value, lean, fingerSpeed, glow, width, height, density, reduced)
+  value: Float = progress, driftReach: Float = FluidGel.DriftReach) =
+  fluidGelPose(feedback, value, lean, fingerSpeed, glow, width, height, density, reduced, driftReach)
 
 /** La scala massima di un tasto con testo: `StyledButton.kt:95`. */
 internal const val TextMaxScale = 0.10f

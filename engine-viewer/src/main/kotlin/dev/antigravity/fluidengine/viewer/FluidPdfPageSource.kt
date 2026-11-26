@@ -74,6 +74,11 @@ class FluidPdfPageSource private constructor(
      * **secondo la fascia del dispositivo** (F8.18b): accese sui più deboli, spente su quelli alti, con la regola di
      * `viewerHardwarePages` di engine-ui (la riga di memoria non Piena, o il vetro sceso a Protetto). Vero o falso le
      * forza, solo per le prove di confronto sul dispositivo (la galleria in debug e la bench).
+     *
+     * F7.22 · Le misure del Tab S9 (PDF di 3000 pagine, formato telefono): spente, ogni pagina nitida (975 × 1380) si
+     * carica *dentro* un fotogramma del RenderThread in 2,6–7,0 ms (`Texture upload`); accese, il lavoro va sul thread
+     * del PDF (`allocateHardwareBitmap` 2,1 ms di media) e il RenderThread non lo vede. Sul Tab S9 i tre buffer
+     * nascondono il picco. Se accenderle anche sui dispositivi alti lo decide Alessio (domanda del 26/11).
      */
     @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
     @Volatile

@@ -384,8 +384,14 @@ il testo che scorre di meno di un pixel non fa tremare la media) calcola la lumi
 valori sRGB a 8 bit), la varianza, il colore medio, la copertura (una lettura che copre meno di metà dei pixel non si
 consegna) e la **trama**: l'energia dei gradienti fra pixel vicini, che separa il testo da un fondo piatto meglio della
 varianza (0 sotto 0,01, 1 sopra 0,06 della sua radice). Legge con un **lettore per finestra** (un `ImageReader`, un
-`HardwareRenderer` suo e un filo di lavoro), partendo dopo il disegno della finestra: il filo principale non si ferma, e
-una richiesta che serve più vetri costa come una. La sonda sta solo sulle **lastre radice**; un vetro dentro un altro
+`HardwareRenderer` suo e un filo di lavoro), partendo dopo il disegno della finestra, e una richiesta che serve più vetri
+costa come una. **Quando chiede (F7.22).** `syncAndDraw` aspetta che il RenderThread finisca ciò che sta facendo: chiesto
+subito dopo il disegno aspettava tutto il fotogramma della finestra (sul Tab S9, nel PDF di 3000 pagine, 3–6 ms di mediana
+e fino a 9 ms di filo principale fermo, 8–12 volte al secondo). Ora la richiesta aspetta il *commit* della finestra
+(`ViewTreeObserver.registerFrameCommitCallback`), quando il RenderThread è libero, e parte solo se la finestra non ha
+cambiato niente da allora (`isDirty`) e non ha disegnato un fotogramma più nuovo, così il lettore non le ruba il danno
+(il rischio di S1-bis); se no si riprova al fotogramma dopo, e dopo tre tentativi si chiede come prima. In Robolectric, o
+se un commit non arriva entro 50 ms, il lettore chiede come prima. La sonda sta solo sulle **lastre radice**; un vetro dentro un altro
 vetro non misura, e prende il lato da chi lo contiene.
 
 **Quando legge.** Niente eventi, niente letture. Gli eventi sono tre: una **revisione** della sorgente (il layer che il vetro

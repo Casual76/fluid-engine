@@ -461,12 +461,17 @@ di Apple.
 | `FluidFormat.timer(duration)` | «0:07», «25:07», «1:02:07» | `Duration.TimeFormatStyle`, `Text(timerInterval:)` |
 | `FluidFormat.number(value)` / `percent(fraction)` | «1.234,5», «43%» | `.number`, `.percent` |
 | `FluidFormat.compact(value)` | «1,2 Mln» (le migliaia in italiano non si abbreviano, come iOS) | `.notation(.compactName)` |
+| `FluidFormat.inText(format, date, locale)` | una data di un `DateFormat` ICU dell'app dentro una riga: «26 nov 2026», «giovedì» | (F7.22) |
 
 **Le date vengono dalle ICU, non da `java.time`** (F8.4c). Su Android 16 `DateTimeFormatter.ofLocalizedDate` e i
 modelli con `MMM` o `EEEE` scrivono il mese e il giorno con la maiuscola («23 Nov 2026», «Giovedì», visti sul Tab S9),
 mentre la JVM delle prove li scrive minuscoli: `date` (`MEDIUM` è lo scheletro `yMMMd`) e `listDate` usano
 `android.icu.text.DateFormat` nel contesto «in mezzo alla frase». Una data visibile in un'app passa da qui, non da
-`java.time`; e si guarda sul dispositivo, perché la prova sulla JVM non vede la differenza.
+`java.time`; e si guarda sul dispositivo, perché la prova sulla JVM non vede la differenza. **F7.22: non bastava.** Sul Tab
+S9 (Android 16, One UI 8) con la lingua dell'app `it-IT` e il modello `d MMM y` le ICU stesse danno «25 Nov 2026»: il
+contesto «in mezzo alla frase» alza le iniziali dove la lingua lo vuole, ma non le abbassa. Ora `date` e `listDate`
+abbassano il mese e il giorno della settimana nelle lingue che li scrivono minuscoli (romanze, nordiche, slave, olandese,
+ungherese, baltiche; non inglese, tedesco, greco, turco), e `FluidFormat.inText` fa lo stesso per un `DateFormat` dell'app.
 
 `FluidFormatWidth` è la larghezza delle parole (`Wide` per TalkBack: «12 minuti fa»). Le soglie del tempo relativo (a occhio
 il 23 novembre 2026, sul modello di Apple che mostra l'unità più grande non nulla e tronca): sotto il minuto «ora», poi

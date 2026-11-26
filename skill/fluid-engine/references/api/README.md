@@ -6,7 +6,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 
 | famiglia | file | dichiarazioni |
 |---|---|---|
-| [Schermata e scheletro](schermata.md) | 17 | 181 |
+| [Schermata e scheletro](schermata.md) | 17 | 182 |
 | [Barre di navigazione e di azione](barre.md) | 21 | 292 |
 | [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 55 | 483 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
@@ -24,7 +24,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
 | [Suggerimenti e tutorial](tutorial.md) | 3 | 30 |
-| [engine-foundation](foundation.md) | 27 | 385 |
+| [engine-foundation](foundation.md) | 27 | 386 |
 | [engine-storage](storage.md) | 4 | 30 |
 | [engine-net](net.md) | 4 | 32 |
 | [engine-config](config.md) | 1 | 10 |

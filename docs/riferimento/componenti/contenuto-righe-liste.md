@@ -226,6 +226,10 @@ fluidGroupedItems(count = ids.size, key = { index -> ids[index] }) { index ->   
 - Un segnaposto di Paging (`null` all'indice) lo disegna l'app, alla stessa altezza della riga (`FluidSkeletonRow`), dentro lo stesso scope.
 - `FluidFastScroller` conta gli item della lista: con Paging servono i segnaposto attivi per avere il totale, l'etichetta per indice dev'essere O(1), e gli item prima della sezione (il titolo di `FluidScreen`,
   un'intestazione) spostano gli indici: l'etichetta li sottrae.
+- **In fondo è l'ultimo elemento** (F7.22, `FluidFastScroll.requestedIndex`): la maniglia o TalkBack in fondo portano all'ultimo item,
+  non a `totale - visibili` contati dove la lista era prima. Con item di altezze diverse (le righe di una griglia, la riga
+  «Caricamento» di una lista a pagine) quella riga restava appena sotto lo schermo e la pagina dopo non arrivava mai. Un salto
+  rifiutato da uno scorrimento più importante non ferma più il giro delle richieste.
 - Il separatore lo disegna la riga di sopra: righe che ne hanno uno proprio vogliono `dividers = false`, o se ne vedono due.
 
 **Non usarlo quando.** Vuoi il vetro sul contenitore e la lista arriva ordinata e ferma (`fluidGlassGroups`), o la sezione è di quattro righe in una colonna (`FluidGlassGroup`, `FluidListGroup`).

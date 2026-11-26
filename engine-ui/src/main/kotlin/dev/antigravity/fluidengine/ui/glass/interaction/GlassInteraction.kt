@@ -621,6 +621,54 @@ internal data class FingerGlowLevels(val local: Float, val fill: Float, val neig
   }
 }
 
+/**
+ * Quanto bianco porta il bagliore del dito a pieno (F7.23): una scelta di gusto ancora aperta, non un numero del
+ * profilo. Si cambia solo da `gallery.tune` in un'app debuggable (`pressglow=b4|vetro`), come le altre manopole di
+ * `FluidGlassDiagnostics`; senza, quella di serie.
+ *
+ *  * [Level.B4], di serie: il 76% sul chiaro e l'88% sullo scuro di F6.2. Viene da Apple (WWDC25, sessione 219,
+ *    fotogramma 6957: «il tondo è quasi bianco» a +233 ms dal contatto; B4 in `docs/liquid-glass/piano.md`, «quasi al
+ *    bianco in 233 ms», fiducia media) ed è la scelta di Alessio di F6.2 sul chiaro. Sullo scuro il tasto premuto diventa
+ *    un disco chiaro che copre il vetro;
+ *  * [Level.Vetro]: 40% sul chiaro, 45% sullo scuro. Il tasto premuto si illumina ma resta vetro: il filo, la lente e
+ *    ciò che sta dietro si vedono ancora. A occhio (25/11), per il confronto affiancato che Alessio ha chiesto dopo il
+ *    video del Play da 62 dp.
+ */
+internal object FluidPressGlowTuning {
+
+  /** Il nome della manopola, come lo scrive `gallery.tune`. */
+  const val Knob: String = "pressglow"
+
+  enum class Level(private val light: Float, private val dark: Float) {
+    B4(FingerGlowLevels.LightPeak, FingerGlowLevels.DarkPeak),
+    Vetro(0.40f, 0.45f),
+    ;
+
+    /** Il bianco a pieno sul lato [dark] del vetro. */
+    fun peak(dark: Boolean): Float = if (dark) this.dark else light
+  }
+
+  /** Il livello di serie, senza manopola. */
+  val Default: Level = Level.B4
+
+  /** Il livello in vigore: lo legge il disegno della luce, quindi un cambio vale dal fotogramma dopo. */
+  var level: Level by mutableStateOf(Default)
+    private set
+
+  /** Il livello chiesto in [knobs], puro: null se la manopola non c'è o il valore non si riconosce. */
+  fun parse(knobs: Map<String, String>?): Level? {
+    val raw = knobs?.entries?.firstOrNull { it.key.trim().lowercase() == Knob }?.value ?: return null
+    return Level.entries.firstOrNull { it.name.lowercase() == raw.trim().lowercase() }
+  }
+
+  /** Prende la manopola da [knobs] e la applica; senza torna di serie. Restituisce la manopola presa, o niente. */
+  fun apply(knobs: Map<String, String>?): Map<String, String> {
+    val taken = parse(knobs)
+    level = taken ?: Default
+    return if (taken == null) emptyMap() else mapOf(Knob to taken.name.lowercase())
+  }
+}
+
 /** Una sola sorgente per contenitore. Il rilascio sopravvive alla rimozione del tasto che ha avviato il gesto. */
 internal class FingerGlow(private val scope: CoroutineScope) {
   var levels by mutableStateOf(FingerGlowLevels.Off)
@@ -723,18 +771,23 @@ internal class FingerGlowPainter {
     one.setSlab(size.width, size.height, geometry)
     if (pose != null) growSlab(one.rects, one.radii, pose.growth)
     val margin = if (pose == null) 0f else gel.margin(size.width, size.height, density)
-    field(glow, dark, bounds.translate(pose?.drift ?: Offset.Zero), one, pose, margin)
+    val drift = pose?.drift ?: Offset.Zero
+    // F7.23: la sorgente della luce si sposta con la lastra. Lo shader spegne la luce di una lastra il cui centro esce dal
+    // riquadro della sorgente (la maschera `localMask`): con la deriva di F6.1 (al più 0,25 lati) non succedeva mai, con
+    // l'elastico (fino a 0,75 lati) il tasto trascinato lontano si spegneva.
+    field(glow, dark, bounds.translate(drift), one, pose, margin, sourceShift = drift)
   }
 
   fun DrawScope.field(glow: FingerGlow, dark: Boolean, bounds: Rect, plan: GlassFieldPlan,
-    pose: FluidGelPose? = null, margin: Float = 0f, presence: Float = 1f) {
+    pose: FluidGelPose? = null, margin: Float = 0f, presence: Float = 1f, sourceShift: Offset = Offset.Zero) {
     val levels = glow.levels
     if (levels.local <= 0f || plan.count == 0 || presence <= 0f) return
     val origin = bounds.topLeft
     val point = glow.center - origin
-    val source = glow.source.translate(-origin)
+    val moved = glow.source.translate(sourceShift)
+    val source = moved.translate(-origin)
     val reach = FingerGlowLevels.ReachDp * density
-    if (!bounds.inflate(margin).overlaps(glow.source) &&
+    if (!bounds.inflate(margin).overlaps(moved) &&
       !bounds.inflate(margin).overlaps(Rect(glow.center - Offset(reach, reach), Size(2f * reach, 2f * reach)))) return
     val paint = if (plan.pieces == 1) singlePaint else groupPaint
     val shader = paint.shader ?: return
@@ -760,7 +813,7 @@ internal class FingerGlowPainter {
     shader.setFloatUniform("reflexDir", source.left, source.top)
     shader.setFloatUniform("reflexWidths", source.right, source.bottom)
     shader.setFloatUniform("reflexStrength", 0.40f * levels.neighbours)
-    val peak = if (dark) FingerGlowLevels.DarkPeak else FingerGlowLevels.LightPeak
+    val peak = FluidPressGlowTuning.level.peak(dark)
     shader.setFloatUniform("materialize", peak * presence * if (glow.reduced) 0.4f else 1f)
     translate(bounds.left - margin, bounds.top - margin) {
       drawRect(brush, size = Size(bounds.width + 2f * margin, bounds.height + 2f * margin))

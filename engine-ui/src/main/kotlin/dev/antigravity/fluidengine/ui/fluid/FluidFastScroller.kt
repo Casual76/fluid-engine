@@ -62,7 +62,10 @@ import dev.antigravity.fluidengine.ui.glass.interaction.glassDrop
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.rememberFluidHaptics
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
@@ -195,6 +198,17 @@ object FluidFastScroll {
   }
 
   /**
+   * F7.22 · L'indice a cui porta una richiesta (il dito o TalkBack): [indexForFraction], tranne **in fondo**, dove
+   * porta all'ultimo elemento. `maxIndex` conta gli elementi che si vedono *adesso*: con elementi di altezze diverse
+   * (le righe di una griglia e la riga «Caricamento» di una cartella a pagine) l'indice `totale - visibili` lascia
+   * l'ultimo appena sotto lo schermo, e una lista che carica la pagina dopo quando quella riga entra non la carica
+   * mai: per TalkBack sembrava che il secondo salto in fondo non facesse niente (il difetto visto da F8.18). La lista
+   * pigra, chiesta all'ultimo elemento, si ferma da sola alla fine vera.
+   */
+  fun requestedIndex(fraction: Float, totalItems: Int, visibleItems: Int): Int =
+    if (fraction >= 1f && totalItems > 0) totalItems - 1 else indexForFraction(fraction, totalItems, visibleItems)
+
+  /**
    * La frazione sotto il dito: da dov'era la maniglia quando e' stata presa, di quanto si e' mosso il
    * dito su [travelPx] di corsa. **Relativa**, non assoluta: la maniglia non salta sotto il dito all'atto
    * di prenderla (si prende per il bordo, e il bordo non e' il centro), e un dito che esce dalla pista e
@@ -313,9 +327,13 @@ fun FluidFastScroller(
   val requests = remember(target) { Channel<Float>(Channel.CONFLATED) }
   LaunchedEffect(target) {
     for (fraction in requests) {
-      target.scrollToIndex(
-        FluidFastScroll.indexForFraction(fraction, target.totalItems, target.visibleItems),
-      )
+      try {
+        target.scrollToIndex(FluidFastScroll.requestedIndex(fraction, target.totalItems, target.visibleItems))
+      } catch (rejected: CancellationException) {
+        // F7.22: uno scorrimento più importante (un dito sulla lista) ha rifiutato il salto. Il giro delle richieste
+        // resta vivo: senza, ogni salto dopo questo si perdeva.
+        currentCoroutineContext().ensureActive()
+      }
     }
   }
 

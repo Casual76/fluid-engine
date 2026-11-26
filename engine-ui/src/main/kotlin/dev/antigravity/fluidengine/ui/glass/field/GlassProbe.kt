@@ -1332,9 +1332,37 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   /** Vero finché il lettore si può usare. */
   val isAlive: Boolean get() = !released
 
-  private val afterDraw = Runnable { send() }
-  private val frameCallback = Choreographer.FrameCallback { main.post(afterDraw) }
+  private val afterDraw = Runnable { afterWindowDraw() }
+  private val frameCallback = Choreographer.FrameCallback { frameTimeNanos -> armCommit(frameTimeNanos) }
   private val watchdog = Runnable { checkStuck() }
+
+  // F7.22 · Quando chiedere: dopo che il RenderThread ha consegnato il fotogramma della finestra, non subito dopo il disegno.
+  // `syncAndDraw` aspetta che il RenderThread finisca quello che sta facendo; chiesto subito dopo il disegno (la fase
+  // `post` di S1-bis) aspettava tutto il fotogramma della finestra: sul Tab S9, nel PDF di 3000 pagine di F8.18, 3,2–5,7 ms
+  // di mediana e fino a 9,3 ms di thread principale fermo, 8–12 volte al secondo, proprio quando il fotogramma dopo
+  // doveva cominciare. La sicurezza di `post` resta: se la finestra ha già disegnato un fotogramma più nuovo si riprova al
+  // fotogramma dopo (e dopo [MaxCommitDeferrals] tentativi si chiede come prima); se ha cambiato qualcosa dall'ultimo
+  // disegno (`isDirty`), dopo la lettura il suo fotogramma seguente si ridisegna tutto, così il danno non si perde.
+  private val commit = Runnable {
+    commitTimeouts = 0
+    onWindowCommit()
+  }
+  private val commitTimeout = Runnable {
+    // Il commit non è arrivato in tempo (un RenderThread fermo su una compilazione, una finestra che non li consegna): si
+    // legge lo stesso. Tre volte di fila e questa finestra torna a chiedere come prima.
+    if (++commitTimeouts >= MaxCommitTimeouts) commitTiming = false
+    dropCommit()
+    onWindowCommit()
+  }
+  /** Falso in Robolectric (nessun RenderThread: i commit non arrivano) e dopo [MaxCommitTimeouts] commit mai arrivati. */
+  private var commitTiming = Build.FINGERPRINT != "robolectric"
+  private var commitTimeouts = 0
+  private var commitRegistered = false
+  private var awaitingCommit = false
+  private var armedFrameMillis = Long.MIN_VALUE
+  private var commitDeferrals = 0
+  /** F7.22 · Il nome della sezione di traccia della prossima `syncAndDraw`: da quale strada parte. */
+  private var sendSection = SectionNow
 
   init {
     reader.setOnImageAvailableListener({ source -> drain(source) }, worker)
@@ -1399,6 +1427,82 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     return true
   }
 
+  /**
+   * F7.22 · Nella fase delle animazioni del fotogramma: la richiesta del commit della finestra (la prende il disegno di
+   * questo stesso fotogramma), poi il controllo dopo il disegno.
+   */
+  private fun armCommit(frameTimeNanos: Long) {
+    armedFrameMillis = frameTimeNanos / 1_000_000
+    if (commitTiming && !commitRegistered && !released && root.isAttachedToWindow) {
+      commitRegistered = try {
+        root.viewTreeObserver.registerFrameCommitCallback(commit)
+        true
+      } catch (_: IllegalStateException) {
+        false
+      }
+    }
+    main.post(afterDraw)
+  }
+
+  /** Dopo il fotogramma della finestra sul principale: se non ha disegnato si legge subito, se no si aspetta il commit. */
+  private fun afterWindowDraw() {
+    if (released) return
+    if (!commitRegistered || root.drawingTime != armedFrameMillis) {
+      // Nessun disegno in questo fotogramma (niente in volo sul RenderThread), o nessun commit da aspettare: subito.
+      dropCommit()
+      sendSection = SectionNow
+      send()
+      return
+    }
+    awaitingCommit = true
+    main.postDelayed(commitTimeout, CommitTimeoutMillis)
+  }
+
+  /** Il RenderThread ha consegnato il fotogramma della finestra (o il tempo è scaduto). Dal principale. */
+  private fun onWindowCommit() {
+    commitRegistered = false
+    main.removeCallbacks(commitTimeout)
+    if (!awaitingCommit || released) return
+    awaitingCommit = false
+    val newerFrame = root.drawingTime != armedFrameMillis
+    if (newerFrame && commitDeferrals < MaxCommitDeferrals) {
+      // Il RenderThread sta già rendendo un fotogramma più nuovo della finestra: si riprova al fotogramma dopo.
+      commitDeferrals++
+      Choreographer.getInstance().postFrameCallback(frameCallback)
+      return
+    }
+    commitDeferrals = 0
+    if (newerFrame) {
+      // Dopo i tentativi: come prima di F7.22, subito dopo il disegno della finestra.
+      Choreographer.getInstance().postFrameCallback(legacyFrameCallback)
+      return
+    }
+    // La finestra ha già qualcosa da ridisegnare (sul vetro capita quasi sempre: la sorgente avvisa le sonde nel disegno,
+    // e i vetri si invalidano subito dopo). Fra il suo disegno e questa lettura un nodo condiviso può aver cambiato le
+    // proprietà: il lettore lo sincronizzerebbe per primo e la finestra non ne vedrebbe il danno (il rischio di S1-bis).
+    // Il fotogramma della finestra che arriva comunque lo ridisegna tutto: la radice si invalida, niente resta indietro.
+    val pending = root.isDirty
+    sendSection = if (pending) SectionCommitDirty else SectionCommit
+    send()
+    if (pending) root.invalidate()
+  }
+
+  private val legacyAfterDraw = Runnable {
+    sendSection = SectionLegacy
+    send()
+  }
+  private val legacyFrameCallback = Choreographer.FrameCallback { main.post(legacyAfterDraw) }
+
+  private fun dropCommit() {
+    if (!commitRegistered) return
+    commitRegistered = false
+    try {
+      root.viewTreeObserver.unregisterFrameCommitCallback(commit)
+    } catch (_: IllegalStateException) {
+      // Già preso da un disegno, o l'osservatore non è più vivo: il commit arriverà e non troverà niente da fare.
+    }
+  }
+
   /** Dopo il disegno della finestra: registra ciò che serve e chiede il fotogramma del lettore. */
   private fun send() {
     framePosted = false
@@ -1428,7 +1532,13 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     val batch = Batch(drawable, generations.copyOf(), SystemClock.uptimeMillis())
     pending.add(batch)
     val result = try {
-      renderer.createRenderRequest().setVsyncTime(System.nanoTime()).syncAndDraw()
+      // F7.22: una sezione per strada (commit, subito, come prima), per leggere nelle tracce Perfetto quanto aspetta.
+      android.os.Trace.beginSection(sendSection)
+      try {
+        renderer.createRenderRequest().setVsyncTime(System.nanoTime()).syncAndDraw()
+      } finally {
+        android.os.Trace.endSection()
+      }
     } catch (error: RuntimeException) {
       Log.w(GlassProbeLogTag, "Sonda dello sfondo: syncAndDraw ha lanciato ($error)")
       RefusedSync
@@ -1571,6 +1681,11 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     if (readers[root] === this) readers.remove(root)
     live.decrementAndGet()
     main.removeCallbacks(afterDraw)
+    main.removeCallbacks(legacyAfterDraw)
+    main.removeCallbacks(commitTimeout)
+    Choreographer.getInstance().removeFrameCallback(legacyFrameCallback)
+    awaitingCommit = false
+    dropCommit()
     main.removeCallbacks(watchdog)
     Choreographer.getInstance().removeFrameCallback(frameCallback)
     reader.setOnImageAvailableListener(null, null)
@@ -1589,6 +1704,25 @@ internal class GlassProbeWindowReader private constructor(private val root: View
 
     /** Oltre due fotogrammi in volo il RenderThread resterebbe ad aspettare un buffer libero (S1-bis). */
     private const val MaxInFlight = 2
+
+    /**
+     * F7.22 · Quante volte una lettura aspetta un commit «pulito» prima di partire come prima: 3, a occhio (25 novembre
+     * 2026). Con la finestra che cambia a ogni fotogramma e il principale sempre in ritardo sul RenderThread la sonda
+     * non resta mai senza letture: al più tre fotogrammi in più.
+     */
+    private const val MaxCommitDeferrals = 3
+
+    /** F7.22 · Se il commit non arriva (la finestra non disegna più), si legge lo stesso dopo 50 ms, a occhio. */
+    private const val CommitTimeoutMillis = 50L
+
+    /** F7.22 · Dopo tre commit di fila mai arrivati il lettore chiede come prima di F7.22. */
+    private const val MaxCommitTimeouts = 3
+
+    /** F7.22 · Le sezioni di traccia della lettura, una per strada. */
+    private const val SectionCommit = "Glass.sonda commit"
+    private const val SectionCommitDirty = "Glass.sonda commit sporca"
+    private const val SectionNow = "Glass.sonda subito"
+    private const val SectionLegacy = "Glass.sonda come prima"
 
     private const val RefusedSync = HardwareRenderer.SYNC_LOST_SURFACE_REWARD_IF_FOUND or
       HardwareRenderer.SYNC_CONTEXT_IS_STOPPED or

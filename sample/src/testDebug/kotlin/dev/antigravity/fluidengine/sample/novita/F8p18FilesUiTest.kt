@@ -362,6 +362,35 @@ class F8p18FilesUiTest {
     waitFor("l'ultima nota, dalla terza pagina") { has(FluidFileBrowserTags.item("Note del corso/Nota 0450.txt")) }
   }
 
+  /**
+   * F7.22 · Il difetto visto da F8.18: per TalkBack lo scorrimento rapido sembrava rispondere solo alla prima richiesta
+   * di salto. Il secondo salto in fondo muoveva la lista, ma a `totale - visibili` contati dove era prima: con le righe
+   * della griglia più alte della riga «Caricamento» quella restava appena sotto lo schermo, e la terza pagina non
+   * arrivava mai. Ora in fondo vuol dire l'ultimo elemento. Due salti in fondo di fila, poi su e giù: ognuno arriva.
+   */
+  @Test fun `sfoglia - lo scorrimento rapido per TalkBack risponde a ogni salto, non solo al primo`() {
+    show()
+    openAppFolder()
+    tap(FluidFileBrowserTags.item("Note del corso"))
+    waitFor("la prima pagina di note") { has(FluidFileBrowserTags.item("Note del corso/Nota 0001.txt")) }
+    settle()
+    waitFor("lo scorrimento rapido") { hasDescription("Scorri la cartella") }
+    val scrubber = compose.onNode(hasContentDescription("Scorri la cartella"), useUnmergedTree = true)
+    scrubber.performSemanticsAction(SemanticsActions.SetProgress) { it(1f) }
+    waitFor("la seconda pagina") { has(FluidFileBrowserTags.item("Note del corso/Nota 0201.txt")) }
+    settle()
+    scrubber.performSemanticsAction(SemanticsActions.SetProgress) { it(1f) }
+    waitFor("il secondo salto in fondo, alla terza pagina") { has(FluidFileBrowserTags.item("Note del corso/Nota 0401.txt")) }
+    settle()
+    scrubber.performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
+    waitFor("il salto in cima") { has(FluidFileBrowserTags.item("Note del corso/Nota 0001.txt")) }
+    settle()
+    scrubber.performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
+    waitFor("il salto a metà") {
+      !has(FluidFileBrowserTags.item("Note del corso/Nota 0001.txt")) && !has(FluidFileBrowserTags.item("Note del corso/Nota 0450.txt"))
+    }
+  }
+
   @Test fun `posizioni - una cartella concessa col selettore di sistema entra fra le posizioni e si sfoglia`() {
     Robolectric.setupContentProvider(F8p18TreeProvider::class.java, F8p18TreeProvider.Authority)
     show(saf = true)

@@ -121,6 +121,10 @@ file nuovo, e chi viene dopo apre quel file. Nessuno dei due scrive sopra l'orig
   pagine; il PDF vero si guarda sul tablet.
 - **Il PDF annotato è appiattito**: la pagina sotto diventa un'immagine, e il testo del PDF di partenza non si seleziona più
   nella copia. Scriverci dentro davvero vuole una libreria PDF (PdfBox-Android, Apache-2.0), che pesa: è una domanda aperta.
+- **`CanvasStrokeRenderer.draw` non applica la matrice al canvas** (la usa solo per la precisione dei bordi): chi disegna
+  un tratto di androidx.ink deve metterla sul canvas lui. L'engine lo fa in `drawInStrokeSpace` (F8.16c: senza, sul
+  telefono i tratti finiti uscivano piccoli di un fattore pari alla scala e verso l'angolo, e le prove sul computer non lo
+  vedevano, perché il ripiego porta i punti da sé). Una prova a 420 dpi guarda che il tratto cada sotto il dito.
 - **La matita** usa il costruttore di `BrushFamily` che androidx.ink 1.0 segna come interno (è pubblico dalla 1.1): un
   salto di versione della libreria va provato sulla matita.
 - **Il foglio bianco è bianco anche in scuro**, come un foglio vero; la tavolozza e le barre seguono il tema.
@@ -137,6 +141,13 @@ file nuovo, e chi viene dopo apre quel file. Nessuno dei due scrive sopra l'orig
   tasto laterale), il dito che scorre dopo la penna, due dita che ingrandiscono, il lazo che sceglie, sposta e toglie, le
   forme tenendo fermo, annulla e ripristina dai tasti, TalkBack, «Riduci movimento», la consegna della scena della foto.
 - La galleria: «Elementi nuovi › F8.16» (`--es novita.scene disegno-foglio`, `annota-foto`, `annota-pdf`, `firma`).
+- **La latenza sul telefono**: `adb shell setprop log.tag.FluidInkLatency DEBUG`, poi una riga nel log a ogni tratto
+  consegnato (`logcat -s FluidInkLatency`): l'ingresso (dal sensore al foglio), la resa (da androidx.ink ai pixel) e il
+  totale, con mediana, 95° percentile e massimo. Spenta di serie (non registra né alloca). I dati di resa li dà androidx.ink
+  **solo** coi punti passati come `MotionEvent` (la 1.0 non li compila per quelli a gruppi): per questo il tratto veloce
+  passa gli eventi veri, tranne lungo il righello (F8.16b). E il disegnatore del front buffer (Android 13+) non stima
+  l'istante dei pixel: la resa e il totale arrivano **fino al disegno nel front buffer** (il punto va sullo schermo al
+  passaggio successivo della scansione, entro un refresh), e la riga del log lo dice (F8.16c).
 
 ## Dove guardare
 

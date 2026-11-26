@@ -63,6 +63,12 @@ dopo 450 ms torna a riempire lo spazio con una molla, e la foto si ingrandisce c
 raddrizzamento, con un `Threshold` passando dallo zero). Il righello di «Raddrizza» stringe la cornice quanto serve per
 stare nella foto girata, e la rilascia tornando indietro nello stesso gesto.
 
+**Il gesto «indietro» di Android** (F8.15b, dal tablet). Nel formato del telefono gli angoli della cornice stanno a 24 dp
+dal bordo, dentro la fascia da cui Android 10 e oltre fa partire «indietro» da tutti e due i lati: tirare un angolo
+chiudeva l'editor. In «Ritaglia» i quattro angoli sono **esclusi dai gesti di sistema** (riquadri da 52 dp, 104 dp per
+lato, sotto i 200 che Android concede), solo a riposo; il righello e la ruota restano del sistema ai bordi, come ogni
+controllo dell'engine.
+
 **Dito nitido, app sfocata.** Niente si sfoca sotto il dito: la ruota, il righello, la cornice e la foto si muovono nitidi
 anche nell'inerzia. Si sfoca solo ciò che cambia da sé: il nome sopra la foto quando cambia regolazione, le icone della
 capsula quando cambia scheda (`FluidGlassContentTransition`).
@@ -146,6 +152,9 @@ non per il passaggio.
 - **L'anteprima** è una bitmap della misura dello schermo (al più 2560 px sul lato lungo), la mappa della definizione 32 px
   sul lato corto. Lo shader non alloca; la CPU (sotto Android 13) alloca una bitmap per calcolo.
 - **Ferma, la pagina non ridisegna**: la foto si ridisegna solo quando cambia la ricetta o la cornice si muove.
+- **Mentre il dito muove si ricompone solo ciò che cambia** (F8.15b): ogni parte legge della ricetta solo quello che
+  mostra (`derivedStateOf`): la voce della ruota il suo valore, il righello di «Raddrizza» l'angolo, la seconda riga «la
+  cornice è cambiata?». Spostare o pizzicare la foto ridisegna la foto, non la testata.
 - **Il vetro** della testata e delle schede rifrange **solo il fondo**: la foto, che cambia a ogni fotogramma, non è una
   sorgente del vetro.
 - **Il salvataggio** tiene in memoria il file che esce più una striscia (4 megapixel) e una fascia di righe.

@@ -1639,8 +1639,19 @@ internal class FluidGlassPressGeometry(private val press: FluidPressState, priva
       frame.top + point.y.coerceIn(0f, frame.height), 0f)
   }
 
+  /**
+   * Il pezzo è **fuso** in un grappolo del contenitore (F7.23): lo decide `publishRest` del contenitore a ogni
+   * pubblicazione del riposo. Un pezzo fuso si disegna nel campo del grappolo, il cui nodo ha il margine di [reachPx], e
+   * la sua deriva va verso [FluidGel.FusedDriftReach] lati; un tasto da solo (o fuori da un contenitore) si sposta col
+   * proprio layer, e la sua deriva va verso [FluidGel.DriftReach]. Non è uno stato: lo leggono solo il disegno e il
+   * palco, nello stesso fotogramma in cui è stato scritto.
+   */
+  var fused: Boolean = false
+
+  private val driftReach: Float get() = if (fused) FluidGel.FusedDriftReach else FluidGel.DriftReach
+
   fun pose(width: Float, height: Float, density: Float) =
-    press.gelPose(width, height, density, reduced, if (stageTime.isNaN()) press.progress else shown)
+    press.gelPose(width, height, density, reduced, if (stageTime.isNaN()) press.progress else shown, driftReach)
 
   /** Il margine della cattura è fisso lungo il gesto, inclusa la diagonale della capsula. */
   fun margin(width: Float, height: Float, density: Float): Float {
@@ -1683,7 +1694,7 @@ internal class FluidGlassPressGeometry(private val press: FluidPressState, priva
   // verso l'alto anche per l'oltrepasso del 16,3% al termine della pressione.
   private companion object { const val ReleaseSpeedPerMs = 0.0111 }
   private fun transform(value: Float, width: Float, height: Float, density: Float): FluidPressTransform {
-    val pose = press.gelPose(width, height, density, reduced, value)
+    val pose = press.gelPose(width, height, density, reduced, value, driftReach)
     if (pose.tip == Offset.Zero || width <= 0f || height <= 0f) return pose.transform
     // Il programma a otto lastre riceve proiezioni assiali. Per il lobo muoviamo solo il lato verso il dito.
     return FluidPressTransform(pose.scaleX + kotlin.math.abs(pose.tip.x) / width,
@@ -1700,7 +1711,8 @@ internal class FluidGlassPressGeometry(private val press: FluidPressState, priva
    * È il margine che il nodo del palco aggiunge per un pezzo premuto: la pressione può ancora crescere mentre viaggia.
    */
   fun reachPx(width: Float, height: Float, density: Float): Float {
-    return margin(width, height, density) + if (reduced) 0f else minOf(width, height) * 0.25f
+    // La deriva resta sotto `driftReach` lati ([fluidGelDrift]): per un pezzo fuso 0,25, il margine di sempre.
+    return margin(width, height, density) + if (reduced) 0f else minOf(width, height) * driftReach
   }
 }
 
@@ -2836,6 +2848,8 @@ internal class FluidGlassContainerState {
       // La pillola nasce sul palco con la lastra fisica. La mantiene anche a riposo: sullo
       // sfondo scuro il cambio di renderer spegneva di colpo il vetro mentre la faccia restava.
       if (cluster.pieces.size == 1 && !first.softMaterialize) {
+        // F7.23: da solo il pezzo si sposta col suo layer, e la deriva ha l'elastico lungo.
+        look.pressGeometry?.fused = false
         val node = first.bounds.snapped()
         FluidGlassRestField(
           key = first.key,
@@ -2847,6 +2861,8 @@ internal class FluidGlassContainerState {
       } else {
         val ordered = cluster.pieces.unionsFirst { it }
         val presses = ordered.map { looks[it.key]?.pressGeometry }
+        // F7.23: nel campo del grappolo la deriva resta dentro il margine del nodo, quello di sempre.
+        for (geometry in presses) geometry?.fused = true
         val reach = ordered.indices.maxOf { i ->
           val bounds = ordered[i].bounds
           presses[i]?.reachPx(bounds.width, bounds.height, density.density) ?: 0f

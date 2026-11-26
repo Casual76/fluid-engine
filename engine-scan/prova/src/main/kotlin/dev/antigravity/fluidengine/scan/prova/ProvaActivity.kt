@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,7 +57,9 @@ class ProvaActivity : ComponentActivity() {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     val step = intent.getStringExtra("passo")
-    setContent { FluidTheme(EngineSettings()) { Prova(step) } }
+    // Il fondo e il colore del testo del tema (chiaro o scuro): senza una superficie il testo restava nero sul fondo
+    // scuro della finestra (visto sul tablet il 26/11, F8.17c).
+    setContent { FluidTheme(EngineSettings()) { Surface(Modifier.fillMaxSize()) { Prova(step) } } }
   }
 }
 

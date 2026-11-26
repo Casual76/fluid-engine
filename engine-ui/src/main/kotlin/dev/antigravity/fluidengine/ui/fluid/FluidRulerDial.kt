@@ -22,6 +22,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.ObserverModifierNode
+import androidx.compose.ui.node.SemanticsModifierNode
+import androidx.compose.ui.node.invalidateSemantics
+import androidx.compose.ui.node.observeReads
+import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -48,7 +59,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -168,6 +178,59 @@ fun FluidRulerDial(
   valueText: ((Float) -> String)? = { fluidRulerDefaultText(it) },
   contentDescription: String? = null,
 ) {
+  // F8.15c: il numero passa in uno stato e la ghiera lo legge dove serve (effetti, disegno, semantica). Questo adattatore
+  // si ricompone quando il chiamante passa un valore nuovo; il corpo della ghiera no.
+  val current = rememberUpdatedState(value)
+  val provider = remember(current) { { current.value } }
+  FluidRulerDial(provider, onValueChange, modifier, valueRange, step, majorEvery, neutralValue, enabled, onValueChangeFinished,
+    valueText, contentDescription)
+}
+
+/**
+ * La ghiera col valore letto da [value] solo dove serve (F8.15c): chi la usa non legge il valore in composizione, e
+ * mentre il dito la muove **non si ricompone niente**, ne' il chiamante ne' la ghiera. Cambiano il disegno delle tacche,
+ * la scritta sopra l'indice (che si ricompone da sola, quando cambia la scritta) e la semantica (quando cambia la tacca).
+ * E' la forma da usare quando il valore cambia a ogni fotogramma (l'esposizione di una foto mentre il righello gira).
+ * Gli altri parametri sono quelli dell'altra forma.
+ */
+@Composable
+fun FluidRulerDial(
+  value: () -> Float,
+  onValueChange: (Float) -> Unit,
+  modifier: Modifier = Modifier,
+  valueRange: ClosedFloatingPointRange<Float> = -45f..45f,
+  step: Float = 1f,
+  majorEvery: Int = 10,
+  neutralValue: Float? = 0f,
+  enabled: Boolean = true,
+  onValueChangeFinished: (() -> Unit)? = null,
+  valueText: ((Float) -> String)? = { fluidRulerDefaultText(it) },
+  contentDescription: String? = null,
+) {
+  // Tutto quello che il chiamante puo' ricreare a ogni ricomposizione passa in stati fissi: il corpo salta.
+  val valueState = rememberUpdatedState(value)
+  val changeState = rememberUpdatedState(onValueChange)
+  val finishedState = rememberUpdatedState(onValueChangeFinished)
+  val textState = rememberUpdatedState(valueText)
+  val scale = remember(valueRange.start, valueRange.endInclusive, step, majorEvery, neutralValue) {
+    FluidRulerScale(valueRange, step, majorEvery, neutralValue)
+  }
+  RulerDialBody(valueState, changeState, finishedState, textState, valueText != null, scale, modifier, enabled,
+    contentDescription)
+}
+
+@Composable
+private fun RulerDialBody(
+  value: State<() -> Float>,
+  onValueChange: State<(Float) -> Unit>,
+  onFinished: State<(() -> Unit)?>,
+  valueText: State<((Float) -> String)?>,
+  hasText: Boolean,
+  scale: FluidRulerScale,
+  modifier: Modifier,
+  enabled: Boolean,
+  contentDescription: String?,
+) {
   val scheme = MaterialTheme.colorScheme
   val density = LocalDensity.current
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
@@ -176,10 +239,17 @@ fun FluidRulerDial(
   val labels = LocalFluidLabels.current.dateTime
   val scope = rememberCoroutineScope()
   val spacingPx = with(density) { FluidRulerLook.TickSpacing.toPx() }
-  val scale = remember(valueRange, step, majorEvery, neutralValue) { FluidRulerScale(valueRange, step, majorEvery, neutralValue) }
-  val driver = remember(scope) { FluidRulerDriver(scope, scale.stepsOf(value)) }
-  SideEffect { driver.update(scale, value, onValueChange, onValueChangeFinished, spacingPx, reducedMotion, haptics, isLtr) }
-  LaunchedEffect(driver, value, scale) { driver.follow(value) }
+  // Il valore di partenza si legge senza farsi osservare: una lettura qui, anche dentro `remember`, ricomporrebbe la
+  // ghiera a ogni valore.
+  val driver = remember(scope) {
+    FluidRulerDriver(scope, scale.stepsOf(Snapshot.withoutReadObservation { value.value() }))
+  }
+  SideEffect {
+    driver.update(scale, value, onValueChange, onFinished, spacingPx, reducedMotion, haptics, isLtr)
+    FluidRulerDialDiagnostics.compositions++
+  }
+  // Un valore cambiato da fuori porta il righello (con una molla): si segue con un flusso, senza ricomporre.
+  LaunchedEffect(driver, scale) { snapshotFlow { value.value() }.collect { driver.follow(it) } }
 
   val ink = scheme.onSurface
   val accent = scheme.primary
@@ -195,34 +265,24 @@ fun FluidRulerDial(
     modifier
       .alpha(if (enabled) 1f else 0.5f)
       .fillMaxWidth()
-      .semantics {
-        contentDescription?.let { this.contentDescription = it }
-        valueText?.let { stateDescription = it(scale.quantize(value)) }
-        progressBarRangeInfo = ProgressBarRangeInfo(
-          current = value.coerceIn(scale.start, scale.end),
-          range = scale.start..scale.end,
-          steps = if (scale.ticks in 2..1000) scale.ticks - 1 else 0,
-        )
-        if (enabled) {
-          setProgress { target -> driver.set(target) }
-          customActions = listOf(
-            CustomAccessibilityAction(labels.increase) { driver.nudge(1) },
-            CustomAccessibilityAction(labels.decrease) { driver.nudge(-1) },
-          )
-        } else {
-          disabled()
-        }
-      }
+      .then(
+        RulerSemanticsElement(
+          value = value, valueText = valueText, scale = scale, driver = driver, description = contentDescription,
+          enabled = enabled, increase = labels.increase, decrease = labels.decrease,
+        ),
+      )
       .then(if (enabled) Modifier.rulerGesture(driver) else Modifier),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.spacedBy(FluidRulerLook.LabelGap),
   ) {
-    if (valueText != null) {
+    if (hasText) {
       RulerLabel(driver, scale, valueText, accent, scheme.onSurfaceVariant)
     }
     Box(Modifier.fillMaxWidth().height(FluidRulerLook.NeedleHeight)) {
-      // Le tacche restano nitide anche durante l'inerzia: la ghiera la muove il dito (F8.2b).
+      // Le tacche restano nitide anche durante l'inerzia: la ghiera la muove il dito (F8.2b). La posizione si legge qui,
+      // nel disegno: muovere il righello ridisegna le tacche e basta.
       Canvas(Modifier.matchParentSize()) {
+        FluidRulerDialDiagnostics.tickDraws++
         val position = driver.position
         val w = size.width
         val cx = w / 2f
@@ -260,12 +320,15 @@ fun FluidRulerDial(
 private fun RulerLabel(
   driver: FluidRulerDriver,
   scale: FluidRulerScale,
-  valueText: (Float) -> String,
+  valueText: State<((Float) -> String)?>,
   accent: Color,
   neutralInk: Color,
 ) {
-  val text by remember(driver, scale, valueText) { derivedStateOf { valueText(scale.valueOf(fluidDetentRound(driver.position))) } }
+  val text by remember(driver, scale) {
+    derivedStateOf { valueText.value?.invoke(scale.valueOf(fluidDetentRound(driver.position))).orEmpty() }
+  }
   val atNeutral by remember(driver, scale) { derivedStateOf { scale.isNeutral(fluidDetentRound(driver.position).roundToInt()) } }
+  SideEffect { FluidRulerDialDiagnostics.labelCompositions++ }
   Box(Modifier.fillMaxWidth().clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
     Text(
       text = text,
@@ -273,6 +336,98 @@ private fun RulerLabel(
       color = if (atNeutral) neutralInk else accent,
       textAlign = TextAlign.Center,
     )
+  }
+}
+
+/**
+ * La semantica della ghiera senza ricomporre (F8.15c): un nodo che osserva il valore (la tacca) e si invalida da solo
+ * quando la tacca cambia, invece di un blocco `semantics { }` ricreato dalla composizione a ogni valore. TalkBack legge
+ * il valore scritto, la posizione nell'intervallo, «imposta», «aumenta» e «diminuisci».
+ */
+private data class RulerSemanticsElement(
+  val value: State<() -> Float>,
+  val valueText: State<((Float) -> String)?>,
+  val scale: FluidRulerScale,
+  val driver: FluidRulerDriver,
+  val description: String?,
+  val enabled: Boolean,
+  val increase: String,
+  val decrease: String,
+) : ModifierNodeElement<RulerSemanticsNode>() {
+  override fun create() = RulerSemanticsNode(this)
+
+  override fun update(node: RulerSemanticsNode) {
+    node.element = this
+    node.watch()
+    node.invalidateSemantics()
+  }
+
+  override fun InspectorInfo.inspectableProperties() {
+    name = "fluidRulerSemantics"
+  }
+}
+
+private class RulerSemanticsNode(var element: RulerSemanticsElement) :
+  Modifier.Node(), SemanticsModifierNode, ObserverModifierNode {
+  private var shown = Float.NaN
+
+  override fun onAttach() = watch()
+
+  fun watch() {
+    observeReads { shown = element.scale.quantize(element.value.value()) }
+  }
+
+  override fun onObservedReadsChanged() {
+    val before = shown
+    watch()
+    if (shown != before) invalidateSemantics()
+  }
+
+  override fun SemanticsPropertyReceiver.applySemantics() {
+    val e = element
+    val s = e.scale
+    val v = e.value.value()
+    e.description?.let { contentDescription = it }
+    e.valueText.value?.let { stateDescription = it(s.quantize(v)) }
+    progressBarRangeInfo = ProgressBarRangeInfo(
+      current = v.coerceIn(s.start, s.end),
+      range = s.start..s.end,
+      steps = if (s.ticks in 2..1000) s.ticks - 1 else 0,
+    )
+    if (e.enabled) {
+      setProgress { target -> e.driver.set(target) }
+      customActions = listOf(
+        CustomAccessibilityAction(e.increase) { e.driver.nudge(1) },
+        CustomAccessibilityAction(e.decrease) { e.driver.nudge(-1) },
+      )
+    } else {
+      disabled()
+    }
+  }
+}
+
+/**
+ * I contatori delle prove della ghiera (F8.15c): **non sono API per le app**, come `FluidChartDiagnostics`. Contano
+ * sempre (un intero in piu' per composizione o disegno); le prove li azzerano con [resetForTesting] e guardano quanto
+ * crescono mentre il dito muove il righello.
+ */
+object FluidRulerDialDiagnostics {
+  /** Le composizioni del corpo della ghiera: non devono crescere a ogni valore. */
+  var compositions: Int = 0
+    internal set
+
+  /** Le composizioni della scritta sopra l'indice: una per scritta nuova, non per fotogramma. */
+  var labelCompositions: Int = 0
+    internal set
+
+  /** I disegni delle tacche: uno per fotogramma in cui il righello si muove. */
+  var tickDraws: Int = 0
+    internal set
+
+  fun resetForTesting() {
+    compositions = 0
+    labelCompositions = 0
+    tickDraws = 0
   }
 }
 
@@ -345,9 +500,13 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
     private set
 
   private var scale: FluidRulerScale? = null
-  private var value = 0f
-  private var onValueChange: (Float) -> Unit = {}
-  private var onFinished: (() -> Unit)? = null
+  private var valueState: State<() -> Float>? = null
+  private var changeState: State<(Float) -> Unit>? = null
+  private var finishedState: State<(() -> Unit)?>? = null
+  /** Il valore del chiamante adesso (letto fuori dalla composizione: nel gesto, nell'inerzia, nella semantica). */
+  private val value: Float get() = valueState?.value?.invoke() ?: 0f
+  private fun onValueChange(v: Float) = changeState?.value?.invoke(v)
+  private val onFinished: (() -> Unit)? get() = finishedState?.value
   var spacingPx: Float = 0f
     private set
   private var reducedMotion = false
@@ -370,18 +529,18 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
 
   fun update(
     scale: FluidRulerScale,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    onFinished: (() -> Unit)?,
+    value: State<() -> Float>,
+    onValueChange: State<(Float) -> Unit>,
+    onFinished: State<(() -> Unit)?>,
     spacingPx: Float,
     reducedMotion: Boolean,
     haptics: FluidHaptics,
     isLtr: Boolean,
   ) {
     this.scale = scale
-    this.value = value
-    this.onValueChange = onValueChange
-    this.onFinished = onFinished
+    this.valueState = value
+    this.changeState = onValueChange
+    this.finishedState = onFinished
     this.spacingPx = spacingPx
     this.reducedMotion = reducedMotion
     this.haptics = haptics

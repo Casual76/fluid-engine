@@ -405,10 +405,9 @@ private fun EditorPhotoLabel(state: FluidImageEditorState, strings: FluidImageEd
 /** Il righello di «Raddrizza»: ±45°, il neutro attira, la cornice resta dentro la foto. */
 @Composable
 private fun EditorStraighten(state: FluidImageEditorState, strings: FluidImageEditorStrings, modifier: Modifier) {
-  // Solo l'angolo: spostare o pizzicare la foto non ricompone il righello (F8.15b).
-  val angle by remember(state) { derivedStateOf { state.edit.geometry.angle } }
+  // L'angolo come lambda (F8.15c): ne' spostare la foto ne' girare il righello ricompongono questa parte.
   FluidRulerDial(
-    value = angle,
+    value = { state.edit.geometry.angle },
     onValueChange = { v ->
       if (!state.interacting) state.beginGesture()
       state.setStraighten(v)

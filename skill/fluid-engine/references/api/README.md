@@ -12,7 +12,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Condivisione: foglio, copia preparata, immagine, PDF e stampa](condivisione.md) | 13 | 165 |
-| [Controlli](controlli.md) | 28 | 341 |
+| [Controlli](controlli.md) | 28 | 347 |
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 18 | 122 |
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |

@@ -263,9 +263,9 @@ internal fun EditorAdjustRuler(state: FluidImageEditorState, strings: FluidImage
   val a = state.selected
   Box(modifier.fillMaxWidth().height(EditorChromeLook.RulerHeight), contentAlignment = Alignment.BottomCenter) {
     if (a == null) return@Box
-    val value by remember(state, a) { derivedStateOf { state.edit.adjustments[a] } }
+    // F8.15c: il valore come lambda, letto dalla ghiera solo dove serve: mentre il righello gira non si ricompone niente.
     FluidRulerDial(
-      value = value,
+      value = { state.edit.adjustments[a] },
       onValueChange = { v ->
         if (!state.interacting) state.beginGesture()
         state.setAdjustment(a, v)
@@ -277,9 +277,7 @@ internal fun EditorAdjustRuler(state: FluidImageEditorState, strings: FluidImage
       onValueChangeFinished = { state.endGesture() },
       valueText = null,
       contentDescription = strings.adjustmentName(a),
-      modifier = Modifier.testTag(FluidImageEditorTags.Ruler).semantics {
-        stateDescription = value.roundToInt().toString()
-      },
+      modifier = Modifier.testTag(FluidImageEditorTags.Ruler),
     )
   }
 }

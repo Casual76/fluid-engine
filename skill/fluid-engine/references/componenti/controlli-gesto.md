@@ -624,6 +624,8 @@ FluidRulerDial(
   valueText: ((Float) -> String)? = …,                       // di serie «−12», «2,5»
   contentDescription: String? = null,
 )
+// F8.15c: la stessa ghiera col valore come lambda, letto solo dove serve (effetti, disegno, semantica)
+FluidRulerDial(value = { stato.valore }, onValueChange = { stato.valore = it }, …)
 ```
 
 **Comportamento.**
@@ -640,6 +642,14 @@ FluidRulerDial(
   mostrano il valore (`FluidNumericText`) cambiano di colpo per tutta l'inerzia e col doppio tocco (F8.1b).
 - **L'aptica**: `DragTick` per tacca a dito veloce, `Tick` per tacca lenta e per ogni principale, `Threshold` sul neutro e
   alle estremità, con la rete dei 55 ms.
+- **Non si ricompone a ogni valore** (F8.15c, dal tablet: il righello dell'esposizione dell'editor dava il 16% di
+  fotogrammi in ritardo). Il corpo della ghiera legge il valore solo negli effetti, nel disegno delle tacche e nella
+  semantica (un nodo che si invalida quando cambia la tacca); si ricompone da sola la scritta sopra l'indice, quando
+  cambia la scritta. Con la forma `value: Float` si ricompone solo un adattatore sottile; con la forma
+  `value: () -> Float` non si ricompone niente, nemmeno il chiamante: è quella da usare quando il valore cambia a ogni
+  fotogramma. Chi scrive un controllo simile: anche una lettura dentro `remember { }` in composizione è osservata e fa
+  ricomporre (il valore di partenza si legge con `Snapshot.withoutReadObservation`). `FluidRulerDialDiagnostics`
+  (contatori per le prove, non API per le app) conta le composizioni del corpo e della scritta.
 - **Il valore è del chiamante**: `onValueChange` arriva durante il gesto e l'inerzia, già al passo; `onValueChangeFinished`
   quando si ferma (un tocco da solo non lo chiama): ~0,13 s dopo che sembra ferma, perché l'ultimo pixel lo chiude la
   molla come nella ruota (F8.2c). Il valore scritto si ricompone solo quando cambia la scritta.

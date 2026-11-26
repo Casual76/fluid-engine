@@ -334,6 +334,12 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-ui/ui/fluid/FluidRulerDial.kt`
 
 - `@Composable fun FluidRulerDial(value: Float, onValueChange: (Float) -> Unit, modifier: Modifier = Modifier, valueRange: ClosedFloatingPointRange<Float> = -45f..45f, step: Float = 1f, majorEvery: Int = 10, neutralValue: Float? = 0f, enabled: Boolean = true, onValueChangeFinished: (() -> Unit)? = null, valueText: ((Float) -> String)? = { fluidRulerDefaultText(it) }, contentDescription: String? = null)` — La ghiera a righello: un righello di tacche fitte che scorre di lato sotto un indice fermo, per regolare un valore fine (i gradi per raddrizzare una foto, lo zoom, la velocita', una calibrazione). A differenza del cursore non ha un inizio e una fine in vista, e il dito non copre il valore: il valore e' scritto sopra l'indice.
+- `@Composable fun FluidRulerDial(value: () -> Float, onValueChange: (Float) -> Unit, modifier: Modifier = Modifier, valueRange: ClosedFloatingPointRange<Float> = -45f..45f, step: Float = 1f, majorEvery: Int = 10, neutralValue: Float? = 0f, enabled: Boolean = true, onValueChangeFinished: (() -> Unit)? = null, valueText: ((Float) -> String)? = { fluidRulerDefaultText(it) }, contentDescription: String? = null)` — La ghiera col valore letto da [value] solo dove serve (F8.15c): chi la usa non legge il valore in composizione, e mentre il dito la muove **non si ricompone niente**, ne' il chiamante ne' la ghiera. Cambiano il disegno delle tacche, la scritta sopra l'indice (che si ricompone da sola, quando cambia la scritta) e la semantica (quando cambia la tacca).
+- `object FluidRulerDialDiagnostics` — I contatori delle prove della ghiera (F8.15c): **non sono API per le app**, come `FluidChartDiagnostics`. Contano sempre (un intero in piu' per composizione o disegno); le prove li azzerano con [resetForTesting] e guardano quanto crescono mentre il dito muove il righello.
+  - `var compositions: Int` — Le composizioni del corpo della ghiera: non devono crescere a ogni valore.
+  - `var labelCompositions: Int` — Le composizioni della scritta sopra l'indice: una per scritta nuova, non per fotogramma.
+  - `var tickDraws: Int` — I disegni delle tacche: uno per fotogramma in cui il righello si muove.
+  - `fun resetForTesting()`
 
 ## `engine-ui/ui/fluid/FluidScrubber.kt`
 

@@ -337,7 +337,15 @@ internal fun ScanCameraScreen(
 private fun ScanControl(label: String, button: @Composable () -> Unit) {
   Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
     button()
-    Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium, modifier = Modifier.clearAndSetSemantics {})
+    // F8.17d: l'ombra sotto l'etichetta bianca, perché si legga anche sopra un foglio chiaro che riempie l'inquadratura
+    // (sul Tab S9 «Filtri» e «Automatico» sparivano sul foglio velato): nera al 55%, 1 dp in basso, sfumata di 4 dp. A
+    // occhio, come l'ombra corta del testo sopra le foto in iOS.
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val shadow = remember(density) {
+      with(density) { androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1.dp.toPx()), 4.dp.toPx()) }
+    }
+    Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium.copy(shadow = shadow),
+      modifier = Modifier.clearAndSetSemantics {})
   }
 }
 

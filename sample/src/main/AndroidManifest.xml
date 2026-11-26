@@ -103,6 +103,39 @@
         <data android:scheme="fluidglass" />
       </intent-filter>
     </activity>
+    <!--
+      F8.25 · La vetrina dei widget (engine-widget): due widget di prova (Glance) da aggiungere alla Home con
+      requestPinAppWidget, e un riquadro delle Impostazioni rapide da proporre (requestAddTileService, Android 13). Non
+      esportati se non dove Android lo chiede (il launcher e la barra di stato li legano col loro permesso).
+    -->
+    <receiver
+        android:name=".novita.F8p25AgendaWidgetReceiver"
+        android:label="@string/f8p25_agenda_label"
+        android:exported="false">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/f8p25_widget_agenda" />
+    </receiver>
+    <receiver
+        android:name=".novita.F8p25AbsencesWidgetReceiver"
+        android:label="@string/f8p25_absences_label"
+        android:exported="false">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/f8p25_widget_absences" />
+    </receiver>
+    <service
+        android:name=".novita.F8p25QuickTileService"
+        android:label="@string/f8p25_quick_tile_label"
+        android:icon="@drawable/f8p25_quick_tile"
+        android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+        android:exported="true">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+    </service>
     <!-- Le pagine della 3.0: il back predittivo deve arrivare all'host, quindi acceso qui. -->
     <activity
         android:name=".PagesDemoActivity"

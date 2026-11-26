@@ -225,7 +225,10 @@ internal object TesseractHost {
   fun available(context: Context, languages: String): Boolean {
     if (broken != null) return false
     return try {
-      Class.forName("org.bytedeco.tesseract.TessBaseAPI")
+      // Solo che la classe ci sia, **senza inizializzarla** (F8.17d): l'inizializzazione di TessBaseAPI carica le
+      // librerie native (14 MB sul telefono), e si fa nel filo di Tesseract alla prima lettura (engine). Dove le librerie
+      // non ci sono (le prove della galleria sul PC) JavaCPP le cercava per un minuto, e qui era il filo principale.
+      Class.forName("org.bytedeco.tesseract.TessBaseAPI", false, TesseractHost::class.java.classLoader)
       languages.split('+').all { lang -> hasModel(context, lang) }
     } catch (_: Throwable) {
       false

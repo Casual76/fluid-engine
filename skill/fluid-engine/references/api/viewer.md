@@ -92,10 +92,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `var strings: FluidLiveTextStrings` — Le parole.
   - `var lastError: Throwable?` — L'ultimo errore di una lettura (la foto che non si apre, il riconoscimento che manca), per i log dell'app.
   - `var enabled: Boolean` — Falso per spegnere «Leggi testo» in tutta l'app senza togliere il modulo.
+  - `var straightenSheets: Boolean` — «Scansiona, poi leggi» (F8.17d): in una foto storta di un foglio si legge la pagina raddrizzata e le righe tornano sulla foto. Di serie acceso; falso per leggere sempre la foto intera.
   - `const val SettleMillis: Long` — Quanto aspetta la pagina ferma prima di leggere: 450 ms. A occhio (25/11/2026): chi sfoglia di corsa non paga letture, chi si ferma a guardare trova il tasto entro un secondo, come Foto.
   - `fun cached(key: String): FluidRecognizedText?` — Il risultato già letto per [key], o `null`.
   - `fun clearCache()` — Dimentica i risultati (le prove, un file cambiato).
-  - `suspend fun read(context: Context, key: String, load: suspend () -> Bitmap?): FluidRecognizedText?` — Legge [load] per [key] (una lettura alla volta in tutto il processo: Tesseract è uno), o restituisce quella già fatta. [load] dà la bitmap, che qui si ricicla dopo la lettura.
+  - `suspend fun read(context: Context, key: String, findSheet: Boolean = false, load: suspend () -> Bitmap?): FluidRecognizedText?` — Legge [load] per [key] (una lettura alla volta in tutto il processo: Tesseract è uno), o restituisce quella già fatta. [load] dà la bitmap, che qui si ricicla dopo la lettura. Con [findSheet] (una foto, non una pagina di un documento) e [straightenSheets], un foglio storto nella foto si legge raddrizzato.
   - `fun remember(key: String, text: FluidRecognizedText)` — Mette in memoria un risultato già noto (le prove, un'app che ha letto da sé).
 - `value class FluidLiveTextStatus private constructor(private val id: Int)` — A che punto è la lettura di una pagina. Non è un `enum` di proposito (regola 3.11).
   - `companion object`
@@ -150,6 +151,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val bounds: Rect get()` — Il rettangolo che lo contiene.
   - `fun rotated(quarterTurns: Int): FluidTextQuad` — Lo stesso quadrilatero girato di [quarterTurns] quarti in senso orario, come l'immagine che lo contiene.
   - `fun contains(p: Offset, slop: Float = 0f): Boolean` — Vero se il punto [p] (0..1) sta dentro, con [slop] di margine in coordinate 0..1.
+  - `val isUpright: Boolean get()` — Vero se è un rettangolo dritto (i lati sugli assi), come le righe di una schermata o di una pagina dritta.
+  - `fun distanceTo(p: Offset): Float` — La distanza del punto [p] dal quadrilatero (0 se ci sta dentro), in coordinate 0..1: col quadrilatero storto di una riga in una foto storta conta la riga vera, non il rettangolo che la contiene (F8.17d).
+  - `fun between(first: FluidTextQuad, last: FluidTextQuad): FluidTextQuad` — Il pezzo di questa riga dall'inizio della parola [first] alla fine della parola [last] (due quadrilateri dentro la riga), alto quanto la riga: è la selezione di una riga, dritta o storta come la riga.
   - `companion object`
     - `fun of(rect: Rect): FluidTextQuad` — Un rettangolo dritto.
     - `fun span(first: FluidTextQuad, last: FluidTextQuad): FluidTextQuad` — L'unione di più quadrilateri della stessa riga: dal primo angolo sinistro all'ultimo destro.

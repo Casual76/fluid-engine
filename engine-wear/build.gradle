@@ -22,6 +22,9 @@ android {
   testOptions {
     unitTests {
       returnDefaultValues = true
+      // F8.25: le Tile e le complicazioni si provano in Robolectric (il layout di ProtoLayout, i dati delle complicazioni,
+      // e la Tile disegnata dal renderer di Wear OS in una bitmap).
+      includeAndroidResources = true
     }
   }
 
@@ -47,5 +50,20 @@ dependencies {
   api "androidx.wear.compose:compose-foundation:${engine.wearCompose}"
   api "androidx.wear:wear:${engine.wear}"
 
+  // F8.25 · Le Tile e le complicazioni nello stile Fluid (Apache-2.0), e il ponte col telefono per mostrare uno stato ad
+  // app chiusa (engine-wear-sync, senza librerie: il Data Layer lo porta l'app). Tiles chiede compileSdk 35 e AGP 8.6.
+  api project(':engine-wear-sync')
+  api "androidx.wear.tiles:tiles:${engine.wearTiles}"
+  api "androidx.wear.protolayout:protolayout:${engine.protolayout}"
+  api "androidx.wear.protolayout:protolayout-expression:${engine.protolayout}"
+  api "androidx.wear.protolayout:protolayout-material3:${engine.protolayout}"
+  api "androidx.wear.watchface:watchface-complications-data-source-ktx:${engine.watchface}"
+
   testImplementation "junit:junit:${engine.junit}"
+  // F8.25: solo nelle prove. Il renderer e' quello che il sistema dell'orologio usa per disegnare una Tile.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+  testImplementation "androidx.wear.tiles:tiles-renderer:${engine.wearTiles}"
+  testImplementation "androidx.wear.tiles:tiles-testing:${engine.wearTiles}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
 }

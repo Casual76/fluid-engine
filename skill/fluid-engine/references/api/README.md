@@ -29,12 +29,13 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-net](net.md) | 4 | 32 |
 | [engine-config](config.md) | 1 | 10 |
 | [engine-update](update.md) | 2 | 14 |
-| [engine-widget](widget.md) | 4 | 41 |
-| [engine-wear](wear.md) | 17 | 87 |
+| [engine-widget](widget.md) | 8 | 103 |
+| [engine-wear](wear.md) | 21 | 115 |
+| [engine-wear-sync](wear-sync.md) | 8 | 90 |
 | [engine-richtext](richtext.md) | 9 | 104 |
 | [engine-vault](vault.md) | 10 | 125 |
 | [engine-security](security.md) | 7 | 78 |
-| [engine-viewer](viewer.md) | 40 | 310 |
+| [engine-viewer](viewer.md) | 40 | 314 |
 | [engine-sync](sync.md) | 13 | 162 |
 | [engine-revisions](revisions.md) | 2 | 18 |
 | [engine-auth](auth.md) | 9 | 52 |
@@ -57,7 +58,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-transcript](transcript.md) | 2 | 27 |
 | [engine-search](search.md) | 8 | 152 |
 | [engine-search-semantic](search-semantic.md) | 2 | 9 |
-| [engine-scan](scan.md) | 11 | 123 |
+| [engine-scan e engine-scan-core](scan.md) | 11 | 129 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

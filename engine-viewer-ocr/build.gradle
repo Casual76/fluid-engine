@@ -40,6 +40,9 @@ android {
 
 dependencies {
   api project(':engine-viewer')
+  // F8.17d, «scansiona, poi leggi»: in una foto storta di un foglio si legge la pagina raddrizzata. I bordi e la
+  // prospettiva sono quelli dello scanner, dal suo nucleo senza fotocamera (nessuna libreria, nessun manifesto).
+  implementation project(':engine-scan-core')
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
   implementation "org.bytedeco:tesseract:${engine.tesseract}"
   implementation "org.bytedeco:leptonica:${engine.leptonica}"
@@ -51,8 +54,6 @@ dependencies {
   }
 
   testImplementation "junit:junit:${engine.junit}"
-  // Solo nelle prove: la foto storta passata dallo scanner prima della lettura (la strada di Pampa Notes).
-  testImplementation project(':engine-scan')
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
   testImplementation "org.robolectric:robolectric:${engine.robolectric}"
   testImplementation 'androidx.compose.ui:ui-test-junit4'

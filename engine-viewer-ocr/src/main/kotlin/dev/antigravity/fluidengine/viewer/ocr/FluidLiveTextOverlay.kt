@@ -165,73 +165,107 @@ private fun DrawScope.drawLiveText(state: FluidLiveTextState, text: FluidRecogni
   if (veil > 0f) {
     // Il velo di Testo attivo: tutto si scurisce, le righe restano chiare con un contorno bianco leggero.
     drawRect(Color.Black.copy(alpha = VeilAlpha * veil))
+    val stroke = Stroke(1.dp.toPx() / scale)
     for (line in text.lines) {
-      val r = line.quad.bounds.scaled(size).inflate(pad)
-      drawRoundRect(Color.Black, r.topLeft, r.size, radius, blendMode = BlendMode.Clear)
-      drawRoundRect(Color.White.copy(alpha = 0.10f * veil), r.topLeft, r.size, radius)
-      drawRoundRect(Color.White.copy(alpha = 0.75f * veil), r.topLeft, r.size, radius, style = Stroke(1.dp.toPx() / scale))
+      val q = line.quad.scaled(size)
+      drawQuad(q, Color.Black, radius, pad, blendMode = BlendMode.Clear)
+      drawQuad(q, Color.White.copy(alpha = 0.10f * veil), radius, pad)
+      drawQuad(q, Color.White.copy(alpha = 0.75f * veil), radius, pad, stroke)
     }
   }
   val matches = state.matches
   matches.forEachIndexed { i, m ->
     val color = if (i == state.current.coerceIn(0, max(0, matches.lastIndex))) MatchCurrent else MatchOther
-    for (r in spanRects(text, m.first, m.last, size)) drawRoundRect(color.copy(alpha = 0.5f), r.topLeft, r.size, radius)
+    for (q in spanQuads(text, m.first, m.last)) drawQuad(q.scaled(size), color.copy(alpha = 0.5f), radius, 0f)
   }
   val selection = state.selection ?: return
-  val rects = spanRects(text, selection.first, selection.last, size)
-  for (r in rects) drawRoundRect(accent.copy(alpha = 0.32f), r.topLeft, r.size, radius)
-  // Le maniglie di iOS: una sbarra con un pallino, all'inizio in alto e alla fine in basso.
-  val first = rects.firstOrNull() ?: return
-  val last = rects.last()
+  val quads = spanQuads(text, selection.first, selection.last).map { it.scaled(size) }
+  for (q in quads) drawQuad(q, accent.copy(alpha = 0.32f), radius, 0f)
+  // Le maniglie di iOS: una sbarra con un pallino, all'inizio in alto e alla fine in basso, lungo il lato della riga
+  // (storto, se la riga è storta in una foto).
+  val first = quads.firstOrNull() ?: return
+  val last = quads.last()
   val bar = 2.dp.toPx() / scale
   val dot = 5.dp.toPx() / scale
-  drawRect(accent, Offset(first.left - bar / 2, first.top), Size(bar, first.height))
-  drawCircle(accent, dot, Offset(first.left, first.top - dot))
-  drawRect(accent, Offset(last.right - bar / 2, last.top), Size(bar, last.height))
-  drawCircle(accent, dot, Offset(last.right, last.bottom + dot))
+  drawLine(accent, first.topLeft, first.bottomLeft, bar)
+  drawCircle(accent, dot, first.topLeft + (first.topLeft - first.bottomLeft).unit() * dot)
+  drawLine(accent, last.topRight, last.bottomRight, bar)
+  drawCircle(accent, dot, last.bottomRight + (last.bottomRight - last.topRight).unit() * dot)
 }
 
-/** I rettangoli (pixel del riquadro) delle parole da [from] a [to]: uno per riga toccata, come la selezione di iOS. */
-internal fun spanRects(text: FluidRecognizedText, from: Int, to: Int, size: Size): List<Rect> {
+/**
+ * Un quadrilatero (pixel) allargato di [pad]: un rettangolo arrotondato se è dritto (le schermate, le pagine), se no il
+ * poligono storto della riga in una foto (F8.17d).
+ */
+private fun DrawScope.drawQuad(
+  q: FluidTextQuad,
+  color: Color,
+  radius: CornerRadius,
+  pad: Float,
+  style: androidx.compose.ui.graphics.drawscope.DrawStyle = androidx.compose.ui.graphics.drawscope.Fill,
+  blendMode: BlendMode = BlendMode.SrcOver,
+) {
+  if (q.isUpright) {
+    val r = q.bounds.inflate(pad)
+    drawRoundRect(color, r.topLeft, r.size, radius, style = style, blendMode = blendMode)
+    return
+  }
+  val c = Offset((q.topLeft.x + q.topRight.x + q.bottomRight.x + q.bottomLeft.x) / 4f,
+    (q.topLeft.y + q.topRight.y + q.bottomRight.y + q.bottomLeft.y) / 4f)
+  fun out(p: Offset) = p + (p - c).unit() * (pad * 1.41f)
+  val path = Path().apply {
+    val a = out(q.topLeft)
+    moveTo(a.x, a.y)
+    for (p in listOf(q.topRight, q.bottomRight, q.bottomLeft)) out(p).let { lineTo(it.x, it.y) }
+    close()
+  }
+  drawPath(path, color, style = style, blendMode = blendMode)
+}
+
+/**
+ * I quadrilateri (0..1) delle parole da [from] a [to]: uno per riga toccata, come la selezione di iOS. Ognuno è il pezzo
+ * della sua riga dall'inizio della prima parola alla fine dell'ultima, alto quanto la riga: dritto in una schermata,
+ * storto come la riga in una foto storta.
+ */
+internal fun spanQuads(text: FluidRecognizedText, from: Int, to: Int): List<FluidTextQuad> {
   if (text.words.isEmpty()) return emptyList()
   val a = minOf(from, to).coerceIn(0, text.words.lastIndex)
   val b = maxOf(from, to).coerceIn(0, text.words.lastIndex)
-  val out = ArrayList<Rect>()
+  val out = ArrayList<FluidTextQuad>()
   var i = a
   while (i <= b) {
     val line = text.lineOfWord[i]
     var j = i
     while (j + 1 <= b && text.lineOfWord[j + 1] == line) j++
-    val r1 = text.words[i].quad.bounds
-    val r2 = text.words[j].quad.bounds
-    out += Rect(r1.left, minOf(r1.top, r2.top), r2.right, maxOf(r1.bottom, r2.bottom)).scaled(size)
+    out += text.lines[line].quad.between(text.words[i].quad, text.words[j].quad)
     i = j + 1
   }
   return out
 }
+
+/** I rettangoli (pixel del riquadro) dei pezzi di [spanQuads]: per il menu e per «Trova» dei PDF. */
+internal fun spanRects(text: FluidRecognizedText, from: Int, to: Int, size: Size): List<Rect> =
+  spanQuads(text, from, to).map { it.scaled(size).bounds }
 
 /** La parola sotto [p] (0..1), o la più vicina entro [slop]; `null` se non ce n'è. */
 internal fun wordAt(text: FluidRecognizedText, p: Offset, slop: Float): Int? {
   var best: Int? = null
   var bestDistance = Float.MAX_VALUE
   text.words.forEachIndexed { i, w ->
-    val b = w.quad.bounds
-    val dx = max(0f, max(b.left - p.x, p.x - b.right))
-    val dy = max(0f, max(b.top - p.y, p.y - b.bottom))
-    val d = dx * dx + dy * dy
+    val d = w.quad.distanceTo(p)
     if (d < bestDistance) { bestDistance = d; best = i }
   }
-  return best?.takeIf { bestDistance <= slop * slop }
+  return best?.takeIf { bestDistance <= slop }
 }
 
 /** Quale capo della selezione sta sotto [position] (pixel): restituisce l'**altro** capo, quello che resta fermo. */
 private fun handleAt(state: FluidLiveTextState, text: FluidRecognizedText, position: Offset, size: Size, slop: Float): Int? {
   val s = state.selection ?: return null
-  val rects = spanRects(text, s.first, s.last, size)
-  val first = rects.firstOrNull() ?: return null
-  val last = rects.last()
-  val start = Offset(first.left, first.center.y)
-  val end = Offset(last.right, last.center.y)
+  val quads = spanQuads(text, s.first, s.last)
+  val first = quads.firstOrNull()?.scaled(size) ?: return null
+  val last = quads.last().scaled(size)
+  val start = (first.topLeft + first.bottomLeft) / 2f
+  val end = (last.topRight + last.bottomRight) / 2f
   val a = minOf(s.first, s.last)
   val b = maxOf(s.first, s.last)
   return when {
@@ -336,6 +370,18 @@ internal fun share(context: Context, text: String) {
 }
 
 private fun Rect.scaled(size: Size) = Rect(left * size.width, top * size.height, right * size.width, bottom * size.height)
+
+/** Il quadrilatero in pixel di un riquadro [size]. */
+private fun FluidTextQuad.scaled(size: Size): FluidTextQuad {
+  fun s(p: Offset) = Offset(p.x * size.width, p.y * size.height)
+  return FluidTextQuad(s(topLeft), s(topRight), s(bottomRight), s(bottomLeft))
+}
+
+/** La direzione di questo vettore, lunga 1 (zero se è zero). */
+private fun Offset.unit(): Offset {
+  val d = getDistance()
+  return if (d > 0f) this / d else Offset.Zero
+}
 
 /** Il velo di Testo attivo: nero al 45%. A occhio, sulle schermate di Foto in iOS 26 (fiducia media). */
 private const val VeilAlpha = 0.45f

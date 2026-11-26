@@ -1,7 +1,7 @@
 /*
- * engine-scan (4.0, F8.17): il riconoscimento dei bordi del foglio, scritto qui (niente OpenCV, che peserebbe decine
- * di MB). Due strade che si confrontano con lo stesso voto: le rette dei bordi (Hough sui bordi di Canny) e la macchia
- * chiara del foglio (soglia di Otsu). Codice del Fluid Engine.
+ * engine-scan-core (4.0, F8.17; il nucleo senza fotocamera da F8.17d): il riconoscimento dei bordi del foglio, scritto
+ * qui (niente OpenCV, che peserebbe decine di MB). Due strade che si confrontano con lo stesso voto: le rette dei bordi
+ * (Hough sui bordi di Canny) e la macchia chiara del foglio (soglia di Otsu). Codice del Fluid Engine.
  */
 package dev.antigravity.fluidengine.scan
 

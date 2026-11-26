@@ -92,6 +92,7 @@
       "module": "engine-viewer-ocr",
       "family": "ocr",
       "package": "dev.antigravity.fluidengine.viewer.ocr",
+      "requires": ["engine-scan-core"],
       "label": "Testo nelle immagini: «Leggi testo» in foto, schermate e PDF scansiti (Tesseract, sul telefono)",
       "extension": true,
       "weight": "Le librerie native di bytedeco per arm64-v8a e x86_64 (Tesseract, Leptonica, JavaCPP 1.5.14, pronte per le pagine da 16 KB: 14,5 MB e 15,0 MB non compresse) e il modello ita.traineddata (2.701.314 B, 1,28 MB nella voce compressa). Sui telefoni a 32 bit solo DEX e modello, e «Leggi testo» non compare",

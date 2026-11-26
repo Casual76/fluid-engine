@@ -246,6 +246,13 @@ dependencies {
   // F8.17 · Lo scanner di documenti con la fotocamera finta (la galleria non chiede CAMERA) e «Leggi testo», che arriva
   // con engine-viewer-all (la famiglia engine-viewer-ocr).
   implementation project(':engine-scan')
+  // F8.25 · La vetrina dei widget (engine-widget, con due widget Glance della galleria), le Tile e le complicazioni
+  // (engine-wear, solo per disegnarle nella scena: la galleria non e' un'app dell'orologio) e il ponte con la ricevuta
+  // (engine-wear-sync, in memoria). Il renderer delle Tile e' quello del sistema dell'orologio, qui per mostrarle vere.
+  implementation project(':engine-widget')
+  implementation project(':engine-wear')
+  implementation project(':engine-wear-sync')
+  implementation "androidx.wear.tiles:tiles-renderer:${engine.wearTiles}"
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

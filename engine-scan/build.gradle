@@ -43,8 +43,16 @@ android {
 
   testOptions {
     unitTests {
-      // I bordi, i filtri e il PDF si provano sulle bitmap vere di Android (Robolectric, grafica nativa).
+      // Lo scanner e il PDF si provano sulle bitmap vere di Android (Robolectric, grafica nativa).
       includeAndroidResources = true
+    }
+  }
+
+  // F8.17d: le foto di prova dei fogli stanno nel nucleo (engine-scan-core), che prova i bordi; la fotocamera finta
+  // delle prove dello scanner usa le stesse.
+  sourceSets {
+    test {
+      resources.srcDirs += ['../engine-scan-core/src/test/resources']
     }
   }
 }
@@ -52,6 +60,9 @@ android {
 dependencies {
   // `api`: lo scanner parla FluidScanState, i vetri e le parole di engine-ui.
   api project(':engine-ui')
+  // F8.17d: i bordi, la geometria, il raddrizzamento e i filtri stanno nel nucleo senza fotocamera (li usa anche
+  // engine-viewer-ocr). `api`: FluidScanQuad, FluidScanFilter e il resto sono parte dell'API dello scanner.
+  api project(':engine-scan-core')
   implementation "androidx.camera:camera-core:${engine.camerax}"
   implementation "androidx.camera:camera-camera2:${engine.camerax}"
   implementation "androidx.camera:camera-lifecycle:${engine.camerax}"

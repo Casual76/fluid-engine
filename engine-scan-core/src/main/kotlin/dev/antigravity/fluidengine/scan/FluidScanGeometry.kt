@@ -1,7 +1,7 @@
 /*
- * engine-scan (4.0, F8.17): lo scanner di documenti come la scansione di Note e File di iOS (VisionKit,
- * `VNDocumentCameraViewController`). Qui la geometria del foglio: i quattro angoli, l'omografia, le proporzioni vere.
- * Codice del Fluid Engine, senza librerie: niente OpenCV.
+ * engine-scan-core (4.0, F8.17; il nucleo senza fotocamera da F8.17d): lo scanner di documenti come la scansione di Note
+ * e File di iOS (VisionKit, `VNDocumentCameraViewController`). Qui la geometria del foglio: i quattro angoli,
+ * l'omografia, le proporzioni vere. Codice del Fluid Engine, senza librerie: niente OpenCV.
  */
 package dev.antigravity.fluidengine.scan
 
@@ -133,6 +133,23 @@ data class FluidScanQuad(
 
   /** Lo stesso foglio con ogni angolo dentro l'immagine. */
   fun clamped(): FluidScanQuad = FluidScanQuad(topLeft.clamped(), topRight.clamped(), bottomRight.clamped(), bottomLeft.clamped())
+
+  /**
+   * La prospettiva di questo foglio: porta un punto della pagina raddrizzata nella foto (F8.17d). `null` se gli angoli
+   * non fanno un foglio (tre punti in fila).
+   */
+  fun pageMap(): FluidScanPageMap? = FluidScanPageMap.of(this)
+
+  /**
+   * Il foglio rientrato di [fraction] della pagina su ogni lato, **in prospettiva**: il bordo che si toglie è largo uguale
+   * sulla pagina raddrizzata, anche dove la foto lo vede stretto. Lo stesso foglio se la prospettiva non si calcola.
+   */
+  fun inset(fraction: Float): FluidScanQuad {
+    if (fraction <= 0f) return this
+    val map = pageMap() ?: return this
+    val e = fraction.coerceAtMost(0.25f)
+    return FluidScanQuad(map.photoPoint(e, e), map.photoPoint(1f - e, e), map.photoPoint(1f - e, 1f - e), map.photoPoint(e, 1f - e))
+  }
 
   companion object {
     /** Tutta l'immagine: il foglio di serie quando i bordi non si trovano (come VisionKit, che allora scatta tutto). */
@@ -273,6 +290,34 @@ internal class ScanHomography(private val m: DoubleArray) {
         to[2 * i + 1] = p.y.toDouble() * photoHeight
       }
       return of(from, to)
+    }
+  }
+}
+
+/**
+ * La prospettiva di un foglio (F8.17d): porta un punto della pagina raddrizzata nella foto, tutti e due normalizzati
+ * (0..1, l'origine in alto a sinistra). È il raddrizzamento di [FluidScanImages.straighten] al contrario: serve a
+ * riportare sulla foto quello che si trova sulla pagina, come le righe che «Leggi testo» legge sulla pagina raddrizzata
+ * di una foto storta. Le scale delle due immagini non contano: in coordinate normalizzate la prospettiva è la stessa.
+ */
+class FluidScanPageMap private constructor(private val homography: ScanHomography) {
+  /** Il punto della foto sotto il punto ([u], [v]) della pagina. */
+  fun photoPoint(u: Float, v: Float): FluidScanPoint {
+    val p = homography.map(u.toDouble(), v.toDouble())
+    return FluidScanPoint(p[0].toFloat(), p[1].toFloat())
+  }
+
+  companion object {
+    private val UnitSquare = doubleArrayOf(0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0)
+
+    /** La prospettiva del foglio [quad], o `null` se gli angoli non la danno. */
+    fun of(quad: FluidScanQuad): FluidScanPageMap? {
+      val to = DoubleArray(8)
+      quad.points.forEachIndexed { i, p ->
+        to[2 * i] = p.x.toDouble()
+        to[2 * i + 1] = p.y.toDouble()
+      }
+      return ScanHomography.of(UnitSquare, to)?.let(::FluidScanPageMap)
     }
   }
 }

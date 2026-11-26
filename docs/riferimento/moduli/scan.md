@@ -14,6 +14,12 @@ bordi di Canny e la macchia chiara di Otsu, con lo stesso voto), la prospettiva,
 dell'engine**: niente OpenCV (decine di MB), niente ML Kit. **Il modulo non dichiara il permesso `CAMERA`**: lo dichiara
 l'app che usa la fotocamera vera (sotto, «La fotocamera e il permesso»).
 
+**Il nucleo senza fotocamera** (F8.17d) è un modulo a parte, **`engine-scan-core`**: i bordi del foglio in una foto, la
+geometria (gli angoli, la prospettiva, le proporzioni vere), il raddrizzamento e i filtri, nello stesso pacchetto
+`dev.antigravity.fluidengine.scan`. Non ha librerie, manifest né permessi, e **non si chiede da solo**: arriva con
+`engine-scan` (che lo porta con `api`, quindi le classi si usano come prima) e con `engine-viewer-ocr`, che lo usa per
+«scansiona, poi leggi» (sotto, «La prospettiva fuori dallo scanner»).
+
 **L'engine** fa la fotocamera di vetro, il riconoscimento e l'inseguimento del foglio, lo scatto automatico, il
 raddrizzamento, i filtri, la fila delle pagine, il ritaglio e la consegna. **L'app** dice cosa vuole (PDF o immagini, il
 filtro, lo scatto automatico), dove mettere il risultato e cosa farne, e dichiara la fotocamera.
@@ -33,6 +39,7 @@ Catalogo delle firme: [`../api/scan.md`](../api/scan.md) (generato). Il testo ne
 | provare lo scanner senza fotocamera (prove, galleria, un telefono senza) | `FluidStillScanCamera(sheets = listOf({ foto1 }, { foto2 }), table = { tavolo })` |
 | trovare il foglio in una foto già fatta | `FluidScanEdges.detect(bitmap)` → `FluidScanDetection(quad, confidence, aspect)` |
 | raddrizzare e pulire una foto da me | `FluidScanImages.straighten(photo, quad)` e `FluidScanImages.filter(page, FluidScanFilter.Document)` |
+| riportare sulla foto un punto della pagina raddrizzata (le righe lette, un riquadro) | `quad.inset(FluidScanImages.EdgeInset).pageMap()!!.photoPoint(u, v)` |
 | passare il risultato a un'altra app | `result.grantTo(Intent(Intent.ACTION_SEND))`: gli URI col permesso di lettura |
 | le licenze | `FluidScanLicenses` (CameraX) nella pagina «Licenze e crediti» |
 
@@ -145,13 +152,34 @@ Lo scanner chiede il permesso col tasto, quando serve. Il modulo non lo dichiara
   dintorni; «Foto» la foto raddrizzata e basta.
 - **Le misure sulle foto di prova** (`ScanCoreTest`, foto generate da `tools/scan-samples/genera.py`: luce buona e
   cattiva, prospettiva, rotazione, ombra della mano, basso contrasto, scontrino, tavolo vuoto): nel rapporto di F8.17.
+- **Il bordo** (F8.17d): prima di raddrizzare il foglio rientra dello 0,5% della pagina su ogni lato
+  (`FluidScanImages.EdgeInset`, misurato sulla pagina dritta, `FluidScanQuad.inset`). I bordi trovati sbagliano al più
+  dello 0,27% della diagonale e lasciavano un filo di tavolo che il filtro «Documento» faceva nero e tratteggiato (visto
+  sul Tab S9): sulle foto di prova la striscia più scura del bordo passa da 1–74 a 236–255 su 255. Un A4 perde un
+  millimetro per lato; `straighten(…, edgeInset = 0f)` raddrizza gli angoli esatti.
+- **Le etichette** dei comandi tondi (Flash, Filtri, Automatico) hanno un'ombra corta (nera al 55%, 1 dp in basso,
+  sfumata di 4 dp), perché si leggano anche sopra un foglio chiaro che riempie l'inquadratura (F8.17d).
 - **La pagina pulita** ha al più 2400 px sul lato lungo (circa 205 dpi su un A4) e si scrive in JPEG a qualità 85: una
   pagina A4 pesa 300–600 KB. In memoria stanno solo le miniature (480 px).
 
+## La prospettiva fuori dallo scanner (F8.17d)
+
+`FluidScanQuad.pageMap()` dà la prospettiva di un foglio (`FluidScanPageMap`): `photoPoint(u, v)` porta un punto della
+pagina raddrizzata (0..1) nella foto (0..1). È il raddrizzamento al contrario, e serve a riportare sulla foto quello che
+si trova sulla pagina: «Leggi testo» legge la pagina raddrizzata di una foto storta e riporta ogni riga sulla foto,
+storta come il foglio. Va presa sul foglio **rientrato** come lo raddrizza `straighten`:
+
+```kotlin
+val sheet = FluidScanEdges.detect(photo)?.quad ?: return
+val page = FluidScanImages.straighten(photo, sheet)               // rientra di EdgeInset
+val map = sheet.inset(FluidScanImages.EdgeInset).pageMap()!!      // la stessa pagina
+val onPhoto = map.photoPoint(0.5f, 0.5f)                          // il centro della pagina sulla foto
+```
+
 ## Cosa costa
 
-Misurato da F8.17 nella bench della galleria con R8: **935,7 KB di DEX** (il modulo e CameraX core, camera2, lifecycle e
-view), uguali per ogni architettura; nessuna libreria nativa e nessun asset. CameraX 1.6 chiede **compileSdk 36 e AGP
+Misurato da F8.17 nella bench della galleria con R8: **935,7 KB di DEX** (il modulo, il nucleo e CameraX core, camera2,
+lifecycle e view), uguali per ogni architettura; nessuna libreria nativa e nessun asset. CameraX 1.6 chiede **compileSdk 36 e AGP
 8.9.1** all'app ospite e porta **kotlinx-coroutines 1.9.0**.
 
 ## Trappole
@@ -166,10 +194,13 @@ view), uguali per ogni architettura; nessuna libreria nativa e nessun asset. Cam
 
 ## Come si prova
 
-- `ScanCoreTest` (Robolectric, grafica nativa): i bordi sulle foto di prova contro gli angoli veri (entro il 2% della
-  diagonale con la luce buona, il 3,5% con quella cattiva), nessun foglio sul tavolo vuoto, il fotogramma girato dal
-  sensore, le proporzioni vere di un A4 in prospettiva, l'ordine degli angoli, il raddrizzamento, i filtri che tolgono
-  l'ombra, il PDF con la tabella xref giusta, lo scatto automatico una volta per foglio e mai con la mano che trema.
+- `ScanCoreTest` di `engine-scan-core` (Robolectric, grafica nativa): i bordi sulle foto di prova contro gli angoli veri
+  (entro il 2% della diagonale con la luce buona, il 3,5% con quella cattiva), nessun foglio sul tavolo vuoto, il
+  fotogramma girato dal sensore, le proporzioni vere di un A4 in prospettiva, l'ordine degli angoli, il raddrizzamento, i
+  filtri che tolgono l'ombra, la prospettiva della pagina che torna sulla foto (gli angoli e l'incrocio delle
+  diagonali), il bordo della pagina senza il filo del tavolo.
+- `ScanOutputTest` di `engine-scan`: il PDF con la tabella xref giusta, lo scatto automatico una volta per foglio e mai
+  con la mano che trema.
 - `FluidDocumentScannerUiTest` (Robolectric, Compose): due fogli scattati da soli dalla fotocamera finta, la fila
   riordinata **col dito** (tieni premuto e trascina), un angolo ritagliato, il filtro e la rotazione, il PDF consegnato
   per URI; in manuale niente scatti da soli, col movimento ridotto, e le etichette di TalkBack.
@@ -184,10 +215,10 @@ view), uguali per ogni architettura; nessuna libreria nativa e nessun asset. Cam
 | lo scanner, le parole, i tag | `engine-scan/.../scan/FluidDocumentScanner.kt` |
 | la fotocamera di vetro, il volo della pagina | `ScanCameraScreen.kt` |
 | la revisione e la fila | `ScanReviewScreen.kt`; il ritaglio con la lente: `ScanCropScreen.kt` |
-| i bordi | `FluidScanEdges.kt`; la geometria e le proporzioni: `FluidScanGeometry.kt` |
+| i bordi (in `engine-scan-core`) | `FluidScanEdges.kt`; la geometria, la prospettiva e le proporzioni: `FluidScanGeometry.kt` |
 | l'inseguimento e lo scatto automatico | `FluidScanTracker.kt` |
-| raddrizzamento e filtri | `FluidScanImages.kt` |
+| raddrizzamento, bordo e filtri (in `engine-scan-core`) | `FluidScanImages.kt` |
 | le pagine sul disco, la consegna | `FluidScanState.kt`, `FluidScanOutput.kt` (il PDF) |
 | la fotocamera | `FluidScanCamera.kt` (contratto e finta), `FluidCameraXScanCamera.kt` |
 | il contratto con l'attività | `FluidScanActivity.kt` |
-| le foto di prova | `tools/scan-samples/genera.py` → `engine-scan/src/test/resources/scan/` |
+| le foto di prova | `tools/scan-samples/genera.py` → `engine-scan-core/src/test/resources/scan/` (le usano anche le prove di `engine-scan`) |

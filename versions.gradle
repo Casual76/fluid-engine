@@ -44,6 +44,16 @@ ext.engine = [
   // colour scheme and type scale; androidx.wear carries the ambient-mode observer.
   wearCompose    : '1.6.2',
   wear           : '1.4.0',
+  // engine-wear (F8.25): le Tile e le complicazioni nello stile Fluid. Tiles 1.6.2 e ProtoLayout 1.4.2 (Apache-2.0), le
+  // stabili del 2026; Tiles chiede compileSdk 35 e AGP 8.6 all'app dell'orologio (metadati dell'AAR, letti il
+  // 26/11/2026), ProtoLayout e le complicazioni compileSdk 34. Tutte minSdk 26, come l'engine.
+  wearTiles      : '1.6.2',
+  protolayout    : '1.4.2',
+  watchface      : '1.3.0',
+  // engine-wear-sync (F8.25): il Data Layer di Play services, gratuito ma **non** open source (Android Software
+  // Development Kit License, dal POM). Il modulo lo compila `compileOnly` e non lo porta: lo aggiunge l'app che usa
+  // l'adattatore, come Media3 per engine-viewer (LICENSES/Permesso-librerie-Google.md).
+  playServicesWearable: '20.0.1',
   coroutines     : '1.8.1',
   serialization  : '1.6.3',
   // engine-sync (F8.21): l'invio in sottofondo. La 2.11 chiede compileSdk 35 all'app ospite (solo a chi include

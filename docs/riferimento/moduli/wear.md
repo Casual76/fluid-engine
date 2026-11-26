@@ -18,8 +18,9 @@ effetti stanno sopra le lastre.
 
 Il modulo e' **opt-in** (vedi «Aggiungerlo al solo orologio») e dipende da `engine-foundation` e `engine-ui`
 (`api project(...)` entrambi: chi dipende da `engine-wear` vede anche loro). Qui non c'e' un sample: la galleria
-(`sample`) e' un'app da telefono e non monta niente di Wear, quindi gli esempi sotto sono scritti sui sorgenti,
-non copiati da una demo (i nomi senza prefisso `Fluid`, come `PlayPauseGlyph`, `Cover`, `CoverTile`, `Icon` di Wear,
+(`sample`) e' un'app da telefono e non monta niente di Wear in Compose, quindi gli esempi sotto sono scritti sui
+sorgenti, non copiati da una demo (dalla 4.0 la galleria disegna le **Tile** col renderer di Wear OS: «Elementi nuovi ›
+Le Tile sull'orologio») (i nomi senza prefisso `Fluid`, come `PlayPauseGlyph`, `Cover`, `CoverTile`, `Icon` di Wear,
 sono segnaposto).
 
 **Numeri di versione.** Nei KDoc e nelle note «Dalla 2.11.0» e' il numero che il ramo `claude/sweet-ride-gmzu9g` aveva quando
@@ -54,6 +55,10 @@ telefono in [`../design-system.md`](../design-system.md) e [`../regole.md`](../r
 | una misura (disco, glifo, anello, padding) | `FluidWearDimens.*`; nessun dp a mano in una schermata dell'orologio |
 | l'ambient / always-on | `rememberFluidAmbientState(activity)` + `LocalFluidWearAmbient` + `Modifier.fluidBurnInShift` |
 | un'animazione | un nome di `FluidMotion`; mai `tween`/`spring` scritti a mano (c'e' un test che lo vieta) |
+| una Tile del carosello nello stile Fluid (disco di vetro, anello sul bordo, tasto sul bordo) | `FluidTileService` (l'app scrive `content`) o `MaterialScope.fluidTile(content)` (F8.25) |
+| la Tile o la complicazione di uno stato del telefono, ad app chiusa | `FluidStatusTileService(key)`, `FluidStatusComplicationService(key)` + [`engine-wear-sync`](wear-sync.md) |
+| i dati di una complicazione dai colori dell'app | `FluidComplications.dataFor(type, status, now)` |
+| ridisegnare Tile e complicazioni quando arriva un dato | `FluidWearSurfaces.refresh(context, tiles, complications)` |
 | un componente del telefono (tab bar, modali, menu a pannello, `FluidScreen`) | **non** su un orologio: sono per un telefono. Cio' che esiste per Wear sta in questa scheda |
 
 ## Aggiungerlo al solo orologio
@@ -817,6 +822,98 @@ convenzione che la schermata deve applicare: scegli un'altra faccia (`if (ambien
   contesto della coroutine con `rememberFluidMotionPolicy()`). Mettilo subito dentro `FluidWearTheme`.
 - `FluidWearAccent` ricostruisce il tema del telefono con `FluidMotionScheme`, cosi' un controllo Material dentro un orologio usa le molle dell'engine.
 
+## Tile e complicazioni (F8.25)
+
+**Cos'e'.** Le Tile del carosello di Wear OS e le complicazioni dei quadranti **nello stile Fluid**: l'accento dell'app,
+il **disco di vetro** col valore al centro, l'**anello sul bordo** per l'avanzamento, un tasto sul bordo in basso. Con il
+ponte di [`engine-wear-sync`](wear-sync.md) mostrano uno stato pubblicato dal telefono **anche ad app chiusa**.
+
+**Il riferimento Apple** e' la Smart Stack di watchOS 10 (i widget di WidgetKit sul polso: un'informazione sola, grande,
+un tocco per aprire) e le complicazioni di WidgetKit, che il quadrante tinge. La disposizione e' quella di Wear OS con
+Material 3 Expressive (`primaryLayout` di ProtoLayout: titolo, slot principale, tasto sul bordo), quindi margini e misure
+per 192 e 225 dp sono quelli del sistema.
+
+**ProtoLayout non e' Compose.** Una Tile la disegna il sistema dell'orologio dai dati del layout: **niente sfocatura,
+niente rifrazione, niente animazioni del telefono**. Il disco e' quindi il **ripiego del vetro dell'orologio**
+(`FluidWearGlass.tint().fallback`: il fume' `0xFF141416` con un sesto di accento, al 95%, composto sul nero, filetto
+bianco al 18% largo 0,8 dp), la stessa lastra che l'engine mostra sotto Android 12. E' un secondo modo di disegnare da
+tenere allineato: i numeri stanno in `FluidTileColors` e `FluidTileDimens`, presi da `FluidWearGlass` e `FluidWearDimens`.
+
+**Firma essenziale.**
+
+```kotlin
+fun fluidTileColors(brand: AccentPreset = FluidDefaultBrand, settings: EngineSettings = FluidWearDefaults.settings): FluidTileColors
+data class FluidTileContent(val title: String, val value: String, val detail: String? = null, val progress: Float? = null,
+  val action: FluidTileAction? = null, val onClick: ActionBuilders.Action? = null, val stale: Boolean = false, val contentDescription: String? = null)
+  // FluidTileContent.of(status: FluidWearStatus, nowMillis, action, onClick)
+data class FluidTileAction(val label: String, val launch: ComponentName? = null, val id: String = "fluid-tile-action")
+fun MaterialScope.fluidTile(content: FluidTileContent, colors: FluidTileColors = fluidTileColors()): LayoutElement
+fun fluidTileEdgeRing(progress: Float, colors: FluidTileColors = fluidTileColors()): LayoutElement
+
+abstract class FluidTileService(brand: AccentPreset = FluidDefaultBrand) : Material3TileService   // content(request)
+abstract class FluidStatusTileService(key: String, brand, action, waiting) : FluidTileService      // lo stato del ponte
+abstract class FluidStatusComplicationService(key: String, brand) : SuspendingComplicationDataSourceService
+object FluidComplications { fun dataFor(type, status, nowMillis, colors, tapAction): ComplicationData; fun accentRamp(colors); fun preview(type, colors) }
+object FluidWearSurfaces { fun refresh(context, tiles: List<Class<out TileService>>, complications: List<Class<*>>) }
+```
+
+**Uso.**
+
+```kotlin
+// Una Tile che l'app riempie.
+class TimerTile : FluidTileService(brand = SoundsBrand) {
+  override suspend fun content(request: RequestBuilders.TileRequest) =
+    FluidTileContent(title = "Pioggia", value = "18:20", detail = "timer", progress = timer.fraction,
+      action = FluidTileAction("Pausa", launch = ComponentName(this, TimerActivity::class.java)))
+}
+
+// La Tile e la complicazione di uno stato del telefono (ClasseViva: la prossima lezione), zero codice di disegno.
+class LezioneTile : FluidStatusTileService(key = "lezione", brand = ClasseVivaBrand, action = FluidTileAction("Apri"))
+class LezioneComplicazione : FluidStatusComplicationService(key = "lezione", brand = ClasseVivaBrand)
+```
+
+Nel manifest dell'orologio come ogni Tile (`androidx.wear.tiles.action.BIND_TILE_PROVIDER`, permesso
+`com.google.android.wearable.permission.BIND_TILE_PROVIDER`, l'anteprima in `androidx.wear.tiles.PREVIEW`) e ogni
+sorgente di complicazioni (`android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST`, permesso
+`com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER`, `SUPPORTED_TYPES` = `SHORT_TEXT,LONG_TEXT,RANGED_VALUE`,
+`UPDATE_PERIOD_SECONDS` = 0: si aggiorna quando arriva lo stato).
+
+**Comportamento.**
+- **Sempre sul nero**: `fluidTileColors` usa lo schema scuro dell'orologio qualunque tema abbia l'app del telefono (un
+  tema chiaro da' lo stesso accento, mai un fondo bianco al polso); il colore dinamico del telefono non arriva. L'accento
+  passa da `liftForBlack` (un blu notte si alza finche' si legge). `FluidTileService` spegne il colore dinamico di
+  sistema delle Tile (`allowDynamicTheme = false`): la Tile ha l'accento dell'app.
+- **Il disco**: diametro **0,42** della larghezza dello schermo, **0,36** con la riga sotto (a occhio, 26/11/2026: sta
+  nello slot principale a 192 dp col tasto sul bordo). Il valore nel carattere numerale fino a **5** caratteri, poi in
+  quello del titolo.
+- **L'anello sul bordo**: pista intera (`onSurface` al 10%, come `FluidEdgeGlowRing`) e avanzamento dalle ore dodici in
+  senso orario, tratto **4 dp** (`FluidWearDimens.RingStroke`), capi tondi; senza alone (ProtoLayout non sfuma).
+  `progress = null` lo toglie.
+- **Uno stato vecchio** (`staleAfterMillis` passato, o `stale = true`): il disco resta, il testo si spegne e la riga
+  sotto dice «Non aggiornato». La complicazione dice «—» nel testo breve e «Non aggiornato» nel lungo, l'intervallo va a
+  zero: mai un dato falso.
+- **TalkBack**: la Tile ha una frase sola («Matematica. 10:00. Aula 3»); le complicazioni hanno la stessa frase come
+  `contentDescription`.
+- **Le complicazioni** si danno, non si disegnano: testo breve = il valore (al massimo **7** caratteri, il limite dei
+  quadranti) col titolo; testo lungo = «valore · riga sotto» col titolo; intervallo = l'avanzamento da 0 a 1 con la
+  **rampa dell'accento** (`ColorRamp` dall'accento spento al pieno, sfumata). Altri tipi: `NoData`.
+- **Quando si aggiornano**: le Tile poco, per scelta del sistema (`freshnessMillis` di serie 15 minuti, un desiderio non
+  una promessa); per un dato del telefono si chiede il ridisegno quando arriva (`FluidWearSurfaces.refresh` da
+  `onStatusChanged` di `FluidWearListenerService`).
+- **Le misure del dispositivo**: `primaryLayout` legge `DeviceParameters` (larghezza, densita', **scala del carattere**).
+  Il sistema le passa sempre; in una prova vanno messe tutte (con `fontScale` a zero i testi che non si ingrandiscono,
+  numeri ed etichette, si dividono per zero e spariscono: e' successo).
+
+**Trappole.**
+- **Tiles 1.6 chiede compileSdk 35 e AGP 8.6** all'app dell'orologio (metadati dell'AAR); ProtoLayout e le complicazioni
+  compileSdk 34. Tutte minSdk 26. Versioni in `versions.gradle` (`wearTiles`, `protolayout`, `watchface`).
+- Un layout di ProtoLayout costruito fuori da un `MaterialScope` non ha i margini di `primaryLayout`: si usa
+  `materialScope(context, deviceParameters, allowDynamicTheme = false, defaultColorScheme = colors.scheme) { fluidTile(...) }`.
+- `FluidStatusTileService` e `FluidStatusComplicationService` leggono il ponte con `FluidWearSync.get(context, Watch)`:
+  nello stesso processo non si puo' usare il ponte come telefono.
+
+**Versione.** 4.0 (F8.25). `FluidTileTest` (5) e `FluidComplicationsTest` (5), sotto.
+
 ## Token, costanti, Defaults
 
 | cosa | valore | dove |
@@ -847,6 +944,8 @@ Otto file in `engine-wear/src/test`, tutti senza dispositivo (`returnDefaultValu
 - `FluidWearColorSchemeTest`: sfondo nero con i default, ruoli presi dal telefono, contrasto >= 4,5 di testo su sfondo, `*Dim` fra il ruolo e il fondo.
 - `FluidWearAccentTest`: un colore quasi nero viene alzato finche' si vede (luminanza > 0,15) restando nella famiglia, uno chiaro non si tocca.
 - `FluidWearMotionTest`: avviso con movimento ridotto senza scala; nessun `tween`/`spring`/`keyframes`/`infiniteRepeatable` nei sorgenti del modulo.
+- `FluidTileTest` (5, Robolectric, F8.25): il layout di ProtoLayout (disco col ripiego del vetro e raggio a meta' del diametro, anello fino al 40% nell'accento, tasto che apre l'attivita', frase per TalkBack), lo stato vecchio, i colori sul nero e leggibili con un accento chiaro e uno scuro e col telefono in chiaro, e **la Tile disegnata dal renderer di Wear OS** (`tiles-renderer`, solo nelle prove) a 225 e 192 dp: l'anello a ore dodici, il disco, il valore scritto, il tasto con l'etichetta. Le immagini in `engine-wear/build/f8-25-tile/`.
+- `FluidComplicationsTest` (5, Robolectric, F8.25): testo breve (tagliato a 7), lungo, intervallo con la rampa, lo stato vecchio, `NoData`, e la Tile di uno stato servita da `Material3TileService` col client di prova di Tiles: «In attesa», poi lo stato tenuto dal ponte.
 
 **Non provato**: il vetro stesso, il costo dell'alone dell'anello, il comportamento con ghiera vera, l'ambient su dispositivo, TalkBack, RTL, testo grande, il
 ripiego sotto API 31, e che `FluidMotionPolicy` arrivi ai componenti (vedi la trappola sopra). Lo schermo si giudica su un orologio, non per costruzione.
@@ -862,5 +961,6 @@ Radice `engine-wear/src/main/kotlin/dev/antigravity/fluidengine/wear/`:
 - `components/FluidArcRow.kt`: layout e matematica dell'arco. `components/FluidRotary.kt`: `fluidRotarySteps` e `RotaryAccumulator`.
 - `components/FluidWearList.kt`: l'elenco, lo scope, gli stati e `fluidWearListPlan`. `FluidWearRows.kt`: `FluidWearListRow`, `FluidWearPill`. `FluidWearToast.kt`.
 - `ambient/FluidAmbient.kt`: `FluidAmbientState`, `rememberFluidAmbientState`, `fluidBurnInShift`.
+- `tiles/FluidTileColors.kt`, `FluidTile.kt`, `FluidTileService.kt`, `FluidComplications.kt`: le Tile e le complicazioni (F8.25).
 - Build: `engine-wear/build.gradle` (dipendenze `api`), `versions.gradle` (`wearCompose`, `wear`), `tools/engine-install.ps1` (`$OptInModules`).
 - Storia: `CHANGELOG.md` (2.10.0 il modulo, 3.0.0 per `grip` e `FluidWearList`, 3.0.4 per i componenti del ramo `sweet-ride`); contesto lungo `docs/09-wear.md`.

@@ -1,9 +1,73 @@
 <!-- COPIA GENERATA da skill/fluid-engine/scripts/sync_docs.py a partire da skill/fluid-engine/references/api/scan.md.
      Non modificare qui: si cambia la fonte e si rilancia lo script. -->
 
-# API · engine-scan
+# API · engine-scan e engine-scan-core
 
 _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a mano._
+
+## `engine-scan-core/scan/FluidScanEdges.kt`
+
+- `class FluidScanFrame(val width: Int, val height: Int, val luma: ByteArray, val stride: Int = width, val rotationDegrees: Int = 0, val timestampMillis: Long = 0L)` — Un fotogramma in toni di grigio: [width] × [height] byte di luminanza (0..255), una riga ogni [stride] byte. Arriva nel verso del sensore: [rotationDegrees] (0, 90, 180, 270, in senso orario) lo porta dritto, come `ImageInfo.rotationDegrees` di CameraX. Il riconoscimento consegna gli angoli già nel verso dritto.
+  - `val uprightAspect: Float get()` — Larghezza su altezza **dritta**, dopo [rotationDegrees].
+  - `companion object`
+    - `fun of(bitmap: Bitmap, maxLongSide: Int = FluidScanEdges.AnalysisLongSide): FluidScanFrame` — La luminanza di una bitmap (Rec. 601, come il piano Y della fotocamera), già dritta.
+- `data class FluidScanDetection(val quad: FluidScanQuad, val confidence: Float, val aspect: Float)` — Il foglio trovato in un fotogramma: gli angoli dritti e la fiducia (0..1, il voto dei bordi).
+- `class FluidScanEdges private constructor()` — Il riconoscimento dei bordi del foglio. Uno per fotocamera ([FluidScanEdges.create]): tiene i buffer fra un fotogramma e l'altro, così l'analisi dal vivo non alloca a ogni fotogramma. Non è thread-safe: lo chiama un solo filo (quello dell'analisi).
+  - `fun detect(frame: FluidScanFrame): FluidScanDetection?` — Il foglio nel fotogramma, o `null` se non c'è un foglio credibile.
+  - `companion object`
+    - `const val AnalysisLongSide: Int` — Il lato lungo dell'analisi, in pixel. 320, a occhio (25 novembre 2026): sotto i 10 ms per fotogramma su un A52s.
+    - `const val MinConfidence: Float` — Il voto minimo per credere a un foglio: due terzi dei bordi sostenuti. A occhio, sulle foto di prova.
+    - `const val MinAreaFraction: Float` — Il foglio più piccolo che si cerca: l'8% dell'immagine; sotto, la scritta chiede di avvicinarsi.
+    - `fun create(): FluidScanEdges` — Un riconoscitore nuovo, coi suoi buffer.
+    - `fun detect(bitmap: Bitmap): FluidScanDetection?` — Il foglio in una foto intera (lo scatto, o una foto importata), ridotta per l'analisi.
+
+## `engine-scan-core/scan/FluidScanGeometry.kt`
+
+- `data class FluidScanPoint(val x: Float, val y: Float)` — Un punto dell'immagine, normalizzato: x e y da 0 a 1, l'origine in alto a sinistra.
+  - `operator fun plus(other: FluidScanPoint): FluidScanPoint`
+  - `operator fun minus(other: FluidScanPoint): FluidScanPoint`
+  - `operator fun times(factor: Float): FluidScanPoint`
+  - `fun clamped(): FluidScanPoint` — Lo stesso punto con x e y dentro 0..1.
+- `data class FluidScanQuad(val topLeft: FluidScanPoint, val topRight: FluidScanPoint, val bottomRight: FluidScanPoint, val bottomLeft: FluidScanPoint)` — I quattro angoli di un foglio in un'immagine, normalizzati (0..1) e in senso orario a partire da quello in alto a sinistra **del foglio**: è l'ordine in cui il foglio raddrizzato si legge. [ordered] mette in quest'ordine quattro punti qualunque, come li trova il riconoscimento dei bordi.
+  - `val points: List<FluidScanPoint> get()` — Gli angoli, nell'ordine del foglio.
+  - `operator fun get(index: Int): FluidScanPoint` — L'angolo [index] (0 in alto a sinistra, poi in senso orario).
+  - `fun with(index: Int, point: FluidScanPoint): FluidScanQuad` — Lo stesso foglio con l'angolo [index] spostato in [point] (il ritaglio a mano).
+  - `fun area(aspect: Float = 1f): Float` — L'area in un'immagine di [aspect] (larghezza su altezza) con l'altezza 1: il formato conta, la scala no.
+  - `fun isConvex(aspect: Float = 1f): Boolean` — Vero se il quadrilatero è convesso e non si incrocia: il solo che un foglio vero può dare.
+  - `val center: FluidScanPoint get()` — Il centro (la media dei quattro angoli).
+  - `fun distanceTo(other: FluidScanQuad, aspect: Float = 1f): Float` — La distanza più grande fra gli angoli di due fogli, in frazioni della diagonale di un'immagine di [aspect]: 0 se sono lo stesso foglio. La usa l'inseguimento per dire se il telefono è fermo.
+  - `fun lerp(other: FluidScanQuad, fraction: Float): FluidScanQuad` — Il foglio fra questo e [other], a [fraction] (0 questo, 1 l'altro): l'ammorbidimento dal vivo.
+  - `fun rotated(degrees: Int): FluidScanQuad` — Lo stesso foglio nell'immagine girata di [degrees] in senso orario (0, 90, 180, 270): un fotogramma della fotocamera arriva nel verso del sensore e si legge girato di `rotationDegrees`. Gli angoli restano quelli del foglio: girare l'immagine non cambia quale angolo è in alto a sinistra **sul foglio**.
+  - `fun turnedClockwise(): FluidScanQuad` — Il foglio girato di un quarto di giro in senso orario **sul foglio** (il tasto «Ruota» della revisione): gli stessi quattro punti dell'immagine, con l'angolo in alto a sinistra che diventa quello che era in basso a sinistra.
+  - `fun clamped(): FluidScanQuad` — Lo stesso foglio con ogni angolo dentro l'immagine.
+  - `fun pageMap(): FluidScanPageMap?` — La prospettiva di questo foglio: porta un punto della pagina raddrizzata nella foto (F8.17d). `null` se gli angoli non fanno un foglio (tre punti in fila).
+  - `fun inset(fraction: Float): FluidScanQuad` — Il foglio rientrato di [fraction] della pagina su ogni lato, **in prospettiva**: il bordo che si toglie è largo uguale sulla pagina raddrizzata, anche dove la foto lo vede stretto. Lo stesso foglio se la prospettiva non si calcola.
+  - `companion object`
+    - `val Full: FluidScanQuad` — Tutta l'immagine: il foglio di serie quando i bordi non si trovano (come VisionKit, che allora scatta tutto).
+    - `fun ordered(points: List<FluidScanPoint>, aspect: Float = 1f): FluidScanQuad` — Quattro punti qualunque messi nell'ordine del foglio: in alto a sinistra quello con x + y più piccolo, poi in senso orario attorno al centro. Con un foglio girato di quasi 45° vince l'ordine angolare, non la somma.
+- `fun FluidScanQuad.estimatedAspect(width: Int, height: Int): Float` — Le proporzioni vere del foglio (larghezza su altezza) viste dalla foto: con la prospettiva i lati che si vedono non dicono il formato. È il metodo di Zhang e He (*Whiteboard scanning and image enhancement*, Digital Signal Processing 17, 2007, § 3): dai quattro angoli si stima la focale e da lì il rapporto, col centro ottico al centro della foto.
+- `class FluidScanPageMap private constructor(private val homography: ScanHomography)` — La prospettiva di un foglio (F8.17d): porta un punto della pagina raddrizzata nella foto, tutti e due normalizzati (0..1, l'origine in alto a sinistra). È il raddrizzamento di [FluidScanImages.straighten] al contrario: serve a riportare sulla foto quello che si trova sulla pagina, come le righe che «Leggi testo» legge sulla pagina raddrizzata di una foto storta.
+  - `fun photoPoint(u: Float, v: Float): FluidScanPoint` — Il punto della foto sotto il punto ([u], [v]) della pagina.
+  - `companion object`
+    - `fun of(quad: FluidScanQuad): FluidScanPageMap?` — La prospettiva del foglio [quad], o `null` se gli angoli non la danno.
+
+## `engine-scan-core/scan/FluidScanImages.kt`
+
+- `value class FluidScanFilter private constructor(val id: String)` — Il filtro di una pagina: i quattro di VisionKit (Color, Grayscale, Black & White, Photo). Non è un `enum` di proposito (regola 3.11): un filtro nuovo è una costante in più.
+  - `companion object`
+    - `val Document: FluidScanFilter` — Il foglio pulito a colori: carta bianca, ombre tolte, inchiostro più deciso. Quello di serie, come in VisionKit.
+    - `val Grayscale: FluidScanFilter` — Come [Document], in scala di grigi.
+    - `val BlackAndWhite: FluidScanFilter` — Solo bianco e nero, con la soglia che segue la luce di ogni zona: per i testi da archiviare o da faxare.
+    - `val Photo: FluidScanFilter` — La foto raddrizzata, senza ritocchi: per le foto e i disegni.
+    - `val All: List<FluidScanFilter>` — I filtri nell'ordine del menu.
+    - `fun of(id: String?): FluidScanFilter` — Il filtro col nome [id], o [Document].
+- `object FluidScanImages` — Raddrizzare e pulire le pagine. Tutto fuori dal filo principale: sono millisecondi su milioni di pixel.
+  - `const val DefaultMaxLongSide: Int` — Il lato lungo della pagina raddrizzata: 2400 pixel, circa 205 punti per pollice su un A4. A occhio (25 novembre 2026): si legge e si stampa bene, il testo si riconosce, e una pagina in memoria resta sotto i 17 MB.
+  - `fun outputSize(quad: FluidScanQuad, width: Int, height: Int, maxLongSide: Int = DefaultMaxLongSide): Pair<Int, Int>` — La misura della pagina raddrizzata dal foglio [quad] in una foto [width] × [height]: le proporzioni vere ([estimatedAspect]) e il lato lungo dei pixel che la foto ha davvero, mai più di [maxLongSide].
+  - `const val EdgeInset: Float` — Quanto della pagina si toglie su ogni lato prima di raddrizzare: lo 0,5%, misurato sulla pagina dritta (un A4 perde un millimetro per lato). Sul Tab S9 (26/11/2026) i bordi trovati, che sbagliano al più dello 0,27% della diagonale della foto, lasciavano in alto e a sinistra un filo di tavolo che il filtro «Documento» faceva nero e tratteggiato. Anche gli scanner di Note e File tagliano un filo di bordo.
+  - `fun straighten(photo: Bitmap, quad: FluidScanQuad, quarterTurns: Int = 0, maxLongSide: Int = DefaultMaxLongSide, edgeInset: Float = EdgeInset): Bitmap` — La pagina raddrizzata: il foglio [quad] di [photo] portato a un rettangolo con le proporzioni vere, girato di [quarterTurns] quarti in senso orario. Il campionamento è bilineare; da una foto molto più grande della pagina si riduce prima a metà quante volte serve, così i caratteri piccoli non si sgranano.
+  - `fun rotate(bitmap: Bitmap, quarterTurns: Int): Bitmap` — [bitmap] girata di [quarterTurns] quarti di giro in senso orario (la stessa se zero).
+  - `fun filter(bitmap: Bitmap, filter: FluidScanFilter): Bitmap` — La pagina col filtro [filter]: una bitmap nuova (o la stessa con [FluidScanFilter.Photo]).
 
 ## `engine-scan/scan/FluidCameraXScanCamera.kt`
 
@@ -64,63 +128,6 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `class FluidStillScanCamera(private val sheets: List<suspend () -> Bitmap>, private val table: (suspend () -> Bitmap)? = null, private val shakeAmount: Float = 0.025f, private val frameMillis: Long = 66L) : FluidScanCamera` — La fotocamera finta: mostra una per volta le foto di fogli in [sheets] (ognuna una funzione che la carica), con la mano che trema un poco e poi si ferma, e dopo ogni scatto toglie il foglio per un momento mostrando [table] (il tavolo vuoto), come chi cambia pagina. Serve alle prove, alla galleria (che non chiede la fotocamera) e alle riprese.
   - `val sheetIndex: Int get()` — L'indice del foglio mostrato adesso (per le prove).
   - `val remaining: Int get()` — Quanti fogli restano da mostrare.
-
-## `engine-scan/scan/FluidScanEdges.kt`
-
-- `class FluidScanFrame(val width: Int, val height: Int, val luma: ByteArray, val stride: Int = width, val rotationDegrees: Int = 0, val timestampMillis: Long = 0L)` — Un fotogramma in toni di grigio: [width] × [height] byte di luminanza (0..255), una riga ogni [stride] byte. Arriva nel verso del sensore: [rotationDegrees] (0, 90, 180, 270, in senso orario) lo porta dritto, come `ImageInfo.rotationDegrees` di CameraX. Il riconoscimento consegna gli angoli già nel verso dritto.
-  - `val uprightAspect: Float get()` — Larghezza su altezza **dritta**, dopo [rotationDegrees].
-  - `companion object`
-    - `fun of(bitmap: Bitmap, maxLongSide: Int = FluidScanEdges.AnalysisLongSide): FluidScanFrame` — La luminanza di una bitmap (Rec. 601, come il piano Y della fotocamera), già dritta.
-- `data class FluidScanDetection(val quad: FluidScanQuad, val confidence: Float, val aspect: Float)` — Il foglio trovato in un fotogramma: gli angoli dritti e la fiducia (0..1, il voto dei bordi).
-- `class FluidScanEdges private constructor()` — Il riconoscimento dei bordi del foglio. Uno per fotocamera ([FluidScanEdges.create]): tiene i buffer fra un fotogramma e l'altro, così l'analisi dal vivo non alloca a ogni fotogramma. Non è thread-safe: lo chiama un solo filo (quello dell'analisi).
-  - `fun detect(frame: FluidScanFrame): FluidScanDetection?` — Il foglio nel fotogramma, o `null` se non c'è un foglio credibile.
-  - `companion object`
-    - `const val AnalysisLongSide: Int` — Il lato lungo dell'analisi, in pixel. 320, a occhio (25 novembre 2026): sotto i 10 ms per fotogramma su un A52s.
-    - `const val MinConfidence: Float` — Il voto minimo per credere a un foglio: due terzi dei bordi sostenuti. A occhio, sulle foto di prova.
-    - `const val MinAreaFraction: Float` — Il foglio più piccolo che si cerca: l'8% dell'immagine; sotto, la scritta chiede di avvicinarsi.
-    - `fun create(): FluidScanEdges` — Un riconoscitore nuovo, coi suoi buffer.
-    - `fun detect(bitmap: Bitmap): FluidScanDetection?` — Il foglio in una foto intera (lo scatto, o una foto importata), ridotta per l'analisi.
-
-## `engine-scan/scan/FluidScanGeometry.kt`
-
-- `data class FluidScanPoint(val x: Float, val y: Float)` — Un punto dell'immagine, normalizzato: x e y da 0 a 1, l'origine in alto a sinistra.
-  - `operator fun plus(other: FluidScanPoint): FluidScanPoint`
-  - `operator fun minus(other: FluidScanPoint): FluidScanPoint`
-  - `operator fun times(factor: Float): FluidScanPoint`
-  - `fun clamped(): FluidScanPoint` — Lo stesso punto con x e y dentro 0..1.
-- `data class FluidScanQuad(val topLeft: FluidScanPoint, val topRight: FluidScanPoint, val bottomRight: FluidScanPoint, val bottomLeft: FluidScanPoint)` — I quattro angoli di un foglio in un'immagine, normalizzati (0..1) e in senso orario a partire da quello in alto a sinistra **del foglio**: è l'ordine in cui il foglio raddrizzato si legge. [ordered] mette in quest'ordine quattro punti qualunque, come li trova il riconoscimento dei bordi.
-  - `val points: List<FluidScanPoint> get()` — Gli angoli, nell'ordine del foglio.
-  - `operator fun get(index: Int): FluidScanPoint` — L'angolo [index] (0 in alto a sinistra, poi in senso orario).
-  - `fun with(index: Int, point: FluidScanPoint): FluidScanQuad` — Lo stesso foglio con l'angolo [index] spostato in [point] (il ritaglio a mano).
-  - `fun area(aspect: Float = 1f): Float` — L'area in un'immagine di [aspect] (larghezza su altezza) con l'altezza 1: il formato conta, la scala no.
-  - `fun isConvex(aspect: Float = 1f): Boolean` — Vero se il quadrilatero è convesso e non si incrocia: il solo che un foglio vero può dare.
-  - `val center: FluidScanPoint get()` — Il centro (la media dei quattro angoli).
-  - `fun distanceTo(other: FluidScanQuad, aspect: Float = 1f): Float` — La distanza più grande fra gli angoli di due fogli, in frazioni della diagonale di un'immagine di [aspect]: 0 se sono lo stesso foglio. La usa l'inseguimento per dire se il telefono è fermo.
-  - `fun lerp(other: FluidScanQuad, fraction: Float): FluidScanQuad` — Il foglio fra questo e [other], a [fraction] (0 questo, 1 l'altro): l'ammorbidimento dal vivo.
-  - `fun rotated(degrees: Int): FluidScanQuad` — Lo stesso foglio nell'immagine girata di [degrees] in senso orario (0, 90, 180, 270): un fotogramma della fotocamera arriva nel verso del sensore e si legge girato di `rotationDegrees`. Gli angoli restano quelli del foglio: girare l'immagine non cambia quale angolo è in alto a sinistra **sul foglio**.
-  - `fun turnedClockwise(): FluidScanQuad` — Il foglio girato di un quarto di giro in senso orario **sul foglio** (il tasto «Ruota» della revisione): gli stessi quattro punti dell'immagine, con l'angolo in alto a sinistra che diventa quello che era in basso a sinistra.
-  - `fun clamped(): FluidScanQuad` — Lo stesso foglio con ogni angolo dentro l'immagine.
-  - `companion object`
-    - `val Full: FluidScanQuad` — Tutta l'immagine: il foglio di serie quando i bordi non si trovano (come VisionKit, che allora scatta tutto).
-    - `fun ordered(points: List<FluidScanPoint>, aspect: Float = 1f): FluidScanQuad` — Quattro punti qualunque messi nell'ordine del foglio: in alto a sinistra quello con x + y più piccolo, poi in senso orario attorno al centro. Con un foglio girato di quasi 45° vince l'ordine angolare, non la somma.
-- `fun FluidScanQuad.estimatedAspect(width: Int, height: Int): Float` — Le proporzioni vere del foglio (larghezza su altezza) viste dalla foto: con la prospettiva i lati che si vedono non dicono il formato. È il metodo di Zhang e He (*Whiteboard scanning and image enhancement*, Digital Signal Processing 17, 2007, § 3): dai quattro angoli si stima la focale e da lì il rapporto, col centro ottico al centro della foto.
-
-## `engine-scan/scan/FluidScanImages.kt`
-
-- `value class FluidScanFilter private constructor(val id: String)` — Il filtro di una pagina: i quattro di VisionKit (Color, Grayscale, Black & White, Photo). Non è un `enum` di proposito (regola 3.11): un filtro nuovo è una costante in più.
-  - `companion object`
-    - `val Document: FluidScanFilter` — Il foglio pulito a colori: carta bianca, ombre tolte, inchiostro più deciso. Quello di serie, come in VisionKit.
-    - `val Grayscale: FluidScanFilter` — Come [Document], in scala di grigi.
-    - `val BlackAndWhite: FluidScanFilter` — Solo bianco e nero, con la soglia che segue la luce di ogni zona: per i testi da archiviare o da faxare.
-    - `val Photo: FluidScanFilter` — La foto raddrizzata, senza ritocchi: per le foto e i disegni.
-    - `val All: List<FluidScanFilter>` — I filtri nell'ordine del menu.
-    - `fun of(id: String?): FluidScanFilter` — Il filtro col nome [id], o [Document].
-- `object FluidScanImages` — Raddrizzare e pulire le pagine. Tutto fuori dal filo principale: sono millisecondi su milioni di pixel.
-  - `const val DefaultMaxLongSide: Int` — Il lato lungo della pagina raddrizzata: 2400 pixel, circa 205 punti per pollice su un A4. A occhio (25 novembre 2026): si legge e si stampa bene, il testo si riconosce, e una pagina in memoria resta sotto i 17 MB.
-  - `fun outputSize(quad: FluidScanQuad, width: Int, height: Int, maxLongSide: Int = DefaultMaxLongSide): Pair<Int, Int>` — La misura della pagina raddrizzata dal foglio [quad] in una foto [width] × [height]: le proporzioni vere ([estimatedAspect]) e il lato lungo dei pixel che la foto ha davvero, mai più di [maxLongSide].
-  - `fun straighten(photo: Bitmap, quad: FluidScanQuad, quarterTurns: Int = 0, maxLongSide: Int = DefaultMaxLongSide): Bitmap` — La pagina raddrizzata: il foglio [quad] di [photo] portato a un rettangolo con le proporzioni vere, girato di [quarterTurns] quarti in senso orario. Il campionamento è bilineare; da una foto molto più grande della pagina si riduce prima a metà quante volte serve, così i caratteri piccoli non si sgranano.
-  - `fun rotate(bitmap: Bitmap, quarterTurns: Int): Bitmap` — [bitmap] girata di [quarterTurns] quarti di giro in senso orario (la stessa se zero).
-  - `fun filter(bitmap: Bitmap, filter: FluidScanFilter): Bitmap` — La pagina col filtro [filter]: una bitmap nuova (o la stessa con [FluidScanFilter.Photo]).
 
 ## `engine-scan/scan/FluidScanLicenses.kt`
 

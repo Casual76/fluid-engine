@@ -17,8 +17,9 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-net` | `net` | 4 / 760 | `EngineHttp`: leggi un documento, scarica un file; l'osservatore della rete (`EngineNetwork`, che non lampeggia: Wi-Fi senza internet, VPN, micro-cadute), le condizioni del telefono (`EngineConditions`: rete a consumo e roaming, risparmio dati ed energetico, calore, corrente) e le reti finte per le prove (`testing.FakeNetworks`) — F8.20, `moduli/net.md` | foundation |
 | `engine-config` | `config` | 1 / 112 | `EngineRemoteConfig`: flag, versione minima, avvisi, kill switch | foundation, net, storage |
 | `engine-update` | `update` | 2 / 489 | aggiornamento in-app con PackageInstaller | foundation, net |
-| `engine-widget` | `widget` | 3 / 686 | palette e componenti Glance con lo stesso aspetto dell'app | foundation, **ui** |
-| `engine-wear` | `wear` | 17 / 2 216 | il design system su Wear OS (opt-in) | foundation, **ui** |
+| `engine-widget` | `widget` | 7 / 1 840 | palette e componenti Glance con lo stesso aspetto dell'app; dalla 4.0 (F8.25) la **vetrina dei widget** dentro l'app (anteprima vera per taglia, «Aggiungi alla Home»), e il riquadro delle Impostazioni rapide da proporre nelle impostazioni dell'app | foundation, **ui** |
+| `engine-wear` | `wear` | 21 / 2 850 | il design system su Wear OS (opt-in); dalla 4.0 (F8.25) le **Tile e le complicazioni** nello stile Fluid (ProtoLayout) | foundation, **ui**, wear-sync |
+| `engine-wear-sync` | `wear.sync` | 8 / 1 370 | il ponte fra telefono e orologio: lo stato pubblicato dal telefono, l'evento del polso con la ricevuta, il formato versionato; il Data Layer di Play services `compileOnly` (lo porta l'app) — **opt-in**, senza interfaccia, dalla 4.0 (F8.25, `moduli/wear-sync.md`) | foundation |
 | `engine-ai` | `ai` | 36 / 6 456 | assistente senza dominio: provider BYOK, chiavi, SSE, failover, orchestratore, voce | foundation, **vault** (dalla 4.0) |
 | `engine-vault` | `vault` | 11 / 2 508 | la cassaforte: valori, file e DataStore cifrati col Keystore (StrongBox quando c'è), sezioni «solo telefono» o all'impronta che si richiudono da sole, la chiave diretta di `engine-ai` — **opt-in**, dalla 4.0 (F8.23, la scheda: `moduli/vault.md`) | foundation |
 | `engine-security` | `security` | 7 / 1 720 | il blocco con l'impronta: l'app che si blocca al rientro, la schermata di vetro, il PIN dell'app, il contenuto protetto, l'anteprima oscurata nelle recenti, la riga delle impostazioni — **opt-in**, dalla 4.0 (F8.23, `moduli/security.md`) | **ui**, **vault** |
@@ -34,7 +35,7 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-viewer-graphics` | `viewer.graphics` | 10 / 1 615 | visori, immagini speciali (HEIC, AVIF, RAW, TIFF, PSD, SVG) e il provino dei caratteri — **opt-in** | **viewer** |
 | `engine-viewer-3d` | `viewer.scene` | 6 / 1 406 | visori, modelli GLB, glTF, OBJ, STL con Filament — **opt-in** | **viewer** |
 | `engine-viewer-ar` | `viewer.ar` | 7 / 1 002 | visori, il modello posato nella stanza con ARCore (chiede la fotocamera) — **opt-in** | **viewer-3d** |
-| `engine-viewer-ocr` | `viewer.ocr` | 7 / 1 300 | visori, il testo nelle immagini: «Leggi testo» in foto, schermate e PDF scansiti, come Testo attivo (il tasto, il velo, la selezione con la presa, la copia, la ricerca nelle parole trovate), con Tesseract sul telefono; un'estensione dei visori, non un tipo nuovo — **opt-in** (F8.17, `moduli/viewer-famiglie.md`) | **viewer** |
+| `engine-viewer-ocr` | `viewer.ocr` | 8 / 1 800 | visori, il testo nelle immagini: «Leggi testo» in foto, schermate e PDF scansiti, come Testo attivo (il tasto, il velo, la selezione con la presa, la copia, la ricerca nelle parole trovate), con Tesseract sul telefono; in una foto storta di un foglio legge la pagina raddrizzata e riporta le righe sulla foto (F8.17d); un'estensione dei visori, non un tipo nuovo — **opt-in** (F8.17, `moduli/viewer-famiglie.md`) | **viewer**, **scan-core** |
 | `engine-sync` | `sync` | 12 / 2 517 | la sincronizzazione: registro locale (SQLite della piattaforma), orologio logico ibrido, invio una volta sola con chiave d'idempotenza, unione per campo e dei testi lunghi, pietre tombali e compattazione, ripresa dopo mesi, l'adattatore del relay e il sigillo di chi chiama, WorkManager — **opt-in**, dalla 4.0 (F8.21, `moduli/sync.md`) | storage, foundation |
 | `engine-account` | `account` | 9 / 1 300 | l'Account Pampa visto da un'app: lo Store trovato e verificato nei due sensi, il protocollo del provider, token, chiavi dell'app, la busta delle righe e il formato del backup, l'aspetto e i luoghi; mai rete; Bouncy Castle — **opt-in**, dalla 4.0 (F10.4, `moduli/account.md`) | storage, foundation |
 | `engine-account-host` | `account.host` | 22 / 2 890 | il motore dell'account in Pampa Store: provider firmato, sessione e chiave del dispositivo, token, custodia delle chiavi (HPKE, porte, epoche, passaggio col QR, due classi), codice di recupero, luoghi, aspetto, backup dello Store con WorkManager — **opt-in**, solo lo Store (F10.4, `moduli/account-host.md`) | **account**, **auth**, **vault** |
@@ -54,7 +55,8 @@ I numeri sono dell'engine 3.0.4 (righe di Kotlin sotto `src/main`).
 | `engine-files` | `files` | 6 / 1 760 | lo sfoglia-file di vetro come File di iOS 26: Sfoglia con le posizioni (le sorgenti dell'app e le cartelle concesse con lo Storage Access Framework, anche delle app con un `DocumentsProvider`) e Recenti, le cartelle in griglia con le miniature vere o in elenco, l'ordine, la ricerca, la selezione e la scelta (`onPick`), l'apertura nei visori dalla miniatura con la ripresa dallo stesso punto; il contratto delle sorgenti a pagine — **opt-in**, dalla 4.0 (F8.18, `moduli/files.md`) | **viewer** (e da lì ui, foundation) |
 | `engine-search` | `search` | 9 / 2 900 | la ricerca nei dati dell'app come Core Spotlight: l'indice in SQLite FTS4 del telefono (niente librerie native), l'italiano (accenti, apostrofi, plurali), gli errori di battitura, gli inizi di parola, l'ordine BM25F coi pesi dei campi, i pezzi con le parole evidenziate, la cassaforte per i dati sensibili (impronte con chiave), l'aggiornamento a pezzi e il lavoro pesante in carica (WorkManager), l'aggancio al campo (`FluidSearchSpec`: gettoni, suggerimenti, recenti), i vettori del significato, «Cerca in Pampa» col ponte firmato — **opt-in**, dalla 4.0 (F8.22, `moduli/search.md`) | **ui**, **ai-bridge**, **vault** |
 | `engine-search-semantic` | `search.semantic` | 2 / 230 | il modello del significato: EmbeddingGemma 2 Text 270M con LiteRT-LM (`liblitertlm_jni.so` 22 MB in arm64-v8a), lo stesso di MyCloud Gallery 2; il modello (157 MiB) lo porta l'app — **opt-in** (F8.22, `moduli/search.md`) | **search** (+ LiteRT-LM) |
-| `engine-scan` | `scan` | 12 / 2 600 | lo scanner di documenti come Note di iOS (VisionKit): la fotocamera di vetro con CameraX, i bordi del foglio dal vivo (codice dell'engine, niente OpenCV), lo scatto quando è fermo, il raddrizzamento e i filtri, la fila delle pagine da riordinare e ritagliare, il PDF o le immagini per URI, il contratto con l'attività — **opt-in**, dalla 4.0 (F8.17, `moduli/scan.md`); il permesso `CAMERA` lo dichiara l'app | **ui** |
+| `engine-scan` | `scan` | 11 / 2 400 | lo scanner di documenti come Note di iOS (VisionKit): la fotocamera di vetro con CameraX, i bordi del foglio dal vivo (codice dell'engine, niente OpenCV), lo scatto quando è fermo, il raddrizzamento e i filtri, la fila delle pagine da riordinare e ritagliare, il PDF o le immagini per URI, il contratto con l'attività — **opt-in**, dalla 4.0 (F8.17, `moduli/scan.md`); il permesso `CAMERA` lo dichiara l'app | **ui**, **scan-core** |
+| `engine-scan-core` | `scan` | 3 / 1 300 | il nucleo dello scanner senza fotocamera: i bordi del foglio in una foto, la geometria e la prospettiva (`FluidScanPageMap`), il raddrizzamento col bordo rientrato, i filtri; nessuna libreria, nessun manifest — non si chiede da solo: arriva con `engine-scan` e con `engine-viewer-ocr` (F8.17d, `moduli/scan.md`) | — (solo l'annotazione di Compose) |
 | `engine-viewer-all` | — | 0 / 0 | il visore universale: `api` verso `engine-viewer` e tutte le famiglie — **opt-in** | tutte le famiglie |
 | `engine-auth` | `auth` | 11 / 938 | le passkey e il gestore delle password con Credential Manager, senza rete: l'estensione PRF la scrive il modulo, la risposta torna senza il PRF, gli errori come frasi pronte (`AuthResult`, `FluidAuthLabels`) — **opt-in**, dalla 4.0 (la scheda: `moduli/auth.md`) | foundation (+ `androidx.credentials`) |
 | `engine-auth-google` | `auth.google` | 2 / 277 | «Continua con Google» (`FluidGoogleSignIn`) e le concessioni Google (`FluidGoogleAccess`, **spente**): l'unico modulo con librerie Google non libere, col permesso della GPL-3.0 § 7 — **opt-in**, dalla 4.0 | **auth** (+ Play services, `googleid`) |
@@ -64,14 +66,14 @@ dipendere da `engine-ui`: e' il motivo per cui un'app di sole View puo' prendere
 
 ```
 engine-foundation  <-  engine-ui  <-  engine-widget
-        ^                  ^      <-  engine-wear
+        ^                  ^      <-  engine-wear  ->  engine-wear-sync  ->  engine-foundation   (Play services compileOnly)
         |                  +------<-  engine-richtext           (opt-in)
         |                  +------<-  engine-viewer             (opt-in; Media3 compileOnly)
         |                                  ^  <- engine-viewer-office, -archive, -data, -graphics, -3d  (opt-in, ognuno)
         |                                  |       ^  <- engine-viewer-ar (prende -3d)
         |                                  +----- engine-viewer-all (api verso tutti)
         |                                  +----- engine-files      (opt-in, F8.18: lo sfoglia-file)
-        |                                  +----- engine-viewer-ocr (opt-in, F8.17: «Leggi testo», Tesseract; un'estensione dei visori)
+        |                                  +----- engine-viewer-ocr (opt-in, F8.17: «Leggi testo», Tesseract; un'estensione dei visori; -> engine-scan-core)
         |                  +------<-  engine-ai-ui  ->  engine-ai
         +-- engine-storage --+                              ^
         +-- engine-net ------+--> engine-config             +-- engine-ai-bridge
@@ -88,6 +90,7 @@ engine-ui <- engine-ink                    (opt-in; androidx.ink 1.0 e la sua li
 engine-ui + engine-ai-bridge + engine-vault <- engine-search <- engine-search-semantic   (opt-in; FTS4 del telefono e WorkManager; LiteRT-LM solo nel secondo)
 engine-ui <- engine-editor                 (opt-in; Bitmap, Canvas, BitmapRegionDecoder, ExifInterface, AGSL da Android 13; nessuna libreria nuova)
 engine-ui <- engine-scan                   (opt-in; CameraX; i bordi, i filtri e il PDF sono dell'engine; CAMERA la dichiara l'app)
+engine-scan-core <- engine-scan, engine-viewer-ocr   (F8.17d: i bordi, la prospettiva, il raddrizzamento, i filtri; senza fotocamera)
 engine-foundation <- engine-notify         (opt-in; androidx.core; niente Compose: pagine e ponte con la pillola in engine-ui)
 engine-foundation <- engine-audio          (opt-in; nessuna libreria; niente Compose: il registratore e l'onda in engine-ui)
 engine-ui <- engine-playback               (opt-in; Media3 compileOnly: session ed exoplayer li porta l'app)
@@ -143,7 +146,8 @@ Le dipendenze `api` di `engine-ui` esportano all'app: Compose BOM (ui, foundatio
 | apre anche documenti Office, archivi, Markdown e dati, immagini speciali e font, modelli 3D | + il modulo di ogni famiglia che serve (`-Modules …,engine-viewer-office`), o `engine-viewer-all` per il visore universale. Chi non ne aggiunge uno non ne paga il peso (la tabella dei pesi: `moduli/viewer-famiglie.md`); `engine-viewer-ar` chiede la fotocamera |
 | fa entrare con una passkey o salva un codice nel gestore delle password (oggi solo Pampa Store) | + `engine-auth` (**opt-in**: `-Modules …,engine-auth`; porta `engine-foundation` e `androidx.credentials`, niente Compose). Da Android 9 a 13 serve anche `credentials-play-services-auth`, che porta `engine-auth-google` |
 | fa entrare con Google, o chiederà un token Google (solo Pampa Store) | + `engine-auth-google` (**opt-in**; porta `engine-auth` e le librerie Google non libere, col permesso di `LICENSES/Permesso-librerie-Google.md`) |
-| è un orologio (modulo Wear OS) | `engine-wear` **solo nel modulo dell'orologio** |
+| è un orologio (modulo Wear OS) | `engine-wear` **solo nel modulo dell'orologio** (porta `engine-wear-sync`) |
+| il telefono manda uno stato all'orologio, o riceve gli eventi del polso con la ricevuta | + `engine-wear-sync` (**opt-in**: `-Modules …,engine-wear-sync`; porta solo `engine-foundation`; per il Data Layer l'app aggiunge `play-services-wearable`, non libera: permesso GPL-3.0 § 7) |
 | è di sole View e XML | solo `engine-update` / `engine-net` / `engine-config` (`-Modules`), mai `engine-ui` |
 | è Compose **Multiplatform** | niente `engine-ui` (artefatti diversi): i moduli senza UI in `androidMain`, il look si **porta** (`integrazione.md`, «Il porto») |
 

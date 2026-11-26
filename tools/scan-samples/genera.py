@@ -10,8 +10,8 @@ Uso, dalla radice dell'engine (numpy e Pillow):
 
     python tools/scan-samples/genera.py
 
-Scrive in engine-scan/src/test/resources/scan/, engine-viewer-ocr/src/test/resources/ocr/ e negli asset della galleria
-(sample/src/main/assets/scanner/). Deterministico: lo stesso seme da' gli stessi byte.
+Scrive in engine-scan-core/src/test/resources/scan/ (da F8.17d), engine-viewer-ocr/src/test/resources/ocr/ e negli
+asset della galleria (sample/src/main/assets/scanner/). Deterministico: lo stesso seme da' gli stessi byte.
 """
 import json
 import math
@@ -23,7 +23,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 FONTS = os.path.join(ROOT, "engine-viewer-office", "src", "main", "assets", "office")
-OUT_SCAN = os.path.join(ROOT, "engine-scan", "src", "test", "resources", "scan")
+OUT_SCAN = os.path.join(ROOT, "engine-scan-core", "src", "test", "resources", "scan")
 OUT_OCR = os.path.join(ROOT, "engine-viewer-ocr", "src", "test", "resources", "ocr")
 OUT_GALLERY = os.path.join(ROOT, "sample", "src", "main", "assets", "scanner")
 

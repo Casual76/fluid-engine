@@ -1,0 +1,81 @@
+// F8.25 · Il ponte fra il telefono e l'orologio (`tile-e-complicazioni`, `wear-con-ricevuta`). Opt-in e senza interfaccia,
+// lo stesso modulo sui due lati:
+//
+//   implementation project(':engine-wear-sync')
+//
+// Dentro: il formato versionato dei messaggi (lo stato pubblicato dal telefono, l'evento del polso, la ricevuta), la coda
+// del polso che sopravvive al riavvio e passa da «In coda» a «Registrato», il registro del telefono che riconosce le
+// consegne ripetute, gli eventi che scadono, e l'archivio degli stati che l'orologio mostra anche ad app chiusa.
+//
+// Nessuna libreria imposta. Il Data Layer di Play services (play-services-wearable, gratuito ma non open source) e'
+// `compileOnly`: l'adattatore FluidWearDataLayer e il servizio FluidWearListenerService lo usano solo se l'app lo
+// aggiunge lei, col suo client (come Media3 per engine-viewer). Un'app che porta i messaggi in un altro modo usa il
+// nucleo puro e passa i byte.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.wear.sync'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // L'adattatore del Data Layer si prova in Robolectric (Uri, DataMap): il nucleo e' JVM puro.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  api project(':engine-foundation')
+  compileOnly "com.google.android.gms:play-services-wearable:${engine.playServicesWearable}"
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  // Solo nei test: le richieste e le DataMap dell'adattatore si costruiscono davvero.
+  testImplementation "com.google.android.gms:play-services-wearable:${engine.playServicesWearable}"
+}
+
+// Il Data Layer deve restare compileOnly: se un giorno entra nel runtime del modulo, ogni app che usa engine-wear-sync
+// porterebbe Play services senza averlo chiesto (e senza il permesso della GPL-3.0 § 7 scritto per lei).
+tasks.register('checkWearSyncRuntime') {
+  // AGP crea le configurazioni delle varianti dopo la valutazione: si chiede per nome solo quando il compito gira, e si
+  // legge il grafo risolto (come checkViewerFamilies di engine-viewer), non gli artefatti.
+  def classpath = { project.configurations.getByName('releaseRuntimeClasspath') }
+  doLast {
+    def problems = []
+    def seen = [] as Set
+    def queue = [classpath().incoming.resolutionResult.root]
+    while (!queue.isEmpty()) {
+      def component = queue.remove(0)
+      if (!seen.add(component.id)) continue
+      def mv = component.moduleVersion
+      if (component.id instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier && mv.group == 'com.google.android.gms') {
+        problems << "${mv.group}:${mv.name}:${mv.version}"
+      }
+      component.dependencies.each { d ->
+        if (d instanceof org.gradle.api.artifacts.result.ResolvedDependencyResult) queue << d.selected
+      }
+    }
+    if (!problems.isEmpty()) throw new GradleException("Play services nel runtime di engine-wear-sync: ${problems}")
+  }
+}

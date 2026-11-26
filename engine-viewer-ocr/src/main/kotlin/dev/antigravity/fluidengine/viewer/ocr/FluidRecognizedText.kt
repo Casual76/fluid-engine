@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import java.text.Normalizer
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -46,9 +47,52 @@ data class FluidTextQuad(
   }
 
   /** Vero se il punto [p] (0..1) sta dentro, con [slop] di margine in coordinate 0..1. */
-  fun contains(p: Offset, slop: Float = 0f): Boolean {
-    val b = bounds
-    return p.x >= b.left - slop && p.x <= b.right + slop && p.y >= b.top - slop && p.y <= b.bottom + slop
+  fun contains(p: Offset, slop: Float = 0f): Boolean = distanceTo(p) <= slop
+
+  /** Vero se è un rettangolo dritto (i lati sugli assi), come le righe di una schermata o di una pagina dritta. */
+  val isUpright: Boolean get() =
+    abs(topLeft.y - topRight.y) < Straight && abs(bottomLeft.y - bottomRight.y) < Straight &&
+      abs(topLeft.x - bottomLeft.x) < Straight && abs(topRight.x - bottomRight.x) < Straight
+
+  /**
+   * La distanza del punto [p] dal quadrilatero (0 se ci sta dentro), in coordinate 0..1: col quadrilatero storto di una
+   * riga in una foto storta conta la riga vera, non il rettangolo che la contiene (F8.17d).
+   */
+  fun distanceTo(p: Offset): Float {
+    val corners = arrayOf(topLeft, topRight, bottomRight, bottomLeft)
+    var inside = true
+    var sign = 0f
+    var nearest = Float.MAX_VALUE
+    for (i in 0 until 4) {
+      val a = corners[i]
+      val b = corners[(i + 1) % 4]
+      val cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)
+      if (cross != 0f) {
+        if (sign == 0f) sign = cross else if (sign * cross < 0f) inside = false
+      }
+      nearest = min(nearest, segmentDistance(p, a, b))
+    }
+    // Un quadrilatero schiacciato (tutti i prodotti nulli) non ha un dentro: conta solo la distanza dai lati.
+    return if (inside && sign != 0f) 0f else nearest
+  }
+
+  /**
+   * Il pezzo di questa riga dall'inizio della parola [first] alla fine della parola [last] (due quadrilateri dentro la
+   * riga), alto quanto la riga: è la selezione di una riga, dritta o storta come la riga.
+   */
+  fun between(first: FluidTextQuad, last: FluidTextQuad): FluidTextQuad {
+    // La riga come segmento di mezzo, da sinistra a destra; i due capi sono le proiezioni dei lati delle parole.
+    val a = (topLeft + bottomLeft) / 2f
+    val b = (topRight + bottomRight) / 2f
+    val d = b - a
+    val length2 = d.x * d.x + d.y * d.y
+    if (length2 <= 0f) return span(first, last)
+    fun at(p: Offset): Float = (((p.x - a.x) * d.x + (p.y - a.y) * d.y) / length2).coerceIn(0f, 1f)
+    val t0 = at((first.topLeft + first.bottomLeft) / 2f)
+    val t1 = at((last.topRight + last.bottomRight) / 2f).coerceAtLeast(t0)
+    fun top(t: Float) = topLeft + (topRight - topLeft) * t
+    fun bottom(t: Float) = bottomLeft + (bottomRight - bottomLeft) * t
+    return FluidTextQuad(top(t0), top(t1), bottom(t1), bottom(t0))
   }
 
   companion object {
@@ -58,6 +102,16 @@ data class FluidTextQuad(
     /** L'unione di più quadrilateri della stessa riga: dal primo angolo sinistro all'ultimo destro. */
     fun span(first: FluidTextQuad, last: FluidTextQuad): FluidTextQuad =
       FluidTextQuad(first.topLeft, last.topRight, last.bottomRight, first.bottomLeft)
+
+    /** Quanto un lato può scostarsi dall'asse per dirsi dritto: un decimillesimo dell'immagine. */
+    private const val Straight = 1e-4f
+
+    private fun segmentDistance(p: Offset, a: Offset, b: Offset): Float {
+      val d = b - a
+      val length2 = d.x * d.x + d.y * d.y
+      val t = if (length2 > 0f) (((p.x - a.x) * d.x + (p.y - a.y) * d.y) / length2).coerceIn(0f, 1f) else 0f
+      return (p - (a + d * t)).getDistance()
+    }
   }
 }
 

@@ -79,7 +79,8 @@ $EngineModules = [ordered]@{
   "engine-ai"         = @("engine-foundation", "engine-vault")
   "engine-ai-bridge"  = @("engine-foundation", "engine-ai")
   "engine-ai-ui"      = @("engine-foundation", "engine-ui", "engine-ai")
-  "engine-wear"       = @("engine-foundation", "engine-ui")
+  "engine-wear"       = @("engine-foundation", "engine-ui", "engine-wear-sync")
+  "engine-wear-sync"  = @("engine-foundation")
   "engine-richtext"   = @("engine-foundation", "engine-ui")
   "engine-viewer"     = @("engine-foundation", "engine-ui")
   "engine-sync"       = @("engine-foundation", "engine-storage")
@@ -104,7 +105,8 @@ $EngineModules = [ordered]@{
   "engine-search"     = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai", "engine-ai-bridge")
   "engine-search-semantic" = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai", "engine-ai-bridge", "engine-search")
   "engine-editor"     = @("engine-foundation", "engine-ui")
-  "engine-scan"       = @("engine-foundation", "engine-ui")
+  "engine-scan-core"  = @()
+  "engine-scan"       = @("engine-foundation", "engine-ui", "engine-scan-core")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -152,7 +154,7 @@ $EngineModules = [ordered]@{
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
 # engine-files (F8.18: lo sfoglia-file, sopra engine-viewer) idem: lo chiede un'app che fa sfogliare o scegliere file
 # (-Modules ...,engine-files). Nessun permesso: le cartelle arrivano dal selettore di sistema.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic", "engine-editor", "engine-scan")
+$OptInModules = @("engine-wear", "engine-wear-sync", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic", "engine-editor", "engine-scan-core", "engine-scan")
 # engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
 # nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
 # l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
@@ -175,6 +177,14 @@ $OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-view
 # -Modules ...,engine-scan. Il permesso CAMERA non lo dichiara il modulo: lo scrive l'app nel suo manifest se usa la
 # fotocamera vera (moduli/scan.md della skill). engine-viewer-ocr ("Leggi testo", Tesseract) e' una famiglia dei
 # visori: arriva dalla lista di engine-viewer/families.json qui sotto.
+# engine-scan-core (F8.17d: i bordi, la prospettiva, il raddrizzamento e i filtri, senza fotocamera) non si chiede da
+# solo: entra con engine-scan e con engine-viewer-ocr ("scansiona, poi leggi"), che lo hanno fra le dipendenze.
+# engine-wear-sync (F8.25: il ponte fra telefono e orologio, cioe' lo stato pubblicato dal telefono e l'evento del
+# polso con la ricevuta; nessuna libreria imposta) idem: lo chiede l'app del telefono che parla con l'orologio
+# (-Modules ...,engine-wear-sync), e arriva da solo con engine-wear. Il Data Layer di Play services
+# (play-services-wearable, gratuito ma non open source: permesso della GPL-3.0 par. 7) e' compileOnly: lo aggiunge
+# l'app che usa l'adattatore. engine-wear porta ora anche le Tile e le complicazioni (Tiles chiede compileSdk 35 e
+# AGP 8.6 all'app dell'orologio).
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -377,7 +387,8 @@ $notes = @(
   @("engine-ai", "assistente IA: provider, chiavi, orchestratore"),
   @("engine-ai-bridge", "tool federati: esporre i tool a un assistente esterno, o chiamarli"),
   @("engine-ai-ui", "interfaccia dell'assistente: aureola, card, impostazioni, kit della chat (opt-in)"),
-  @("engine-wear", "design system su Wear OS (solo nel modulo dell'orologio)"),
+  @("engine-wear", "design system su Wear OS, Tile e complicazioni Fluid (solo nel modulo dell'orologio)"),
+  @("engine-wear-sync", "ponte telefono-orologio: stato pubblicato, evento del polso con ricevuta; Data Layer dell'app (opt-in)"),
   @("engine-richtext", "editor con formattazione: grassetto, elenchi, link, HTML/Markdown (opt-in)"),
   @("engine-viewer", "decodificatori dei visori: PDF, testo, GIF/WebP animate, Media3 (opt-in)"),
   @("engine-sync", "sincronizzazione: registro locale, invio una volta sola, unione, verso il relay dell'account (opt-in)"),

@@ -136,9 +136,44 @@ internal object OcrBench {
         Log.i("PampaScan", "ocr $name $image cer=${"%.4f".format(cer)} ms=$median")
         bitmap.recycle()
       }
+      // F8.17d · La foto storta letta come la legge «Leggi testo»: il foglio raddrizzato, le righe riportate sulla foto.
+      val fromSheet = sheetFirst(context, name, recognizer)
+      val expected = lines(truth, "lettera.png").joinToString(" ")
+      val cer = cer(expected, fromSheet.first.lines.joinToString(" ") { it.text })
+      val found = recall(expected, fromSheet.first.words.map { it.text })
+      text.append("$FromSheet: ${"%.1f".format(cer * 100)}% CER, ${"%.1f".format(found * 100)}% parole, ${fromSheet.second} ms\n")
+      all.put(JSONObject().put("engine", name).put("image", FromSheet).put("cer", cer).put("recall", found)
+        .put("ms", fromSheet.second).put("first_ms", first).put("text", fromSheet.first.lines.joinToString(" ") { it.text }))
+      Log.i("PampaScan", "ocr $name $FromSheet cer=${"%.4f".format(cer)} ms=${fromSheet.second}")
     }
     File(context.filesDir, "misure-ocr.json").writeText(JSONObject().put("device", android.os.Build.MODEL).put("results", all).toString(1))
     text.toString()
+  }
+
+  /** La foto storta letta da «Leggi testo» (F8.17d, «scansiona, poi leggi»), col riconoscitore della riga. */
+  private const val FromSheet = "foto-lettera-dal-foglio"
+
+  /** Il testo e il tempo di mezzo (tre letture) della foto storta letta come in «Leggi testo», con [recognizer]. */
+  private suspend fun sheetFirst(context: Context, name: String, recognizer: FluidTextRecognizer):
+    Pair<dev.antigravity.fluidengine.viewer.ocr.FluidRecognizedText, Long> {
+    val saved = dev.antigravity.fluidengine.viewer.ocr.FluidLiveText.recognizer
+    dev.antigravity.fluidengine.viewer.ocr.FluidLiveText.recognizer = { recognizer }
+    try {
+      val photo = context.assets.open("ocr/foto-lettera.jpg").use { BitmapFactory.decodeStream(it) }
+      val times = ArrayList<Long>()
+      var result = dev.antigravity.fluidengine.viewer.ocr.FluidRecognizedText.Empty
+      repeat(3) { round ->
+        val start = System.nanoTime()
+        result = dev.antigravity.fluidengine.viewer.ocr.FluidLiveText.read(context, "misura-$name-$round", findSheet = true) {
+          photo.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+        } ?: result
+        times += (System.nanoTime() - start) / 1_000_000
+      }
+      photo.recycle()
+      return result to times.sorted()[1]
+    } finally {
+      dev.antigravity.fluidengine.viewer.ocr.FluidLiveText.recognizer = saved
+    }
   }
 
   /** La foto storta della lettera passata dallo scanner: i bordi trovati, raddrizzata, il filtro «Documento». */

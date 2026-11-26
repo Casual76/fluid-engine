@@ -27,6 +27,9 @@ Catalogo: [`../api/widget.md`](../api/widget.md); il tema che ne e' la fonte: [`
 | il widget che si ridisegna quando cambia l'accento | collegare `updateAll` alle impostazioni (**sezione sotto: senza, non succede**) |
 | colori fissi scritti a mano nel widget | no: si stacca dall'app; usa la palette |
 | un widget per l'orologio | non qui: `engine-wear` |
+| far scoprire i widget dell'app da dentro l'app, con l'anteprima vera per taglia e «Aggiungi alla Home» | `FluidWidgetShowcase(entries, appName)` (F8.25, sotto) |
+| solo il tasto «Aggiungi alla Home», disegnato dall'app | `rememberFluidWidgetPin(provider)` + `pin.request()` + `pin.state` |
+| proporre un riquadro delle Impostazioni rapide | `FluidQuickTileCard(offer)` nella **pagina delle impostazioni dell'app**, mai nella vetrina (da Android 13; F8.25b) |
 
 ## La regola che sorprende: il widget non segue il tema da solo
 
@@ -206,6 +209,132 @@ EngineWidgetSurface(palette, layout, onClick = apriLApp) {
 | `engineWidgetTextStyle(color, size, weight)` | Glance non ha una scala tipografica da ereditare: i corpi sono dichiarati a ogni chiamata. La rampa del design system a distanza da widget: **17** titolo, **15** riga, **13** riga densa, **12** sottotitolo, **11** valore finale. |
 | `EngineWidgetMetrics` | Le misure del budget (sopra). |
 
+## La vetrina dei widget (F8.25): `FluidWidgetShowcase`, `FluidWidgetPin`
+
+**Cos'e'.** Una sezione pronta (Compose, dentro l'app) che mostra i widget dell'app con **l'anteprima vera** per taglia e il
+tasto **«Aggiungi alla Home»** che apre la richiesta del launcher (`AppWidgetManager.requestPinAppWidget`). Quasi nessuno
+sa che un'app ha dei widget: cosi' si scoprono da dentro l'app. Pampa Widgets ne fa la sua pagina principale.
+
+**Il riferimento Apple** e' la galleria dei widget di iPhone (Apple non ce l'ha dentro le app: i widget si aggiungono
+solo da li'): nome e frase in alto, il widget come sara' sulla Home, le taglie da scorrere col dito e i punti sotto,
+«Aggiungi widget» in basso (guida di iPhone, «Add, edit, and remove widgets»: «swipe through the size and style
+options… tap Add Widget»). Le taglie di serie sono quelle di iPhone da 393×852 pt (HIG «Widgets»: **piccolo 158×158**,
+**medio 338×158**, **grande 338×354**; fiducia alta, lette alla lettera nel JSON della pagina), il margine **16** (HIG: «16 points for most widgets»).
+
+**Firma essenziale.**
+
+```kotlin
+data class FluidWidgetSize(val label: String, val width: Dp, val height: Dp, val columns: Int, val rows: Int, val provider: ComponentName? = null)
+  // FluidWidgetSize.Small (2×2), Medium (4×2), Large (4×4), All
+sealed interface FluidWidgetPreview { class Glance(content: @Composable () -> Unit); class Remote(build: (Context, DpSize) -> RemoteViews); class Image(@DrawableRes drawable: Int) }
+data class FluidWidgetEntry(val provider: ComponentName, val title: String, val description: String, val preview: FluidWidgetPreview, val sizes: List<FluidWidgetSize> = FluidWidgetSize.All)
+
+@Composable fun FluidWidgetShowcase(entries: List<FluidWidgetEntry>, appName: String, modifier: Modifier = Modifier,
+  strings: FluidWidgetShowcaseStrings = FluidWidgetShowcaseStrings(), home: (@Composable () -> Unit)? = null)
+@Composable fun FluidWidgetShowcaseCard(entry, appName, modifier, strings, home)
+@Composable fun FluidWidgetPreviewBox(entry, size, contentDescription, modifier)
+@Composable fun rememberFluidWidgetPin(provider: ComponentName): FluidWidgetPin   // state: FluidWidgetPinState, request()
+```
+
+**Uso** (un widget Glance: l'anteprima e' **lo stesso contenuto** che il widget passa a `provideContent`).
+
+```kotlin
+@Composable fun AgendaContent(context: Context) { /* EngineWidgetSurface(...) { ... } con LocalSize */ }
+
+class AgendaWidget : GlanceAppWidget() {
+  override val sizeMode = SizeMode.Exact
+  override suspend fun provideGlance(context: Context, id: GlanceId) = provideContent { AgendaContent(context) }
+}
+
+FluidWidgetShowcase(
+  entries = listOf(
+    FluidWidgetEntry(ComponentName(context, AgendaReceiver::class.java), "Agenda", "Le lezioni di oggi.",
+      FluidWidgetPreview.Glance { AgendaContent(context) }),
+  ),
+  appName = "ClasseViva",
+)
+```
+
+**Comportamento.**
+- **L'anteprima e' quella vera**: Glance compone il contenuto alla taglia scelta (`GlanceRemoteViews`, `LocalSize` e' la
+  taglia) e la vetrina applica le `RemoteViews` come farebbe il launcher. Il widget e' **disposto alla sua misura in dp**
+  e solo rimpicciolito se la colonna e' piu' stretta (`fluidWidgetPreviewScale`, mai sopra 1). Un widget `RemoteViews`
+  passa `FluidWidgetPreview.Remote`; un'anteprima preparata `Image`.
+- L'anteprima **non si tocca** (i tocchi non arrivano al widget) e per TalkBack e' **un'immagine sola**
+  («Anteprima del widget Agenda, taglia Medio»).
+- **Le taglie si sfogliano col dito** (un `HorizontalPager`, nitido: e' il dito che lo muove) coi punti sotto
+  (`FluidPagerDots`) e la riga «Medio · 4×2»; la «Home» ha l'altezza della taglia piu' alta, cosi' la pagina non salta.
+  TalkBack ha le azioni **«Taglia dopo»** e **«Taglia prima»**; con «Riduci movimento» cambiano taglia senza scorrere.
+- **La «Home» dietro l'anteprima** e' di serie una sfumatura dell'accento e del terziario sulla superficie; `home =` mette
+  altro (lo sfondo della Home, una foto), riempiendo la «Home».
+- **L'esito, trattato con prudenza** (`FluidWidgetPinState`, la frase con `strings.messageFor(state, appName)`; arriva
+  sfocata come ogni testo che cambia l'app, ferma con «Riduci movimento»):
+
+  | stato | quando | frase |
+  |---|---|---|
+  | `Asking` | il launcher ha accettato la richiesta | «Conferma sulla Home.» |
+  | `Added(id)` | il launcher ha mandato il ritorno (il `PendingIntent` col suo id), **oppure** al ritorno in primo piano c'e' un widget nuovo del provider (`getAppWidgetIds`) | «Aggiunto alla Home.» |
+  | `NotAdded` | l'app e' tornata in primo piano, il widget non c'e', e non c'e' nemmeno **1,5 s dopo** (il launcher a volte lo mette un attimo dopo aver chiuso il dialogo) | «Non aggiunto. Puoi riprovare quando vuoi.» |
+  | `NoAnswer` | dopo **4 s** l'app non e' mai andata in pausa: il launcher ha detto si' e non ha mostrato niente | «Il launcher non ha risposto.» e la strada a mano |
+  | `Unsupported` | `isRequestPinAppWidgetSupported` falso, o la richiesta rifiutata | «Questo launcher non permette di aggiungere widget da un'app.» e la strada a mano |
+
+  La strada a mano: «Tieni premuto su uno spazio vuoto della Home, tocca «Widget» e cerca «<app>».» (come la guida di
+  iPhone). **Un ritorno che arriva tardi porta lo stesso ad «Aggiunto»**, anche dopo «Non aggiunto».
+- **Android non sa chiedere una taglia**: `requestPinAppWidget` mette il widget nella sua taglia di serie
+  (`targetCellWidth/Height` del provider). Con un provider per taglia (`FluidWidgetSize.Large.copy(provider = …)`) la
+  richiesta mette quella giusta; senza, sotto il tasto c'e' `strings.resizeHint` («Arriva nella taglia di serie: sulla
+  Home tienilo premuto e trascina i bordi per cambiarla.»).
+- **La vetrina mostra solo i widget.** Il riquadro delle Impostazioni rapide **non va mai nella vetrina** (scelta di
+  Alessio del 26/11/2026, F8.25b): si propone dalla pagina delle impostazioni dell'app, con il pezzo qui sotto.
+- **Le parole** stanno in `FluidWidgetShowcaseStrings` (italiano semplice di serie): un'app in un'altra lingua passa le
+  sue.
+
+**Trappole.**
+- Il ritorno del launcher e' un `PendingIntent` **modificabile ed esplicito col pacchetto** (il launcher ci aggiunge
+  `EXTRA_APPWIDGET_ID`; Android 14 vuole l'esplicito) verso un ricevitore **non esportato** registrato finche' la scheda
+  c'e'. Non serve dichiarare niente nel manifest oltre al widget.
+- `requestPinAppWidget` lancia se l'app non e' in primo piano: la vetrina lo tratta come «non si puo' da qui».
+- L'anteprima Glance si compone nella vetrina, non nel widget: legge le **stesse impostazioni** che legge il widget
+  (`EngineSettings`), se no mostra un tema che il widget non avra'.
+- Il launcher di Robolectric accetta e risponde subito: le prove degli altri esiti passano un launcher finto
+  (`LocalFluidWidgetLauncher`, interno).
+
+**Versione.** 4.0 (F8.25). `FluidWidgetShowcaseTest` (15) prova la misura dell'anteprima (larga e stretta), i cinque esiti
+(col launcher di Robolectric che risponde subito e con uno che non risponde), TalkBack e «Riduci movimento», che la
+vetrina non mostra il riquadro rapido, e la scheda del riquadro (sotto).
+
+### Il riquadro delle Impostazioni rapide, nelle impostazioni dell'app: `FluidQuickTileCard` (F8.25b)
+
+**Cos'e'.** La proposta di aggiungere il riquadro dell'app (il suo `TileService` di Android) alle Impostazioni rapide,
+con `StatusBarManager.requestAddTileService`, **da Android 13**. E' un pezzo per la **pagina delle impostazioni
+dell'app**, in una sezione sua («Impostazioni rapide»): mai nella vetrina dei widget. Apple non ha un equivalente (i
+controlli del Centro di Controllo di iOS 18 si aggiungono solo dal Centro di Controllo).
+
+```kotlin
+data class FluidQuickTileOffer(val service: ComponentName, val label: String, val description: String, @DrawableRes val icon: Int)
+@Composable fun FluidQuickTileCard(offer: FluidQuickTileOffer, modifier: Modifier = Modifier, strings: FluidQuickTileStrings = FluidQuickTileStrings())
+class FluidQuickTileRequest   // state: FluidQuickTileState, isSupported, request(); quickTileStateOf(result)
+sealed interface FluidQuickTileState { Idle; Asking; Added; AlreadyAdded; NotAdded; Unsupported }
+data class FluidQuickTileStrings(add, added, alreadyAdded, notAdded, unsupported)   // FluidQuickTileStrings.messageFor(state)
+```
+
+```kotlin
+// Nelle impostazioni di Pampa Sounds:
+FluidSectionHeader(title = "Impostazioni rapide")
+FluidQuickTileCard(FluidQuickTileOffer(ComponentName(context, TimerTileService::class.java), "Timer",
+  "Il timer a un tocco dalle Impostazioni rapide.", R.drawable.ic_timer))
+```
+
+**Comportamento.** La scheda: l'icona in una tessera dell'accento da 44 dp, il nome, la frase, il tasto «Aggiungi alle
+Impostazioni rapide». Qui, a differenza del widget, **la risposta torna sempre** (sul filo principale): «Nelle
+Impostazioni rapide.», «È già nelle Impostazioni rapide.», «Non aggiunto.»; un errore o un Android prima del 13 danno la
+strada a mano («aprilo dalle Impostazioni rapide, tocca la matita e trascinalo su»), che prima del 13 si vede subito.
+L'esito arriva sfocato, fermo con «Riduci movimento». Il `TileService` lo dichiara l'app nel suo manifest
+(`android.service.quicksettings.action.QS_TILE`, permesso `BIND_QUICK_SETTINGS_TILE`).
+
+**Versione.** 4.0 (F8.25b; in F8.25 stava in fondo alla vetrina). Prove in `FluidWidgetShowcaseTest`: gli esiti e le
+parole, la scheda da Android 13 e quella di Android 12 con la strada a mano.
+
 ## Altre cose che sorprendono in Glance (e che il kit gia' gestisce)
 
 - **`cornerRadius` funziona solo da Android 12.** Sotto, i widget restano squadrati: i colori portano l'identita' da soli, ed e' per questo che nessun componente affida un significato alla sola forma. Non affidarlo nemmeno tu.
@@ -233,6 +362,7 @@ EngineWidgetSurface(palette, layout, onClick = apriLApp) {
 - `EngineWidgetLayoutTest` (5): il budget. E' l'unica parte di un widget Glance che un test puo' tenere: sotto c'e' `RemoteViews` e l'host taglia in silenzio.
 - `EngineWidgetArgbTest` (3): il tema dell'app vince su quello del launcher (e `SYSTEM` lo segue); gli interi sono i ruoli dello schema, con i traslucidi gia' composti sulla card; la serie scura ha i suoi valori fissi per avviso e successo.
   La derivazione (`engineWidgetArgbOf`) e' `internal` e separata dal `Context` per poterla provare senza un launcher.
+- `FluidWidgetShowcaseTest` (15, F8.25 e F8.25b): la vetrina e il riquadro rapido (sopra).
 - **Non verificato:** la palette Glance (`engineWidgetPalette`) e i componenti `EngineWidget*`: nessun test li disegna, ne' il comportamento col colore dinamico. Si guardano su un dispositivo, con un widget vero e il tema cambiato dall'app.
 
 ## Dove guardare
@@ -240,6 +370,8 @@ EngineWidgetSurface(palette, layout, onClick = apriLApp) {
 - `engine-widget/src/main/kotlin/dev/antigravity/fluidengine/widget/EngineWidgetPalette.kt` — `EngineWidgetPalette`, `EngineWidgetTone`, `engineWidgetPalette`, `engineWidgetIsDark`, `engineWidgetColorScheme`, `EngineWidgetArgb`/`engineWidgetArgb`, i colori fissi.
 - `.../EngineWidgetLayout.kt` — `EngineWidgetLayout`, `EngineWidgetMetrics`, `resolveEngineWidgetLayout` (le soglie).
 - `.../EngineWidgetComponents.kt` — i componenti, `EngineWidgetShape`, `engineWidgetTextStyle`.
+- `.../FluidWidgetShowcase.kt`, `FluidWidgetPreview.kt`, `FluidWidgetPin.kt` — la vetrina (F8.25): la scheda, le taglie, l'anteprima, la richiesta al launcher.
+- `.../FluidQuickTile.kt` — il riquadro delle Impostazioni rapide, per le impostazioni dell'app (F8.25b).
 - `templates/EngineBootstrap.kt.txt` — il collegamento `updateAll` alle impostazioni (punto 3).
 - `skill/fluid-engine/references/widget.md`, `docs/05-widget.md` — la stessa materia in forma di ricetta.
 

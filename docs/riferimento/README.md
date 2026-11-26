@@ -63,8 +63,9 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-net` | `EngineHttp`: leggi un documento, scarica un file; l'osservatore della rete che non lampeggia e le condizioni del telefono (rete a consumo, risparmio dati ed energetico, calore) | `moduli/net.md` |
 | `engine-config` | `EngineRemoteConfig`: flag, versione minima, avvisi, kill switch | `moduli/config.md` |
 | `engine-update` | aggiornamento in-app via PackageInstaller | `moduli/update.md` |
-| `engine-widget` | palette e componenti Glance con lo stesso aspetto | `moduli/widget.md` |
-| `engine-wear` | il design system su Wear OS (**opt-in**: solo nel modulo dell'orologio) | `moduli/wear.md` |
+| `engine-widget` | palette e componenti Glance con lo stesso aspetto, e dalla 4.0 la vetrina dei widget dentro l'app (anteprima vera per taglia, «Aggiungi alla Home») | `moduli/widget.md` |
+| `engine-wear` | il design system su Wear OS, e dalla 4.0 le Tile e le complicazioni nello stile Fluid (**opt-in**: solo nel modulo dell'orologio) | `moduli/wear.md` |
+| `engine-wear-sync` | il ponte fra telefono e orologio: lo stato che l'orologio mostra ad app chiusa, l'evento del polso con la ricevuta («In coda» → «Registrato»), il formato versionato; il Data Layer lo porta l'app (**opt-in**, dalla 4.0) | `moduli/wear-sync.md` |
 | `engine-ai` | l'assistente senza dominio: provider BYOK, chiavi, SSE, failover, router e orchestratore, voce | `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md` |
 | `engine-ai-ui` | l'interfaccia dell'assistente: overlay, chat, impostazioni, halo (**opt-in**) | `moduli/ai-ui*.md` |
 | `engine-ai-bridge` | tool federati fra app (ContentProvider che verifica la firma di chi chiama) | `moduli/ai-bridge.md` |
@@ -92,7 +93,7 @@ configura ferma tutto il build). Tutto sotto `dev.antigravity.fluidengine.*`. De
 | `engine-files` | lo sfoglia-file di vetro come File di iOS: le schede Recenti e Sfoglia (le posizioni: la cartella dell'app, le cartelle concesse e le app con un `DocumentsProvider`), griglia con le miniature vere o elenco, ordine, ricerca, selezione e scelta, apertura nei visori dalla miniatura (**opt-in**, dalla 4.0) | `moduli/files.md` |
 | `engine-files` | lo sfoglia-file di vetro come File di iOS: Sfoglia con le posizioni (la cartella dell'app, le cartelle concesse e le app con un `DocumentsProvider`) e Recenti, griglia con le miniature vere o elenco, ordine, ricerca, selezione e scelta, apertura nei visori dalla miniatura (**opt-in**, dalla 4.0) | `moduli/files.md` |
 | `engine-search`, `engine-search-semantic` | la ricerca: l'indice sul telefono come Core Spotlight (SQLite FTS4, l'italiano, gli errori di battitura, gli inizi, la pertinenza, i pezzi evidenziati, la cassaforte per i dati sensibili, l'aggiornamento a pezzi in carica, l'aggancio al campo di ricerca) e «Cerca in Pampa» col ponte firmato; a parte il modello del significato con LiteRT-LM (**opt-in**, dalla 4.0) | `moduli/search.md` |
-| `engine-scan` | lo scanner di documenti come Note di iOS: la fotocamera di vetro che trova i bordi del foglio dal vivo e scatta quando è fermo, il raddrizzamento e i filtri, la fila delle pagine da riordinare e ritagliare, il PDF o le immagini per URI (**opt-in**, dalla 4.0) | `moduli/scan.md` |
+| `engine-scan` | lo scanner di documenti come Note di iOS: la fotocamera di vetro che trova i bordi del foglio dal vivo e scatta quando è fermo, il raddrizzamento e i filtri, la fila delle pagine da riordinare e ritagliare, il PDF o le immagini per URI (**opt-in**, dalla 4.0); i bordi, la prospettiva e i filtri stanno in `engine-scan-core`, senza fotocamera, che arriva da solo | `moduli/scan.md` |
 | `engine-viewer-office`, `-archive`, `-data`, `-graphics`, `-3d`, `-ar`, `-ocr`, `-all` | i moduli di famiglia dei visori: Office, archivi, testi ricchi e dati, immagini speciali e font, 3D, AR, «Leggi testo» (il testo nelle immagini, Tesseract sul telefono), e il visore universale (**opt-in**, uno per famiglia, col loro peso) | `moduli/viewer-famiglie.md` |
 | `engine-auth`, `engine-auth-google` | le passkey e il gestore delle password con Credential Manager, senza rete (il PRF lo scrive il modulo, gli errori come frasi pronte); «Continua con Google» e le concessioni Google, spente (**opt-in**, dalla 4.0; Google ha il permesso della GPL-3.0 § 7) | `moduli/auth.md` |
 
@@ -158,6 +159,8 @@ La tabella «Scegliere in fretta» sta in testa a ogni scheda; questo è l'indir
 | il foglio «Benvenuto in…» e «Novità di…» una volta per versione, un permesso chiesto dal tasto che ne ha bisogno (anche le foto «solo alcune»), uno sfondo vivo per un onboarding o un traguardo, la finestra del colore giusto al primo fotogramma | `componenti/prima-volta.md` |
 | entrare con una passkey, salvare un codice nel gestore delle password, «Continua con Google» | `moduli/auth.md` (opt-in) |
 | un orologio | `moduli/wear.md` |
+| una Tile o una complicazione dell'orologio, uno stato del telefono mostrato al polso ad app chiusa, un evento del polso con la ricevuta | `moduli/wear.md` («Tile e complicazioni»), `moduli/wear-sync.md` |
+| far scoprire i widget dell'app con l'anteprima vera e «Aggiungi alla Home» | `moduli/widget.md`, «La vetrina dei widget» |
 | cifrare una password, un file, un DataStore; una cartella che si apre con l'impronta e si richiude da sola; il caso «chiave non più valida» | `moduli/vault.md` (opt-in) |
 | bloccare l'app con l'impronta al rientro, il PIN dell'app, un album o le note che restano chiusi, l'anteprima nelle recenti | `moduli/security.md` (opt-in) |
 | un assistente IA | `ai.md`, `moduli/ai-provider.md`, `ai-orchestrator.md`, `ai-chiavi-rete-voce.md`, e l'interfaccia in `moduli/ai-ui.md` (+ `ai-ui-overlay`, `-chat`, `-impostazioni`, `-stringhe`) |

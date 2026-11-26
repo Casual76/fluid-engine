@@ -48,4 +48,11 @@ dependencies {
   // F8.6: il quadrante del widget, composto da Glance e disegnato nelle maschere.
   testImplementation "org.robolectric:robolectric:${engine.robolectric}"
   testImplementation "androidx.glance:glance-appwidget-testing:${engine.glance}"
+  // F8.25: la vetrina dei widget e' Compose (l'anteprima, il tasto, l'esito): un dito finto su un albero vero.
+  testImplementation "androidx.test:core:1.7.0"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
+  debugImplementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }

@@ -46,6 +46,12 @@ qui: vale il testo inglese. Il nome della licenza delle librerie di Play service
 («Android Software Development Kit License», <https://developer.android.com/studio/terms>, letto il 25/11/2026 nel POM
 di `play-services-auth` 22.0.0).
 
+**F8.25, il Data Layer di Wear OS.** `engine-wear-sync` compila contro `play-services-wearable` (una delle librerie
+`com.google.android.gms`, quindi già dentro il testo qui sopra: «Google Play services (the com.google.android.gms
+libraries…)») ma **non la porta** (`compileOnly`): la aggiunge l'app che usa l'adattatore `FluidWearDataLayer`, con la
+Android Software Development Kit License (letta il 26/11/2026 nel POM di `play-services-wearable` 20.0.1). Il nucleo del
+modulo (il formato, la coda, il registro, gli stati) non usa Play services.
+
 ## Cosa vuol dire, in parole semplici
 
 - **Si può distribuire un'app che unisce l'engine e quelle librerie di Google**, anche se non sono libere. Il resto

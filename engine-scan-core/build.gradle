@@ -1,0 +1,50 @@
+// F8.17d · Il nucleo dello scanner di documenti, senza fotocamera e senza interfaccia: i bordi del foglio in una foto
+// (Hough sui bordi di Canny e la macchia di Otsu), la geometria (gli angoli, la prospettiva, le proporzioni vere), il
+// raddrizzamento e i filtri della pagina. Lo usano due moduli:
+//
+//   engine-scan        lo scanner con la fotocamera (lo porta con `api`: le sue classi sono le stesse di prima);
+//   engine-viewer-ocr  «Leggi testo», che in una foto storta di un foglio legge la pagina raddrizzata ("scansiona,
+//                      poi leggi") e riporta le righe sulla foto.
+//
+// Un'app non lo chiede da sola: arriva con uno dei due. Nessuna libreria (solo l'annotazione @Immutable di Compose, che
+// i due moduli hanno gia'), nessun manifesto da unire, nessun permesso. Le classi stanno nel package
+// dev.antigravity.fluidengine.scan, come prima di F8.17d.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.scan.core'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // I bordi, il raddrizzamento e i filtri si provano sulle bitmap vere di Android (Robolectric, grafica nativa).
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  implementation platform("androidx.compose:compose-bom:${engine.composeBom}")
+  implementation 'androidx.compose.runtime:runtime'
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+}

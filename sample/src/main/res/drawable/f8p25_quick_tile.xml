@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.25 · L'icona del riquadro rapido di prova: una goccia, monocromatica (il sistema la tinge). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M12,2.5C12,2.5 5,10.2 5,14.6C5,18.5 8.1,21.5 12,21.5C15.9,21.5 19,18.5 19,14.6C19,10.2 12,2.5 12,2.5ZM9.2,15.1C9.6,16.7 10.9,17.9 12.5,18.1L12.3,19.6C10,19.3 8.2,17.6 7.7,15.4Z" />
+</vector>

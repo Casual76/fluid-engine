@@ -106,7 +106,8 @@ internal fun LiveTextImage(key: String, aspect: Float, load: suspend (Context) -
   LaunchedEffect(key, active) {
     if (!active || state.status == FluidLiveTextStatus.Ready) return@LaunchedEffect
     delay(FluidLiveText.SettleMillis)
-    state.read { FluidLiveText.read(context, key) { load(context) } }
+    // Una foto: se ci si vede un foglio storto, si legge raddrizzato (F8.17d, «scansiona, poi leggi»).
+    state.read { FluidLiveText.read(context, key, findSheet = true) { load(context) } }
   }
   FluidLiveTextOverlay(state)
   FluidViewerPageAccessory { FluidLiveTextControls(state) }

@@ -1,7 +1,7 @@
 /*
- * engine-scan (4.0, F8.17): raddrizzare e pulire la pagina. La prospettiva con la matrice di Android
- * (`Matrix.setPolyToPoly` a quattro punti), i filtri «Documento», «Scala di grigi», «Bianco e nero» e «Foto» come quelli
- * di VisionKit, scritti qui. Codice del Fluid Engine.
+ * engine-scan-core (4.0, F8.17; il nucleo senza fotocamera da F8.17d): raddrizzare e pulire la pagina. La prospettiva
+ * con la matrice di Android (`Matrix.setPolyToPoly` a quattro punti), i filtri «Documento», «Scala di grigi», «Bianco e
+ * nero» e «Foto» come quelli di VisionKit, scritti qui. Codice del Fluid Engine.
  */
 package dev.antigravity.fluidengine.scan
 
@@ -61,11 +61,31 @@ object FluidScanImages {
   }
 
   /**
+   * Quanto della pagina si toglie su ogni lato prima di raddrizzare: lo 0,5%, misurato sulla pagina dritta (un A4 perde
+   * un millimetro per lato). Sul Tab S9 (26/11/2026) i bordi trovati, che sbagliano al più dello 0,27% della diagonale
+   * della foto, lasciavano in alto e a sinistra un filo di tavolo che il filtro «Documento» faceva nero e tratteggiato.
+   * Anche gli scanner di Note e File tagliano un filo di bordo.
+   */
+  const val EdgeInset: Float = 0.005f
+
+  /**
    * La pagina raddrizzata: il foglio [quad] di [photo] portato a un rettangolo con le proporzioni vere, girato di
    * [quarterTurns] quarti in senso orario. Il campionamento è bilineare; da una foto molto più grande della pagina si
-   * riduce prima a metà quante volte serve, così i caratteri piccoli non si sgranano.
+   * riduce prima a metà quante volte serve, così i caratteri piccoli non si sgranano. Il foglio rientra prima di
+   * [edgeInset] su ogni lato ([FluidScanQuad.inset]): il punto (u, v) della pagina è `quad.inset(edgeInset).pageMap()`.
    */
-  fun straighten(photo: Bitmap, quad: FluidScanQuad, quarterTurns: Int = 0, maxLongSide: Int = DefaultMaxLongSide): Bitmap {
+  fun straighten(
+    photo: Bitmap,
+    quad: FluidScanQuad,
+    quarterTurns: Int = 0,
+    maxLongSide: Int = DefaultMaxLongSide,
+    edgeInset: Float = EdgeInset,
+  ): Bitmap {
+    val sheet = quad.inset(edgeInset)
+    return straightenExactly(photo, sheet, quarterTurns, maxLongSide)
+  }
+
+  private fun straightenExactly(photo: Bitmap, quad: FluidScanQuad, quarterTurns: Int, maxLongSide: Int): Bitmap {
     val (outW, outH) = outputSize(quad, photo.width, photo.height, maxLongSide)
     // Riduzioni a metà finché la foto non è al più il doppio della pagina: il bilineare non salta più pixel di quanti ne legge.
     var source = photo

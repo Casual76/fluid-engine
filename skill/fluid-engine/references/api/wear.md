@@ -141,3 +141,47 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun fluidWearColorScheme(phone: PhoneColorScheme): WearColorScheme` — The Wear colour roles, read off the phone's.
 - `fun fluidWearTypography(): WearTypography` — Wear's type scale, set in Inter.
 - `fun fluidWearShapes(): WearShapes` — Wear's shape slots, in continuous corners.
+
+## `engine-wear/wear/tiles/FluidComplications.kt`
+
+- `object FluidComplications` — Le complicazioni Fluid: i dati di uno stato ([FluidWearStatus]) nella forma che chiede il quadrante.
+  - `const val ShortTextMaxChars: Int` — Il limite del testo breve sui quadranti (documentazione di `ShortTextComplicationData`: «up to 7 characters»).
+  - `val SupportedTypes: List<ComplicationType>` — I tipi che le complicazioni Fluid sanno dare.
+  - `fun dataFor(type: ComplicationType, status: FluidWearStatus, nowMillis: Long, colors: FluidTileColors = fluidTileColors(), tapAction: PendingIntent? = null): ComplicationData` — I dati di [status] per il tipo [type] a [nowMillis], con il tocco [tapAction]. `NoData` per un tipo che non c'è in [SupportedTypes], o se il tipo è l'intervallo e lo stato non ha un avanzamento.
+  - `fun accentRamp(colors: FluidTileColors = fluidTileColors()): ColorRamp` — La rampa dell'accento per un intervallo: dall'accento spento all'accento pieno, sfumata.
+  - `fun preview(type: ComplicationType, colors: FluidTileColors = fluidTileColors()): ComplicationData` — L'anteprima di un tipo, per il selettore delle complicazioni del quadrante.
+- `abstract class FluidStatusComplicationService(private val key: String, private val brand: AccentPreset = FluidDefaultBrand) : SuspendingComplicationDataSourceService()` — Il servizio di una complicazione che mostra lo stato [key] pubblicato dal telefono (`engine-wear-sync`): legge l'archivio locale del ponte, quindi risponde subito e anche ad app chiusa. Si dichiara nel manifest come ogni sorgente di complicazioni (`android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST`, i tipi in `SUPPORTED_TYPES`: `SHORT_TEXT,LONG_TEXT,RANGED_VALUE`, `UPDATE_PERIOD_SECONDS` a 0:…
+
+## `engine-wear/wear/tiles/FluidTile.kt`
+
+- `data class FluidTileContent(val title: String, val value: String, val detail: String? = null, val progress: Float? = null, val action: FluidTileAction? = null, val onClick: ActionBuilders.Action? = null, val stale: Boolean = false, val contentDescription: String? = null)` — Che cosa mostra una Tile Fluid: un titolo piccolo in alto, un **valore** dentro il disco di vetro al centro, una riga sotto, l'**anello sul bordo** per l'avanzamento e un tasto sul bordo in basso.
+  - `val spoken: String` — La frase per TalkBack.
+  - `companion object`
+    - `const val ValueMaxChars: Int` — Oltre questi caratteri il valore scende dal carattere numerale a quello del titolo, per stare nel disco.
+    - `const val StaleDetail: String` — La riga di uno stato vecchio.
+    - `fun of(status: FluidWearStatus, nowMillis: Long, action: FluidTileAction? = null, onClick: ActionBuilders.Action? = null)` — La Tile di uno stato pubblicato dal telefono ([FluidWearStatus]): titolo, valore, riga sotto, anello. A [nowMillis] oltre [FluidWearStatus.staleAfterMillis] la Tile si spegne.
+- `data class FluidTileAction(val label: String, val launch: ComponentName? = null, val id: String = "fluid-tile-action")` — Il tasto sul bordo in basso: [label] corta («Apri», «Chiedi», «Pausa»). [launch] è l'attività che apre (dell'app dell'orologio); `null` ricarica la Tile con l'id [id] (lo legge `requestParams.currentState.lastClickableId`).
+  - `fun toAction(): ActionBuilders.Action` — L'azione di ProtoLayout.
+- `fun fluidTileLaunch(activity: ComponentName): ActionBuilders.Action` — L'azione che apre l'attività [activity] dalla Tile.
+- `object FluidTileDimens` — Le misure della Tile Fluid, in dp e in frazioni dello schermo.
+  - `const val DiscFraction: Float` — Il diametro del disco, in frazione della larghezza dello schermo: 0,42 senza riga sotto, 0,36 con. A occhio, 26/11/2026 (sta nello slot principale di `primaryLayout` a 192 dp col tasto sul bordo).
+  - `const val DiscFractionWithDetail: Float`
+  - `const val RingStroke: Float` — Il tratto dell'anello sul bordo: `FluidWearDimens.RingStroke`, 4 dp.
+  - `const val DiscRim: Float` — Il filetto del disco: 0,8 dp, quello del vetro dell'orologio (`FluidWearGlass.Optics.highlightWidth`).
+- `fun MaterialScope.fluidTile(content: FluidTileContent, colors: FluidTileColors = fluidTileColors()): LayoutElement` — La Tile Fluid di [content], dentro un `MaterialScope` (quello che `Material3TileService` passa a `tileResponse`, o `materialScope(...)` in una prova). I colori sono [colors]; di serie quelli di [fluidTileColors] col marchio di serie.
+- `fun fluidTileEdgeRing(progress: Float, colors: FluidTileColors = fluidTileColors()): LayoutElement` — L'anello sul bordo: la pista intera e l'avanzamento dalle ore dodici in senso orario, a filo del bordo dello schermo (come `FluidEdgeGlowRing`, senza l'alone: ProtoLayout non sfuma). Lo spessore è [FluidTileDimens.RingStroke].
+
+## `engine-wear/wear/tiles/FluidTileColors.kt`
+
+- `class FluidTileColors internal constructor(val scheme: ColorScheme, val accent: LayoutColor, val discFill: LayoutColor, val discRim: LayoutColor, val ringTrack: LayoutColor, val ring: LayoutColor, val onDisc: LayoutColor, val secondary: LayoutColor, val stale: LayoutColor, val argb: FluidTileArgb)` — I colori di una Tile e di una complicazione Fluid, già risolti: ProtoLayout non ha un tema da leggere al momento del disegno (come Glance per i widget del telefono, il layout va al sistema come dati), quindi tutto si decide qui, una volta, dagli stessi token di [dev.antigravity.fluidengine.wear.theme.FluidWearTheme].
+- `data class FluidTileArgb(val background: Int, val accent: Int, val accentDim: Int, val onAccent: Int, val discFill: Int, val discRim: Int, val ringTrack: Int, val onDisc: Int, val secondary: Int, val stale: Int)` — I colori di [FluidTileColors] come interi ARGB.
+- `fun fluidTileColors(brand: AccentPreset = FluidDefaultBrand, settings: EngineSettings = FluidWearDefaults.settings): FluidTileColors` — I colori Fluid per le Tile e le complicazioni, dal marchio [brand] dell'app. [settings] serve solo per l'accento (marchio o preimpostato): il fondo resta nero (vedi [FluidTileColors]).
+
+## `engine-wear/wear/tiles/FluidTileService.kt`
+
+- `abstract class FluidTileService(private val brand: AccentPreset = FluidDefaultBrand) : Material3TileService(allowDynamicTheme = false, defaultColorScheme = fluidTileColors(brand).scheme)` — Il servizio di una Tile Fluid: l'app scrive solo [content], cioè che cosa mostrare; il disegno (disco di vetro, anello sul bordo, tasto sul bordo, colori dal suo marchio) lo fa [fluidTile].
+  - `companion object`
+    - `const val DefaultFreshnessMillis: Long` — 15 minuti. A occhio, 26/11/2026: il sistema raggruppa comunque gli aggiornamenti.
+- `abstract class FluidStatusTileService(private val key: String, brand: AccentPreset = FluidDefaultBrand, private val action: FluidTileAction? = null, private val waiting: FluidTileContent = FluidTileContent(title = "In attesa", value = "…) : FluidTileService(brand)` — La Tile di uno stato pubblicato dal telefono con `engine-wear-sync` ([FluidWearStatus], chiave [key]): la lezione dopo, le mail non lette, il timer. Legge l'archivio locale del ponte, quindi c'è anche ad app chiusa e col telefono lontano; finché il telefono non ha pubblicato niente dice [waiting].
+- `object FluidWearSurfaces` — Le richieste di ridisegno delle superfici dell'orologio, quando un dato cambia.
+  - `fun refresh(context: Context, tiles: List<Class<out TileService>> = emptyList(), complications: List<Class<*>> = emptyList())` — Chiede di ridisegnare le Tile [tiles] e tutte le complicazioni dei servizi [complications]. Si chiama da `onStatusChanged` di `FluidWearListenerService`, sull'orologio. Il sistema decide quando (le Tile visibili subito, le altre al prossimo passaggio).

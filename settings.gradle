@@ -100,6 +100,14 @@ include ':engine-editor'
 // testo nelle immagini (engine-viewer-ocr: «Leggi testo» nei visori di foto e PDF). Opt-in tutti e due.
 include ':engine-scan'
 include ':engine-viewer-ocr'
+// F8.17d · Il nucleo dello scanner (i bordi, la prospettiva, il raddrizzamento, i filtri), senza fotocamera: lo usano
+// engine-scan e, per «scansiona, poi leggi», engine-viewer-ocr.
+include ':engine-scan-core'
+
+// F8.25 · Il ponte fra telefono e orologio (engine-wear-sync: lo stato pubblicato dal telefono, l'evento del polso con la
+// ricevuta, il formato versionato; il Data Layer di Play services e' compileOnly, lo porta l'app). Opt-in, senza
+// interfaccia; le Tile e le complicazioni stanno in engine-wear, la vetrina dei widget in engine-widget.
+include ':engine-wear-sync'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

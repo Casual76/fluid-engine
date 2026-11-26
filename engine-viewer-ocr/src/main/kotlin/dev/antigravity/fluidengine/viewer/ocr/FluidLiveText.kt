@@ -66,6 +66,13 @@ object FluidLiveText {
   var enabled: Boolean = true
 
   /**
+   * «Scansiona, poi leggi» (F8.17d): in una foto storta di un foglio si legge la pagina raddrizzata e le righe tornano
+   * sulla foto. Di serie acceso; falso per leggere sempre la foto intera.
+   */
+  @Volatile
+  var straightenSheets: Boolean = true
+
+  /**
    * Quanto aspetta la pagina ferma prima di leggere: 450 ms. A occhio (25/11/2026): chi sfoglia di corsa non paga
    * letture, chi si ferma a guardare trova il tasto entro un secondo, come Foto.
    */
@@ -82,19 +89,30 @@ object FluidLiveText {
 
   /**
    * Legge [load] per [key] (una lettura alla volta in tutto il processo: Tesseract è uno), o restituisce quella già
-   * fatta. [load] dà la bitmap, che qui si ricicla dopo la lettura.
+   * fatta. [load] dà la bitmap, che qui si ricicla dopo la lettura. Con [findSheet] (una foto, non una pagina di un
+   * documento) e [straightenSheets], un foglio storto nella foto si legge raddrizzato.
    */
-  suspend fun read(context: Context, key: String, load: suspend () -> Bitmap?): FluidRecognizedText? {
+  suspend fun read(
+    context: Context,
+    key: String,
+    findSheet: Boolean = false,
+    load: suspend () -> Bitmap?,
+  ): FluidRecognizedText? {
     cache.get(key)?.let { return it }
+    // Tutto fuori dal filo principale (F8.17d): chi chiama sta in un LaunchedEffect, e il riconoscitore, i bordi del
+    // foglio e il raddrizzamento sono lavoro vero.
     return reading.withLock {
       cache.get(key)?.let { return@withLock it }
-      val recognizer = recognizer(context.applicationContext ?: context)
-      if (!recognizer.available) return@withLock null
-      val bitmap = load() ?: return@withLock null
-      try {
-        recognizer.recognize(bitmap).also { cache.put(key, it) }
-      } finally {
-        withContext(Dispatchers.Default) { bitmap.recycle() }
+      withContext(Dispatchers.Default) {
+        val recognizer = recognizer(context.applicationContext ?: context)
+        if (!recognizer.available) return@withContext null
+        val bitmap = load() ?: return@withContext null
+        try {
+          val result = if (findSheet && straightenSheets) SheetReading.recognize(recognizer, bitmap) else recognizer.recognize(bitmap)
+          result.also { cache.put(key, it) }
+        } finally {
+          bitmap.recycle()
+        }
       }
     }
   }

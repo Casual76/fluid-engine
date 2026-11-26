@@ -190,6 +190,8 @@ DIR_FAMILY = {
     "update": "update",
     "widget": "widget",
     "wear": "wear",
+    # F8.25: il ponte fra telefono e orologio (lo stato, l'evento con la ricevuta); le Tile stanno in wear/tiles
+    "wear/sync": "wear-sync",
     "richtext": "richtext",
     # F8.23: la cassaforte e il blocco con l'impronta
     "vault": "vault",
@@ -239,7 +241,8 @@ DIR_FAMILY = {
     "search/semantic": "search-semantic",
     # la modifica delle immagini: l'editor, la ricetta, il calcolo e il salvataggio (F8.15)
     "editor": "editor",
-    # lo scanner di documenti (F8.17); «Leggi testo» (viewer/ocr) va con engine-viewer
+    # lo scanner di documenti (F8.17) e il suo nucleo senza fotocamera (engine-scan-core, F8.17d, stesso pacchetto);
+    # «Leggi testo» (viewer/ocr) va con engine-viewer
     "scan": "scan",
 }
 
@@ -269,6 +272,7 @@ FAMILY_TITLES = {
     "update": "engine-update",
     "widget": "engine-widget",
     "wear": "engine-wear",
+    "wear-sync": "engine-wear-sync",
     "richtext": "engine-richtext",
     "vault": "engine-vault",
     "security": "engine-security",
@@ -295,7 +299,7 @@ FAMILY_TITLES = {
     "transcript": "engine-transcript",
     "search": "engine-search",
     "search-semantic": "engine-search-semantic",
-    "scan": "engine-scan",
+    "scan": "engine-scan e engine-scan-core",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

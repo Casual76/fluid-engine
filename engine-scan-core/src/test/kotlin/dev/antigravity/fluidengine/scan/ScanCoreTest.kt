@@ -4,23 +4,20 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import java.io.ByteArrayOutputStream
 import java.io.File
-import kotlin.math.abs
 import kotlin.math.hypot
 
 /**
  * F8.17 · Il nucleo dello scanner sulle foto di prova (tools/scan-samples/genera.py): i bordi trovati contro gli angoli
  * veri, con luce buona e cattiva, prospettiva, rotazione, ombra, basso contrasto e scontrino; nessun foglio sul tavolo
- * vuoto; le proporzioni vere, i filtri e il PDF. Le misure finiscono in build/scan-misure.txt per il rapporto.
+ * vuoto; le proporzioni vere, il raddrizzamento e i filtri. Le misure finiscono in build/scan-misure.txt per il
+ * rapporto. Da F8.17d stanno in engine-scan-core, col codice che provano.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -147,66 +144,76 @@ class ScanCoreTest {
     assertEquals(0xFF000000.toInt(), bw[278 * w + 200])
   }
 
-  @Test fun ilPdfHaLePagineEGliIndirizziGiusti() {
-    val jpeg = { w: Int, h: Int ->
-      val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.WHITE) }
-      ByteArrayOutputStream().also { b.compress(Bitmap.CompressFormat.JPEG, 80, it) }.toByteArray()
+  /** Il foglio della foto «prospettiva» (fogli.json): la lettera vista di sbieco. */
+  private val tilted = FluidScanQuad(FluidScanPoint(0.25f, 0.20625f), FluidScanPoint(0.75833f, 0.1875f),
+    FluidScanPoint(0.925f, 0.89375f), FluidScanPoint(0.07917f, 0.92188f))
+
+  @Test fun laProspettivaDellaPaginaTornaSullaFoto() {
+    val map = tilted.pageMap()!!
+    val corners = listOf(Triple(0f, 0f, tilted.topLeft), Triple(1f, 0f, tilted.topRight), Triple(1f, 1f, tilted.bottomRight),
+      Triple(0f, 1f, tilted.bottomLeft))
+    for ((u, v, p) in corners) {
+      val m = map.photoPoint(u, v)
+      assertEquals("x di ($u, $v)", p.x, m.x, 1e-4f)
+      assertEquals("y di ($u, $v)", p.y, m.y, 1e-4f)
     }
-    val out = ByteArrayOutputStream()
-    ScanPdfWriter.write(listOf(ScanPdfWriter.Page(jpeg(1240, 1754), 1240, 1754), ScanPdfWriter.Page(jpeg(600, 1600), 600, 1600)),
-      "Scansione 25 nov 2026, 14.32", out)
-    val bytes = out.toByteArray()
-    val text = String(bytes, Charsets.ISO_8859_1)
-    assertTrue(text.startsWith("%PDF-1.4"))
-    assertTrue(text.contains("/Count 2"))
-    assertTrue("A4 riconosciuto", text.contains("/MediaBox [0 0 595.28 841.89]"))
-    // La tabella xref: ogni scostamento punta davvero al suo oggetto.
-    val xref = text.substring(text.lastIndexOf("startxref") + 10).trim().lines().first().toInt()
-    val rows = text.substring(xref).lines().drop(3).takeWhile { it.endsWith(" n ") }
-    assertEquals(9, rows.size)
-    rows.forEachIndexed { i, row ->
-      val offset = row.substring(0, 10).toInt()
-      assertTrue("oggetto ${i + 1}", text.startsWith("${i + 1} 0 obj", offset))
-    }
-    assertEquals(612f to 792f, ScanPdfWriter.pageSize(850, 1100))
-    assertEquals(841.89f to 595.28f, ScanPdfWriter.pageSize(1754, 1240))
+    // Il centro della pagina è l'incrocio delle diagonali del foglio, non la media degli angoli: è la prospettiva.
+    val a = tilted.topLeft; val b = tilted.bottomRight; val c = tilted.topRight; val d = tilted.bottomLeft
+    val den = (a.x - b.x) * (c.y - d.y) - (a.y - b.y) * (c.x - d.x)
+    val t = ((a.x - c.x) * (c.y - d.y) - (a.y - c.y) * (c.x - d.x)) / den
+    val cross = FluidScanPoint(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y))
+    val center = map.photoPoint(0.5f, 0.5f)
+    assertEquals(cross.x, center.x, 1e-4f)
+    assertEquals(cross.y, center.y, 1e-4f)
+    assertTrue("non la media degli angoli", hypot(center.x - tilted.center.x, center.y - tilted.center.y) > 0.005f)
+    // Rientrare è rientrare sulla pagina: l'angolo nuovo è il punto (e, e) della pagina.
+    val inner = tilted.inset(0.005f)
+    assertEquals(map.photoPoint(0.005f, 0.005f), inner.topLeft)
+    assertEquals(map.photoPoint(0.995f, 0.995f), inner.bottomRight)
+    val full = FluidScanQuad.Full.inset(0.01f)
+    assertEquals(0.01f, full.topLeft.x, 1e-5f)
+    assertEquals(0.99f, full.bottomRight.y, 1e-5f)
+    assertEquals(tilted, tilted.inset(0f))
   }
 
-  @Test fun loScattoDaSoloUnaVoltaPerFoglio() {
-    val tracker = FluidScanTracker()
-    val quad = FluidScanQuad(FluidScanPoint(0.2f, 0.2f), FluidScanPoint(0.8f, 0.2f), FluidScanPoint(0.8f, 0.8f), FluidScanPoint(0.2f, 0.8f))
-    val det = FluidScanDetection(quad, 0.9f, 0.75f)
-    var captures = 0
-    var t = 0L
-    repeat(40) {
-      val track = tracker.update(det, t)
-      if (track.shouldCapture) captures++
-      t += 66
+  /**
+   * F8.17d · Il filo di tavolo sul bordo della pagina (visto sul Tab S9): coi bordi trovati dalla foto e il filtro
+   * «Documento», la striscia più scura fra i quattro bordi della pagina (i 3 pixel più esterni) deve essere carta.
+   */
+  @Test fun ilBordoDellaPaginaNonHaIlFiloDelTavolo() {
+    val report = StringBuilder()
+    val failures = ArrayList<String>()
+    var darkBefore = 0
+    for (name in listOf("buona-luce", "prospettiva", "ruotato", "poca-luce", "ombra", "basso-contrasto")) {
+      val photo = photo(name)
+      val quad = FluidScanEdges.detect(photo)!!.quad
+      fun darkestBorder(inset: Float): Float {
+        val page = FluidScanImages.filter(FluidScanImages.straighten(photo, quad, maxLongSide = 1200, edgeInset = inset),
+          FluidScanFilter.Document)
+        val w = page.width
+        val h = page.height
+        val pixels = IntArray(w * h).also { page.getPixels(it, 0, w, 0, 0, w, h) }
+        fun strip(xs: IntRange, ys: IntRange): Float {
+          var sum = 0.0
+          var n = 0
+          for (y in ys) for (x in xs) { sum += ScanFilters.luma(pixels[y * w + x]); n++ }
+          return (sum / n).toFloat()
+        }
+        val band = 3
+        return minOf(strip(0 until w, 0 until band), strip(0 until w, h - band until h),
+          strip(0 until band, 0 until h), strip(w - band until w, 0 until h))
+      }
+      val before = darkestBorder(0f)
+      val after = darkestBorder(FluidScanImages.EdgeInset)
+      report.append("$name: bordo più scuro ${"%.0f".format(before)} senza rientro, ${"%.0f".format(after)} col rientro\n")
+      if (after < 225f) failures += "$name: il bordo della pagina è scuro ($after)"
+      if (before < 150f) darkBefore++
     }
-    assertEquals("una volta sola sullo stesso foglio", 1, captures)
-    // Il foglio sparisce e torna: si può scattare di nuovo.
-    repeat(8) { tracker.update(null, t); t += 66 }
-    repeat(20) { if (tracker.update(det, t).shouldCapture) captures++; t += 66 }
-    assertEquals(2, captures)
-    // In manuale non scatta mai da solo.
-    val manual = FluidScanTracker()
-    var t2 = 0L
-    repeat(40) { assertTrue(!manual.update(det, t2, auto = false).shouldCapture); t2 += 66 }
-    // Un foglio piccolo chiede di avvicinarsi.
-    val small = FluidScanQuad(FluidScanPoint(0.45f, 0.45f), FluidScanPoint(0.55f, 0.45f), FluidScanPoint(0.55f, 0.55f), FluidScanPoint(0.45f, 0.55f))
-    assertEquals(FluidScanHint.Closer, FluidScanTracker().update(FluidScanDetection(small, 0.9f, 1f), 0).hint)
-  }
-
-  @Test fun laManoCheTremaNonScatta() {
-    val tracker = FluidScanTracker()
-    val base = FluidScanQuad(FluidScanPoint(0.2f, 0.2f), FluidScanPoint(0.8f, 0.2f), FluidScanPoint(0.8f, 0.8f), FluidScanPoint(0.2f, 0.8f))
-    var t = 0L
-    repeat(30) { i ->
-      val d = if (i % 2 == 0) 0.03f else -0.03f
-      val shaken = base.shifted(FluidScanPoint(d, 0f))
-      assertTrue(!tracker.update(FluidScanDetection(shaken, 0.9f, 1f), t).shouldCapture)
-      t += 66
-    }
-    assertTrue(abs(hypot(1f, 1f)) > 0f)
+    println(report)
+    File("build").mkdirs()
+    File("build/scan-bordo.txt").writeText(report.toString())
+    // La misura vede il difetto: senza rientro il filo scuro c'è (il 26/11/2026 su 5 foto su 6, fino a 1 su 255).
+    assertTrue("senza rientro il filo si vede su $darkBefore foto", darkBefore >= 3)
+    assertTrue(failures.joinToString("\n") + "\n" + report, failures.isEmpty())
   }
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.25 · I due widget di prova della vetrina e il riquadro rapido (la galleria li mostra da «Elementi nuovi»). -->
+<resources>
+  <string name="f8p25_agenda_label">Agenda di prova</string>
+  <string name="f8p25_agenda_description">Le lezioni di oggi, una per riga, come il widget di ClasseViva.</string>
+  <string name="f8p25_absences_label">Assenze di prova</string>
+  <string name="f8p25_absences_description">Le assenze sul massimo, con il limite, come il quadrante di F8.6.</string>
+  <string name="f8p25_quick_tile_label">Fluid Glass</string>
+</resources>

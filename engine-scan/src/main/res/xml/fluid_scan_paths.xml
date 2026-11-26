@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F8.17 · Le pagine e il PDF di una scansione: solo la cartella del modulo nella cache dell'app. -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="fluid_scan" path="fluid-scan/" />
+</paths>

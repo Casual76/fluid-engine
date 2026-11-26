@@ -90,4 +90,15 @@ ext.engine = [
   // MyCloud Gallery 2 (la 0.18.1 corregge un difetto ABI proprio di EmbeddingGemma 2). Compilata con Kotlin 2.4: il modulo
   // la legge con -Xskip-metadata-version-check e toglie kotlin-reflect e le coroutine che porta.
   litertlm       : '0.18.1',
+  // engine-scan (F8.17): la fotocamera dello scanner. La 1.6.2 (26/08/2026) e non la 1.7.0, uscita il 18/11/2026: chiede
+  // compileSdk 36 e AGP 8.9.1 (metadati dell'AAR) e porta kotlinx-coroutines 1.9.0.
+  camerax        : '1.6.2',
+  // engine-viewer-ocr (F8.17): Tesseract 5.5 coi collegamenti JavaCPP di bytedeco (Apache-2.0), da Maven Central. Sul
+  // telefono arm64-v8a e x86_64 (bytedeco non da' piu' le librerie a 32 bit); nei test del modulo quelle di Windows.
+  // La 1.5.14 (07/08/2026) e non piu' vecchie: e' la prima con le librerie Android pronte per le pagine da 16 kB
+  // (segmenti LOAD a 16384: python -I tools/allineamento-16kb.py <apk>); la 1.5.11 e la 1.5.12 erano a 4096, Android 16
+  // lo segnala a ogni avvio di un'app di debug e Google Play non le accetta.
+  tesseract      : '5.5.3-1.5.14',
+  leptonica      : '1.87.0-1.5.14',
+  javacpp        : '1.5.14',
 ]

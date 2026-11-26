@@ -488,7 +488,7 @@ class VisoriGalleryTest {
     val context = compose.activity.applicationContext
     val packaged = kotlinx.coroutines.runBlocking { VisoriWeights.read(context) }
     assertEquals("Gli asset portano families.json com'è", expected, packaged)
-    assertEquals(setOf("office", "archive", "data", "graphics", "3d", "ar"), expected.map { it.family }.toSet())
+    assertEquals(setOf("office", "archive", "data", "graphics", "3d", "ar", "ocr"), expected.map { it.family }.toSet())
     show()
     scrollTo("visori-pesi")
     compose.onNodeWithTag("visori-pesi").performClick()

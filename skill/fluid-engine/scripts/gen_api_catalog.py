@@ -237,6 +237,8 @@ DIR_FAMILY = {
     "search/semantic": "search-semantic",
     # la modifica delle immagini: l'editor, la ricetta, il calcolo e il salvataggio (F8.15)
     "editor": "editor",
+    # lo scanner di documenti (F8.17); «Leggi testo» (viewer/ocr) va con engine-viewer
+    "scan": "scan",
 }
 
 FAMILY_TITLES = {
@@ -291,6 +293,7 @@ FAMILY_TITLES = {
     "transcript": "engine-transcript",
     "search": "engine-search",
     "search-semantic": "engine-search-semantic",
+    "scan": "engine-scan",
     "ai-provider": "engine-ai: provider e modelli",
     "ai-orchestrator": "engine-ai: orchestratore, router, tool",
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",

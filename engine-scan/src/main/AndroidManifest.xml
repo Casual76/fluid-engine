@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F8.17 · Nessun permesso: CAMERA la dichiara l'app che usa la fotocamera vera (la scheda del modulo dice la riga).
+    Un'app che scansiona solo foto gia' scelte, o la galleria Fluid Glass con la sorgente finta, non la chiede.
+    L'app che dichiara CAMERA dichiara anche la fotocamera facoltativa (uses-feature android.hardware.camera.any con
+    required="false"), cosi' un telefono senza fotocamera la installa lo stesso.
+  -->
+  <application>
+    <!-- Le pagine e il PDF consegnati per URI, in sola lettura e solo su richiesta (FLAG_GRANT_READ_URI_PERMISSION). -->
+    <provider
+        android:name="dev.antigravity.fluidengine.scan.FluidScanFileProvider"
+        android:authorities="${applicationId}.fluidscan"
+        android:exported="false"
+        android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/fluid_scan_paths" />
+    </provider>
+    <!-- L'attivita' dello scanner per chi la lancia col contratto (FluidScanDocumentContract): non esportata. -->
+    <activity
+        android:name="dev.antigravity.fluidengine.scan.FluidScanActivity"
+        android:exported="false"
+        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+        android:theme="@android:style/Theme.Material.NoActionBar" />
+  </application>
+</manifest>

@@ -1,7 +1,7 @@
 <!-- COPIA GENERATA da skill/fluid-engine/scripts/sync_docs.py a partire da skill/fluid-engine/references/moduli/viewer-famiglie.md.
      Non modificare qui: si cambia la fonte e si rilancia lo script. -->
 
-# I moduli di famiglia dei visori: engine-viewer-office, -archive, -data, -graphics, -3d, -ar, -all
+# I moduli di famiglia dei visori: engine-viewer-office, -archive, -data, -graphics, -3d, -ar, -ocr, -all
 
 **Il visore universale, a pezzi.** Ogni famiglia di tipi è un modulo facoltativo che si registra da sola presso il registro di [`engine-viewer`](viewer.md): basta la dipendenza Gradle, niente codice nell'`Application`. Un'app che non aggiunge un modulo **non ne paga il peso**, e quel tipo resta sconosciuto con «Apri con…». `engine-viewer-all` li raccoglie tutti, per chi (come Universal Converter) vuole aprire ogni file. Il telaio e i preset che li mostrano sono in [`../componenti/visori.md`](../componenti/visori.md). Dalla 4.0 (seconda ondata di F6C, 22 novembre 2026).
 
@@ -17,6 +17,7 @@ Modello mentale: **il telaio mostra, il registro sceglie, la famiglia apre, l'ap
 | HEIC e AVIF (anche sotto Android 9 e 12), RAW, TIFF, PSD, SVG; TTF, OTF, TTC, WOFF | `engine-viewer-graphics` | `…viewer.graphics` |
 | GLB, glTF, OBJ, STL con la luce e l'ombra, con Filament | `engine-viewer-3d` | `…viewer.scene` |
 | il modello 3D posato nella stanza con ARCore | `engine-viewer-ar` (porta `engine-viewer-3d`) | `…viewer.ar` |
+| leggere il testo di foto, schermate e PDF scansiti («Leggi testo»: selezione, copia, ricerca) | `engine-viewer-ocr` (un'estensione, non un tipo) | `…viewer.ocr` |
 | tutto quello che c'è sopra | `engine-viewer-all` | — (niente codice) |
 
 ## Come si installa
@@ -86,6 +87,7 @@ Misurati da F6C.15 nella bench della galleria (R8 come la release, firmata di de
 | `engine-viewer-graphics` | 186,5 KB | 186,5 KB | 186,5 KB | 186,5 KB | solo DEX, con AndroidSVG ed ExifInterface | Apache-2.0 |
 | `engine-viewer-3d` | 6,4 MB | 4,9 MB | 7,1 MB | 6,9 MB | le librerie native di Filament (`libfilament-jni.so`, `libgltfio-jni.so`, `libfilament-utils-jni.so`) 6.645.392 B (arm64), DEX 46,6 KB, l'ambiente IBL e il piano d'ombra 52,4 KB | Filament Apache-2.0; ambiente e ombra originali, licenza dell'engine |
 | `engine-viewer-ar` | 317,0 KB | 263,4 KB | 327,2 KB | 317,0 KB | misurato da F6C.16 nel suo APK di prova, senza R8: DEX 143,3 KB (il modulo e ARCore), il materiale della fotocamera 8,9 KB, il JNI di ARCore; Filament è contato nel 3D | ARCore: condizioni aggiuntive di Google; materiale originale |
+| `engine-viewer-ocr` | 16,1 MB | 1,6 MB | 1,6 MB | 16,6 MB | misurato da F8.17b nella bench con R8 (bytedeco 1.5.14): le librerie native di Tesseract, Leptonica e JavaCPP 14.468.480 B (arm64; bytedeco non dà le librerie a 32 bit, dove «Leggi testo» non compare), il modello `ita.traineddata` 1,28 MB nella voce compressa (2,7 MB grezzo), DEX 320,9 KB (i collegamenti tenuti per JavaCPP) | Tesseract, JavaCPP Apache-2.0; Leptonica BSD-2-Clause e le sue librerie d'immagine; modello Apache-2.0 |
 
 Per confronto, `engine-viewer` da solo (il registro, PDF, testo, GIF, Media3) porta 65,5 KB di DEX. Il DEX conta le classi del pacchetto del modulo e delle sue librerie: il codice che R8 fonde in classi di altri pacchetti (alcune lambda) resta fuori, quindi è una stima per difetto. Lo script della misura è `artifacts/liquid-glass/sessioni/f6c-15/strumenti/misura-pesi.py` del worktree dei visori; i numeri sono nella voce `apk` di `families.json`.
 
@@ -96,7 +98,10 @@ Le attese della ricerca, per arm64 (`visori-2.md`), contro la misura: archivi 2,
 - **`checkViewerFamilies`**, prima dei test di `engine-viewer` e di `engine-viewer-all`, legge i classpath risolti: `engine-ui` non arriva a nessuna famiglia né a una libreria di decodifica; `engine-viewer` non arriva a nessuna famiglia; ogni famiglia porta solo le librerie della sua **lista ammessa** in `families.json`, con licenza e peso. Una libreria nuova fuori lista ferma la build. Prima di guardare il grafo vero, il controllo si prova da solo su sette grafi finti.
 - **R8 tiene le famiglie** senza regole a mano: con le ottimizzazioni riscrive `ServiceLoader.load(…)` in una lista con la famiglia; con `-dontoptimize` tiene `META-INF/services` rinominato; senza il modulo non resta nessuna classe. Lo prova l'app di prova `:engine-viewer-prova-app` (`checkViewerFamilyApks`, tre sapori: il modulo di prova costa 123 byte).
 - **`checkArViewerManifests`**: `CAMERA` e `com.google.ar.core=optional` stanno solo nell'APK con `engine-viewer-ar`, mai in quello del 3D da solo né nella galleria.
-- Le `.so` di libarchive, Filament e ARCore sono allineate a 16 KB (`zipalign -c -P 16`).
+- Le `.so` di libarchive, Filament, ARCore e (da F8.17b, con bytedeco 1.5.14) Tesseract, Leptonica e JavaCPP sono
+  allineate a 16 KB: segmenti `LOAD` a 16384 e voci allineate nello zip. Si controlla un'APK con
+  `python -I tools/allineamento-16kb.py <apk>`; bytedeco 1.5.11 e 1.5.12 erano a 4 KB (Android 16 lo segnala a ogni avvio
+  di un'app di debug, Google Play non le accetta per le app per Android 15 e oltre).
 
 ## engine-viewer-office
 
@@ -160,6 +165,79 @@ Le attese della ricerca, per arm64 (`visori-2.md`), contro la misura: archivi 2,
 **API.** `FluidArSceneExtension` (si scopre da sola con `ServiceLoader` dal 3D), `FluidArViewerLicenses`.
 
 **Da sapere.** Il modulo dichiara `CAMERA` (con la fotocamera facoltativa) e `com.google.ar.core=optional` nel manifest: un'app che lo include chiede la fotocamera agli utenti che toccano «AR», e la sua scheda nello store lo dice. Per questo la galleria Fluid Glass non lo include.
+
+## engine-viewer-ocr
+
+**Cosa fa.** «Leggi testo» nei visori, come **Testo attivo** di iOS (Live Text, VisionKit `ImageAnalysisInteraction`, in
+Foto, Anteprima e Quick Look): le foto e le schermate (`FluidViewerContent.Image`) e i documenti a pagine (i PDF
+scansiti) ricevono da soli il riconoscimento del testo, **sul telefono e mai in rete**. Non apre un tipo nuovo: è
+un'**estensione dei visori** (`FluidViewerExtension` di [`engine-viewer`](viewer.md)), che si scopre con `ServiceLoader`
+come le famiglie. Dei documenti a pagine tocca solo i **PDF**: le pagine di Office hanno già il loro testo e capacità
+loro (le note del relatore) che un involucro nasconderebbe. Basta la dipendenza (o `engine-viewer-all`): `rememberFluidViewerFiles` la usa. Dalla 4.0 (F8.17).
+
+**Come si comporta.**
+- La pagina **ferma da 450 ms** si legge in sottofondo (una lettura alla volta nel processo; i risultati restano in
+  memoria, un file riaperto è già letto). Se c'è testo compare **il tasto di Testo attivo** in basso a destra, sopra la fila
+  dei comandi, nello spazio dello schermo (`FluidViewerPageAccessory` di `engine-ui`): compare sfocato e si fa nitido
+  (arriva da solo, R7), si ritira con le barre al tocco.
+- **Il tasto** accende la modalità: la foto si vela di nero al 45% e **le righe restano chiare** con un contorno bianco
+  leggero; accanto compaiono «Testo» (l'elenco delle righe) e «Copia tutto», e il primo numero, mail o link diventa
+  un'azione rapida nell'angolo in basso a sinistra (come VisionKit). La riga sta sempre nella larghezza dello schermo
+  (F8.17b): il tasto c'è sempre intero; «Copia tutto» resta solo se all'azione rapida rimangono 160 dp, se no si usa
+  quello del foglio «Testo»; l'azione rapida lunga finisce coi puntini e sotto 80 dp non compare. I comandi sono vetro
+  sulla pagina del visore, che sfocano. Per TalkBack ogni riga diventa un elemento
+  nel suo posto, nell'ordine della lettura, con l'azione «Copia la riga»; il tasto è un interruttore («attivo»/«spento»).
+- **Tieni premuto su una parola** per selezionarla, anche con la modalità spenta (come in Foto); poi il dito allarga la
+  selezione. Con la modalità accesa basta un tocco. **Le maniglie** di iOS (la sbarra col pallino) spostano i due capi; la
+  selezione segue le righe (un rettangolo per riga toccata). Sopra (o sotto) compare **il menu** di vetro con «Copia»,
+  «Seleziona tutto» e «Condividi». Un tocco fuori la toglie.
+- **Lo zoom, le pagine e le rotazioni**: il disegno sta **dentro** il riquadro dell'immagine che lo zoom del visore
+  ingrandisce, quindi le righe seguono la foto da sole (pizzico, doppio tocco, spostamento, schermo girato); le maniglie
+  e il menu restano della stessa misura a ogni zoom (la scala si legge nel disegno). Nei PDF il disegno sta sopra ogni
+  pagina del preset (`FluidPageOverlays`), che cresce col pizzico. I riquadri sono in coordinate 0..1 dell'immagine
+  dritta (EXIF applicato dallo stesso decodificatore del visore); `FluidTextQuad.rotated` li gira di quarti di giro.
+- **«Testo»** apre il foglio «Testo trovato»: il campo per **cercare nelle parole trovate** (con «3/12» e le frecce;
+  senza maiuscole né accenti), i risultati in giallo sulla foto, e l'elenco delle righe con **numeri, indirizzi, mail e
+  link toccabili** (`FluidDetectedText`); toccare una riga la seleziona sulla foto. Nei PDF scansiti c'è anche «Trova» del
+  preset delle pagine (`FluidPageTextSearch`), che legge fino a 40 pagine.
+- Il dito resta nitido (F8): niente sfocature su selezione e maniglie. Col movimento ridotto il velo e il tasto
+  compaiono subito.
+
+**Il riconoscimento.** `FluidTextRecognizer` è il contratto; di serie `FluidTesseractRecognizer`: **Tesseract 5.5**
+(Apache-2.0; 5.5.3 coi collegamenti JavaCPP 1.5.14 di bytedeco, pronti per le pagine da 16 KB), da Maven Central, e il
+modello LSTM «fast» dell'italiano
+(`ita.traineddata`, Apache-2.0, 2,7 MB negli asset; riconosce anche l'inglese e le lingue con l'alfabeto latino). Prima
+della lettura l'immagine passa in grigio con **la luce della carta pareggiata** (la stessa idea del filtro «Documento»
+dello scanner) e il testo piccolo si ingrandisce fino a 2400 px sul lato lungo. Le librerie native ci sono per
+**arm64-v8a e x86_64**: su un telefono a 32 bit il tasto non compare. Un'app può dare un altro riconoscitore con
+`FluidLiveText.recognizer` (per esempio ML Kit, se lo sceglie: la domanda è nel rapporto di F8.17).
+
+**API.** `FluidLiveTextExtension` (trovata da sola); `FluidLiveText` (`recognizer`, `strings`, `enabled`, `lastError` per i
+log, la memoria dei risultati); per un visore dell'app: `FluidLiveTextState`, `FluidLiveTextOverlay(state)` dentro il riquadro dell'immagine e
+`FluidLiveTextControls(state)` in un posto fermo dello schermo; il modello `FluidRecognizedText` (blocchi, righe, parole,
+`FluidTextQuad`, `search`, `text(from, to)`); `FluidOcrLicenses`.
+
+```kotlin
+// Un visore mio (non FluidFileViewer): il disegno nel riquadro che il mio zoom ingrandisce, i comandi fermi.
+val state = remember { FluidLiveTextState(aspect) }
+LaunchedEffect(uri) { state.show(FluidLiveText.read(context, uri.toString()) { decodifica(uri) }) }
+Box(Modifier.aspectRatio(aspect).graphicsLayer { scaleX = zoom; scaleY = zoom }) {
+  Image(foto, null, Modifier.fillMaxSize())
+  FluidLiveTextOverlay(state)
+}
+FluidLiveTextControls(state, Modifier.align(Alignment.BottomEnd))
+```
+
+**Da sapere.** Un'app che lo include aggiunge al suo `build.gradle` (le intestazioni C e l'eseguibile dentro i jar di
+bytedeco non servono):
+
+```groovy
+android { packaging { resources { excludes += ['lib/*/include/**', 'lib/*/tesseract', 'META-INF/native-image/**'] } } }
+```
+
+**Limiti.** La scrittura a mano si legge male (Tesseract è fatto per lo stampato); i riquadri di Tesseract sono dritti
+(una riga storta in una foto ha il rettangolo che la contiene); la ricerca nei PDF scansiti legge al più 40 pagine; niente
+«Traduci» né «Cerca sul web» (fuori dal telefono). I tempi e la qualità misurati sono nel rapporto di F8.17.
 
 ## engine-viewer-all
 

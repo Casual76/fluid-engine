@@ -1,0 +1,330 @@
+{
+ "about": "F8.17 · Le foto di prova dello scanner e del testo nelle immagini, generate (niente foto vere: niente persone, niente",
+ "photos": [
+  {
+   "name": "buona-luce",
+   "width": 1200,
+   "height": 1600,
+   "quad": [
+    [
+     0.17083,
+     0.14375
+    ],
+    [
+     0.84167,
+     0.12812
+    ],
+    [
+     0.8875,
+     0.87187
+    ],
+    [
+     0.125,
+     0.8875
+    ]
+   ],
+   "page": {
+    "width": 1240,
+    "height": 1754
+   },
+   "lines": [
+    "Istituto Comprensivo «Galileo Galilei»",
+    "Via dei Mille 24, 50121 Firenze",
+    "Circolare n. 87 del 18 novembre 2026",
+    "Oggetto: uscita didattica al Museo Galileo",
+    "Si comunica alle famiglie che giovedì 3 dicembre le classi seconde parteciperanno all'uscita",
+    "didattica al Museo Galileo di Firenze. La partenza è prevista alle ore 8.30 dal cortile della",
+    "scuola e il rientro entro le 13.15.",
+    "La quota di partecipazione è di 12,50 euro e comprende il biglietto d'ingresso e la visita",
+    "guidata. Si prega di consegnare l'autorizzazione firmata al coordinatore di classe entro",
+    "lunedì 30 novembre.",
+    "Per informazioni è possibile scrivere a segreteria@icgalilei.example.it oppure telefonare al",
+    "numero 055 123 4567 dal lunedì al venerdì.",
+    "La Dirigente Scolastica",
+    "Prof.ssa Anna Moretti",
+    "Autorizzazione (da restituire firmata)",
+    "Il sottoscritto ____________________ genitore di ____________________",
+    "autorizza il proprio figlio a partecipare all'uscita.     Firma ____________"
+   ]
+  },
+  {
+   "name": "prospettiva",
+   "width": 1200,
+   "height": 1600,
+   "quad": [
+    [
+     0.25,
+     0.20625
+    ],
+    [
+     0.75833,
+     0.1875
+    ],
+    [
+     0.925,
+     0.89375
+    ],
+    [
+     0.07917,
+     0.92188
+    ]
+   ],
+   "page": {
+    "width": 1240,
+    "height": 1754
+   },
+   "lines": [
+    "Studio Rossi & Bianchi",
+    "Corso Italia 112, 20122 Milano · Tel. 02 8765 4321",
+    "www.rossibianchi.example.it",
+    "Milano, 21 novembre 2026",
+    "Gentile signora Ferri,",
+    "le confermiamo l'appuntamento di martedì 1 dicembre alle 15.00 presso il nostro",
+    "studio per la firma del contratto di locazione dell'appartamento di via Verdi 7.",
+    "La preghiamo di portare un documento d'identità valido, il codice fiscale e la ricevuta",
+    "del bonifico della caparra di 1.200,00 euro.",
+    "Per spostare l'appuntamento può chiamarci al 333 456 7890 o scrivere a",
+    "info@rossibianchi.example.it.",
+    "Cordiali saluti,",
+    "Marco Rossi"
+   ]
+  },
+  {
+   "name": "ruotato",
+   "width": 1200,
+   "height": 1600,
+   "quad": [
+    [
+     0.275,
+     0.10625
+    ],
+    [
+     0.88333,
+     0.2625
+    ],
+    [
+     0.64167,
+     0.90625
+    ],
+    [
+     0.03333,
+     0.75
+    ]
+   ],
+   "page": {
+    "width": 1240,
+    "height": 1754
+   },
+   "lines": [
+    "Modulo di iscrizione al corso di nuoto",
+    "Cognome",
+    "Nome",
+    "Data di nascita",
+    "Indirizzo",
+    "Telefono",
+    "Email",
+    "Turno scelto",
+    "I dati raccolti sono trattati secondo il regolamento europeo sulla protezione dei dati personali e",
+    "servono solo all'iscrizione al corso.",
+    "Data ____________          Firma ________________________"
+   ]
+  },
+  {
+   "name": "poca-luce",
+   "width": 1200,
+   "height": 1600,
+   "quad": [
+    [
+     0.15833,
+     0.1625
+    ],
+    [
+     0.83333,
+     0.15625
+    ],
+    [
+     0.85833,
+     0.875
+    ],
+    [
+     0.14167,
+     0.88125
+    ]
+   ],
+   "page": {
+    "width": 1240,
+    "height": 1754
+   },
+   "lines": [
+    "Istituto Comprensivo «Galileo Galilei»",
+    "Via dei Mille 24, 50121 Firenze",
+    "Circolare n. 87 del 18 novembre 2026",
+    "Oggetto: uscita didattica al Museo Galileo",
+    "Si comunica alle famiglie che giovedì 3 dicembre le classi seconde parteciperanno all'uscita",
+    "didattica al Museo Galileo di Firenze. La partenza è prevista alle ore 8.30 dal cortile della",
+    "scuola e il rientro entro le 13.15.",
+    "La quota di partecipazione è di 12,50 euro e comprende il biglietto d'ingresso e la visita",
+    "guidata. Si prega di consegnare l'autorizzazione firmata al coordinatore di classe entro",
+    "lunedì 30 novembre.",
+    "Per informazioni è possibile scrivere a segreteria@icgalilei.example.it oppure telefonare al",
+    "numero 055 123 4567 dal lunedì al venerdì.",
+    "La Dirigente Scolastica",
+    "Prof.ssa Anna Moretti",
+    "Autorizzazione (da restituire firmata)",
+    "Il sottoscritto ____________________ genitore di ____________________",
+    "autorizza il proprio figlio a partecipare all'uscita.     Firma ____________"
+   ]
+  },
+  {
+   "name": "ombra",
+   "width": 1200,
+   "height": 1600,
+   "quad": [
+    [
+     0.18333,
+     0.13125
+    ],
+    [
+     0.83333,
+     0.14375
+    ],
+    [
+     0.85,
+     0.8625
+    ],
+    [
+     0.15833,
+     0.85
+    ]
+   ],
+   "page": {
+    "width": 1240,
+    "height": 1754
+   },
+   "lines": [
+    "Studio Rossi & Bianchi",
+    "Corso Italia 112, 20122 Milano · Tel. 02 8765 4321",
+    "www.rossibianchi.example.it",
+    "Milano, 21 novembre 2026",
+    "Gentile signora Ferri,",
+    "le confermiamo l'appuntamento di martedì 1 dicembre alle 15.00 presso il nostro",
+    "studio per la firma del contratto di locazione dell'appartamento di via Verdi 7.",
+    "La preghiamo di portare un documento d'identità valido, il codice fiscale e la ricevuta",
+    "del bonifico della caparra di 1.200,00 euro.",
+    "Per spostare l'appuntamento può chiamarci al 333 456 7890 o scrivere a",
+    "info@rossibianchi.example.it.",
+    "Cordiali saluti,",
+    "Marco Rossi"
+   ]
+  },
+  {
+   "name": "basso-contrasto",
+   "width": 1200,
+   "height": 1600,
+   "quad": [
+    [
+     0.175,
+     0.15
+    ],
+    [
+     0.825,
+     0.1375
+    ],
+    [
+     0.84583,
+     0.85625
+    ],
+    [
+     0.15417,
+     0.86562
+    ]
+   ],
+   "page": {
+    "width": 1240,
+    "height": 1754
+   },
+   "lines": [
+    "Istituto Comprensivo «Galileo Galilei»",
+    "Via dei Mille 24, 50121 Firenze",
+    "Circolare n. 87 del 18 novembre 2026",
+    "Oggetto: uscita didattica al Museo Galileo",
+    "Si comunica alle famiglie che giovedì 3 dicembre le classi seconde parteciperanno all'uscita",
+    "didattica al Museo Galileo di Firenze. La partenza è prevista alle ore 8.30 dal cortile della",
+    "scuola e il rientro entro le 13.15.",
+    "La quota di partecipazione è di 12,50 euro e comprende il biglietto d'ingresso e la visita",
+    "guidata. Si prega di consegnare l'autorizzazione firmata al coordinatore di classe entro",
+    "lunedì 30 novembre.",
+    "Per informazioni è possibile scrivere a segreteria@icgalilei.example.it oppure telefonare al",
+    "numero 055 123 4567 dal lunedì al venerdì.",
+    "La Dirigente Scolastica",
+    "Prof.ssa Anna Moretti",
+    "Autorizzazione (da restituire firmata)",
+    "Il sottoscritto ____________________ genitore di ____________________",
+    "autorizza il proprio figlio a partecipare all'uscita.     Firma ____________"
+   ]
+  },
+  {
+   "name": "scontrino",
+   "width": 1200,
+   "height": 1600,
+   "quad": [
+    [
+     0.35,
+     0.1125
+    ],
+    [
+     0.66667,
+     0.125
+    ],
+    [
+     0.65833,
+     0.8875
+    ],
+    [
+     0.33333,
+     0.875
+    ]
+   ],
+   "page": {
+    "width": 620,
+    "height": 1680
+   },
+   "lines": [
+    "BAR CENTRALE",
+    "Piazza Duomo 3, Siena",
+    "P.IVA 01234567890",
+    "Cappuccino",
+    "1,60",
+    "Cornetto integrale",
+    "1,50",
+    "Spremuta d'arancia",
+    "3,50",
+    "Acqua naturale 0,5 l",
+    "1,00",
+    "Tramezzino tonno",
+    "3,80",
+    "Caffè",
+    "1,20",
+    "TOTALE EURO",
+    "12,60",
+    "Pagamento: carta",
+    "25/11/2026  10:42",
+    "Grazie e arrivederci!"
+   ]
+  },
+  {
+   "name": "tavolo-vuoto",
+   "width": 1200,
+   "height": 1600,
+   "quad": null,
+   "lines": []
+  },
+  {
+   "name": "tavolo-chiaro",
+   "width": 1200,
+   "height": 1600,
+   "quad": null,
+   "lines": []
+  }
+ ]
+}

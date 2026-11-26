@@ -41,6 +41,7 @@ family(':engine-viewer-data')
 family(':engine-viewer-graphics')
 family(':engine-viewer-3d')
 family(':engine-viewer-ar')
+family(':engine-viewer-ocr') // F8.17 · il testo nelle immagini (Tesseract): un'app che non lo vuole lo esclude come l'AR
 
 ext.viewerFamiliesRole = 'all'
 apply from: "${projectDir}/../engine-viewer/viewer-families.gradle"

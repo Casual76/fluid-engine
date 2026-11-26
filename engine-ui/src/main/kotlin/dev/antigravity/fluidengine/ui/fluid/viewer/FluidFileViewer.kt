@@ -170,6 +170,8 @@ fun FluidFileViewer(
 
   val backdrop = rememberGlassBackdrop()
   val presetBar = remember { ViewerPresetBar() }
+  // F8.17: l'accessorio della pagina (il tasto di «Leggi testo»), nello spazio dello schermo.
+  val accessories = remember { ViewerAccessories() }
   val outerModal = LocalFluidGlassModalHostState.current
   val modal = outerModal ?: rememberFluidGlassModalHostState()
   // Opening a file can start asynchronous work in the owner's registry. A speculative pager
@@ -244,7 +246,8 @@ fun FluidFileViewer(
       }
     }
   }
-  CompositionLocalProvider(LocalFluidGlassModalHostState provides modal, LocalViewerDocumentRoute provides documentRoute) {
+  CompositionLocalProvider(LocalFluidGlassModalHostState provides modal, LocalViewerDocumentRoute provides documentRoute,
+    LocalViewerAccessories provides accessories) {
     val fade = if (documentRoute && pageSpace != null) Modifier.graphicsLayer {
       val host = pageSpace.host
       if (sourceFree.value && !host.crossfading) alpha = viewerUnanchoredOpacity(host.upperExitFraction())
@@ -332,6 +335,7 @@ fun FluidFileViewer(
           }
         }
       }
+      if (pager != null) ViewerAccessory(accessories, index, chromeVisible && tool == null && !infoOpen, backdrop)
       BlackMediaAppearance(photo) {
         ViewerChrome(index, count, ink, chromeVisible, backdrop, toolbar, available, tool,
         select = { selected = it }, onBack = goBack, onInfo = openInfo.takeIf { hasInfo }, strings = strings,

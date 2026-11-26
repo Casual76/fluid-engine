@@ -141,6 +141,16 @@ android {
   }
 }
 
+// F8.17 · engine-viewer-ocr porta Tesseract coi jar di bytedeco, che hanno anche le intestazioni C e un eseguibile:
+// nell'APK non servono (la scheda del modulo dice la stessa riga per le app).
+android {
+  packaging {
+    resources {
+      excludes += ['lib/*/include/**', 'lib/*/tesseract', 'META-INF/native-image/**']
+    }
+  }
+}
+
 // F6C.15 · La pagina «Pesi» della galleria legge la lista ammessa dei moduli dei visori, la stessa che leggono
 // checkViewerFamilies e tools/engine-install.ps1: la si copia negli asset a ogni build, mai una copia scritta a mano.
 // F8.22 · La libreria nativa del modello del significato (LiteRT-LM: 22 MB in arm64-v8a e 26 MB in x86_64, non compressi)
@@ -222,6 +232,9 @@ dependencies {
   implementation project(':engine-search-semantic')
   // F8.15 · Modifica delle immagini: l'editor delle foto (ritaglia e regola), lo strumento del visore e la tendina.
   implementation project(':engine-editor')
+  // F8.17 · Lo scanner di documenti con la fotocamera finta (la galleria non chiede CAMERA) e «Leggi testo», che arriva
+  // con engine-viewer-all (la famiglia engine-viewer-ocr).
+  implementation project(':engine-scan')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

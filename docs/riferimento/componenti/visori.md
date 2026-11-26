@@ -26,6 +26,9 @@ Il visore a tutto schermo di un file, **che si adatta a ciò che mostra**: foto 
 | un mio strumento (ritaglio, testo nella foto) | `tools = { tool(id, icona, etichetta, actions = { … }, onDone = { i -> salva(i) }) { i -> Editor(i) } }`: la barra in basso diventa la sua; `onDone` arriva da «Fine», non da indietro (F8.15) |
 | «Modifica» per le foto (ritaglia e regola, come Foto) | `fluidImageEditTool(edit, source = { i -> … }) { i, ricetta -> … }` di `engine-editor` ([`../moduli/editor.md`](../moduli/editor.md)) |
 | confrontare due versioni di un'immagine con la tendina, con lo zoom del visore | `FluidViewerContent.Image(ratio) { FluidBeforeAfter(before = { … }, after = { … }) }` ([`contenuto-testo-e-media.md`](contenuto-testo-e-media.md)) |
+| «Leggi testo» nelle foto e nei PDF scansiti (Testo attivo: il tasto, la selezione, la copia, la ricerca) | aggiungere `engine-viewer-ocr` (o `engine-viewer-all`): si aggancia da solo ([`../moduli/viewer-famiglie.md`](../moduli/viewer-famiglie.md#engine-viewer-ocr)) |
+| un comando mio fermo sullo schermo per la pagina (come il tasto di Testo attivo), che non segue lo zoom | `FluidViewerPageAccessory { … }` dentro il contenuto della pagina (sotto, «Gli agganci per i moduli») |
+| disegnare sopra ogni pagina di un documento, o dare «Trova» a un PDF senza testo | la mia sorgente implementa `FluidPageOverlays` e `FluidPageTextSearch` |
 | comandi miei nella barra del visore | `toolbar = { i -> button(...) }` (la DSL della toolbar, [`toolbar.md`](toolbar.md)) |
 | Rinomina, Sposta, Duplica, Elimina nel menu del nome in cima | `fileActions = { i -> files.fileActions(i, FluidViewerFileCommands(rename = …, delete = …)) }` (sotto, «Il titolo e il menu del file») |
 | le azioni del mio tipo in «•••» (una famiglia, una pagina `Custom`) | `viewerTypeActions { listOf(FluidContextAction(…) { … }) }` nelle `actions` della pagina (sotto, «Le azioni del tipo in «•••»») |
@@ -385,6 +388,27 @@ FluidViewerResumeProvider(rememberFluidViewerResume(files)) {          // engine
 - **Si salva a riposo**: a fine scorrimento, al cambio di zoom, uscendo dalla pagina. Mai a ogni fotogramma.
 - **Un file cambiato** (peso o data diversi) non salta da solo: in basso compare «Riprendi da pagina 42» (o «dalla riga…»), come nella scheda dell'idea; un tocco porta lì. È vetro della barra del visore, quindi entra sfocato.
 - **Il negozio di serie** (`FluidViewerResumeStore`, [`../moduli/viewer.md`](../moduli/viewer.md)) è leggero e cancella le posizioni dei file che non ci sono più.
+
+## Gli agganci per i moduli (F8.17)
+
+Per «Leggi testo» (`engine-viewer-ocr`) il telaio ha tre agganci piccoli, senza sapere niente del testo; li può usare
+qualunque modulo o app.
+
+- **`FluidViewerPageAccessory { … }`**: un accessorio della pagina **nello spazio dello schermo**, in basso a destra a
+  14 dp dal bordo e 12 dp sopra la fila dei comandi (come il tasto di Testo attivo e le azioni rapide di VisionKit). Non
+  segue lo zoom né il pager, vale per la pagina ferma, si ritira con le barre al tocco (200 ms per andare, 350 per
+  tornare; subito col movimento ridotto) e non c'è mentre è aperto uno strumento o il pannello info. Lo chiama il
+  contenuto della pagina, dentro `FluidViewerContent.Image.draw` o una pagina `Custom`; fuori dal visore non fa niente.
+  L'accessorio riceve la larghezza dello schermo meno 14 dp per lato (e meno le barre di sistema ai lati in orizzontale),
+  così una riga può adattarsi; il vetro che ci sta dentro campiona **la pagina del visore** (`LocalGlassBackdrop`), come
+  i tasti delle barre, e sfoca la foto sotto (F8.17b).
+- **`FluidPageOverlays`**, una capacità facoltativa di `FluidPageSource` (come `FluidPageNotes`): `PageOverlay(index,
+  active)` si disegna sopra ogni pagina del preset delle pagine, nel riquadro della pagina, che cresce col pizzico.
+- **`FluidPageTextSearch`**, un'altra capacità facoltativa: se l'app non dà `FluidViewerInfo.searchPages`, il preset usa
+  `searchPages(query)` della sorgente e mostra «Trova» (un PDF scansito si cerca nelle parole riconosciute).
+
+Il contenuto `Image` è già il posto giusto per un disegno allineato alla foto: sta dentro il riquadro che lo zoom del
+telaio ingrandisce (`currentFluidViewerZoom()` dà la scala per tenere fermi spessori e maniglie).
 
 ## Cosa fa l'engine, cosa i moduli, cosa l'app
 

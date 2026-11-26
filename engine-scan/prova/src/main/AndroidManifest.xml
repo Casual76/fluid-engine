@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- La fotocamera vera dello scanner: la dichiara l'app (qui l'app di prova), il modulo no. -->
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+  <application android:label="Pampa · prova scanner" android:allowBackup="false"
+      android:theme="@android:style/Theme.Material.NoActionBar">
+    <activity android:name=".ProvaActivity" android:exported="true"
+        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>

@@ -1,0 +1,600 @@
+{
+ "about": "F8.17 · Le immagini di prova del testo nelle immagini, con le righe vere (riquadri in pixel)",
+ "images": [
+  {
+   "name": "circolare.png",
+   "width": 1240,
+   "height": 1754,
+   "lines": [
+    {
+     "text": "Istituto Comprensivo «Galileo Galilei»",
+     "box": [
+      120,
+      117,
+      724,
+      148
+     ]
+    },
+    {
+     "text": "Via dei Mille 24, 50121 Firenze",
+     "box": [
+      120,
+      161,
+      456,
+      181
+     ]
+    },
+    {
+     "text": "Circolare n. 87 del 18 novembre 2026",
+     "box": [
+      120,
+      237,
+      642,
+      259
+     ]
+    },
+    {
+     "text": "Oggetto: uscita didattica al Museo Galileo",
+     "box": [
+      120,
+      295,
+      688,
+      321
+     ]
+    },
+    {
+     "text": "Si comunica alle famiglie che giovedì 3 dicembre le classi seconde parteciperanno all'uscita",
+     "box": [
+      120,
+      361,
+      1116,
+      386
+     ]
+    },
+    {
+     "text": "didattica al Museo Galileo di Firenze. La partenza è prevista alle ore 8.30 dal cortile della",
+     "box": [
+      120,
+      397,
+      1101,
+      422
+     ]
+    },
+    {
+     "text": "scuola e il rientro entro le 13.15.",
+     "box": [
+      120,
+      433,
+      475,
+      452
+     ]
+    },
+    {
+     "text": "La quota di partecipazione è di 12,50 euro e comprende il biglietto d'ingresso e la visita",
+     "box": [
+      120,
+      489,
+      1074,
+      514
+     ]
+    },
+    {
+     "text": "guidata. Si prega di consegnare l'autorizzazione firmata al coordinatore di classe entro",
+     "box": [
+      120,
+      525,
+      1055,
+      550
+     ]
+    },
+    {
+     "text": "lunedì 30 novembre.",
+     "box": [
+      120,
+      561,
+      343,
+      580
+     ]
+    },
+    {
+     "text": "Per informazioni è possibile scrivere a segreteria@icgalilei.example.it oppure telefonare al",
+     "box": [
+      120,
+      617,
+      1104,
+      642
+     ]
+    },
+    {
+     "text": "numero 055 123 4567 dal lunedì al venerdì.",
+     "box": [
+      120,
+      653,
+      600,
+      672
+     ]
+    },
+    {
+     "text": "La Dirigente Scolastica",
+     "box": [
+      780,
+      750,
+      1030,
+      772
+     ]
+    },
+    {
+     "text": "Prof.ssa Anna Moretti",
+     "box": [
+      800,
+      788,
+      1054,
+      806
+     ]
+    },
+    {
+     "text": "Autorizzazione (da restituire firmata)",
+     "box": [
+      140,
+      1474,
+      569,
+      1497
+     ]
+    },
+    {
+     "text": "Il sottoscritto ____________________ genitore di ____________________",
+     "box": [
+      140,
+      1534,
+      906,
+      1555
+     ]
+    },
+    {
+     "text": "autorizza il proprio figlio a partecipare all'uscita.     Firma ____________",
+     "box": [
+      140,
+      1589,
+      856,
+      1610
+     ]
+    }
+   ]
+  },
+  {
+   "name": "lettera.png",
+   "width": 1240,
+   "height": 1754,
+   "lines": [
+    {
+     "text": "Studio Rossi & Bianchi",
+     "box": [
+      130,
+      131,
+      499,
+      159
+     ]
+    },
+    {
+     "text": "Corso Italia 112, 20122 Milano · Tel. 02 8765 4321",
+     "box": [
+      130,
+      171,
+      616,
+      192
+     ]
+    },
+    {
+     "text": "www.rossibianchi.example.it",
+     "box": [
+      130,
+      204,
+      413,
+      225
+     ]
+    },
+    {
+     "text": "Milano, 21 novembre 2026",
+     "box": [
+      760,
+      301,
+      1047,
+      324
+     ]
+    },
+    {
+     "text": "Gentile signora Ferri,",
+     "box": [
+      130,
+      381,
+      369,
+      406
+     ]
+    },
+    {
+     "text": "le confermiamo l'appuntamento di martedì 1 dicembre alle 15.00 presso il nostro",
+     "box": [
+      130,
+      439,
+      1053,
+      464
+     ]
+    },
+    {
+     "text": "studio per la firma del contratto di locazione dell'appartamento di via Verdi 7.",
+     "box": [
+      130,
+      476,
+      1014,
+      501
+     ]
+    },
+    {
+     "text": "La preghiamo di portare un documento d'identità valido, il codice fiscale e la ricevuta",
+     "box": [
+      130,
+      531,
+      1098,
+      556
+     ]
+    },
+    {
+     "text": "del bonifico della caparra di 1.200,00 euro.",
+     "box": [
+      130,
+      568,
+      614,
+      593
+     ]
+    },
+    {
+     "text": "Per spostare l'appuntamento può chiamarci al 333 456 7890 o scrivere a",
+     "box": [
+      130,
+      623,
+      949,
+      648
+     ]
+    },
+    {
+     "text": "info@rossibianchi.example.it.",
+     "box": [
+      130,
+      660,
+      469,
+      685
+     ]
+    },
+    {
+     "text": "Cordiali saluti,",
+     "box": [
+      130,
+      747,
+      290,
+      771
+     ]
+    },
+    {
+     "text": "Marco Rossi",
+     "box": [
+      130,
+      798,
+      271,
+      818
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ricevuta.png",
+   "width": 620,
+   "height": 1680,
+   "lines": [
+    {
+     "text": "BAR CENTRALE",
+     "box": [
+      170,
+      75,
+      362,
+      92
+     ]
+    },
+    {
+     "text": "Piazza Duomo 3, Siena",
+     "box": [
+      130,
+      104,
+      424,
+      126
+     ]
+    },
+    {
+     "text": "P.IVA 01234567890",
+     "box": [
+      170,
+      136,
+      408,
+      152
+     ]
+    },
+    {
+     "text": "Cappuccino",
+     "box": [
+      50,
+      204,
+      190,
+      227
+     ]
+    },
+    {
+     "text": "1,60",
+     "box": [
+      504.0,
+      206,
+      560.0,
+      226
+     ]
+    },
+    {
+     "text": "Cornetto integrale",
+     "box": [
+      50,
+      248,
+      302,
+      271
+     ]
+    },
+    {
+     "text": "1,50",
+     "box": [
+      504.0,
+      250,
+      560.0,
+      270
+     ]
+    },
+    {
+     "text": "Spremuta d'arancia",
+     "box": [
+      50,
+      292,
+      302,
+      315
+     ]
+    },
+    {
+     "text": "3,50",
+     "box": [
+      504.0,
+      294,
+      560.0,
+      314
+     ]
+    },
+    {
+     "text": "Acqua naturale 0,5 l",
+     "box": [
+      50,
+      336,
+      330,
+      359
+     ]
+    },
+    {
+     "text": "1,00",
+     "box": [
+      504.0,
+      338,
+      560.0,
+      358
+     ]
+    },
+    {
+     "text": "Tramezzino tonno",
+     "box": [
+      50,
+      380,
+      274,
+      398
+     ]
+    },
+    {
+     "text": "3,80",
+     "box": [
+      504.0,
+      382,
+      560.0,
+      402
+     ]
+    },
+    {
+     "text": "Caffè",
+     "box": [
+      50,
+      424,
+      120,
+      442
+     ]
+    },
+    {
+     "text": "1,20",
+     "box": [
+      504.0,
+      426,
+      560.0,
+      446
+     ]
+    },
+    {
+     "text": "TOTALE EURO",
+     "box": [
+      50,
+      515,
+      226,
+      532
+     ]
+    },
+    {
+     "text": "12,60",
+     "box": [
+      480.0,
+      515,
+      560.0,
+      537
+     ]
+    },
+    {
+     "text": "Pagamento: carta",
+     "box": [
+      50,
+      594,
+      274,
+      615
+     ]
+    },
+    {
+     "text": "25/11/2026  10:42",
+     "box": [
+      50,
+      625,
+      288,
+      643
+     ]
+    },
+    {
+     "text": "Grazie e arrivederci!",
+     "box": [
+      50,
+      653,
+      344,
+      671
+     ]
+    }
+   ]
+  },
+  {
+   "name": "schermata.png",
+   "width": 1080,
+   "height": 2340,
+   "lines": [
+    {
+     "text": "Messaggi",
+     "box": [
+      60,
+      131,
+      316,
+      183
+     ]
+    },
+    {
+     "text": "Ciao! Ci vediamo domani alle 18.30 in",
+     "box": [
+      80,
+      325,
+      734,
+      353
+     ]
+    },
+    {
+     "text": "piazza?",
+     "box": [
+      80,
+      377,
+      216,
+      413
+     ]
+    },
+    {
+     "text": "Sì, perfetto. Porto i biglietti del",
+     "box": [
+      475.0,
+      499,
+      1000.0,
+      535
+     ]
+    },
+    {
+     "text": "concerto.",
+     "box": [
+      475.0,
+      553,
+      634.0,
+      579
+     ]
+    },
+    {
+     "text": "Il codice della prenotazione è",
+     "box": [
+      80,
+      673,
+      589,
+      709
+     ]
+    },
+    {
+     "text": "7KQ4-29XM.",
+     "box": [
+      80,
+      726,
+      299,
+      760
+     ]
+    },
+    {
+     "text": "Il mio numero nuovo è 348 112 2334.",
+     "box": [
+      363.0,
+      847,
+      1000.0,
+      875
+     ]
+    },
+    {
+     "text": "Ricordati l'indirizzo: via Garibaldi 15,",
+     "box": [
+      80,
+      969,
+      711,
+      1002
+     ]
+    },
+    {
+     "text": "Torino.",
+     "box": [
+      80,
+      1021,
+      200,
+      1049
+     ]
+    },
+    {
+     "text": "Promemoria",
+     "box": [
+      90,
+      1947,
+      329,
+      1977
+     ]
+    },
+    {
+     "text": "Pagare la bolletta della luce entro venerdì",
+     "box": [
+      90,
+      2017,
+      708,
+      2048
+     ]
+    },
+    {
+     "text": "Importo: 64,30 euro",
+     "box": [
+      90,
+      2078,
+      381,
+      2108
+     ]
+    }
+   ]
+  }
+ ]
+}

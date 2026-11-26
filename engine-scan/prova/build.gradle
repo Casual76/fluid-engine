@@ -1,0 +1,79 @@
+// F8.17 · «Pampa · prova scanner»: l'app di prova dello scanner con la fotocamera vera (la galleria Fluid Glass non chiede
+// CAMERA) e la misura del testo nelle immagini sul telefono. Esiste solo nel build dell'engine e non entra mai in un'app.
+// Due varianti, installabili insieme:
+//   tesseract  dev.antigravity.fluidengine.scan.prova          lo scanner, «Leggi testo» col Tesseract dell'engine
+//   mlkit      dev.antigravity.fluidengine.scan.prova.mlkit    in piu' ML Kit Text Recognition v2 (modello nell'APK),
+//                                                             solo per misurarlo accanto a Tesseract (domanda per Alessio)
+// Si pilota anche da adb:
+//   adb shell am start -n dev.antigravity.fluidengine.scan.prova/.ProvaActivity --es passo misura
+// Le misure vanno in logcat (tag PampaScan) e in files/misure-ocr.json. Firmata con la chiave di debug, mai pampa.jks.
+plugins {
+  id 'com.android.application'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.scan.prova'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    applicationId 'dev.antigravity.fluidengine.scan.prova'
+    minSdk engine.minSdk
+    targetSdk engine.compileSdk
+    versionCode 1
+    versionName '1'
+  }
+
+  flavorDimensions += 'ocr'
+  productFlavors {
+    tesseract { dimension 'ocr' }
+    mlkit {
+      dimension 'ocr'
+      applicationIdSuffix '.mlkit'
+    }
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+      signingConfig signingConfigs.debug
+    }
+  }
+
+  // Le immagini di prova del testo e la loro verita' (righe.json): le stesse delle prove del modulo.
+  sourceSets.main.assets.srcDir "${projectDir}/../../engine-viewer-ocr/src/test/resources"
+
+  packaging {
+    resources {
+      excludes += ['lib/*/include/**', 'lib/*/tesseract', 'META-INF/native-image/**']
+    }
+  }
+
+  buildFeatures { compose = true }
+
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+}
+
+dependencies {
+  implementation project(':engine-scan')
+  implementation project(':engine-viewer-ocr')
+  implementation "androidx.activity:activity-compose:${engine.activityCompose}"
+  // Solo per la misura: ML Kit col modello latino dentro l'APK (termini di Google, non libero). Mai nell'engine.
+  mlkitImplementation 'com.google.mlkit:text-recognition:16.0.1'
+}

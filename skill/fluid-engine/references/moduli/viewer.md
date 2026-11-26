@@ -85,6 +85,22 @@ Campi nuovi, in coda e con un valore di serie (regola 3.11): `FluidViewerType(�
 
 **La lista ammessa**, `engine-viewer/families.json`: per ogni famiglia il modulo, il pacchetto, le librerie che può portare con la licenza e il peso, e (F6C.15) la voce `apk` con il peso misurato per architettura. La leggono `checkViewerFamilies` (una libreria fuori lista ferma la build), `tools/engine-install.ps1` e la pagina «Pesi» della galleria. **R8** tiene le famiglie senza regole a mano (lo prova `:engine-viewer-prova-app`). I dettagli dei moduli, i pesi e le licenze: [`viewer-famiglie.md`](viewer-famiglie.md).
 
+## Le estensioni: `FluidViewerExtension` (F8.17)
+
+Un'estensione non apre un tipo (quello lo fa una famiglia): **aggiunge qualcosa al contenuto** di un file già aperto. Il
+testo nelle immagini (`engine-viewer-ocr`) aggiunge «Leggi testo» a foto e PDF. Come una famiglia si dichiara in
+`META-INF/services/dev.antigravity.fluidengine.viewer.FluidViewerExtension` e si scopre da sola; `rememberFluidViewerFiles`
+chiama `decorate(context, file, content)` una volta per apertura: per le pagine e il testo sulla sorgente in attesa (lo
+stesso oggetto resta quando il file arriva), per un'immagine quando è decodificata. Un'estensione che lancia
+un'eccezione è saltata: resta il contenuto di serie.
+
+```kotlin
+FluidViewerExtensions.extensions                 // quelle attive
+FluidViewerExtensions.uninstall("ocr")           // la scena «Senza moduli», le prove
+FluidViewerExtensions.restore("ocr")
+FluidViewerExtensions.decorate(context, file, content)   // per chi apre i file da sé con FluidViewerFile.open
+```
+
 ## Aprire i file: `rememberFluidViewerFiles` e `open`
 
 ```kotlin

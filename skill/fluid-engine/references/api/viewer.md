@@ -84,6 +84,101 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `val FluidGraphicsViewerLicenses: List<FluidLicense>` — Licenze da aggiungere alla lista di [dev.antigravity.fluidengine.ui.fluid.fluidLicensesSection].
 - `class FluidGraphicsFamily : FluidViewerFamily` — Famiglia opt-in delle immagini speciali e dei caratteri, scoperta dal registro dei visori.
 
+## `engine-viewer-ocr/viewer/ocr/FluidLiveText.kt`
+
+- `data class FluidLiveTextStrings(val liveText: String = "Leggi testo", val on: String = "attivo", val off: String = "spento", val copy: String = "Copia", val copyAll: String = "Copia tutto", val selectAll: String = "Seleziona tutto", val share: String = "Condividi", val showText: String = "Testo", val sheetTitle: String = "Testo trovato", val search: String = "Cerca nel testo", val noMatches: String = "Nessun risultato", val copied: String = "Copiato", val analyzing: String = "Lettura del testo…", val lines: (Int) -> String = { n -> if (n == 1) "1 riga" else "$n righe" }, val copyLine: String = "Copia la riga", val selection: (String) -> String = { text -> "Selezionato: $text" })` — Le parole di «Leggi testo», in italiano di serie.
+- `object FluidLiveText` — «Leggi testo» nei visori: la configurazione del modulo. Con `engine-viewer-ocr` fra le dipendenze le foto, le schermate e i PDF aperti con `rememberFluidViewerFiles` hanno da soli il tasto di Testo attivo, la selezione col dito, la copia e la ricerca nelle parole trovate. Qui l'app cambia, se vuole, chi legge e le parole.
+  - `var recognizer: (Context) -> FluidTextRecognizer` — Chi legge: di serie Tesseract con l'italiano.
+  - `var strings: FluidLiveTextStrings` — Le parole.
+  - `var lastError: Throwable?` — L'ultimo errore di una lettura (la foto che non si apre, il riconoscimento che manca), per i log dell'app.
+  - `var enabled: Boolean` — Falso per spegnere «Leggi testo» in tutta l'app senza togliere il modulo.
+  - `const val SettleMillis: Long` — Quanto aspetta la pagina ferma prima di leggere: 450 ms. A occhio (25/11/2026): chi sfoglia di corsa non paga letture, chi si ferma a guardare trova il tasto entro un secondo, come Foto.
+  - `fun cached(key: String): FluidRecognizedText?` — Il risultato già letto per [key], o `null`.
+  - `fun clearCache()` — Dimentica i risultati (le prove, un file cambiato).
+  - `suspend fun read(context: Context, key: String, load: suspend () -> Bitmap?): FluidRecognizedText?` — Legge [load] per [key] (una lettura alla volta in tutto il processo: Tesseract è uno), o restituisce quella già fatta. [load] dà la bitmap, che qui si ricicla dopo la lettura.
+  - `fun remember(key: String, text: FluidRecognizedText)` — Mette in memoria un risultato già noto (le prove, un'app che ha letto da sé).
+- `value class FluidLiveTextStatus private constructor(private val id: Int)` — A che punto è la lettura di una pagina. Non è un `enum` di proposito (regola 3.11).
+  - `companion object`
+    - `val Idle: FluidLiveTextStatus`
+    - `val Reading: FluidLiveTextStatus`
+    - `val Ready: FluidLiveTextStatus` — Letta: [FluidLiveTextState.text] c'è (anche vuoto, se nell'immagine non c'è testo).
+    - `val Unavailable: FluidLiveTextStatus` — Il riconoscimento non c'è su questo telefono, o la lettura è fallita.
+- `class FluidLiveTextState(val aspect: Float = 1f)` — Lo stato di «Leggi testo» per un'immagine (o una pagina di un PDF): il testo letto, la modalità attiva (il velo sulle parti senza testo e le righe in evidenza, come il tasto di Testo attivo), la selezione in parole e la ricerca. Si legge in composizione; si scrive sul filo principale.
+  - `var status by mutableStateOf(FluidLiveTextStatus.Idle)`
+  - `var text by mutableStateOf<FluidRecognizedText?>(null)`
+  - `var active: Boolean` — La modalità del tasto di Testo attivo.
+  - `var selection by mutableStateOf<FluidTextMatch?>(null)` — La selezione: la prima e l'ultima parola (nell'ordine della lettura), o `null`.
+  - `var query: String` — La ricerca nelle parole trovate e i risultati.
+  - `val matches: List<FluidTextMatch> by derivedStateOf`
+  - `var current by mutableIntStateOf(0)`
+  - `var sheet by mutableStateOf(false)` — L'elenco delle righe (il foglio «Testo trovato») aperto.
+  - `val hasText: Boolean get()` — Vero se c'è qualcosa da mostrare: la lettura è finita e ha trovato parole.
+  - `val selectedText: String? get()` — Il testo selezionato, o `null`.
+  - `fun selectAll()` — Seleziona tutte le parole.
+  - `fun show(result: FluidRecognizedText?)` — Mette il risultato di una lettura (anche dalle prove, o da un'app che legge da sé).
+
+## `engine-viewer-ocr/viewer/ocr/FluidLiveTextControls.kt`
+
+- `@Composable fun FluidLiveTextControls(state: FluidLiveTextState, modifier: Modifier = Modifier, strings: FluidLiveTextStrings = FluidLiveText.strings)` — I comandi di «Leggi testo» per [state], da mettere nell'accessorio della pagina del visore (`FluidViewerPageAccessory`) o in un posto fermo dello schermo di un visore dell'app. Compaiono quando la lettura ha trovato parole (come il tasto di Testo attivo, che c'è solo se c'è testo), con la sostituzione sfocata di chi arriva da solo; col movimento ridotto subito.
+
+## `engine-viewer-ocr/viewer/ocr/FluidLiveTextExtension.kt`
+
+- `class FluidLiveTextExtension : FluidViewerExtension` — «Leggi testo» per i visori: le foto e le schermate (`FluidViewerContent.Image`) e i documenti a pagine (`FluidViewerContent.Pages`, i PDF scansiti) ricevono il disegno e il tasto di Testo attivo. La lettura parte quando la pagina è ferma da [FluidLiveText.SettleMillis] e si ricorda (un file riaperto è già letto).
+
+## `engine-viewer-ocr/viewer/ocr/FluidLiveTextOverlay.kt`
+
+- `object FluidLiveTextTags` — I tag dei test di «Leggi testo».
+  - `const val Overlay`
+  - `const val Button`
+  - `const val CopyAll`
+  - `const val ShowText`
+  - `const val QuickAction`
+  - `const val Menu`
+  - `const val MenuCopy`
+  - `const val MenuSelectAll`
+  - `const val Sheet`
+  - `fun line(index: Int): String`
+- `@Composable fun FluidLiveTextOverlay(state: FluidLiveTextState, modifier: Modifier = Modifier, strings: FluidLiveTextStrings = FluidLiveText.strings)` — Il disegno di «Leggi testo» sopra un'immagine: va messo **dentro** il riquadro dell'immagine (lo stesso che lo zoom del visore ingrandisce), e riempie quel riquadro. Fa: - con la modalità attiva ([FluidLiveTextState.active]) il velo scuro sulle parti senza testo e le righe in evidenza, come il tasto di Testo attivo; per TalkBack ogni riga diventa un elemento, nell'ordine della lettura;
+
+## `engine-viewer-ocr/viewer/ocr/FluidOcrLicenses.kt`
+
+- `val FluidOcrLicenses: List<FluidLicense>` — Le librerie e i dati di terzi di `engine-viewer-ocr`: Tesseract e il modello dell'italiano, Leptonica e le sue librerie d'immagine, JavaCPP. Tutte libere e compatibili con la GPL-3.0 dell'engine.
+
+## `engine-viewer-ocr/viewer/ocr/FluidRecognizedText.kt`
+
+- `data class FluidTextQuad(val topLeft: Offset, val topRight: Offset, val bottomRight: Offset, val bottomLeft: Offset)` — Il quadrilatero di un pezzo di testo nell'immagine, normalizzato (0..1, origine in alto a sinistra), nell'ordine della lettura: in alto a sinistra **del testo**, poi in senso orario. Una riga storta in una foto ha un quadrilatero storto; il riconoscimento che dà solo rettangoli dà quadrilateri dritti.
+  - `val bounds: Rect get()` — Il rettangolo che lo contiene.
+  - `fun rotated(quarterTurns: Int): FluidTextQuad` — Lo stesso quadrilatero girato di [quarterTurns] quarti in senso orario, come l'immagine che lo contiene.
+  - `fun contains(p: Offset, slop: Float = 0f): Boolean` — Vero se il punto [p] (0..1) sta dentro, con [slop] di margine in coordinate 0..1.
+  - `companion object`
+    - `fun of(rect: Rect): FluidTextQuad` — Un rettangolo dritto.
+    - `fun span(first: FluidTextQuad, last: FluidTextQuad): FluidTextQuad` — L'unione di più quadrilateri della stessa riga: dal primo angolo sinistro all'ultimo destro.
+- `data class FluidRecognizedWord(val text: String, val quad: FluidTextQuad, val confidence: Float)` — Una parola riconosciuta: il testo, dove sta e la fiducia (0..1).
+- `data class FluidRecognizedLine(val words: List<FluidRecognizedWord>, val quad: FluidTextQuad)` — Una riga: le parole nell'ordine della lettura.
+  - `val text: String` — Il testo della riga, con uno spazio fra le parole.
+  - `val confidence: Float get()`
+- `data class FluidRecognizedBlock(val lines: List<FluidRecognizedLine>, val quad: FluidTextQuad)` — Un blocco (un paragrafo, una colonna, un cartello): le righe dall'alto in basso.
+  - `val text: String get()`
+- `class FluidRecognizedText(val blocks: List<FluidRecognizedBlock>, val width: Int, val height: Int, val language: String = "ita")` — Il testo trovato in un'immagine larga [width] × [height] pixel. Le parole hanno un numero d'ordine ([words]) che è l'ordine della lettura: blocco per blocco, riga per riga. La selezione e la copia lavorano su quell'ordine, come in Testo attivo.
+  - `val lines: List<FluidRecognizedLine>` — Le righe nell'ordine della lettura.
+  - `val words: List<FluidRecognizedWord>` — Le parole nell'ordine della lettura.
+  - `val isEmpty: Boolean get()` — Vero se non c'è niente da leggere.
+  - `val text: String get()` — Tutto il testo: righe separate da a capo, blocchi da una riga vuota.
+  - `fun text(from: Int, to: Int): String` — Il testo delle parole da [from] a [to] (incluse, nell'ordine della lettura), con gli a capo fra le righe.
+  - `fun search(query: String): List<FluidTextMatch>` — Dove compare [query] nelle parole: ogni risultato è la serie di parole che la contiene (anche a cavallo di più parole della stessa riga). Senza distinguere maiuscole e accenti, come la ricerca di Anteprima.
+  - `companion object`
+    - `val Empty: FluidRecognizedText` — Niente testo.
+- `data class FluidTextMatch(val first: Int, val last: Int)` — Un risultato della ricerca: le parole da [first] a [last] (indici di [FluidRecognizedText.words]).
+
+## `engine-viewer-ocr/viewer/ocr/FluidTextRecognizer.kt`
+
+- `interface FluidTextRecognizer` — Chi legge il testo di un'immagine. L'engine dà [FluidTesseractRecognizer]; un'app può darne un altro (per esempio uno che usa ML Kit, se lo sceglie) con [FluidLiveText.recognizer]. Il riconoscimento avviene **sul telefono**: nessuna immagine va in rete.
+  - `val available: Boolean` — Falso se sul telefono non si può (manca la libreria per l'architettura, il modello non si apre).
+  - `suspend fun recognize(image: Bitmap): FluidRecognizedText` — Il testo di [image]. Gira fuori dal filo principale; non ricicla [image].
+- `class FluidTesseractRecognizer(context: Context, private val languages: String = "ita", private val targetLongSide: Int = DefaultTargetLongSide) : FluidTextRecognizer` — Tesseract 5 sul telefono, col modello LSTM «fast» dell'italiano (`ita.traineddata`, Apache-2.0, 2,7 MB, negli asset del modulo): riconosce anche l'inglese e le altre lingue con l'alfabeto latino, meno bene le parole straniere. Per un'altra lingua l'app mette il suo `<lingua>.traineddata` in `assets/fluid-ocr/tessdata/` e la nomina in [languages] (per esempio `"ita+eng"`).
+  - `companion object`
+    - `const val DefaultTargetLongSide: Int` — Il lato lungo a cui si porta l'immagine: 2400 px. A occhio (25/11/2026): le lettere di una foto a 12 MP restano alte almeno 20 px, quanto chiede Tesseract.
+
 ## `engine-viewer-office/viewer/office/FluidOfficeFamily.kt`
 
 - `class FluidOfficeFamily : FluidViewerFamily` — Optional offline Office readers. ServiceLoader discovers this class when the application includes the module.
@@ -277,6 +372,18 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `val TooLarge: FluidViewerFailure` — Oltre il tetto di copia (un PDF da un `Uri` non ricercabile più grande del tetto).
     - `val Unsupported: FluidViewerFailure` — La piattaforma non sa decodificare questo tipo (un HEIF sotto Android 9, un formato sconosciuto).
 - `class FluidViewerException(val failure: FluidViewerFailure, message: String, cause: Throwable? = null) : IOException(message, cause)` — Un file che il modulo non ha potuto aprire, con il motivo.
+
+## `engine-viewer/viewer/FluidViewerExtension.kt`
+
+- `interface FluidViewerExtension` — F8.17 · Un'estensione dei visori: non apre un tipo nuovo (quello lo fa una [FluidViewerFamily]) ma **aggiunge qualcosa al contenuto** di un file già aperto. Il testo nelle immagini (`engine-viewer-ocr`) aggiunge «Leggi testo» a foto, schermate e PDF scansiti. Come una famiglia, si scopre da sola con `ServiceLoader` (`META-INF/services`): basta la dipendenza Gradle, e [rememberFluidViewerFiles] la usa.
+  - `val id: String` — Un nome stabile e unico, per [FluidViewerExtensions.uninstall].
+  - `fun decorate(context: Context, file: FluidViewerFile, content: FluidViewerContent): FluidViewerContent` — Il contenuto di [file] con l'aggiunta, o [content] com'è se non c'entra (un testo, un video). Si chiama sul filo principale, una volta per apertura e forma: per le pagine sulla sorgente che arriva (lo stesso oggetto resta), per un'immagine quando è decodificata. Deve essere veloce: il lavoro vero va fatto dopo, in sottofondo.
+- `object FluidViewerExtensions` — F8.17 · Le estensioni dei visori trovate con `ServiceLoader`, più quelle installate a mano, meno quelle tolte (la scena «Senza moduli» della galleria, le prove). Un'app che apre i file da sé con [FluidViewerFile.open] chiama [decorate] sul contenuto.
+  - `val extensions: List<FluidViewerExtension>` — Le estensioni attive.
+  - `fun install(vararg extension: FluidViewerExtension)` — Aggiunge estensioni a mano; una con l'`id` di una trovata la sostituisce.
+  - `fun uninstall(vararg id: String)` — Toglie le estensioni con questi `id`.
+  - `fun restore(vararg id: String)` — Rimette le estensioni trovate e tolte (dopo [uninstall]).
+  - `fun decorate(context: Context, file: FluidViewerFile, content: FluidViewerContent): FluidViewerContent` — [content] con le aggiunte di tutte le estensioni attive, nell'ordine del loro `id`.
 
 ## `engine-viewer/viewer/FluidViewerFamily.kt`
 

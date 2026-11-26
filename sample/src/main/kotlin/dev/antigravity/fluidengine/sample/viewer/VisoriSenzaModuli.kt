@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.sample.viewer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.remember
+import dev.antigravity.fluidengine.viewer.FluidViewerExtensions
 import dev.antigravity.fluidengine.viewer.FluidViewerFamily
 import dev.antigravity.fluidengine.viewer.FluidViewerRegistry
 
@@ -18,6 +19,8 @@ import dev.antigravity.fluidengine.viewer.FluidViewerRegistry
 internal object VisoriSenzaModuli {
   private var holders = 0
   private var saved: List<FluidViewerFamily> = emptyList()
+  /** F8.17: anche le estensioni («Leggi testo»), che un'app con il solo engine-viewer non ha. */
+  private var savedExtensions: List<String> = emptyList()
 
   /** Vero mentre la scena tiene il registro senza famiglie. */
   val active: Boolean get() = holders > 0
@@ -26,6 +29,8 @@ internal object VisoriSenzaModuli {
     if (holders++ == 0) {
       saved = FluidViewerRegistry.families
       FluidViewerRegistry.uninstall(*saved.map { it.id }.toTypedArray())
+      savedExtensions = FluidViewerExtensions.extensions.map { it.id }
+      FluidViewerExtensions.uninstall(*savedExtensions.toTypedArray())
     }
   }
 
@@ -35,6 +40,8 @@ internal object VisoriSenzaModuli {
       val back = saved
       saved = emptyList()
       if (back.isNotEmpty()) FluidViewerRegistry.install(*back.toTypedArray())
+      FluidViewerExtensions.restore(*savedExtensions.toTypedArray())
+      savedExtensions = emptyList()
     }
   }
 }

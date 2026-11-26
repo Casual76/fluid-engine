@@ -3,8 +3,8 @@
 Generato da `tools/icons/gen_fluid_icons.py`: non modificare a mano. Stesse righe, in forma da script, in
 `corrispondenza.csv` (`origine;nome;symbols;fluid;nota`).
 
-Il set ha **170 icone** al tratto e **31** varianti piene. Delle icone Material del
-censimento (`censimento-app.txt`) **182 su 361** hanno un equivalente nel set (1694 usi su 2117); **179** restano fuori (423 usi). Per ognuna
+Il set ha **175 icone** al tratto e **31** varianti piene. Delle icone Material del
+censimento (`censimento-app.txt`) **185 su 361** hanno un equivalente nel set (1700 usi su 2117); **176** restano fuori (417 usi). Per ognuna
 c'e' il nome di Material Symbols: per portarla nel set basta la riga nell'elenco.
 
 **Come si migra.** `Icons.Rounded.X` (o `Icons.AutoMirrored.Rounded.X`, `Icons.Outlined.X`) diventa
@@ -127,6 +127,7 @@ piena.
 | `Notifications` | 4 | `FluidIcons.Notifications` |  |
 | `PriorityHigh` | 4 | `FluidIcons.PriorityHigh` |  |
 | `Psychology` | 4 | `FluidIcons.Psychology` |  |
+| `RotateRight` | 4 | `FluidIcons.RotateRight` | si gira da sola da destra a sinistra |
 | `SearchOff` | 4 | `FluidIcons.SearchOff` |  |
 | `Send` | 4 | `FluidIcons.Send` | si gira da sola da destra a sinistra |
 | `SwapHoriz` | 4 | `FluidIcons.SwapHoriz` |  |
@@ -187,6 +188,8 @@ piena.
 | `Error` | 1 | `FluidIcons.Error` |  |
 | `FileDownload` | 1 | `FluidIcons.Download` | piena (tab bar): FluidIcons.Filled.Download |
 | `FilterList` | 1 | `FluidIcons.FilterList` |  |
+| `FlashlightOff` | 1 | `FluidIcons.FlashlightOff` |  |
+| `FlashlightOn` | 1 | `FluidIcons.FlashlightOn` |  |
 | `FormatIndentDecrease` | 1 | `FluidIcons.FormatIndentDecrease` | si gira da sola da destra a sinistra |
 | `FormatIndentIncrease` | 1 | `FluidIcons.FormatIndentIncrease` | si gira da sola da destra a sinistra |
 | `FormatListBulleted` | 1 | `FluidIcons.FormatListBulleted` | si gira da sola da destra a sinistra |
@@ -242,7 +245,6 @@ due app o almeno dieci volte, e quelle delle tab bar. Qui sotto il resto, con il
 | `PauseCircle` | 4 | MyCloud-Gallery-2 | `pause_circle` |
 | `PhonelinkOff` | 4 | MyCloud-Gallery-2 | `phonelink_off` |
 | `Photo` | 4 | MyCloud-Gallery-2 | `photo` |
-| `RotateRight` | 4 | MyCloud-Gallery-2 | `rotate_right` |
 | `SelectAll` | 4 | MyCloud-Gallery-2 | `select_all` |
 | `Timer` | 4 | MyCloud-Gallery-2 | `timer` |
 | `Upload` | 4 | Pampa notes | `upload` |
@@ -332,8 +334,6 @@ due app o almeno dieci volte, e quelle delle tab bar. Qui sotto il resto, con il
 | `FilterDrama` | 1 | FluidWeather | `filter_drama` |
 | `FindInPage` | 1 | MyCloud-Gallery-2 | `find_in_page` |
 | `Flag` | 1 | Fluid-transit | `flag` |
-| `FlashlightOff` | 1 | MyCloud-Gallery-2 | `flashlight_off` |
-| `FlashlightOn` | 1 | MyCloud-Gallery-2 | `flashlight_on` |
 | `FontDownload` | 1 | universal_converter | `font_download` |
 | `Forward10` | 1 | Pampa notes | `forward_10` |
 | `Fullscreen` | 1 | MyCloud-Gallery-2 | `fullscreen` |

@@ -104,6 +104,7 @@ $EngineModules = [ordered]@{
   "engine-search"     = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai", "engine-ai-bridge")
   "engine-search-semantic" = @("engine-foundation", "engine-ui", "engine-vault", "engine-ai", "engine-ai-bridge", "engine-search")
   "engine-editor"     = @("engine-foundation", "engine-ui")
+  "engine-scan"       = @("engine-foundation", "engine-ui")
 }
 
 # Moduli che entrano solo se chiesti per nome. engine-wear porta con se' Material 3 per Wear, e
@@ -151,7 +152,7 @@ $EngineModules = [ordered]@{
 # (-Modules ...,engine-transfer); la pagina "Trasferimenti" e la pillola stanno gia' in engine-ui.
 # engine-files (F8.18: lo sfoglia-file, sopra engine-viewer) idem: lo chiede un'app che fa sfogliare o scegliere file
 # (-Modules ...,engine-files). Nessun permesso: le cartelle arrivano dal selettore di sistema.
-$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic", "engine-editor")
+$OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-viewer", "engine-sync", "engine-revisions", "engine-auth", "engine-auth-google", "engine-vault", "engine-security", "engine-qr", "engine-share-in", "engine-notify", "engine-account", "engine-account-host", "engine-account-ui", "engine-people", "engine-push-fcm", "engine-transfer", "engine-files", "engine-media", "engine-audio", "engine-playback", "engine-transcript", "engine-ink", "engine-search", "engine-search-semantic", "engine-editor", "engine-scan")
 # engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
 # nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
 # l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
@@ -160,25 +161,20 @@ $OptInModules = @("engine-wear", "engine-ai-ui", "engine-richtext", "engine-view
 # l'app: notifica, schermata di blocco, cuffie, timer) ed engine-transcript (F8.13: l'ascolto dal paragrafo, i tempi per
 # parola e il salto) idem: -Modules ...,engine-audio,engine-playback,engine-transcript. Il tasto rosso, il pannello e
 # l'onda stanno gia' in engine-ui.
-# engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
-# nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
-# l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
 # engine-ink (F8.16: il disegno e le annotazioni, sopra androidx.ink, Apache-2.0; porta la libreria nativa libink.so per
 # le ABI di Android, circa 1,3 MB per ABI) idem: lo chiede solo un'app che disegna o annota (-Modules ...,engine-ink).
 # Nessun permesso. I crediti: FluidInkLicenses in fluidLicensesSection.
-# engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
-# nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
-# l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
 # engine-search (F8.22: l'indice sul telefono in SQLite FTS4, la ricerca con gli errori di battitura e i pezzi
 # evidenziati, "Cerca in Pampa" col ponte firmato; porta engine-ui, engine-ai-bridge, engine-vault e WorkManager) idem:
 # -Modules ...,engine-search. engine-search-semantic (il modello del significato con LiteRT-LM: 22 MB di libreria
 # nativa in arm64-v8a; il modello di 157 MiB lo porta l'app) si chiede a parte: -Modules ...,engine-search-semantic.
-# engine-media (F8.14: il selettore di foto e video, il contratto delle sorgenti fra app, il pannello degli allegati;
-# nessuna libreria nuova e nessun permesso dichiarato) idem: -Modules ...,engine-media. I permessi delle foto li scrive
-# l'app nel suo manifest solo se usa la griglia del telefono (moduli/media.md della skill).
 # engine-editor (F8.15: l'editor delle foto come Foto di iOS 26, ritaglia e regola, lo strumento "Modifica" del
 # visore; nessuna libreria nuova, nessun permesso) idem: -Modules ...,engine-editor. Il confronto a tendina
 # (FluidBeforeAfter) sta gia' in engine-ui.
+# engine-scan (F8.17: lo scanner di documenti, con CameraX; i bordi, i filtri e il PDF sono dell'engine) idem:
+# -Modules ...,engine-scan. Il permesso CAMERA non lo dichiara il modulo: lo scrive l'app nel suo manifest se usa la
+# fotocamera vera (moduli/scan.md della skill). engine-viewer-ocr ("Leggi testo", Tesseract) e' una famiglia dei
+# visori: arriva dalla lista di engine-viewer/families.json qui sotto.
 
 # F6C.8: i moduli di famiglia dei visori (Office, archivi, testi ricchi e dati, immagini speciali e font, 3D) e il
 # visore universale engine-viewer-all. La lista, con il peso e le licenze, e' quella dell'engine stesso
@@ -405,7 +401,8 @@ $notes = @(
   @("engine-ink", "disegno e annotazioni: foglio, tavolozza di vetro, penna dello stilo, forme, foto e PDF annotati (opt-in)"),
   @("engine-search", "ricerca: indice sul telefono (FTS4, errori di battitura, pezzi evidenziati, cassaforte), Cerca in Pampa col ponte (opt-in)"),
   @("engine-search-semantic", "ricerca per significato: EmbeddingGemma 2 con LiteRT-LM, il modello lo porta l'app (opt-in; peso: 22 MB nativi arm64)"),
-  @("engine-editor", "modifica delle foto: ritaglio, raddrizza, regolazioni con la ruota, Auto, originale sempre recuperabile (opt-in)")
+  @("engine-editor", "modifica delle foto: ritaglio, raddrizza, regolazioni con la ruota, Auto, originale sempre recuperabile (opt-in)"),
+  @("engine-scan", "scanner di documenti: fotocamera di vetro, bordi dal vivo, filtri, fila delle pagine, PDF per URI (opt-in)")
 )
 foreach ($family in $ViewerFamilies) {
   if ($family.Present) { $notes += , @($family.Module, "$($family.Label) (opt-in; peso: $($family.Weight))") }

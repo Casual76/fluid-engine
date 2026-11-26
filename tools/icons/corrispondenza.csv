@@ -142,7 +142,7 @@ material;PhonelinkOff;phonelink_off;;fuori dal set: per averla, la riga `phoneli
 material;Photo;photo;;fuori dal set: per averla, la riga `photo` in fluid-icons.txt
 material;PriorityHigh;priority_high;FluidIcons.PriorityHigh;
 material;Psychology;psychology;FluidIcons.Psychology;
-material;RotateRight;rotate_right;;fuori dal set: per averla, la riga `rotate_right` in fluid-icons.txt
+material;RotateRight;rotate_right;FluidIcons.RotateRight;si gira da sola da destra a sinistra
 material;SearchOff;search_off;FluidIcons.SearchOff;
 material;SelectAll;select_all;;fuori dal set: per averla, la riga `select_all` in fluid-icons.txt
 material;Send;send;FluidIcons.Send;si gira da sola da destra a sinistra
@@ -292,8 +292,8 @@ material;FilterDrama;filter_drama;;fuori dal set: per averla, la riga `filter_dr
 material;FilterList;filter_list;FluidIcons.FilterList;
 material;FindInPage;find_in_page;;fuori dal set: per averla, la riga `find_in_page` in fluid-icons.txt
 material;Flag;flag;;fuori dal set: per averla, la riga `flag` in fluid-icons.txt
-material;FlashlightOff;flashlight_off;;fuori dal set: per averla, la riga `flashlight_off` in fluid-icons.txt
-material;FlashlightOn;flashlight_on;;fuori dal set: per averla, la riga `flashlight_on` in fluid-icons.txt
+material;FlashlightOff;flashlight_off;FluidIcons.FlashlightOff;
+material;FlashlightOn;flashlight_on;FluidIcons.FlashlightOn;
 material;FontDownload;font_download;;fuori dal set: per averla, la riga `font_download` in fluid-icons.txt
 material;FormatIndentDecrease;format_indent_decrease;FluidIcons.FormatIndentDecrease;si gira da sola da destra a sinistra
 material;FormatIndentIncrease;format_indent_increase;FluidIcons.FormatIndentIncrease;si gira da sola da destra a sinistra

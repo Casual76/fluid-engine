@@ -89,6 +89,23 @@
       ]
     },
     {
+      "module": "engine-viewer-ocr",
+      "family": "ocr",
+      "package": "dev.antigravity.fluidengine.viewer.ocr",
+      "label": "Testo nelle immagini: «Leggi testo» in foto, schermate e PDF scansiti (Tesseract, sul telefono)",
+      "extension": true,
+      "weight": "Le librerie native di bytedeco per arm64-v8a e x86_64 (Tesseract, Leptonica, JavaCPP 1.5.14, pronte per le pagine da 16 KB: 14,5 MB e 15,0 MB non compresse) e il modello ita.traineddata (2.701.314 B, 1,28 MB nella voce compressa). Sui telefoni a 32 bit solo DEX e modello, e «Leggi testo» non compare",
+      "apk": { "source": "F8.17b, 26 novembre 2026: bench della galleria con R8 (come la release), lo strumento di F6C.15 (sessioni/f8-17/strumenti/misura-pesi.py): DEX del modulo e di org.bytedeco con apkanalyzer e la mappa di R8, asset e librerie native dalle voci dell'APK. Byte per architettura = DEX + asset + native", "arm64-v8a": 16068983, "armeabi-v7a": 1600503, "x86": 1600503, "x86_64": 16649487, "dex": 320857, "assets": 1279646, "native": { "arm64-v8a": 14468480, "armeabi-v7a": 0, "x86": 0, "x86_64": 15048984 } },
+      "assets": [
+        { "name": "ita.traineddata (tessdata_fast, LSTM)", "license": "Apache-2.0", "weight": "2.701.314 B" }
+      ],
+      "libraries": [
+        { "coordinates": "org.bytedeco:tesseract", "license": "Apache-2.0 (collegamento e Tesseract)", "weight": "libtesseract.so 4.213.832 B e libjnitesseract.so 657.720 B per arm64-v8a, non compressi" },
+        { "coordinates": "org.bytedeco:leptonica", "license": "Apache-2.0 (collegamento); Leptonica BSD-2-Clause; libpng, libjpeg-turbo, libtiff, libwebp, OpenJPEG, giflib, zlib", "weight": "libleptonica.so 5.084.384 B e libjnileptonica.so 4.009.144 B per arm64-v8a, non compressi" },
+        { "coordinates": "org.bytedeco:javacpp", "license": "Apache-2.0", "weight": "libjnijavacpp.so 503.400 B per arm64-v8a, non compressa; il caricatore nel DEX" }
+      ]
+    },
+    {
       "module": "engine-viewer-prova",
       "family": "prova",
       "package": "dev.antigravity.fluidengine.viewer.prova",

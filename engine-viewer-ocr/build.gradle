@@ -1,0 +1,64 @@
+// F8.17 · Il testo nelle immagini (`testo-nelle-immagini`), come Testo attivo di iOS: «Leggi testo» in foto, schermate e
+// PDF scansiti aperti nei visori; le righe selezionabili con la presa, la copia, la ricerca nelle parole trovate, allineate
+// al visore con zoom, pagine e rotazioni. Opt-in, una famiglia dei visori:
+//
+//   implementation project(':engine-viewer-ocr')      // oppure project(':engine-viewer-all')
+//
+// Il riconoscimento e' sul telefono, mai in rete: Tesseract 5.5 (Apache-2.0) coi collegamenti JavaCPP di bytedeco
+// (Apache-2.0; Leptonica BSD-2-Clause e le sue librerie d'immagine) e il modello LSTM «fast» dell'italiano
+// (tessdata_fast, Apache-2.0) negli asset. Le librerie native ci sono per arm64-v8a e x86_64: su un telefono a 32 bit
+// «Leggi testo» non compare. Si scopre da solo (FluidViewerExtension in META-INF/services): niente codice nell'app.
+//
+// Un'app che lo include aggiunge nel suo build.gradle (le intestazioni C e l'eseguibile dentro i jar di bytedeco non
+// servono):
+//
+//   android { packaging { resources { excludes += ['lib/*/include/**', 'lib/*/tesseract', 'META-INF/native-image/**'] } } }
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.viewer.ocr'
+  compileSdk engine.compileSdk
+  defaultConfig {
+    minSdk engine.minSdk
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+  buildFeatures { compose = true }
+  // Le prove leggono le immagini di prova e il modello dagli asset del modulo (Robolectric).
+  testOptions.unitTests.includeAndroidResources = true
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+  kotlinOptions { jvmTarget = engine.jvmTarget }
+}
+
+dependencies {
+  api project(':engine-viewer')
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${engine.coroutines}"
+  implementation "org.bytedeco:tesseract:${engine.tesseract}"
+  implementation "org.bytedeco:leptonica:${engine.leptonica}"
+  implementation "org.bytedeco:javacpp:${engine.javacpp}"
+  ['android-arm64', 'android-x86_64'].each { platform ->
+    implementation "org.bytedeco:tesseract:${engine.tesseract}:${platform}"
+    implementation "org.bytedeco:leptonica:${engine.leptonica}:${platform}"
+    implementation "org.bytedeco:javacpp:${engine.javacpp}:${platform}"
+  }
+
+  testImplementation "junit:junit:${engine.junit}"
+  // Solo nelle prove: la foto storta passata dallo scanner prima della lettura (la strada di Pampa Notes).
+  testImplementation project(':engine-scan')
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation 'androidx.compose.ui:ui-test-junit4'
+  debugImplementation 'androidx.compose.ui:ui-test-manifest'
+  // Il Tesseract vero anche nelle prove sul computer: le stesse classi, le librerie native di Windows.
+  testImplementation "org.bytedeco:tesseract:${engine.tesseract}:windows-x86_64"
+  testImplementation "org.bytedeco:leptonica:${engine.leptonica}:windows-x86_64"
+  testImplementation "org.bytedeco:javacpp:${engine.javacpp}:windows-x86_64"
+}

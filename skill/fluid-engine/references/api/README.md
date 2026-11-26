@@ -8,7 +8,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 182 |
 | [Barre di navigazione e di azione](barre.md) | 21 | 292 |
-| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 55 | 483 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 56 | 488 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Condivisione: foglio, copia preparata, immagine, PDF e stampa](condivisione.md) | 13 | 165 |
@@ -19,7 +19,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Vetro](vetro.md) | 33 | 264 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 7 | 96 |
 | [Tema, forma, tipo](tema.md) | 11 | 149 |
-| [Icone (FluidIcons)](icone.md) | 5 | 212 |
+| [Icone (FluidIcons)](icone.md) | 5 | 217 |
 | [Fluid-physics](fluid-physics.md) | 9 | 47 |
 | [Pagine e navigazione](pagine.md) | 14 | 163 |
 | [Aptica](aptica.md) | 4 | 70 |
@@ -34,7 +34,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-richtext](richtext.md) | 9 | 104 |
 | [engine-vault](vault.md) | 10 | 125 |
 | [engine-security](security.md) | 7 | 78 |
-| [engine-viewer](viewer.md) | 32 | 235 |
+| [engine-viewer](viewer.md) | 40 | 310 |
 | [engine-sync](sync.md) | 13 | 162 |
 | [engine-revisions](revisions.md) | 2 | 18 |
 | [engine-auth](auth.md) | 9 | 52 |
@@ -57,6 +57,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-transcript](transcript.md) | 2 | 27 |
 | [engine-search](search.md) | 8 | 152 |
 | [engine-search-semantic](search-semantic.md) | 2 | 9 |
+| [engine-scan](scan.md) | 11 | 123 |
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 12 | 195 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 147 |

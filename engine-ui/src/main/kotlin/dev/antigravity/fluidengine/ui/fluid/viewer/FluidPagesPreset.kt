@@ -140,7 +140,11 @@ fun FluidPagesPreset(
     val type = info?.file?.name?.substringAfterLast('.', "")?.lowercase()
     val slides = type in setOf("pptx", "odp")
     val word = type in setOf("docx", "odt", "rtf")
-    val searchPages = info?.searchPages
+    // F8.17: senza la ricerca dell'app, quella della sorgente (le parole riconosciute di un PDF scansito).
+    val sourceSearch = remember(source) {
+      (source as? FluidPageTextSearch)?.let { s -> val search: suspend (String) -> List<FluidViewerPageMatch> = { q -> s.searchPages(q) }; search }
+    }
+    val searchPages = info?.searchPages ?: sourceSearch
     var finding by rememberSaveable { mutableStateOf(false) }
     var presenting by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -339,7 +343,7 @@ fun FluidPagesPreset(
               val onScreen by remember(pages, index) { derivedStateOf { viewerPageOnScreen(pages, index) } }
               ViewerPage(cache, index, pixelWidth, preview, false, strings, strings.page(index + 1, count),
                 match?.takeIf { finding && it.page == index }, entrance = entrance.takeIf { index == pages.firstVisibleItemIndex },
-                onScreen = onScreen, signals = pageSignals)
+                onScreen = onScreen, signals = pageSignals, overlays = cache.overlays, settled = !preview && active)
             }
           }
         }
@@ -483,6 +487,7 @@ private fun ViewerPage(
   cache: ViewerPageRenderCache, index: Int, width: Int, preview: Boolean, thumbnail: Boolean,
   strings: FluidPagesPresetStrings, description: String?, match: FluidViewerPageMatch? = null,
   entrance: ViewerEntranceClaim? = null, onScreen: Boolean = true, signals: ViewerPageSignals,
+  overlays: FluidPageOverlays? = null, settled: Boolean = false,
 ) {
   val visible = signals.uiVisible.value && (onScreen || signals.prefetchAllowed.value)
   val owners = remember(cache, index, visible, onScreen) { ViewerPageReaders() }
@@ -545,6 +550,8 @@ private fun ViewerPage(
             Offset(rect.left * this.size.width, rect.top * this.size.height), Size(rect.width * this.size.width, rect.height * this.size.height))
         }
       }, contentScale = ContentScale.Fit)
+      // F8.17: il disegno della sorgente sopra la pagina (le righe riconosciute), nelle coordinate della pagina.
+      overlays?.PageOverlay(index, settled && onScreen)
     } else if (!thumbnail && !waiting && (!preview || failed)) {
       // F7.22: mentre la lista corre o salta la pagina che aspetta è solo carta, come in Anteprima: niente scritta che
       // entra e esce a ogni pagina (e niente testo da comporre e misurare per ognuna). A lista ferma torna «Caricamento».
@@ -682,6 +689,8 @@ internal class ViewerPagesBudget private constructor(val readingEdge: Int, val p
 
 /** Serializes source calls, while keeping at most six rendered pages and 24 MiB of bitmap data per reader. */
 internal class ViewerPageRenderCache(private val source: FluidPageSource) {
+  /** F8.17: il disegno sopra le pagine, se la sorgente lo sa fare. */
+  val overlays: FluidPageOverlays? = source as? FluidPageOverlays
   /** F8.18: la forma della prima pagina misurata, per le pagine che non lo sono ancora. Zero finché non c'è. */
   val typicalAspect = mutableFloatStateOf(0f)
   /** F8.18: il bilancio di risoluzione scelto dal preset. */

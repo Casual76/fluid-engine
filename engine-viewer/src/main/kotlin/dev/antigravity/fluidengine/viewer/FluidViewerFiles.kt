@@ -344,7 +344,13 @@ class FluidViewerFiles internal constructor(
   private class Entry(val file: FluidViewerFile, val pending: Pending) {
     var document: FluidViewerDocument? = null
     var job: Job? = null
+    /** F8.17: il contenuto in attesa con le aggiunte delle estensioni (per le pagine resta lo stesso oggetto). */
+    var waiting: FluidViewerContent = pending.content
   }
+
+  /** F8.17: [content] con le aggiunte delle estensioni dei visori ([FluidViewerExtensions]), se ce ne sono. */
+  private fun decorated(file: FluidViewerFile, content: FluidViewerContent): FluidViewerContent =
+    if (FluidViewerExtensions.extensions.isEmpty()) content else FluidViewerExtensions.decorate(context, file, content)
 
   // Una mappa semplice, non uno stato di Compose: [content] la tocca durante la composizione, e una scrittura lì
   // ricomporrebbe chi legge. Chi legge si iscrive a [version], che cresce quando un file finisce di aprirsi.
@@ -365,10 +371,12 @@ class FluidViewerFiles internal constructor(
     version
     val file = files[index]
     val entry = entries[index]
-    if (!shown) return entry?.document?.content ?: entry?.pending?.content ?: pendingContent(file).content
-    if (entry != null && entry.file == file) return entry.document?.content ?: entry.pending.content
+    if (!shown) return entry?.document?.content ?: entry?.waiting ?: pendingContent(file).content
+    if (entry != null && entry.file == file) return entry.document?.content ?: entry.waiting
     entry?.let { release(index, it) }
     val created = Entry(file, pendingContent(file))
+    // Le pagine e il testo restano lo stesso oggetto quando arrivano: le estensioni li decorano subito, una volta.
+    if (created.pending.keepsContent) created.waiting = decorated(file, created.pending.content)
     entries[index] = created
     val openWith = openWith
     val share = share
@@ -389,14 +397,16 @@ class FluidViewerFiles internal constructor(
       created.pending.complete(document)
       // Il testo e le pagine restano lo stesso oggetto: chi li legge vede arrivare i dati. Il resto si sostituisce.
       created.document = if (created.pending.keeps()) {
-        FluidViewerDocument(file, document.type, created.pending.content, null, document, document.details)
+        FluidViewerDocument(file, document.type, created.waiting, null, document, document.details)
       } else {
-        document
+        val content = decorated(file, document.content)
+        if (content === document.content) document
+        else FluidViewerDocument(file, document.type, content, document.failure, document, document.details)
       }
       version++
     }
     evict(index)
-    return created.pending.content
+    return created.waiting
   }
 
   private fun evict(around: Int) {
@@ -414,7 +424,7 @@ class FluidViewerFiles internal constructor(
   internal fun trim() {
     for ((key, entry) in entries.toList()) {
       // Il PDF tiene posizione e conteggio; la coda sa sganciare bitmap e renderer.
-      if ((entry.document?.content as? FluidViewerContent.Pages)?.source !is PendingPages) release(key, entry)
+      if (!(entry.document != null && entry.pending is PendingPages && entry.pending.keeps())) release(key, entry)
     }
     version++
   }
@@ -439,6 +449,8 @@ class FluidViewerFiles internal constructor(
     val content: FluidViewerContent
     fun complete(document: FluidViewerDocument) {}
     fun keeps(): Boolean = false
+    /** Vero per le forme che restano lo stesso oggetto quando il file arriva (il testo, le pagine). */
+    val keepsContent: Boolean get() = false
   }
 
   private object PendingImage : Pending {
@@ -451,6 +463,7 @@ class FluidViewerFiles internal constructor(
 
   /** Il testo che arriva: [FluidTextSource.readLines] aspetta il documento, [lineCount] è noto quando arriva. */
   private class PendingText(private val nameLanguage: String?) : Pending, FluidStyledTextSource {
+    override val keepsContent: Boolean get() = true
     private var document by mutableStateOf<FluidTextDocument?>(null)
     override val content: FluidViewerContent = FluidViewerContent.Text(this)
     override val language: String? get() = document?.language ?: nameLanguage
@@ -472,6 +485,7 @@ class FluidViewerFiles internal constructor(
 
   /** Le pagine che arrivano: [count] è zero finché il PDF non è aperto, la resa aspetta. */
   private class PendingPages : Pending, FluidPageSource {
+    override val keepsContent: Boolean get() = true
     private var source by mutableStateOf<FluidPdfPageSource?>(null)
     override val content: FluidViewerContent = FluidViewerContent.Pages(this)
     override val count: Int get() = source?.count ?: 0

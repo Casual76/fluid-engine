@@ -8,7 +8,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 |---|---|---|
 | [Schermata e scheletro](schermata.md) | 17 | 181 |
 | [Barre di navigazione e di azione](barre.md) | 21 | 292 |
-| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 54 | 474 |
+| [Contenuto: righe, card, liste, identità, testo, file](contenuto.md) | 55 | 483 |
 | [Contenuto web chiuso (FluidWebContent)](contenuto-web.md) | 1 | 23 |
 | [Grafici: ciambella, barre, linea, legenda, scrubber e quadrante](grafici.md) | 5 | 76 |
 | [Condivisione: foglio, copia preparata, immagine, PDF e stampa](condivisione.md) | 13 | 165 |
@@ -43,6 +43,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-share-in](share-in.md) | 3 | 51 |
 | [engine-media](media.md) | 13 | 179 |
 | [engine-ink](ink.md) | 12 | 179 |
+| [engine-editor](editor.md) | 13 | 143 |
 | [engine-notify](notify.md) | 9 | 65 |
 | [engine-account](account.md) | 11 | 267 |
 | [engine-account-host](account-host.md) | 25 | 302 |

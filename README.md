@@ -48,6 +48,8 @@ engine-transfer     il centro trasferimenti: coda persistita di scaricamenti e c
                     ripresa con Range, solo Wi-Fi e in carica, WorkManager col servizio dataSync (opt-in)
 engine-media        foto e allegati: il selettore di foto e video di vetro, le sorgenti di altre app (MyCloud
                     Gallery) col contratto firmato, il Photo Picker di Android, il «+» degli allegati (opt-in)
+engine-editor       la modifica delle foto come Foto di iOS: ritaglio, raddrizza, regolazioni con la ruota,
+                    Auto, annulla e ripristina, l'originale sempre recuperabile, salvataggio a piena risoluzione (opt-in)
 ```
 
 ## Partire in cinque minuti

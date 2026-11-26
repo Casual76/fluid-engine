@@ -629,6 +629,44 @@ Serve un `FluidGlassModalHost` in scope: senza non si apre e **non va in crash**
 
 **Versione.** 3.0.0; `background` 3.0.1.
 
+### `FluidBeforeAfter`: il confronto a tendina (F8.15, 4.0)
+
+**Cos'è.** Due versioni della stessa immagine una sopra l'altra e una maniglia che si sposta col dito: a sinistra «prima»,
+a destra «dopo» (idea `confronto-prima-dopo`). Le capsule «Prima» e «Dopo» in alto mostrano ciascuna versione intera, e un
+altro tocco torna a metà. In Foto di Apple la tendina non c'è (Foto mostra l'originale tenendo premuta la foto, e lo fa
+l'editor di `engine-editor`, [`../moduli/editor.md`](../moduli/editor.md)); qui serve dove le due versioni vanno guardate
+insieme: un ritocco in MyCloud Gallery, gli artefatti della compressione in Universal Converter, una scansione corretta.
+
+**Firma essenziale.**
+```kotlin
+FluidBeforeAfter(
+  before: @Composable () -> Unit, after: @Composable () -> Unit, modifier = Modifier,
+  state = rememberFluidBeforeAfterState(initial = 0.5f),   // fraction, snapTo, showBefore, showAfter, split
+  labels = FluidBeforeAfterLabels(before = "Prima", after = "Dopo"), showLabels = true,
+)
+```
+
+**Uso**, dentro il visore dei file, con lo zoom condiviso:
+```kotlin
+FluidFileViewer(count = 1, content = { FluidViewerContent.Image(ratio) {
+  FluidBeforeAfter(before = { Image(originale, null) }, after = { Image(compressa, null) },
+    labels = FluidBeforeAfterLabels(before = "Originale", after = "JPEG 12"))
+} })
+```
+
+**Comportamento.**
+- **Due immagini già allineate** (stesse misure e inquadratura): l'allineamento è dell'app.
+- **Lo zoom è condiviso**: nel visore il pizzico muove le due versioni insieme; la maniglia resta della sua misura e nel
+  centro di ciò che si vede (`currentFluidViewerZoom`). La maniglia tiene il suo dito (44 dp attorno alla linea): da lì lo
+  sfoglio del visore non parte.
+- **Dito nitido**: la linea segue il dito 1:1; un `Threshold` passando da metà. Le capsule portano la tendina con la molla
+  standard (di colpo col movimento ridotto).
+- **TalkBack**: la maniglia è un cursore («Prima al 50%») con «aumenta», «diminuisci» e «imposta».
+- Ferma, non ridisegna: il taglio si legge nel disegno.
+
+**Non usarlo quando.** Le due immagini non sono la stessa inquadratura (allinea prima), o serve solo «com'era» mentre si
+modifica (tieni premuto nell'editor).
+
 ## Riordino con trascinamento
 
 ### `rememberFluidReorderState`, `fluidReorderable`, `fluidMoved`, `FluidReorder`

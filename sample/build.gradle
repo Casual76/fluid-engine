@@ -220,6 +220,8 @@ dependencies {
   // cartella dell'app se c'e'. La libreria nativa di LiteRT-LM si' (la misura e' nel rapporto di F8.22).
   implementation project(':engine-search')
   implementation project(':engine-search-semantic')
+  // F8.15 · Modifica delle immagini: l'editor delle foto (ritaglia e regola), lo strumento del visore e la tendina.
+  implementation project(':engine-editor')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

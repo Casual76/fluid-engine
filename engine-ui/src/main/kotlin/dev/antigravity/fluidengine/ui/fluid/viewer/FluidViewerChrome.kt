@@ -99,21 +99,29 @@ internal class ViewerTool(
   val id: String, val icon: ImageVector, val label: String,
   val actions: FluidToolbarScope.(Int) -> Unit,
   val body: @Composable (Int) -> Unit,
+  /** F8.15 · Chiamato da «Fine» (non da indietro): lo strumento salva. */
+  val onDone: ((Int) -> Unit)? = null,
 )
 
 class FluidViewerToolsScope internal constructor() {
   internal val items = mutableListOf<ViewerTool>()
 
-  /** Stable [id] restores the editor after recreation. Its actions share one capsule with Done. */
+  /**
+   * Stable [id] restores the editor after recreation. Its actions share one capsule with Done.
+   *
+   * F8.15 · [onDone] arriva quando si tocca «Fine» (lo strumento conferma: l'editor delle foto salva), non quando si
+   * esce con indietro (lo strumento si chiude senza confermare, come «Annulla»).
+   */
   fun tool(
     id: String,
     icon: ImageVector,
     label: String,
     actions: FluidToolbarScope.(index: Int) -> Unit = {},
+    onDone: ((index: Int) -> Unit)? = null,
     content: @Composable (index: Int) -> Unit,
   ) {
     require(items.none { it.id == id }) { "Duplicate viewer tool: $id" }
-    items += ViewerTool(id, icon, label, actions, content)
+    items += ViewerTool(id, icon, label, actions, content, onDone)
   }
 }
 
@@ -300,7 +308,10 @@ internal fun BoxScope.ViewerChrome(
         if (count > 0) for (item in tools) button(ToolButton(item.id), item.icon, item.label, { select(item.id) })
       } else {
         tool.actions(this, index)
-        button(ViewerButton.Done, FluidIcons.Check, strings.done, { select(null) })
+        button(ViewerButton.Done, FluidIcons.Check, strings.done, {
+          tool.onDone?.invoke(index)
+          select(null)
+        })
       }
     }
   }

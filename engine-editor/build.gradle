@@ -1,0 +1,66 @@
+// F8.15 · Modifica delle immagini (`ritaglia-e-regola`, `confronto-prima-dopo`). L'editor delle foto come Foto di iOS 26:
+// il ritaglio con le proporzioni, la rotazione libera (il righello di «Raddrizza» e due dita) e a 90°, lo specchio; le
+// regolazioni (esposizione, brillantezza, luci, ombre, contrasto, luminosita', punto di nero, saturazione, vividezza,
+// calore, tinta, nitidezza, definizione, vignettatura) con la ruota delle regolazioni e i valori, «Auto», annulla e
+// ripristina; l'originale sempre recuperabile (la modifica e' una ricetta, il file di partenza non si tocca mai) e il
+// confronto tenendo premuto o a tendina. Opt-in, come i visori: un'app che non modifica foto non lo include.
+//
+//   implementation project(':engine-editor')
+//
+// Dentro:
+// - la **ricetta** (`FluidImageEdit`): geometria e regolazioni, da salvare accanto al file per riaprire la modifica;
+// - il **calcolo dei pixel** fuori dal thread principale: lo stesso codice per l'anteprima e per il salvataggio, a pezzi
+//   (una foto da 50 megapixel non deve stare intera in memoria); sui telefoni con Android 13 o piu' l'anteprima mentre il
+//   dito muove e' uno shader AGSL con gli stessi conti, sotto e' il calcolo su un'immagine ridotta;
+// - l'**editor** (`FluidImageEditor`) e lo strumento del visore dei file.
+//
+// Nessuna libreria nuova: Bitmap, Canvas, ImageDecoder, ExifInterface di Android e AGSL da Android 13. Il confronto a
+// tendina fra due immagini qualsiasi (`FluidBeforeAfter`) sta in engine-ui, perche' serve anche a chi non modifica niente
+// (Universal Converter: gli artefatti della compressione).
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+  id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.editor'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  buildFeatures {
+    compose = true
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // Le bitmap, il Canvas e l'ExifInterface veri di Android: si provano in Robolectric (grafica nativa).
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: l'editor parla il vetro, i controlli a gesto (`FluidRulerDial`) e il visore dei file di engine-ui.
+  api project(':engine-ui')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove con le bitmap, il Canvas e i file veri di Android, mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

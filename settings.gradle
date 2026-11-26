@@ -92,6 +92,10 @@ include ':engine-ink'
 // modello del significato con LiteRT-LM (engine-search-semantic, a parte perche' pesa). Opt-in tutti e due.
 include ':engine-search'
 include ':engine-search-semantic'
+// F8.15 · Modifica delle immagini: l'editor delle foto come Foto di iOS 26 (ritaglio, raddrizzamento, regolazioni con la
+// ruota e i valori, Auto, annulla e ripristina, l'originale sempre recuperabile), il calcolo fuori dal thread principale e
+// il salvataggio a pezzi a piena risoluzione. Opt-in; il confronto a tendina fra due immagini sta in engine-ui.
+include ':engine-editor'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

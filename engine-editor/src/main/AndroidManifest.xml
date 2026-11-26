@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  F8.15 · Nessun permesso: l'editor legge l'indirizzo che l'app gli da' (content:// o file://, letto subito) e scrive dove
+  dice l'app. Il file di partenza non si tocca mai.
+-->
+<manifest />

@@ -1,0 +1,36 @@
+# F8.15 · Le icone dell'editor delle foto (engine-editor), allo stesso peso del set dell'engine. Si rigenerano dalla
+# radice dell'engine con:
+#
+#   python tools/icons/gen_fluid_icons.py --app engine-editor/icons/icone-editor.txt \
+#       --package dev.antigravity.fluidengine.editor.icons \
+#       --out engine-editor/src/main/kotlin/dev/antigravity/fluidengine/editor/icons
+#
+# Le sagome scelte guardando la fila di «Regola» e i tasti di «Ritaglia» di Foto in iOS 26 e 27 (F8.15).
+
+## Le schede e i tasti
+crop                          # la scheda «Ritaglia»
+rotate_90_degrees_ccw         # ruota a sinistra di 90 gradi
+flip                          # lo specchio orizzontale
+aspect_ratio                  # le proporzioni
+straighten                    # il raddrizzamento
+auto_fix_high pieno           # «Auto», la bacchetta; piena quando e' accesa
+draw                          # «Annota», il passaggio al disegno di engine-ink
+compare                       # il confronto a tendina
+crop_portrait                 # le proporzioni in verticale
+crop_landscape                # le proporzioni in orizzontale
+
+## Le regolazioni, nell'ordine della fila di Foto
+exposure                      # esposizione
+flare                         # brillantezza
+light_mode                    # luci
+dark_mode                     # ombre
+contrast                      # contrasto
+brightness_6                  # luminosita'
+brightness_1                  # punto di nero
+gradient                      # saturazione
+invert_colors                 # vividezza
+thermostat                    # calore
+water_drop                    # tinta
+change_history                # nitidezza
+details                       # definizione
+vignette                      # vignettatura

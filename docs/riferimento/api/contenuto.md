@@ -35,6 +35,18 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `fun fluidBadgeText(count: Int, max: Int = FluidBadgeDefaults.Max): String` — Il testo di una capsula numerica: il numero, o «99+» se supera [max]; vuoto per zero e per i valori negativi (un badge a zero non si disegna).
 - `@Composable fun FluidBadge(count: Int? = null, modifier: Modifier = Modifier, max: Int = FluidBadgeDefaults.Max, color: Color = Color.Unspecified, contentDescription: String? = null)` — Il segno piccolo di «c'e' qualcosa»: un pallino, o una capsula con un numero («3», «99+»).
 
+## `engine-ui/ui/fluid/FluidBeforeAfter.kt`
+
+- `class FluidBeforeAfterState(initial: Float = 0.5f)` — Dove sta la tendina del confronto: [fraction] e' la parte di «prima» che si vede, da sinistra (0 = tutto «dopo», 1 = tutto «prima»). Lo cambia il dito sulla maniglia, TalkBack, o l'app con [showBefore], [showAfter] e [split].
+  - `val fraction: Float get()` — La parte di «prima» che si vede, da sinistra.
+  - `suspend fun snapTo(fraction: Float)` — Sposta la tendina subito (il dito).
+  - `suspend fun showBefore(animate: Boolean = true)` — Tutta «prima» (il tasto «Prima»); [animate] falso col movimento ridotto.
+  - `suspend fun showAfter(animate: Boolean = true)` — Tutta «dopo».
+  - `suspend fun split(animate: Boolean = true)` — Di nuovo a meta'.
+- `@Composable fun rememberFluidBeforeAfterState(initial: Float = 0.5f): FluidBeforeAfterState` — Lo stato della tendina, ricordato anche dopo la rotazione dello schermo.
+- `data class FluidBeforeAfterLabels(val before: String = "Prima", val after: String = "Dopo", val divider: String = "Confronto prima e dopo", val state: (Int) -> String = { "Prima al $it%" })` — Le parole del confronto.
+- `@Composable fun FluidBeforeAfter(before: @Composable () -> Unit, after: @Composable () -> Unit, modifier: Modifier = Modifier, state: FluidBeforeAfterState = rememberFluidBeforeAfterState(), labels: FluidBeforeAfterLabels = FluidBeforeAfterLabels(), showLabels: Boolean = true)` — Il **confronto a tendina** (idea `confronto-prima-dopo`, F8.15): due versioni della stessa immagine una sopra l'altra, e una maniglia che si sposta col dito per vedere [before] a sinistra e [after] a destra. Le due capsule «Prima» e «Dopo» in alto mostrano ciascuna versione intera (un altro tocco torna a meta'), come chiede la scheda dell'idea.
+
 ## `engine-ui/ui/fluid/FluidContent.kt`
 
 - `@Composable fun FluidSectionHeader(title: String, modifier: Modifier = Modifier, detail: String? = null)` — Header above a grouped list.
@@ -555,7 +567,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 - `data class FluidViewerStrings(val counter: (current: Int, count: Int) -> String = { current, count -> "$current di $count" }, val info: String = "Informazioni", val done: String = "Fine", val empty: String = "Nessun file", val showControls: String = "Mostra controlli", val hideControls: String = "Nascondi controlli", val close: String = "Chiudi", val copy: String = "Copia valore", val file: String = "File", val name: String = "Nome", val type: String = "Tipo", val size: String = "Dimensione", val openWith: String = "Apri con…", val share: String = "Condividi", val actionFailed: String = "Impossibile completare l’azione", val pages: (Int) -> String = { "$it pagine" }, val lines: (Int) -> String = { "$it righe" }, val location: String = "Luogo", val coordinates: String = "Coordinate", val openMap: String = "Apri in Mappe", val chapters: String = "Capitoli", val more: String = "Altro", val sheets: (Int) -> String = { "$it fogli" }, val copyFile: String = "Copia", val print: String = "Stampa", val rename: String = "Rinomina", val move: String = "Sposta", val duplicate: String = "Duplica", val delete: String = "Elimina", val fileMenu: String = "Mostra le azioni del file")`
 - `class FluidViewerToolsScope internal constructor()`
-  - `fun tool(id: String, icon: ImageVector, label: String, actions: FluidToolbarScope.(index: Int) -> Unit = {}, content: @Composable (index: Int) -> Unit)` — Stable [id] restores the editor after recreation. Its actions share one capsule with Done.
+  - `fun tool(id: String, icon: ImageVector, label: String, actions: FluidToolbarScope.(index: Int) -> Unit = {}, onDone: ((index: Int) -> Unit)? = null, content: @Composable (index: Int) -> Unit)` — Stable [id] restores the editor after recreation. Its actions share one capsule with Done.
 
 ## `engine-ui/ui/fluid/viewer/FluidViewerContent.kt`
 

@@ -71,6 +71,8 @@ UI_FLUID_FILES = {
         "FluidTextMotion", "FluidReadyStrings",
         # F8.4: le sezioni richiudibili, la selezione trascinando e la griglia di anteprime
         "FluidDisclosureGroup", "FluidDragSelection", "FluidPreviewGrid",
+        # F8.15: il confronto a tendina fra due versioni della stessa immagine
+        "FluidBeforeAfter",
     ],
     # il contenuto web chiuso per costruzione
     "contenuto-web": [
@@ -233,6 +235,8 @@ DIR_FAMILY = {
     # la ricerca: l'indice sul telefono e «Cerca in Pampa» (F8.22), e il modello del significato a parte
     "search": "search",
     "search/semantic": "search-semantic",
+    # la modifica delle immagini: l'editor, la ricetta, il calcolo e il salvataggio (F8.15)
+    "editor": "editor",
 }
 
 FAMILY_TITLES = {
@@ -273,6 +277,7 @@ FAMILY_TITLES = {
     "share-in": "engine-share-in",
     "media": "engine-media",
     "ink": "engine-ink",
+    "editor": "engine-editor",
     "notify": "engine-notify",
     "account": "engine-account",
     "account-host": "engine-account-host",

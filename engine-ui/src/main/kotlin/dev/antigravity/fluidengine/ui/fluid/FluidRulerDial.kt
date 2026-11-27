@@ -126,6 +126,16 @@ internal object FluidRulerLook {
    */
   const val MajorSnapFraction: Float = 0.25f
 
+  /**
+   * F7.24b · Sotto questa velocita', in pixel al secondo, un lancio che decade passa la mano alla molla dell'assestamento
+   * (che lo posa esatto sulla tacca). Col decadimento di iOS (k = 2 al secondo) e la mano passata solo a un pixel
+   * ([FluidDetentMotion.HandoffPx]), un rilascio a 12–13 tacche al secondo (il gesto di agent-device sul Tab S9, 26 novembre
+   * 2026) strisciava ~2,4 s sotto la tacca prima di fermarsi, e la pagina disegnava a 120 fotogrammi al secondo per tutto
+   * quel tempo. A 30 px/s il lancio dura ~1,4 s, come uno scorrimento di iOS con la stessa velocita'; la tacca d'arrivo
+   * e' la stessa. Solo la ghiera: la ruota ([FluidWheelPicker]) resta com'e'.
+   */
+  const val FlingHandoffSpeedPx: Float = 30f
+
   /** Sopra questa velocita' (tacche al secondo) le tacche suonano il `DragTick` leggero; sotto il `Tick`. */
   const val FastTicksPerSecond: Float = 10f
 }
@@ -655,7 +665,11 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
     live: Boolean = true,
   ) {
     job?.cancel()
-    if (settle) inertia.springTo(position, speed, target, spacingPx, response) else inertia.flingTo(position, speed, target, spacingPx)
+    if (settle) {
+      inertia.springTo(position, speed, target, spacingPx, response)
+    } else {
+      inertia.flingTo(position, speed, target, spacingPx, handoffSpeedPx = FluidRulerLook.FlingHandoffSpeedPx)
+    }
     job = scope.launch {
       val glide: suspend () -> Unit = {
         var last = -1L

@@ -229,6 +229,33 @@ class F8p10OutputTest {
     assertTrue(all.contains("Pagelladelprimoquadrimestre"))
   }
 
+  @Test fun aRowTallerThanAPageStaysInsideTheMargins() {
+    // R2: una riga «etichetta — valore» con un'etichetta lunghissima, piu' alta di una pagina. Si taglia al bordo (non
+    // c'e' scelta), ma ogni pagina mostra solo la sua fetta: niente testo oltre il margine, niente righe ripetute.
+    setUp()
+    val label = (1..900).joinToString(" ") { "riga$it" }
+    val document = fluidPdfDocument("Elenco lungo", locale = Locale.ITALY) { row(label, "8") }
+    val layout = FluidPdf.layout(document)
+    assertTrue("piu' pagine: ${layout.pageCount}", layout.pageCount >= 2)
+    val size = document.pageSize
+    val contentTop = document.marginPt
+    val contentBottom = size.heightPt - document.marginPt
+    val seen = ArrayList<String>()
+    for (page in 1..layout.pageCount) {
+      val bitmap = Bitmap.createBitmap(size.widthPt, size.heightPt, Bitmap.Config.ARGB_8888)
+      val canvas = TextCanvas(bitmap)
+      canvas.drawColor(AndroidColor.WHITE)
+      layout.draw(page, canvas)
+      bitmap.recycle()
+      for (run in canvas.runs.filter { it.text != "Elenco lungo" && !it.text.startsWith("Pagina ") }) {
+        assertTrue("«${run.text}» a pagina $page sopra il margine: ${run.top}", run.top >= contentTop - 0.5f)
+        assertTrue("«${run.text}» a pagina $page sotto il margine: ${run.bottom} > $contentBottom", run.bottom <= contentBottom + 0.5f)
+        seen += run.text.split(' ', '\n').filter { it.startsWith("riga") }
+      }
+    }
+    assertEquals("ogni parola una volta sola", seen.distinct().size, seen.size)
+  }
+
   @Test fun theReportCardOfTheSceneLaysOutWithItsComposeChart() {
     setUp()
     var pages = 0

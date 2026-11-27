@@ -39,6 +39,10 @@ la richiesta ad `addresses.open(nav, request)`. Il sample contiene il collegamen
 compreso l'arrivo di un intent prima che la composizione sia pronta.
 Le rotte della tabella possono essere stringhe o oggetti serializzabili di Navigation. Chi ha già
 un grafo tipizzato lo passa all'overload con `graph`, che mantiene anche le opzioni di movimento fra schede.
+Conta il primo `initialAddress` non nullo: un'app che lo legge una composizione dopo lo vede aperto lo stesso (R2).
+Una rotta di `routeOf` che il grafo non ha (una pagina tolta in una versione nuova) non lascia la pila a metà:
+i genitori già aperti restano e in cima va `missingRoute` (R2). I genitori e le due pagine di servizio devono
+esserci nel grafo.
 
 Con un modale di vetro dichiarato alla radice, un indirizzo accettato chiede la sua chiusura
 e aspetta la fine del ritorno. Il valore `true` di `open` indica che il link è stato accettato.
@@ -629,6 +633,9 @@ FluidSegmentedPager(segments = listOf("Voti", "Note", "Assenze"), state = pager)
 | `contentPadding` (di `page`) | il margine in alto da lasciare alla capsula, **barra di stato compresa** (F8.4b) |
 
 - Guidata dal pager, la barra **non** è la navigazione: le azioni della selezione (`selection(…)`) non la sostituiscono.
+- **Senza segmenti** (i dati non ancora arrivati) non mostra niente, né pagine né capsula, e `selectedPage` resta 0: lo
+  stato vuoto lo mostra l'app. Segmenti che si accorciano sull'ultima pagina riportano il pager sull'ultima che c'è (R2,
+  provato).
 - **TalkBack**: ogni segmento è un tasto col suo titolo, e quello scelto dice «selezionato». **Movimento ridotto**: la goccia arriva senza
   viaggio né lente.
 - Le misure (48 dp di altezza, segmenti fino a 112 dp, 8 dp dal bordo) sono a occhio sulle schermate di iOS 26,

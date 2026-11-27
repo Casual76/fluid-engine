@@ -299,7 +299,6 @@ private fun F8p26MapScene(onBack: () -> Unit, forceSketch: Boolean = false, init
   val state = rememberFluidMapState(FluidMapCamera(start?.point ?: F8p26Places.Florence, if (start != null) 16.0 else 13.2))
   var selected by rememberSaveable { mutableStateOf(initialSelection) }
   var detent by remember { mutableStateOf<FluidSheetDetent?>(if (initialSelection != null) FluidSheetDetent.Medium else null) }
-  val scope = rememberCoroutineScope()
   val backdrop = rememberGlassBackdrop()
   val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   val chosen = F8p26Places.Markers.firstOrNull { it.id == selected }
@@ -357,10 +356,10 @@ private fun F8p26MapScene(onBack: () -> Unit, forceSketch: Boolean = false, init
               FluidListRow(
                 title = marker.title,
                 subtitle = marker.subtitle.orEmpty(),
+                // La mappa porta in vista il luogo scelto da se' (sopra il foglio, fuori dai grappoli): F8.26d.
                 onClick = {
                   selected = marker.id
                   detent = FluidSheetDetent.Medium
-                  scope.launch { state.animateTo(state.camera.copy(center = marker.point, zoom = maxOf(state.camera.zoom, 16.0))) }
                 },
               )
             }

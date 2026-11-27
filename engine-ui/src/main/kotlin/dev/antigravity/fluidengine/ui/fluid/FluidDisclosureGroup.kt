@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.semantics
@@ -279,8 +280,12 @@ fun FluidDisclosureGroup(
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           maxLines = 1,
-          // Sparisce aprendo con la freccia: il contenuto aperto dice la stessa cosa per intero.
-          modifier = Modifier.padding(start = 8.dp).graphicsLayer { alpha = 1f - chevron.value.coerceIn(0f, 1f) },
+          // Sparisce aprendo con la freccia: il contenuto aperto dice la stessa cosa per intero. Anche per TalkBack (R2):
+          // aperta, il titolo non ripete il riepilogo.
+          modifier = Modifier
+            .padding(start = 8.dp)
+            .graphicsLayer { alpha = 1f - chevron.value.coerceIn(0f, 1f) }
+            .then(if (expanded) Modifier.clearAndSetSemantics { } else Modifier),
         )
       }
       Spacer(Modifier.width(8.dp))

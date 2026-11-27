@@ -62,18 +62,29 @@ object FluidDragSelectionDefaults {
  * stringe**: va dall'ancora all'elemento sotto il dito, nell'ordine della lista (in una griglia, per righe, come Foto);
  * tornando indietro gli elementi che escono dall'intervallo tornano **com'erano prima del gesto**, non spenti. Pura:
  * chi la usa le dice come leggere e scrivere la scelta.
+ *
+ * **La lista che cambia sotto il dito** (R2): i due capi dell'intervallo sono elementi, non posti. Se una riga entra o
+ * esce sopra di loro (una lista che si aggiorna dal vivo), a ogni passo l'ancora e l'ultimo elemento raggiunto si
+ * ritrovano per chiave vicino al posto di prima ([count] elementi in tutto), e l'intervallo continua da li'.
  */
 internal class FluidDragSelectRange<K : Any>(
-  val anchor: Int,
+  anchor: Int,
   val adding: Boolean,
   private val keyAt: (Int) -> K?,
   private val isSelected: (K) -> Boolean,
   private val setSelected: (K, Boolean) -> Unit,
+  private val count: () -> Int = { Int.MAX_VALUE },
 ) {
+  /** Il posto dell'ancora adesso. */
+  var anchor: Int = anchor
+    private set
+
   /** L'elemento sotto il dito adesso. */
   var current: Int = anchor
     private set
 
+  private var anchorKey: K? = keyAt(anchor)
+  private var currentKey: K? = anchorKey
   private val original = HashMap<K, Boolean>()
 
   init {
@@ -85,7 +96,13 @@ internal class FluidDragSelectRange<K : Any>(
    * sullo stesso elemento).
    */
   fun extendTo(index: Int): Int {
-    if (index == current || index < 0) return 0
+    if (index < 0) return 0
+    // Un elemento che non c'e' piu' lascia il suo posto a chi ora sta li': non si cerca a ogni passo.
+    anchor = relocate(anchorKey, anchor)
+    anchorKey = keyAt(anchor)
+    current = relocate(currentKey, current)
+    currentKey = keyAt(current)
+    if (index == current) return 0
     val oldLow = minOf(anchor, current)
     val oldHigh = maxOf(anchor, current)
     val newLow = minOf(anchor, index)
@@ -107,7 +124,24 @@ internal class FluidDragSelectRange<K : Any>(
       if (apply(i)) changed++
     }
     current = index
+    currentKey = keyAt(index)
     return changed
+  }
+
+  /**
+   * Il posto di [key] adesso: [at] se e' ancora li' (il caso di ogni passo), altrimenti il piu' vicino in cui c'e', entro
+   * [RelocateWindow] posti. Se l'elemento non c'e' piu' resta [at].
+   */
+  private fun relocate(key: K?, at: Int): Int {
+    if (key == null || keyAt(at) == key) return at
+    val size = count()
+    var d = 1
+    while (d <= RelocateWindow && (at - d >= 0 || at + d < size)) {
+      if (at - d >= 0 && keyAt(at - d) == key) return at - d
+      if (at + d < size && keyAt(at + d) == key) return at + d
+      d++
+    }
+    return at
   }
 
   private fun apply(index: Int): Boolean {
@@ -117,6 +151,11 @@ internal class FluidDragSelectRange<K : Any>(
     if (now == adding) return false
     setSelected(key, adding)
     return true
+  }
+
+  private companion object {
+    /** Quanto lontano si cerca un capo spostato: mille posti, piu' di quante righe arrivano fra due passi del dito. */
+    const val RelocateWindow = 1_000
   }
 }
 
@@ -129,11 +168,15 @@ private interface DragSelectLayout {
 
   val viewportMain: Float
 
+  /** Quanti elementi ha la lista (per ritrovare i capi dell'intervallo se la lista cambia). */
+  val itemCount: Int
+
   suspend fun scrollBy(px: Float): Float
 }
 
 private class GridDragSelectLayout(private val state: LazyGridState) : DragSelectLayout {
   override val vertical: Boolean get() = state.layoutInfo.orientation == Orientation.Vertical
+  override val itemCount: Int get() = state.layoutInfo.totalItemsCount
   override val viewportMain: Float
     get() = state.layoutInfo.viewportSize.let { if (vertical) it.height else it.width }.toFloat()
 
@@ -159,6 +202,7 @@ private class GridDragSelectLayout(private val state: LazyGridState) : DragSelec
 
 private class ListDragSelectLayout(private val state: LazyListState) : DragSelectLayout {
   override val vertical: Boolean get() = state.layoutInfo.orientation == Orientation.Vertical
+  override val itemCount: Int get() = state.layoutInfo.totalItemsCount
   override val viewportMain: Float
     get() = state.layoutInfo.viewportSize.let { if (vertical) it.height else it.width }.toFloat()
 
@@ -288,6 +332,7 @@ private fun <K : Any> Modifier.dragSelectionChain(
           keyAt = { currentKeyAt(it) },
           isSelected = { sel.isSelected(it) },
           setSelected = { key, on -> sel.setSelected(key, on) },
+          count = { layout.itemCount },
         )
         currentHaptics.play(if (decided == null) FluidHapticEvent.GestureStart else FluidHapticEvent.Tick)
         var at = start

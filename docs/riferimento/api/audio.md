@@ -40,7 +40,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun resume(): Boolean` — Riprende dopo una pausa, scrivendo in coda allo stesso file. Falso se il microfono non riparte.
   - `suspend fun stop(): FluidRecording?` — Finisce: chiude il file, toglie i silenzi se richiesto, salva l'onda accanto. Torna la registrazione, o null se non ce n'era una o il file non si è chiuso ([status] lo dice). Sospende sul thread di IO.
   - `fun discard()` — Butta la registrazione in corso: il file si cancella, il registratore torna a riposo.
-  - `fun reset()` — Dopo una registrazione finita o fallita, torna a riposo (l'onda resta finché non se ne comincia un'altra).
+  - `fun reset()` — Dopo una registrazione finita o fallita, torna a riposo (l'onda resta finché non se ne comincia un'altra). Dopo una cattura fallita da sola, il file scritto fin lì si butta: per tenerlo, [stop] prima.
 
 ## `engine-audio/audio/FluidAudioWriters.kt`
 

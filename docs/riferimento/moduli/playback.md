@@ -56,9 +56,26 @@ stato sta negli **extra della sessione**, quindi lo vede ogni controllo collegat
 la ripresa non hanno bisogno di chiedere all'app «che cos'è questo id».
 
 **La coda ricordata.** Gli elementi, quale si ascoltava e il punto si salvano (in un file di preferenze del modulo) a ogni
-cambio, a ogni salto e ogni 5 secondi mentre suona. All'avvio del servizio la coda torna **ferma** al punto giusto
+cambio della coda (anche da fermi: elementi aggiunti, tolti, spostati), a ogni cambio di elemento, a ogni salto e ogni 5
+secondi mentre suona. Una coda **svuotata** dall'app si dimentica: al riavvio non torna quella di prima. Un elemento senza
+indirizzo (messo da fuori con la sola `mediaId`) non si può riaprire e non si salva, e il punto di ripresa resta
+sull'elemento che si ascoltava (R1, 26 novembre 2026). All'avvio del servizio la coda torna **ferma** al punto giusto
 (`restoreOnStart`): riaprendo l'app la lezione c'è e non suona da sola. La ripresa di sistema (Play sulle cuffie con l'app
 chiusa, `onPlaybackResumption`) riparte da lì.
+
+**Chi si collega** (R1, 26 novembre 2026). Il servizio è esportato perché lo trovino il sistema, l'orologio e l'auto, ma
+non risponde a tutti allo stesso modo:
+
+| chi | cosa può fare |
+|---|---|
+| l'app stessa (il suo uid: il controllo, la notifica di Media3) | tutto: la coda, i comandi dell'engine (timer, salto dei silenzi) |
+| il sistema e chi può comandare i media: la tendina e la schermata di blocco, il Bluetooth, chi ascolta le notifiche (l'app dell'orologio), Android Auto | vede il titolo e comanda l'ascolto (Play, i salti, la velocità); non cambia la coda e non manda i comandi dell'engine |
+| un'altra app | non si collega: niente titoli dei memo, niente comandi |
+
+Media3 1.5.1 crede al nome del pacchetto che un controllo dice di avere, e da quel nome decide «fidato» (gli ascoltatori
+delle notifiche): il servizio controlla che il nome sia dell'uid che chiama. Resta aperto a tutti, come in ogni app
+multimediale, il ricevitore dei tasti delle cuffie: un'altra app può «premere» Play o Pausa come una cuffia, ma non legge
+niente.
 
 **Lo stato per Compose.** `FluidPlaybackController` legge il `MediaController` in stati di Compose: `playing` (l'intenzione,
 come il tasto di Media3), `buffering`, `positionMillis` (a ogni fotogramma mentre suona, fermo non costa), `durationMillis`,
@@ -79,15 +96,19 @@ finito si ricorda dall'inizio, e Play da in fondo riparte da capo (trovati sul T
   nel servizio. Fuori da Compose, `connect` e `close` a mano.
 - **Un altro `MediaSessionService` nell'app** (Fluidify ne ha uno suo) convive male con questo: si sceglie uno dei due.
 - In Robolectric il controllo non si collega al servizio: le prove dell'interfaccia usano una `FluidMediaSession` finta.
+- **Un controllo di un'altra app dell'ecosistema** (un widget di Pampa Notes in un'altra app, per esempio) non si collega:
+  il servizio è dell'app che lo porta. Per comandarlo da fuori passa dall'app (un `PendingIntent`, un ponte).
 
 ## Cosa è verificato dai test
 
 `engine-playback/src/test/.../FluidPlaybackServiceTest.kt` (Robolectric, Media3 1.11.1, l'ExoPlayer vero senza
-decodificatori): i salti di 15 s e i due tasti ai lati di Play; i comandi dell'engine offerti a chi si collega; il salto dei
-silenzi di ExoPlayer, pubblicato negli extra; il timer che mette in pausa dopo il suo minuto, e quello a fine elemento; gli
-elementi che arrivano da un controllo ritrovano l'indirizzo; un elemento che fa il giro in `MediaItem` resta uguale; la coda
-ricordata torna ferma e la ripresa la propone; la configurazione dell'app (niente ripresa, salti da 30 s); lo stato del
-controllo sul lettore. Sul tablet: la notifica, la schermata di blocco, i salti, il timer.
+decodificatori): i salti di 15 s e i due tasti ai lati di Play; i comandi dell'engine offerti all'app stessa; un'app
+estranea che non si collega, anche col nome di un'app fidata preso in prestito, e il sistema che vede il titolo e comanda
+l'ascolto ma non cambia la coda (R1); il salto dei silenzi di ExoPlayer, pubblicato negli extra; il timer che mette in pausa
+dopo il suo minuto, e quello a fine elemento; gli elementi che arrivano da un controllo ritrovano l'indirizzo; un elemento
+che fa il giro in `MediaItem` resta uguale; la coda ricordata torna ferma e la ripresa la propone; la coda cambiata da ferma
+si ricorda, quella svuotata si dimentica, e un elemento senza indirizzo non sposta il punto di ripresa (R1); la
+configurazione dell'app (niente ripresa, salti da 30 s); lo stato del controllo sul lettore. Sul tablet: la notifica, la schermata di blocco, i salti, il timer.
 
 ## Dove guardare
 

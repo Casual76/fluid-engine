@@ -9,6 +9,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import dev.antigravity.fluidengine.ui.fluid.FluidSelectionMode
 import dev.antigravity.fluidengine.ui.fluid.FluidSelectionState
@@ -46,6 +48,14 @@ class FluidMediaFeed internal constructor(
   var finished: Boolean by mutableStateOf(false)
     private set
 
+  /**
+   * L'ultima pagina chiesta non e' arrivata (R1): la sorgente non risponde (il NAS spento, una scadenza) o ha lanciato.
+   * Gli elementi gia' arrivati restano, la lista non si chiude: [retry] la richiede. Il selettore lo dice al posto di
+   * «Nessuna foto», o in fondo alla lista se l'errore arriva a meta'.
+   */
+  var failed: Boolean by mutableStateOf(false)
+    private set
+
   /** Come la sorgente ha capito la ricerca («Mare», «Estate»). */
   var interpretation: List<String> by mutableStateOf(emptyList())
     private set
@@ -57,9 +67,9 @@ class FluidMediaFeed internal constructor(
   private var next: String? = null
   private var job: Job? = null
 
-  /** Chiede la pagina dopo, se non sta gia' arrivando e se c'e'. */
+  /** Chiede la pagina dopo, se non sta gia' arrivando e se c'e'. Dopo un errore ([failed]) serve [retry]. */
   fun loadMore() {
-    if (loading || finished) return
+    if (loading || finished || failed) return
     loading = true
     job = scope.launch {
       try {
@@ -76,12 +86,20 @@ class FluidMediaFeed internal constructor(
       } catch (e: CancellationException) {
         throw e
       } catch (_: Exception) {
-        finished = true
+        // R1: prima la lista si chiudeva qui (`finished`), e una sorgente che non risponde sembrava una libreria vuota.
+        failed = true
         version++
       } finally {
         loading = false
       }
     }
+  }
+
+  /** Richiede la pagina che non era arrivata ([failed]), dal punto in cui ci si era fermati. */
+  fun retry() {
+    if (!failed) return
+    failed = false
+    loadMore()
   }
 
   /** Ricomincia da capo (dopo uno sblocco, un permesso nuovo, un cambio della sorgente). */
@@ -92,6 +110,7 @@ class FluidMediaFeed internal constructor(
     keys.clear()
     next = null
     finished = false
+    failed = false
     interpretation = emptyList()
     total = null
     version++
@@ -105,8 +124,12 @@ class FluidMediaFeed internal constructor(
  * Lo stato di un [FluidMediaPicker] (F8.14): le sorgenti (la prima e' quella di partenza), la richiesta dell'app, la scelta
  * in ordine ([selection], col tetto della richiesta), le pagine di risultati gia' arrivate e la consegna.
  *
- * Si crea con [rememberFluidMediaPickerState]. La scelta sopravvive alla rotazione (le chiavi stanno in un `Bundle`); gli
- * elementi scelti si ritrovano dalle pagine arrivate.
+ * Si crea con [rememberFluidMediaPickerState]. La scelta sopravvive alla rotazione e alla morte del processo **con i suoi
+ * elementi** (R1): le chiavi e i campi degli elementi scelti stanno nel `Bundle`, perche' dopo la ricreazione le pagine
+ * ripartono dalla prima e un elemento scelto da una pagina lontana, da un album o da una ricerca non tornerebbe. La
+ * consegna li ricontrolla comunque con la sorgente («la vista di adesso decide»): uno sparito nel frattempo conta fra i
+ * saltati. Una chiave scelta che non si ritrova (l'app l'ha messa nella scelta senza che una pagina l'abbia portata) esce
+ * dalla scelta al ✓ e si dice ([notice]), mai un ✓ che non fa niente.
  */
 @Stable
 class FluidMediaPickerState internal constructor(
@@ -180,7 +203,31 @@ class FluidMediaPickerState internal constructor(
 
   /** Gli elementi scelti, nell'ordine della scelta. */
   val selectedItems: List<FluidMediaItem>
-    get() = (selection.mode as? FluidSelectionMode.Explicit)?.keys?.mapNotNull { known[it] }.orEmpty()
+    get() = selectedKeys().mapNotNull { known[it] }
+
+  private fun selectedKeys(): Collection<String> = (selection.mode as? FluidSelectionMode.Explicit)?.keys.orEmpty()
+
+  /** Rimette fra gli elementi conosciuti quelli scelti prima della ricreazione ([rememberFluidMediaPickerState]). */
+  internal fun restoreKnown(items: List<FluidMediaItem>) {
+    for (item in items) if (item.key !in known) known[item.key] = item
+  }
+
+  /**
+   * Il ✓ del selettore: consegna la scelta. Una chiave che non si ritrova (scelta dall'app, mai arrivata da una pagina)
+   * esce dalla scelta e conta fra i saltati; se non resta niente, [notice] lo dice (R1: prima il ✓ non faceva niente).
+   */
+  internal suspend fun deliverSelection(): List<FluidPickedMedia>? {
+    if (delivering) return null
+    val keys = selectedKeys().toList()
+    val lost = keys.filter { it !in known }
+    lost.forEach { selection.deselect(it) }
+    val items = keys.mapNotNull { known[it] }
+    if (items.isEmpty()) {
+      if (lost.isNotEmpty()) notice = FluidMediaPickerNotice(FluidMediaRefusal.NothingAvailable, lost.size)
+      return null
+    }
+    return deliverItems(items, lost.size)
+  }
 
   /** Una consegna e' in corso. */
   var delivering: Boolean by mutableStateOf(false)
@@ -201,7 +248,9 @@ class FluidMediaPickerState internal constructor(
    * non esce niente: la scelta resta com'e' (senza l'elemento che ha fermato la consegna, se e' uno solo) e [notice] dice
    * perche'. Null se non e' uscito niente.
    */
-  suspend fun deliver(items: List<FluidMediaItem> = selectedItems): List<FluidPickedMedia>? {
+  suspend fun deliver(items: List<FluidMediaItem> = selectedItems): List<FluidPickedMedia>? = deliverItems(items, 0)
+
+  private suspend fun deliverItems(items: List<FluidMediaItem>, alreadySkipped: Int): List<FluidPickedMedia>? {
     if (items.isEmpty() || delivering) return null
     delivering = true
     progress = FluidMediaProgress(0, items.size)
@@ -210,7 +259,7 @@ class FluidMediaPickerState internal constructor(
       for (item in items) bySource.getOrPut(item.source) { ArrayList() } += item
       val picked = HashMap<String, FluidPickedMedia>()
       val loose = ArrayList<FluidPickedMedia>()
-      var skipped = 0
+      var skipped = alreadySkipped
       var done = 0
       for ((sourceId, group) in bySource) {
         val source = source(sourceId)
@@ -268,7 +317,8 @@ data class FluidMediaPickerNotice(val refusal: FluidMediaRefusal?, val skipped: 
 
 /**
  * Lo stato di un [FluidMediaPicker] con queste [sources] (la prima e' quella di partenza) e questa [request]. Un cambio
- * delle sorgenti o della richiesta fa uno stato nuovo; la scelta (le chiavi) resta alla rotazione.
+ * delle sorgenti o della richiesta fa uno stato nuovo; la scelta resta alla rotazione e alla morte del processo, con i
+ * suoi elementi (al piu' 200: oltre, quelli in piu' si dicono al ✓ come non piu' disponibili).
  */
 @Composable
 fun rememberFluidMediaPickerState(
@@ -277,5 +327,69 @@ fun rememberFluidMediaPickerState(
 ): FluidMediaPickerState {
   val selection = rememberFluidSelectionState<String>(limit = request.limit)
   val scope = rememberCoroutineScope()
-  return remember(sources, request, selection) { FluidMediaPickerState(sources, request, selection, scope) }
+  // R1: le chiavi da sole (nel Bundle della scelta) non ritrovano, dopo la ricreazione, gli elementi arrivati da una
+  // pagina lontana, da un album o da una ricerca. Si salvano anche i loro campi, solo quelli scelti.
+  val saver = remember(sources, request, selection, scope) {
+    Saver<FluidMediaPickerState, Any>(
+      save = { state -> mediaItemsToSaved(state.selectedItems) },
+      restore = { saved ->
+        FluidMediaPickerState(sources, request, selection, scope).also { it.restoreKnown(mediaItemsFromSaved(saved)) }
+      },
+    )
+  }
+  return rememberSaveable(sources, request, selection, saver = saver) {
+    FluidMediaPickerState(sources, request, selection, scope)
+  }
+}
+
+/** Quanti elementi scelti si salvano con la scelta: 200, ben sotto il limite di un `Bundle` (circa 40 kB). */
+internal const val MaxSavedMediaItems = 200
+
+private const val SavedItemFields = 13
+
+/** Gli elementi in una lista piatta di valori che un `Bundle` sa tenere. */
+internal fun mediaItemsToSaved(items: List<FluidMediaItem>): ArrayList<Any?> {
+  val out = ArrayList<Any?>(minOf(items.size, MaxSavedMediaItems) * SavedItemFields)
+  for (item in items.take(MaxSavedMediaItems)) {
+    out += item.source
+    out += item.id
+    out += item.kind.id
+    out += item.mimeType
+    out += item.width
+    out += item.height
+    out += item.durationMillis
+    out += item.takenAtMillis
+    out += item.sizeBytes
+    out += item.name
+    out += item.backupOnly
+    out += item.favorite
+    out += item.description
+  }
+  return out
+}
+
+/** Il contrario di [mediaItemsToSaved]; un formato che non torna da' una lista vuota, mai un'eccezione. */
+internal fun mediaItemsFromSaved(saved: Any?): List<FluidMediaItem> {
+  val list = saved as? List<*> ?: return emptyList()
+  if (list.size % SavedItemFields != 0) return emptyList()
+  return (0 until list.size / SavedItemFields).mapNotNull { i ->
+    val f = list.subList(i * SavedItemFields, (i + 1) * SavedItemFields)
+    val source = f[0] as? String ?: return@mapNotNull null
+    val id = f[1] as? String ?: return@mapNotNull null
+    FluidMediaItem(
+      source = source,
+      id = id,
+      kind = FluidMediaKind.of(f[2] as? String ?: FluidMediaKind.Photo.id),
+      mimeType = f[3] as? String,
+      width = (f[4] as? Number)?.toInt(),
+      height = (f[5] as? Number)?.toInt(),
+      durationMillis = (f[6] as? Number)?.toLong(),
+      takenAtMillis = (f[7] as? Number)?.toLong(),
+      sizeBytes = (f[8] as? Number)?.toLong(),
+      name = f[9] as? String,
+      backupOnly = f[10] as? Boolean ?: false,
+      favorite = f[11] as? Boolean ?: false,
+      description = f[12] as? String,
+    )
+  }
 }

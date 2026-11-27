@@ -98,11 +98,25 @@ object FluidInkExport {
     strokes: List<FluidInkStroke>,
     output: OutputStream,
     renderScale: Float = 2f,
+  ): FluidInkExportResult = pdfWith(sheet, strokes, output, renderScale, AndroidPdfWriter())
+
+  /** [pdf] con lo scrittore dato (sul telefono `PdfDocument`, nelle prove un registratore). */
+  internal suspend fun pdfWith(
+    sheet: FluidInkSheet,
+    strokes: List<FluidInkStroke>,
+    output: OutputStream,
+    renderScale: Float,
+    writer: InkPdfWriter,
   ): FluidInkExportResult {
-    val writer = AndroidPdfWriter()
-    val result = writePdf(sheet, strokes, writer, renderScale)
-    withContext(Dispatchers.IO) { writer.finish(output) }
-    return result
+    // R1: il documento si chiude anche quando una pagina non si disegna o la consegna si annulla fra due pagine; prima
+    // si chiudeva solo alla fine, e un export fermato a meta' lasciava aperto il `PdfDocument` con le pagine gia' fatte.
+    try {
+      val result = writePdf(sheet, strokes, writer, renderScale)
+      withContext(Dispatchers.IO) { writer.finish(output) }
+      return result
+    } finally {
+      writer.close()
+    }
   }
 
   // --- Dentro ---------------------------------------------------------------------------------------------------------
@@ -213,7 +227,12 @@ object FluidInkExport {
 /** Chi scrive le pagine di un PDF. */
 internal interface InkPdfWriter {
   fun page(width: Int, height: Int, draw: (Canvas) -> Unit)
+
+  /** Scrive il documento in [output] e lo chiude. */
   fun finish(output: OutputStream)
+
+  /** Chiude il documento senza scriverlo (una consegna fermata a meta'). Chiudere due volte non fa niente. */
+  fun close()
 }
 
 /** Lo scrittore vero, con `PdfDocument` di Android (le misure in punti tipografici). */
@@ -236,7 +255,15 @@ internal class AndroidPdfWriter : InkPdfWriter {
       document.writeTo(output)
       output.flush()
     } finally {
-      document.close()
+      close()
     }
   }
+
+  override fun close() {
+    if (closed) return
+    closed = true
+    document.close()
+  }
+
+  private var closed = false
 }

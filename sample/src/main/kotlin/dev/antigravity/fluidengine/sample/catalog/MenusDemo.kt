@@ -225,6 +225,19 @@ private fun GroupMenuSection(pick: (String) -> Unit) {
     detail = "Tocca o tieni premuto «Menu del gruppo»: tutta la capsula si stringe, diventa goccia e si apre nel menu; " +
       "alla chiusura torna gruppo. Il tasto «Modifica foto» resta al suo posto.",
   )
+  GroupMenuStage(pick)
+}
+
+/** L'id dell'azione «Menu del gruppo» del palco: la scena `menu-gruppo-barra` della pagina «Misure» la tocca da qui. */
+internal const val GroupMenuStageActionId = "photo-menu"
+
+/**
+ * Il palco «Il gruppo che diventa menu»: una schermata annidata alta 320 dp con la barra in basso (due gruppi, il primo
+ * apre il menu). Lo monta questa pagina e, uguale, la scena `menu-gruppo-barra` della pagina «Misure» (F7.27), perché le
+ * corse automatiche sul tablet misurino proprio questa barra.
+ */
+@Composable
+internal fun GroupMenuStage(pick: (String) -> Unit) {
   val photo = remember { generateMeasurePhoto() }
   FluidScreen(
     title = "Foto",
@@ -233,7 +246,7 @@ private fun GroupMenuSection(pick: (String) -> Unit) {
       group(id = "photo-tools", placement = FluidToolbarPlacement.BottomBar) {
         button("share-photo", FluidIcons.Share, "Condividi foto", { pick("Condividi foto") })
         button("star-photo", FluidIcons.Filled.Star, "Preferiti foto", { pick("Preferiti foto") })
-        action("photo-menu", FluidIcons.MoreVert, "Menu del gruppo") { demoActions(pick) }
+        action(GroupMenuStageActionId, FluidIcons.MoreVert, "Menu del gruppo") { demoActions(pick) }
         flexibleSpacer()
       }
       group(id = "photo-edit", placement = FluidToolbarPlacement.BottomBar) {

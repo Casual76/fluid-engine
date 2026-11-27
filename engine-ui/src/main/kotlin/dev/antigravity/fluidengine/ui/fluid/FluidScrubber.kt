@@ -51,9 +51,12 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -77,6 +80,7 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -531,6 +535,19 @@ fun FluidScrubber(
     true
   }
 
+  // Il valore per TalkBack (R1, 26 novembre 2026): uno stato derivato che, a riposo, cambia solo quando cambia la scritta
+  // (una volta al secondo per un orologio), non a ogni fotogramma del lettore; tenuto (il dito, un salto che aspetta il
+  // lettore) cambia col valore, come prima. La semantica lo legge, e prende il numero dell'intervallo senza osservarlo:
+  // mentre si ascolta, la pagina non si ricontrolla a ogni fotogramma.
+  val currentValueDescription by rememberUpdatedState(valueDescription)
+  val spokenValue: State<FluidSpokenValue> = remember {
+    derivedStateOf {
+      val range = currentRange
+      val value = FluidScrubbing.clamp(shownValue(), range)
+      FluidSpokenValue(currentValueDescription(value, range), if (hold.phase == FluidScrubberPhase.Idle) null else value.toDouble())
+    }
+  }
+
   // I testi sotto la pista: dal valore mostrato, e invalidano solo la loro riga, che cambia quando cambia
   // la stringa (una volta al secondo per un orologio) e non a ogni battito del lettore.
   val startText: State<String>? = remember(startLabel) {
@@ -548,8 +565,8 @@ fun FluidScrubber(
       .fluidSettledSemantics {
         this.contentDescription = contentDescription
         val range = currentRange
-        val shown = FluidScrubbing.clamp(shownValue(), range)
-        stateDescription = valueDescription(shown, range)
+        stateDescription = spokenValue.value.text
+        val shown = Snapshot.withoutReadObservation { FluidScrubbing.clamp(shownValue(), range) }
         // Uno slider, per chi lo ascolta: il valore dentro il suo intervallo (coi passi, se e' a passi),
         // e l'azione per impostarlo.
         progressBarRangeInfo = ProgressBarRangeInfo(
@@ -655,17 +672,22 @@ fun FluidScrubber(
               },
           )
         }
+        // Il riempimento dell'accento, per larghezza e non per scala (una scala schiaccerebbe anche la testa
+        // tonda, e la pista e' sottile abbastanza da far vedere la differenza), ma nel disegno e non nel layout
+        // (R1, 26 novembre 2026): un layout che cambia a ogni fotogramma dell'ascolto, sotto il nodo di TalkBack
+        // dello scrubber, faceva ricontrollare a Compose la semantica della pagina ogni 100 ms. Il contorno e'
+        // quello di prima, la capsula alla larghezza in pixel, rifatto solo quando quella larghezza cambia.
+        val accentFill = remember { FluidTrackFill() }
         Box(
           Modifier
-            .clip(FluidCapsuleShape)
-            .drawBehind { drawRect(accentColor) }
-            .height(TrackHeight)
-            .layout { measurable, constraints ->
-              // Per larghezza e non per scala: una scala schiaccerebbe anche la testa tonda del
-              // riempimento, e la pista e' sottile abbastanza da far vedere la differenza.
-              val placeable = measurable.measure(constraints)
-              val width = (constraints.maxWidth * drawnFraction().fastCoerceIn(0f, 1f)).fastRoundToInt()
-              layout(width, placeable.height) { placeable.place(0, 0) }
+            .fillMaxSize()
+            .drawBehind {
+              val width = (size.width * drawnFraction().fastCoerceIn(0f, 1f)).fastRoundToInt()
+              if (width > 0) {
+                val left = if (layoutDirection == LayoutDirection.Ltr) 0f else size.width - width
+                val outline = accentFill.outline(width, size.height, layoutDirection, this)
+                translate(left = left) { drawOutline(outline, accentColor) }
+              }
             },
         )
       }
@@ -865,6 +887,42 @@ object FluidScrubberDefaults {
 /**
  * Cosa sta mostrando lo scrubber, in tre tempi. Vedi [FluidScrubbing.shownValue].
  */
+/**
+ * Il contorno del riempimento della pista alla sua larghezza in pixel (R1): la capsula di [FluidCapsuleShape], rifatta
+ * solo quando cambiano la larghezza, l'altezza, il verso o la densita'. Mentre si ascolta cambia ogni qualche fotogramma,
+ * non a ogni fotogramma.
+ */
+private class FluidTrackFill {
+  private var width = -1
+  private var height = -1f
+  private var direction: LayoutDirection? = null
+  private var density = 0f
+  private var cached: Outline? = null
+
+  fun outline(width: Int, height: Float, direction: LayoutDirection, density: Density): Outline {
+    val current = cached
+    if (current != null && width == this.width && height == this.height && direction == this.direction &&
+      density.density == this.density
+    ) {
+      return current
+    }
+    return FluidCapsuleShape.createOutline(Size(width.toFloat(), height), direction, density).also {
+      cached = it
+      this.width = width
+      this.height = height
+      this.direction = direction
+      this.density = density.density
+    }
+  }
+}
+
+/**
+ * Quello che la semantica di un controllo che segue un lettore (lo scrubber, le due onde dell'audio) guarda per sapere se
+ * rifarsi (R1, 26 novembre 2026): la scritta per TalkBack e, solo se il valore è tenuto (il dito, un salto che aspetta il
+ * lettore), il valore stesso. A riposo il valore del lettore cambia a ogni fotogramma e non conta: conta la scritta.
+ */
+internal data class FluidSpokenValue(val text: String, val held: Double?)
+
 internal enum class FluidScrubberPhase {
   /** Il valore e' quello che arriva da fuori. */
   Idle,

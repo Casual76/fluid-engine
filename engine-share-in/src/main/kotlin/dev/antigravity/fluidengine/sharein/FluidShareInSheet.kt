@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -151,25 +152,40 @@ class FluidShareInState internal constructor(val policy: FluidShareInPolicy) {
   val rejected: List<FluidCopiedFile> get() = copies.filter { !it.ok }
 
   /** Legge e copia. Chiamato una volta da [rememberFluidShareInState]. */
-  suspend fun receive(context: Context, intent: Intent?) {
+  suspend fun receive(context: Context, intent: Intent?) = receive(context, intent, into = null)
+
+  /** [receive] nella cartella [into] (quella dell'arrivo prima della rotazione), o in una nuova. */
+  internal suspend fun receive(context: Context, intent: Intent?, into: File?) {
     phase = FluidShareInPhase.Reading
     val read = FluidShareIn.read(context, intent, policy)
     incoming = read
     if (read is FluidIncoming.Files) {
       phase = FluidShareInPhase.Copying
-      copies = FluidShareIn.copy(context, read.files, policy) { progress = it }
+      // R2 · Una copia che lancia lo stesso (un errore che la copia non conosce) non lascia il foglio fermo su «Copio…»:
+      // gli arrivi diventano «non si legge» e il foglio lo dice.
+      copies = try {
+        FluidShareIn.copy(context, read.files, policy, into = into ?: FluidShareInFiles.newSession(context)) { progress = it }
+      } catch (c: CancellationException) {
+        throw c
+      } catch (_: Exception) {
+        read.files.map { FluidCopiedFile(it, null, FluidShareInProblem.Unreadable) }
+      }
       progress = null
     }
     phase = if (content != null) FluidShareInPhase.Ready else FluidShareInPhase.Nothing
   }
 }
 
-/** Lo stato dell'arrivo di [intent], che comincia subito a leggere e a copiare. */
+/**
+ * Lo stato dell'arrivo di [intent], che comincia subito a leggere e a copiare. La cartella delle copie si salva: dopo una
+ * rotazione l'arrivo si ricopia **nella stessa cartella** (gli stessi nomi), senza lasciare copie orfane (R2).
+ */
 @Composable
 fun rememberFluidShareInState(intent: Intent?, policy: FluidShareInPolicy = FluidShareInPolicy()): FluidShareInState {
   val context = LocalContext.current
   val state = remember(intent, policy) { FluidShareInState(policy) }
-  LaunchedEffect(state) { state.receive(context.applicationContext, intent) }
+  val session = rememberSaveable(intent) { FluidShareInFiles.sessionPath(context.applicationContext) }
+  LaunchedEffect(state) { state.receive(context.applicationContext, intent, File(session)) }
   return state
 }
 
@@ -239,15 +255,23 @@ fun FluidShareInSheet(
   val appear = remember { Animatable(if (reduced) 1f else 0f) }
   val drag = remember { Animatable(0f) }
   var sheetHeight by remember { mutableStateOf(0) }
-  var chosen by remember(destinations, initialDestination) {
-    mutableStateOf(destinations.firstOrNull { it.id == initialDestination } ?: destinations.firstOrNull())
+  // R2 · La destinazione scelta si salva per chiave: resta dopo una rotazione.
+  var chosenId by rememberSaveable(destinations.map { it.id }, initialDestination) {
+    mutableStateOf((destinations.firstOrNull { it.id == initialDestination } ?: destinations.firstOrNull())?.id)
   }
+  val chosen = destinations.firstOrNull { it.id == chosenId } ?: destinations.firstOrNull()
   var failed by remember { mutableStateOf(false) }
   val blur = remember(context) { FluidShareInWindow.blurAvailable(context) }
 
   LaunchedEffect(Unit) { if (!reduced) appear.animateTo(1f, FluidMotion.PopoverOpenY) }
 
   fun dismiss() {
+    // R2 · Mentre l'app salva, niente chiude il foglio (Annulla, il velo, il dito): l'attivita' che si chiude
+    // cancellerebbe il salvataggio a meta', in silenzio. Il foglio si chiude da se' quando ha salvato.
+    if (state.phase == FluidShareInPhase.Saving) {
+      scope.launch { drag.animateTo(0f, FluidMotion.SheetSettle) }
+      return
+    }
     scope.launch {
       if (!reduced) appear.animateTo(0f, spring(1f, FluidShareInExitStiffness))
       close()
@@ -328,7 +352,7 @@ fun FluidShareInSheet(
       )
       Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         FluidButton(labels.cancel, { dismiss() }, style = FluidButtonStyle.Plain, size = FluidButtonSize.Small,
-          modifier = Modifier.testTag(FluidShareInTags.Cancel))
+          enabled = state.phase != FluidShareInPhase.Saving, modifier = Modifier.testTag(FluidShareInTags.Cancel))
         Text(
           title,
           style = MaterialTheme.typography.titleMedium,
@@ -376,7 +400,7 @@ fun FluidShareInSheet(
                 title = destination.title,
                 subtitle = destination.subtitle,
                 selected = chosen?.id == destination.id,
-                onSelect = { chosen = destination },
+                onSelect = { chosenId = destination.id },
                 modifier = Modifier.testTag(FluidShareInTags.destination(destination.id)),
                 leading = destination.icon?.let { icon -> @Composable { FluidIcon(icon, contentDescription = null) } },
               )

@@ -227,6 +227,10 @@ fluidGroupedItems(count = ids.size, key = { index -> ids[index] }) { index ->   
   non a `totale - visibili` contati dove la lista era prima. Con item di altezze diverse (le righe di una griglia, la riga
   «Caricamento» di una lista a pagine) quella riga restava appena sotto lo schermo e la pagina dopo non arrivava mai. Un salto
   rifiutato da uno scorrimento più importante non ferma più il giro delle richieste.
+- **La bolla è pronta prima che si prenda la maniglia** (F7.25): la sua composizione vive con lo scorrimento rapido,
+  misurata ma non posata (non si disegna, non cattura, la sonda del suo vetro non legge) e, quando la maniglia si prende, si
+  sposta nell'`AnimatedVisibility` della bolla senza ricomporsi. Il fotogramma del tocco compone 61 funzioni invece di 120, e
+  niente del vetro; l'etichetta la legge solo il testo della bolla, così a ogni salto non si ricompone il vetro.
 - Il separatore lo disegna la riga di sopra: righe che ne hanno uno proprio vogliono `dividers = false`, o se ne vedono due.
 
 **Non usarlo quando.** Vuoi il vetro sul contenitore e la lista arriva ordinata e ferma (`fluidGlassGroups`), o la sezione è di quattro righe in una colonna (`FluidGlassGroup`, `FluidListGroup`).
@@ -421,7 +425,7 @@ ricomporre.
 
 | parametro | cosa |
 |---|---|
-| `title`, `summary` | il titolo, e il riepilogo da chiusa («3 allegati»), che sparisce aprendo con la freccia |
+| `title`, `summary` | il titolo, e il riepilogo da chiusa («3 allegati»), che sparisce aprendo con la freccia (anche per TalkBack: aperta, il titolo non lo ripete) |
 | `state` | `rememberFluidDisclosureState()` (salvabile) o uno dell'app; `expand()`, `collapse()`, `toggle()` |
 | `leading` | una piastrella o un'icona prima del titolo |
 | `backdrop` | di serie `LocalFluidCanvasBackdrop` (come i gruppi di lista); sopra una foto quello della foto; null: due superfici piene e il contenuto che esce in dissolvenza |
@@ -448,6 +452,8 @@ Accanto a `fluidReorderable` e su `FluidSelectionState`: lo scorrimento automati
 - **Il primo elemento decide** se il gesto aggiunge o toglie. L'intervallo va dall'ancora all'elemento sotto il dito
   nell'ordine della lista (per righe in una griglia) e **si stringe tornando indietro**: chi esce torna com'era prima del
   gesto. Un tic per passo che cambia la scelta.
+- **La lista che cambia sotto il dito** (una riga nuova in cima, una tolta): i capi dell'intervallo sono elementi, non
+  posti; a ogni passo si ritrovano per chiave (`keyAt`) vicino al posto di prima, e chi esce torna com'era (R2).
 - `inSelectionMode`: di serie `selection.isActive`; un'app col tasto «Seleziona» lo tiene vero anche con zero scelte.
 - `keyAt(index)` dà la chiave di un indice, null per ciò che non si sceglie (un'intestazione).
 - Il gesto preso dalla selezione si consuma prima di tutti: la lista non scorre sotto il dito e la cella non riceve il
@@ -461,7 +467,7 @@ griglia di anteprime… configurabile all'applicazione dell'app»).
 | parametro | cosa |
 |---|---|
 | `sections` | `FluidPreviewGridSection(key, title, items)`: `title` null per una griglia senza intestazioni |
-| `itemKey` | la chiave stabile di un elemento |
+| `itemKey` | la chiave stabile di un elemento; la stessa chiave in due gruppi (una foto nei «Preferiti» e nel suo giorno) va bene: nei gruppi dopo il primo la griglia le aggiunge quella del gruppo (R2) |
 | `columns` | le densità del pizzico, di serie 3, 5, 9 (Foto); i file della galleria usano 2, 3, 4 |
 | `cellAspectRatio`, `spacing`, `contentPadding` | la proporzione (1 quadrata), lo spazio (2 dp come Foto), i margini |
 | `selection`, `inSelectionMode` | la selezione e il modo: tocco che sceglie, dito di lato, segno sulle celle |
@@ -478,7 +484,8 @@ griglia di anteprime… configurabile all'applicazione dell'app»).
 - **Il pizzico**: la griglia segue le dita attorno al punto fra di esse; a metà strada (geometrica) verso la densità
   vicina cambia colonne **restando sul punto**: la cella sotto le dita resta sotto le dita, alla stessa frazione della
   sua altezza (provato: 30% prima, 30% dopo). Oltre la densità estrema cede poco; al rilascio torna in scala 1 (molla
-  0,86 / 380). Un tic a ogni cambio. TalkBack: «Meno colonne», «Più colonne». `state.density` si può anche scrivere.
+  0,86 / 380). Un tic a ogni cambio. TalkBack: «Meno colonne», «Più colonne». `state.density` si può anche scrivere; un
+  valore fuori dalle colonne (un ripristino dopo un aggiornamento con meno densità) si corregge anche nello stato (R2).
 - **La testata come Foto** (F8.4b, scelta di Alessio del 24 novembre 2026: «Come Foto»). Con `title` il titolo grande e,
   sotto, la data degli elementi in cima stanno **sopra le foto**, che scorrono fin sotto la barra di stato; i tasti sono
   vetro che galleggia; un velo scuro che sfuma (nero al 50% in cima, 22% a metà, a occhio sulla libreria di Foto di iOS

@@ -42,7 +42,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-auth-google](auth-google.md) | 2 | 17 |
 | [engine-qr](qr.md) | 1 | 3 |
 | [engine-share-in](share-in.md) | 3 | 51 |
-| [engine-media](media.md) | 13 | 179 |
+| [engine-media](media.md) | 13 | 181 |
 | [engine-ink](ink.md) | 12 | 179 |
 | [engine-editor](editor.md) | 14 | 145 |
 | [engine-notify](notify.md) | 9 | 65 |
@@ -59,7 +59,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-search](search.md) | 8 | 152 |
 | [engine-search-semantic](search-semantic.md) | 2 | 9 |
 | [engine-scan e engine-scan-core](scan.md) | 11 | 129 |
-| [engine-map](map.md) | 13 | 180 |
+| [engine-map](map.md) | 13 | 184 |
 | [engine-health](health.md) | 8 | 148 |
 | [engine-diagnostics](diagnostics.md) | 9 | 107 |
 | [engine-feedback](feedback.md) | 4 | 63 |
@@ -68,7 +68,8 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 149 |
 | [engine-ai-bridge](ai-bridge.md) | 12 | 192 |
 | [engine-ai-mcp](ai-mcp.md) | 10 | 157 |
-| [engine-ai-ui](ai-ui.md) | 32 | 284 |
+| [engine-ai-memory e i ricordi di engine-ai](ai-memory.md) | 11 | 139 |
+| [engine-ai-ui](ai-ui.md) | 35 | 314 |
 
 Le icone fanno eccezione: in [icone.md](icone.md) il set è una tabella con una riga per icona (il nome, quello di Material Symbols, la variante piena), non una riga per dichiarazione.
 

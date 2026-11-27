@@ -286,11 +286,20 @@ internal class GlassProbeScheduler(
   }
 
   /**
-   * Se c'è un evento che aspetta una lettura. Dopo una lettura saltata ([GlassProbeOutcome.Skipped]) resta vero, ma
-   * chi possiede la sonda non richiama [next] a tempo: aspetta il prossimo evento, perché un tentativo subito
-   * salterebbe di nuovo.
+   * Se c'è un evento che aspetta una lettura. Dopo una lettura saltata ([GlassProbeOutcome.Skipped]) resta vero, e chi
+   * possiede la sonda aspetta il prossimo evento, perché un tentativo subito salterebbe di nuovo; per le sorgenti che non
+   * avvisano, che a pagina ferma non mandano eventi, ripassa a [afterSkipMillis].
    */
   val hasPending: Boolean get() = pendingRead || pendingRerecord || retryDue
+
+  /**
+   * F7.25b (review R2, difetto 7) · Dopo una lettura saltata a [nowMillis], quando ripassare senza un evento: allo scadere
+   * della cadenza fissa, se fra le sorgenti ce n'è una che non avvisa e il tetto delle letture a vuoto lo permette
+   * ([GlassProbeMaxRetries]); `Long.MAX_VALUE` se tocca aspettare un evento. Senza, una sorgente muta (un
+   * `CanvasBackdrop`) che saltava una lettura non veniva più riletta, anche diventata pronta.
+   */
+  fun afterSkipMillis(nowMillis: Long): Long =
+    if (unannounced && unproductive <= maxRetries) nowMillis + cadenceMillis else Long.MAX_VALUE
 
   /** Lo spazio minimo fra due letture adesso: la cadenza massima, raddoppiata a ogni fallimento di fila. */
   fun interval(): Long {

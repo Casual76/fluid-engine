@@ -217,7 +217,10 @@ class AiAssistClientTest {
     assertEquals(AiAssistError.Failed, last.error?.code)
     assertNull(last.error?.reason)
     val toApp = connector.wire.joinToString("\n")
-    listOf("gsk_", "AIza", "sk-or-", "OpenRouter", "402").forEach { assertFalse("«$it» e' arrivato all'app", toApp.contains(it)) }
+    listOf("gsk_", "AIza", "sk-or-", "OpenRouter").forEach { assertFalse("«$it» e' arrivato all'app", toApp.contains(it)) }
+    // Il codice 402 si cerca da solo: l'id della richiesta (un UUID) e gli orari possono avere le cifre 402 dentro un
+    // numero più lungo, e la prova cadeva circa una volta su cento (lotto lg-unione-r3, 27/11).
+    assertFalse("«402» e' arrivato all'app", Regex("(?<![0-9A-Za-z])402(?![0-9A-Za-z])").containsMatchIn(toApp))
   }
 
   @Test fun `la richiesta dell'app non porta altro che domanda, pagina, tool, lingua e tempo`() = runTest {

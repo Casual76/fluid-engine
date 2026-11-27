@@ -136,7 +136,8 @@ object FluidVersionChoiceTags {
  *
  * In fondo il tasto dice cosa fara': «Tieni questa versione», «Tieni tutte e due», spento finche' non si sceglie; e
  * «Decidi dopo» chiude senza scegliere. Il foglio non si chiude da solo: lo chiude l'app quando ha salvato la scelta
- * ([onDecision]), mettendo [choice] a null.
+ * ([onDecision]), mettendo [choice] a null. Dopo la scelta il tasto si spegne, cosi' un secondo tocco mentre l'app salva
+ * non decide due volte; se il salvataggio non riesce e l'app lascia il foglio aperto, toccare una card lo riaccende.
  *
  * **Una revisione nuova a foglio aperto.** Se [choice] cambia revisioni (stessa [FluidVersionChoice.key]), la card
  * cambiata entra sfocata (la cambia l'app, non il dito), la scelta si azzera e una riga dice che e' arrivata una versione
@@ -182,6 +183,9 @@ fun FluidVersionChoicePane(
   val openedWith = remember(choice.key) { ids }
   val updated = ids != openedWith
   var selected by remember(choice.key, ids) { mutableStateOf(emptySet<String>()) }
+  // Dopo «Tieni…» il tasto si spegne finche' l'app non chiude il foglio (R2): due tocchi rapidi mentre l'app salva non
+  // decidono due volte. Una revisione nuova o un cambio della scelta lo riaccendono (un salvataggio non riuscito).
+  var decided by remember(choice.key, ids) { mutableStateOf(false) }
   // Il confronto: subito per i testi corti (pochi microsecondi), fuori dal thread principale per quelli lunghi.
   val short = remember(choice.versions) { choice.versions.all { it.text.length <= ShortText } }
   val immediate = remember(choice.versions) { if (short) fluidVersionExcerpts(choice.versions) else null }
@@ -244,7 +248,10 @@ fun FluidVersionChoicePane(
           selected = version.id in selected,
           labels = labels,
           time = fluidVersionTime(version.timeMillis, zone, locale, today, labels),
-          onToggle = { selected = if (version.id in selected) selected - version.id else selected + version.id },
+          onToggle = {
+            selected = if (version.id in selected) selected - version.id else selected + version.id
+            decided = false
+          },
         )
       }
     }
@@ -256,8 +263,13 @@ fun FluidVersionChoicePane(
         count == ids.size -> labels.keepAll(count)
         else -> labels.keepSome(count)
       },
-      onClick = { onDecision(FluidVersionDecision(keep = ids.filter { it in selected }, shown = ids)) },
-      enabled = count > 0,
+      onClick = {
+        if (!decided) {
+          decided = true
+          onDecision(FluidVersionDecision(keep = ids.filter { it in selected }, shown = ids))
+        }
+      },
+      enabled = count > 0 && !decided,
       // Grande come i tasti principali dei fogli di Apple (50 dp): sopra i 44 dp del bersaglio minimo.
       size = FluidButtonSize.Large,
       fillWidth = true,

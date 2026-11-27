@@ -21,6 +21,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileNotFoundException
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * F8.18 · **Recenti**: i file aperti di recente dallo sfoglia-file, il più recente in cima, come la scheda «Recenti» di
@@ -30,6 +32,9 @@ import java.util.concurrent.Executors
  * scritto fuori dal thread principale. **Un file che non c'è più esce**: [prune] chiede a ogni indirizzo se esiste
  * (lo stesso controllo della ripresa, `resumeTargetExists`), e il browser lo toglie anche quando il visore non riesce
  * a leggerlo. [source] è la sorgente virtuale della pagina «Recenti».
+ *
+ * Una scrittura che il disco non prende (pieno un attimo, una cartella che non si crea) si riprova da sé, con un'attesa
+ * che raddoppia da 1,5 s fino a un minuto (R2), anche se non arriva un'altra modifica.
  */
 @Stable
 class FluidFileRecents @VisibleForTesting internal constructor(
@@ -41,7 +46,12 @@ class FluidFileRecents @VisibleForTesting internal constructor(
   @Immutable
   data class Entry(val sourceId: String, val item: FluidFileItem, val openedAtMillis: Long)
 
-  private val io = Executors.newSingleThreadExecutor { Thread(it, "FluidFileRecents").apply { isDaemon = true } }
+  private val io = Executors.newSingleThreadScheduledExecutor { Thread(it, "FluidFileRecents").apply { isDaemon = true } }
+
+  // R2 · La lista che il disco non ha preso, i tentativi falliti di fila e il prossimo tentativo. Solo sul filo `io`.
+  private var unwritten: List<Entry>? = null
+  private var failures = 0
+  private var retry: ScheduledFuture<*>? = null
 
   // Il file è corto (al più qualche KB): si legge una volta, alla creazione, e poi si scrive solo in sottofondo.
   private var state by mutableStateOf(load())
@@ -128,12 +138,32 @@ class FluidFileRecents @VisibleForTesting internal constructor(
     // prove, non sostituisce un file che esiste).
     file.parentFile?.mkdirs()
     val partial = File(file.parentFile, file.name + ".parte")
-    try {
+    val written = try {
       partial.writeBytes(list.joinToString("\n", postfix = "\n") { encode(it) }.toByteArray(Charsets.UTF_8))
       java.nio.file.Files.move(partial.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING,
         java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+      true
     } catch (_: Exception) {
       partial.delete()
+      false
+    }
+    if (written) {
+      failures = 0
+      unwritten = null
+      retry?.cancel(false)
+      retry = null
+      return
+    }
+    // R2: prima la lista restava solo in memoria fino alla modifica dopo; se il processo moriva prima, sul disco
+    // restava quella vecchia. Si riprova da sé, con l'ultima lista (una modifica dopo la sostituisce).
+    unwritten = list
+    failures++
+    if (retry == null) {
+      val delay = (RetryDelayMillis shl minOf(failures - 1, 16)).coerceAtMost(MaxRetryDelayMillis)
+      retry = io.schedule({
+        retry = null
+        unwritten?.let { write(it) }
+      }, delay, TimeUnit.MILLISECONDS)
     }
   }
 
@@ -156,6 +186,12 @@ class FluidFileRecents @VisibleForTesting internal constructor(
     const val DefaultMaxEntries: Int = 60
     /** L'id della sorgente virtuale dei recenti. */
     const val SourceId: String = "recenti"
+
+    /** R2 · Il primo nuovo tentativo dopo una scrittura fallita: 1,5 s, come la ripresa dei visori. A occhio, 26/11/2026. */
+    private const val RetryDelayMillis: Long = 1_500L
+
+    /** R2 · L'attesa più lunga fra due tentativi: un minuto. */
+    private const val MaxRetryDelayMillis: Long = 60_000L
     private val stores = HashMap<String, FluidFileRecents>()
 
     /** I recenti del processo, nel `noBackupFilesDir` dell'app. */

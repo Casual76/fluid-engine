@@ -1,12 +1,14 @@
 package dev.antigravity.fluidengine.sample.novita
 
 import android.content.ClipboardManager
+import android.content.ClipDescription
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.Signature
 import android.net.Uri
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,16 +20,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.unit.dp
@@ -58,10 +63,14 @@ import dev.antigravity.fluidengine.ui.fluid.share.FluidShareSheetTags
 import dev.antigravity.fluidengine.ui.fluid.share.FluidShareTargets
 import dev.antigravity.fluidengine.ui.fluid.share.FluidShareTrust
 import dev.antigravity.fluidengine.ui.fluid.share.LocalFluidQrEncoder
+import dev.antigravity.fluidengine.ui.fluid.share.FluidQrEncoder
 import dev.antigravity.fluidengine.ui.fluid.share.fluidCopyProblems
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import java.io.File
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -352,7 +361,8 @@ class F8p10ShareUiTest {
     }
     compose.onNodeWithText("example.org").assertExists()
     tap(FluidShareSheetTags.Qr)
-    compose.onNodeWithTag(FluidShareSheetTags.QrCode).assertExists()
+    // R2: il codice si calcola alla pressione, fuori dal thread principale.
+    waitForTag(FluidShareSheetTags.QrCode)
     val code = compose.onNodeWithTag(FluidShareSheetTags.QrCode).fetchSemanticsNode()
     assertTrue(code.config.getOrNull(SemanticsProperties.ContentDescription)!!.single().contains("example.org/app"))
 
@@ -596,5 +606,250 @@ class F8p10ShareUiTest {
     tap(FluidPrepareCopyTags.Share)
     assertNull("un invio bloccato non parte", ready)
     assertFalse(choices.isEmpty())
+  }
+
+  // --- R2 · La privacy della copia: rotazione, processo ucciso, copie in ritardo, scelte di partenza ----------------
+
+  /** L'Uri della copia senza posizione: un file diverso dall'originale, cosi' si vede quale dei due parte. */
+  private val strippedUri: Uri get() = F8p10OtherApp.uri("senza-posizione.jpg")
+
+  /**
+   * Le opzioni di una foto con la posizione: senza «Posizione» la copia e' un altro file. [broken] e' l'esportatore che
+   * dimentica di toglierla; [included] la scelta di partenza.
+   */
+  private fun strippedOptions(prepared: MutableList<FluidCopyChoice>, broken: Boolean = false, included: Boolean = true) = FluidShareCopyOptions(
+    prepare = { choice ->
+      prepared += choice
+      val kept = choice.includes("posizione") || broken
+      val item = if (kept) pngItem().copy(detail = "Posizione inclusa") else
+        FluidShareItem.file(strippedUri, "Voto di matematica.png", "image/png", 200L * 1024, title = "Voto di matematica").copy(detail = "Senza posizione")
+      FluidPreparedCopy(item, listOf(FluidCopyCheck("Posizione", if (kept) "presente" else "tolta", passed = choice.includes("posizione") || !kept, option = "posizione")))
+    },
+    options = listOf(FluidCopyOption("posizione", "Posizione", included = included)),
+  )
+
+  /** «Altre app…» e l'Uri che parte col foglio di Android. */
+  private fun sentStream(): Uri {
+    tap(FluidShareSheetTags.MoreApps)
+    val chooser = nextIntent()!!
+    @Suppress("DEPRECATION")
+    val send = chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
+    @Suppress("DEPRECATION")
+    return send.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)!!
+  }
+
+  private fun hasText(text: String) = compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
+
+  private fun enabled(tag: String) = runCatching { compose.onNodeWithTag(tag).assertIsEnabled() }.isSuccess
+
+  /** Le opzioni del foglio: «Posizione» spenta e confermata. */
+  private fun confirmWithoutLocation() {
+    tap(FluidShareSheetTags.Options)
+    compose.waitUntil(3_000) { enabled(FluidPrepareCopyTags.Done) }
+    tap(FluidPrepareCopyTags.option("posizione"))
+    compose.waitUntil(3_000) { hasText("tolta") }
+    compose.waitUntil(3_000) { enabled(FluidPrepareCopyTags.Done) }
+    tap(FluidPrepareCopyTags.Done)
+    compose.waitUntil(3_000) { hasText("Senza posizione") }
+  }
+
+  @Test fun aCopyWithoutLocationSurvivesARotation() {
+    // L'app tiene l'oggetto in un ViewModel: dopo la rotazione (o col processo ripristinato) il foglio si riapre su di lui.
+    val restoration = StateRestorationTester(compose)
+    val original = pngItem().copy(detail = "Posizione inclusa")
+    val options = strippedOptions(mutableListOf())
+    restoration.setContent { Hosted { FluidShareSheet(original, onDismissRequest = {}, copyOptions = options) } }
+    confirmWithoutLocation()
+    restoration.emulateSavedInstanceStateRestore()
+    compose.waitForIdle()
+    waitForTag(FluidShareSheetTags.MoreApps)
+    assertTrue("dopo la rotazione resta la copia senza posizione", hasText("Senza posizione"))
+    assertFalse("l'originale col GPS non torna", hasText("Posizione inclusa"))
+    assertEquals("parte la copia, non l'originale", strippedUri, sentStream())
+  }
+
+  @Test fun theOptionsSheetKeepsTheChoiceAcrossARotation() {
+    val restoration = StateRestorationTester(compose)
+    var ready: FluidShareItem? = null
+    val choices = mutableListOf<FluidCopyChoice>()
+    restoration.setContent {
+      Hosted {
+        FluidPrepareCopySheet(
+          visible = true,
+          onDismissRequest = {},
+          onReady = { ready = it },
+          prepare = { choice -> choices += choice; copyWith(location = choice.includes("posizione"), included = choice.includes("posizione")) },
+          options = listOf(location),
+        )
+      }
+    }
+    compose.waitUntil(3_000) { enabled(FluidPrepareCopyTags.Share) }
+    tap(FluidPrepareCopyTags.option("posizione"))
+    compose.waitUntil(3_000) { choices.lastOrNull()?.includes("posizione") == false }
+    compose.waitUntil(3_000) { hasText("tolta") }
+    restoration.emulateSavedInstanceStateRestore()
+    compose.waitForIdle()
+    compose.waitUntil(3_000) { enabled(FluidPrepareCopyTags.Share) }
+    assertFalse("dopo la rotazione la posizione resta tolta: ${choices.last()}", choices.last().includes("posizione"))
+    tap(FluidPrepareCopyTags.Share)
+    assertNotNull(ready)
+  }
+
+  @Test fun anOldCopyThatFinishesLateIsNeverConfirmed() {
+    // L'app prepara con una funzione che non guarda l'annullamento (un callback avvolto in `suspendCoroutine`).
+    val pending = mutableListOf<Pair<FluidCopyChoice, Continuation<FluidPreparedCopy>>>()
+    val options = FluidShareCopyOptions(prepare = { choice -> suspendCoroutine { pending += choice to it } }, options = listOf(location))
+    compose.setContent { Hosted { FluidShareSheet(pngItem(), onDismissRequest = {}, copyOptions = options) } }
+    tap(FluidShareSheetTags.Options)
+    compose.waitUntil(3_000) { pending.size == 1 }
+    tap(FluidPrepareCopyTags.option("posizione"))
+    compose.waitUntil(3_000) { pending.size == 2 }
+    assertTrue(pending[0].first.includes("posizione"))
+    assertFalse(pending[1].first.includes("posizione"))
+    // La copia vecchia, con la posizione, finisce dopo che la persona l'ha tolta.
+    compose.runOnIdle {
+      pending[0].second.resume(FluidPreparedCopy(pngItem().copy(detail = "Posizione inclusa"),
+        listOf(FluidCopyCheck("Posizione", "presente", option = "posizione"))))
+    }
+    compose.waitForIdle()
+    assertFalse("la copia vecchia non si conferma con la scelta nuova", enabled(FluidPrepareCopyTags.Done))
+    // Arriva quella giusta: si conferma lei.
+    compose.runOnIdle {
+      pending[1].second.resume(FluidPreparedCopy(FluidShareItem.file(strippedUri, "Voto.png", "image/png").copy(detail = "Senza posizione"),
+        listOf(FluidCopyCheck("Posizione", "tolta", option = "posizione"))))
+    }
+    compose.waitUntil(3_000) { enabled(FluidPrepareCopyTags.Done) }
+    tap(FluidPrepareCopyTags.Done)
+    compose.waitUntil(3_000) { hasText("Senza posizione") }
+    assertEquals(strippedUri, sentStream())
+  }
+
+  @Test fun withLocationOffByDefaultTheOriginalNeverLeaves() {
+    // L'app sbaglia: «Posizione» e' spenta di serie, ma passa al foglio l'originale col GPS.
+    val prepared = mutableListOf<FluidCopyChoice>()
+    val options = strippedOptions(prepared, included = false)
+    compose.setContent { Hosted { FluidShareSheet(pngItem().copy(detail = "Posizione inclusa"), onDismissRequest = {}, copyOptions = options) } }
+    waitForTag(FluidShareSheetTags.MoreApps)
+    assertEquals("parte la copia verificata della scelta di partenza", strippedUri, sentStream())
+    assertFalse(prepared.single().includes("posizione"))
+  }
+
+  @Test fun aStartCopyThatKeepsTheLocationDoesNotLeave() {
+    val options = strippedOptions(mutableListOf(), broken = true, included = false)
+    compose.setContent { Hosted { FluidShareSheet(pngItem(), onDismissRequest = {}, copyOptions = options) } }
+    waitForTag(FluidShareSheetTags.Problem)
+    assertTrue(hasText("La copia non corrisponde alle opzioni"))
+    compose.onNodeWithTag(FluidShareSheetTags.MoreApps).assertDoesNotExist()
+    compose.onNodeWithTag(FluidShareSheetTags.Copy).assertDoesNotExist()
+  }
+
+  @Test fun aFileUriIsCopiedAndLeavesAsContent() {
+    // Un `file://` passato all'oggetto: sul dispositivo `startActivity` lancerebbe FileUriExposedException.
+    fakeUris()
+    val photo = appFile("Fiori.jpg", 3_000)
+    compose.setContent { Hosted { FluidShareSheet(FluidShareItem.file(Uri.fromFile(photo), "Fiori.jpg", "image/jpeg"), onDismissRequest = {}) } }
+    waitForTag(FluidShareSheetTags.MoreApps)
+    val uri = sentStream()
+    assertEquals("mai un file:// fuori dall'app: $uri", "content", uri.scheme)
+    assertTrue(uri.toString(), uri.toString().contains("/copia/"))
+  }
+
+  @Test fun afterCopyTheOtherActionsStayQuiet() {
+    var item by mutableStateOf<FluidShareItem?>(FluidShareItem.link("https://example.org/a", "A"))
+    val outcomes = mutableListOf<FluidShareOutcome>()
+    compose.setContent { Hosted { FluidShareSheet(item, onDismissRequest = { item = null }, onShared = { outcomes += it }) } }
+    waitForTag(FluidShareSheetTags.Copy)
+    waitForTag(FluidShareSheetTags.MoreApps)
+    compose.waitForIdle()
+    // Nei 450 ms della spunta un secondo tocco su «Altre app…».
+    compose.mainClock.autoAdvance = false
+    compose.onNodeWithTag(FluidShareSheetTags.Copy).performTouchInput { click() }
+    compose.mainClock.advanceTimeByFrame()
+    compose.onNodeWithTag(FluidShareSheetTags.MoreApps).performTouchInput { click() }
+    compose.mainClock.autoAdvance = true
+    compose.waitForIdle()
+    assertEquals("un esito solo", listOf("Copied"), outcomes.map { it.javaClass.simpleName })
+    assertNull("nessun foglio di Android dopo «Copiato»", nextIntent())
+    assertNull(item)
+  }
+
+  @Test fun theQrIsEncodedOnlyWhenAskedAndOffTheMainThread() {
+    val threads = java.util.Collections.synchronizedList(mutableListOf<Thread>())
+    val encoder = FluidQrEncoder { text -> threads += Thread.currentThread(); FluidZxingQr.encode(text) }
+    compose.setContent {
+      Hosted {
+        CompositionLocalProvider(LocalFluidQrEncoder provides encoder) {
+          FluidShareSheet(FluidShareItem.link("https://example.org/app", "Fluid Glass"), onDismissRequest = {})
+        }
+      }
+    }
+    waitForTag(FluidShareSheetTags.Qr)
+    compose.waitForIdle()
+    assertTrue("aprire il foglio non codifica niente: $threads", threads.isEmpty())
+    tap(FluidShareSheetTags.Qr)
+    waitForTag(FluidShareSheetTags.QrCode)
+    val main = Looper.getMainLooper().thread
+    assertTrue("codificato fuori dal thread principale: $threads", threads.isNotEmpty() && threads.none { it === main })
+  }
+
+  // --- R2 · «Copia» di un contenuto delicato (domanda 4, scelta b) -------------------------------------------------
+
+  /** Vero se gli appunti sono segnati delicati; null se sono vuoti. */
+  private fun clipIsSensitive(): Boolean? {
+    val clip = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip ?: return null
+    return clip.description.extras?.getBoolean(ClipDescription.EXTRA_IS_SENSITIVE, false) == true
+  }
+
+  @Test fun aSensitiveItemIsCopiedAsSensitive() {
+    var item by mutableStateOf<FluidShareItem?>(FluidShareItem.text("Codice di recupero 4821-9930", title = "Codice").copy(sensitive = true))
+    compose.setContent { Hosted { FluidShareSheet(item, onDismissRequest = { item = null }) } }
+    tap(FluidShareSheetTags.Copy)
+    assertEquals("un codice va negli appunti segnato delicato", true, clipIsSensitive())
+    compose.waitUntil(3_000) { item == null }
+
+    // Un testo qualsiasi no: niente segno.
+    compose.runOnIdle { item = FluidShareItem.text("Portare il libro di storia") }
+    tap(FluidShareSheetTags.Copy)
+    assertEquals(false, clipIsSensitive())
+    compose.waitUntil(3_000) { item == null }
+
+    // Senza il dito (la tastiera, TalkBack, l'accesso con interruttori): la stessa azione, lo stesso segno.
+    compose.runOnIdle { item = FluidShareItem.text("Password del Wi-Fi: Fiori2026", title = "Wi-Fi").copy(sensitive = true) }
+    waitForTag(FluidShareSheetTags.Copy)
+    compose.onNodeWithTag(FluidShareSheetTags.Copy).performSemanticsAction(SemanticsActions.OnClick)
+    compose.waitForIdle()
+    assertEquals(true, clipIsSensitive())
+  }
+
+  @Test fun aSensitiveCopyStaysSensitiveAfterARotation() {
+    val restoration = StateRestorationTester(compose)
+    val original = FluidShareItem.text("Mario Rossi: codice 4821-9930", title = "Codice")
+    val name = FluidCopyOption("nome", "Nome")
+    val options = FluidShareCopyOptions(
+      prepare = { choice ->
+        val kept = choice.includes("nome")
+        FluidPreparedCopy(
+          item = FluidShareItem.text(if (kept) original.text!! else "Codice 4821-9930", title = "Codice")
+            .copy(sensitive = true, detail = if (kept) "Con il nome" else "Senza nome"),
+          checks = listOf(FluidCopyCheck("Nome", if (kept) "presente" else "tolto", option = "nome")),
+        )
+      },
+      options = listOf(name),
+    )
+    restoration.setContent { Hosted { FluidShareSheet(original, onDismissRequest = {}, copyOptions = options) } }
+    tap(FluidShareSheetTags.Options)
+    compose.waitUntil(3_000) { enabled(FluidPrepareCopyTags.Done) }
+    tap(FluidPrepareCopyTags.option("nome"))
+    compose.waitUntil(3_000) { hasText("tolto") }
+    compose.waitUntil(3_000) { enabled(FluidPrepareCopyTags.Done) }
+    tap(FluidPrepareCopyTags.Done)
+    compose.waitUntil(3_000) { hasText("Senza nome") }
+    restoration.emulateSavedInstanceStateRestore()
+    compose.waitForIdle()
+    waitForTag(FluidShareSheetTags.Copy)
+    tap(FluidShareSheetTags.Copy)
+    assertEquals("la copia salvata resta delicata", true, clipIsSensitive())
+    val text = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip!!.getItemAt(0).text.toString()
+    assertEquals("e senza il nome", "Codice 4821-9930", text)
   }
 }

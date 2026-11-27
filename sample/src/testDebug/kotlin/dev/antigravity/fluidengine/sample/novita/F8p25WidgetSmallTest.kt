@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.sample.novita
 
 import android.content.ComponentName
+import android.text.TextUtils
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -84,6 +85,46 @@ class F8p25WidgetSmallTest {
     assertEquals(listOf("Oggi", "Matematica", "8:00", "Italiano", "9:00"), texts(agenda))
     val absences = inflate(R.layout.f8p25_widget_absences_preview)
     assertEquals(listOf("Assenze", "18 %", "Limite 25 %"), texts(absences))
+    // F8.25d: ogni testo dell'anteprima sta su una riga e si taglia coi puntini, come i testi di Glance.
+    for (view in textViews(agenda) + textViews(absences)) {
+      assertEquals("«${view.text}»", TextUtils.TruncateAt.END, view.ellipsize)
+      assertEquals("«${view.text}»", 1, view.maxLines)
+    }
+  }
+
+  /**
+   * F8.25d · Nella cella stretta del formato telefono simulato sul Tab S9 (il 2×2 della griglia del tablet, circa 90 dp)
+   * «Matematica» non ci sta: si taglia **coi puntini** («Matem…»), sia nell'anteprima del launcher sia nel widget vero,
+   * mai a meta' lettera senza segno («Matem»).
+   */
+  @Test
+  fun inUnaCellaStrettaIlNomeSiTagliaCoiPuntini() {
+    val density = context.resources.displayMetrics.density
+    val preview = inflate(R.layout.f8p25_widget_agenda_preview)
+    val width = View.MeasureSpec.makeMeasureSpec((NarrowCellDp * density).toInt(), View.MeasureSpec.EXACTLY)
+    val height = View.MeasureSpec.makeMeasureSpec((158 * density).toInt(), View.MeasureSpec.EXACTLY)
+    preview.measure(width, height)
+    preview.layout(0, 0, preview.measuredWidth, preview.measuredHeight)
+    val previewName = textViews(preview).first { it.text.toString() == "Matematica" }
+    assertTrue("anteprima: «Matematica» senza puntini", (previewName.layout?.getEllipsisCount(0) ?: 0) > 0)
+
+    val narrow = FluidWidgetSize("cella stretta", NarrowCellDp.dp, 158.dp, 2, 2)
+    val entry = FluidWidgetEntry(
+      provider = ComponentName(context, F8p25AgendaWidgetReceiver::class.java),
+      title = "Agenda",
+      description = "",
+      preview = FluidWidgetPreview.Glance { F8p25AgendaContent(context) },
+    )
+    rule.setContent {
+      FluidTheme(EngineSettings()) {
+        Box(Modifier.width(400.dp)) { FluidWidgetPreviewBox(entry, narrow, contentDescription = "Agenda") }
+      }
+    }
+    rule.waitForIdle()
+    rule.waitUntil(5_000) { frame() != null }
+    val widgetName = textViews(frame()!!).first { it.text.toString() == "Matematica" }
+    assertEquals(TextUtils.TruncateAt.END, widgetName.ellipsize)
+    assertTrue("widget: «Matematica» senza puntini", (widgetName.layout?.getEllipsisCount(0) ?: 0) > 0)
   }
 
   private fun inflate(layout: Int): View {
@@ -167,4 +208,9 @@ class F8p25WidgetSmallTest {
   private fun texts(root: View): List<String> = textViews(root).map { it.text.toString() }
 
   private fun top(v: View): Int = IntArray(2).also { v.getLocationInWindow(it) }[1]
+
+  private companion object {
+    /** Il 2×2 del Tab S9 nel formato telefono simulato: 240 pixel a 420 dpi, cioe' circa 91 dp (cattura del 26/11/2026). */
+    const val NarrowCellDp = 90
+  }
 }

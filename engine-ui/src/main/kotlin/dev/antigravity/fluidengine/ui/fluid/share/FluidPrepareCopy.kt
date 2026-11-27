@@ -24,12 +24,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,7 +67,9 @@ import dev.antigravity.fluidengine.ui.haptics.rememberFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import java.io.File
 
 /** Un formato fra cui scegliere («Originale», «JPEG piu' leggero», «PDF»). */
@@ -189,6 +194,11 @@ fun FluidPrepareCopySheet(
   source: FluidTransitionSource? = null,
   labels: FluidPrepareCopyLabels = FluidPrepareCopyLabels(),
 ) {
+  // R2 · La scelta si salva qui, dove il foglio e' dichiarato, e non nel contenuto: quello lo compone l'host dei modali
+  // alla radice, e alla rotazione (o col processo ripristinato) ripartirebbe dalle scelte di serie, rimettendo in
+  // silenzio la posizione che la persona aveva tolto. Un'apertura nuova riparte da capo.
+  val draft = rememberSaveable(saver = FluidCopyDraft.Saver) { FluidCopyDraft() }
+  SideEffect { draft.follow(visible) }
   FluidGlassSheet(
     visible = visible,
     onDismissRequest = onDismissRequest,
@@ -196,8 +206,47 @@ fun FluidPrepareCopySheet(
     paneTitle = labels.title,
     source = source,
   ) {
-    PrepareCopyBody(onDismissRequest, onReady, prepare, formats, options, labels)
+    PrepareCopyBody(onDismissRequest, onReady, prepare, formats, options, labels, start = draft.choice, onChoice = { draft.choice = it })
   }
+}
+
+/** La scelta del foglio delle opzioni a se', salvata col foglio: sopravvive alla rotazione e al processo ucciso (R2). */
+@Stable
+internal class FluidCopyDraft {
+  var open by mutableStateOf(false)
+  var choice by mutableStateOf<FluidCopyChoice?>(null)
+
+  /** Un foglio che si apre riparte dalle scelte di serie; chiuso, la scelta resta per l'uscita. */
+  fun follow(visible: Boolean) {
+    if (!visible) {
+      open = false
+    } else if (!open) {
+      open = true
+      choice = null
+    }
+  }
+
+  companion object {
+    val Saver: Saver<FluidCopyDraft, Any> = Saver(
+      save = { draft -> arrayListOf(draft.open, draft.choice?.takeIf { draft.open }?.let(::fluidSaveChoice)) },
+      restore = { saved ->
+        val list = saved as List<*>
+        FluidCopyDraft().apply {
+          open = list[0] as Boolean
+          choice = fluidRestoreChoice(list[1])
+        }
+      },
+    )
+  }
+}
+
+/** Una scelta nel `Bundle`: il formato e le chiavi incluse, solo stringhe. */
+internal fun fluidSaveChoice(choice: FluidCopyChoice): ArrayList<Any?> = arrayListOf(choice.format, ArrayList(choice.included.sorted()))
+
+/** Il contrario di [fluidSaveChoice]; null per niente di salvato. */
+internal fun fluidRestoreChoice(saved: Any?): FluidCopyChoice? {
+  val list = saved as? List<*> ?: return null
+  return FluidCopyChoice(list[0] as String?, (list[1] as List<*>).map { it as String }.toSet())
 }
 
 /**
@@ -208,7 +257,12 @@ fun FluidPrepareCopySheet(
  * con la copia nuova al posto dell'oggetto di prima. Il foglio non si chiude e non si riapre.
  *
  * L'oggetto passato al foglio e' la copia della scelta di partenza ([FluidCopyOption.included], il primo formato): la
- * pagina riparte dall'ultima scelta confermata e, se la scelta non cambia, non rifa' la copia.
+ * pagina riparte dall'ultima scelta confermata e, se la scelta non cambia, non rifa' la copia. Se la scelta di partenza
+ * lascia a casa qualcosa (un'opzione con `included` falso), il foglio non si fida dell'oggetto: all'apertura prepara e
+ * verifica lui la copia di partenza, con l'attesa al posto delle azioni, e una copia che non corrisponde non parte (R2).
+ *
+ * La scelta confermata e la sua copia si salvano col foglio: dopo una rotazione, o col processo ripristinato e l'app che
+ * ripassa lo stesso oggetto, il foglio riparte dalla copia, mai dall'originale (R2).
  */
 @Immutable
 class FluidShareCopyOptions(
@@ -216,7 +270,17 @@ class FluidShareCopyOptions(
   val formats: List<FluidCopyFormat> = emptyList(),
   val options: List<FluidCopyOption> = emptyList(),
   val labels: FluidPrepareCopyLabels = FluidPrepareCopyLabels(),
-)
+) {
+  /** La scelta di partenza: il primo formato e le [options] con `included`. */
+  internal val startChoice: FluidCopyChoice
+    get() = FluidCopyChoice(formats.firstOrNull()?.key, options.filter { it.included }.map { it.key }.toSet())
+
+  /**
+   * La scelta di partenza se lascia a casa qualcosa (un'opzione spenta di serie), altrimenti null. Con lei il foglio non
+   * si fida dell'oggetto passato: prepara e verifica la copia di partenza prima di mostrare le azioni (R2).
+   */
+  internal val strictStart: FluidCopyChoice? get() = startChoice.takeIf { options.any { !it.included } }
+}
 
 /** La scelta, il tentativo e l'esito di una preparazione: li usano il foglio a se' e la pagina dentro il foglio. */
 @Stable
@@ -225,7 +289,34 @@ private class PrepareCopyModel(format: String?, included: Set<String>) {
   var included by mutableStateOf(included)
   var attempt by mutableIntStateOf(0)
   var state by mutableStateOf<FluidCopyState>(FluidCopyState.Preparing)
+  /** La scelta per cui e' fatto [state]: la copia pronta vale solo per lei (R2). */
+  var stateChoice by mutableStateOf<FluidCopyChoice?>(null)
   val choice: FluidCopyChoice get() = FluidCopyChoice(format, included)
+
+  /** La copia pronta, se e' quella della scelta di adesso: un dito che ha appena cambiato scelta non conferma la vecchia. */
+  val ready: FluidCopyState.Ready? get() = (state as? FluidCopyState.Ready)?.takeIf { stateChoice == choice }
+}
+
+/**
+ * Prepara [choice] con [prepare] e la verifica ([fluidCopyState]). Una preparazione annullata non scrive mai: chi prepara
+ * puo' non guardare l'annullamento (un callback avvolto in `suspendCoroutine`, una copia bloccante) e finire dopo che la
+ * persona ha cambiato scelta; la sua copia, magari con la posizione, non deve diventare quella pronta (R2).
+ */
+internal suspend fun fluidPrepareChecked(
+  prepare: suspend (FluidCopyChoice) -> FluidPreparedCopy,
+  options: List<FluidCopyOption>,
+  choice: FluidCopyChoice,
+  labels: FluidPrepareCopyLabels,
+): FluidCopyState {
+  val state = try {
+    fluidCopyState(options, choice, prepare(choice), labels)
+  } catch (c: CancellationException) {
+    throw c
+  } catch (t: Throwable) {
+    FluidCopyState.Failed(t.message)
+  }
+  currentCoroutineContext().ensureActive()
+  return state
 }
 
 /**
@@ -240,9 +331,11 @@ private fun rememberPrepareCopyModel(
   labels: FluidPrepareCopyLabels,
   start: FluidCopyChoice? = null,
   startCopy: FluidPreparedCopy? = null,
+  onChoice: ((FluidCopyChoice) -> Unit)? = null,
 ): PrepareCopyModel {
   val haptics = rememberFluidHaptics()
   val preparer by rememberUpdatedState(prepare)
+  val report by rememberUpdatedState(onChoice)
   val model = remember {
     PrepareCopyModel(
       start?.format ?: formats.firstOrNull()?.key,
@@ -250,22 +343,19 @@ private fun rememberPrepareCopyModel(
     )
   }
   val choice = model.choice
+  LaunchedEffect(choice) { report?.invoke(choice) }
   LaunchedEffect(choice, model.attempt) {
     val kept = startCopy?.takeIf { model.attempt == 0 && choice == start }
     if (kept != null) {
+      model.stateChoice = choice
       model.state = fluidCopyState(options, choice, kept, labels)
       return@LaunchedEffect
     }
     model.state = FluidCopyState.Preparing
+    model.stateChoice = choice
     // Un dito che spegne due interruttori di fila fa una copia sola. A occhio, 24 novembre 2026.
     delay(FluidPrepareDebounceMillis)
-    model.state = try {
-      fluidCopyState(options, choice, preparer(choice), labels)
-    } catch (c: CancellationException) {
-      throw c
-    } catch (t: Throwable) {
-      FluidCopyState.Failed(t.message)
-    }
+    model.state = fluidPrepareChecked(preparer, options, choice, labels)
     haptics.play(if (model.state is FluidCopyState.Ready) FluidHapticEvent.Success else FluidHapticEvent.Warning)
   }
   return model
@@ -290,14 +380,16 @@ private fun PrepareCopyBody(
   formats: List<FluidCopyFormat>,
   options: List<FluidCopyOption>,
   labels: FluidPrepareCopyLabels,
+  start: FluidCopyChoice? = null,
+  onChoice: ((FluidCopyChoice) -> Unit)? = null,
 ) {
-  val model = rememberPrepareCopyModel(prepare, formats, options, labels)
+  val model = rememberPrepareCopyModel(prepare, formats, options, labels, start, onChoice = onChoice)
   FluidSheetScaffold(
     title = labels.title,
     message = labels.message,
     modifier = Modifier.testTag(FluidPrepareCopyTags.Sheet),
     actions = {
-      val ready = model.state as? FluidCopyState.Ready
+      val ready = model.ready
       FluidButton(
         labels.share,
         onClick = { ready?.let { onReady(it.copy.item) } },
@@ -337,7 +429,7 @@ internal fun FluidShareOptionsPage(
 ) {
   val labels = copyOptions.labels
   val model = rememberPrepareCopyModel(copyOptions.prepare, copyOptions.formats, copyOptions.options, labels, start, startCopy)
-  val ready = model.state as? FluidCopyState.Ready
+  val ready = model.ready
   Column(Modifier.fillMaxSize().testTag(FluidPrepareCopyTags.Page)) {
     FluidSheetPageBar(title = labels.title, onBack = onBack, backLabel = labels.back) {
       FluidGlassIconButton(

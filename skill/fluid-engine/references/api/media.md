@@ -163,9 +163,11 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `var version: Int by mutableIntStateOf(0)` — Quante pagine sono arrivate (e quindi quante volte gli elementi sono cambiati).
   - `var loading: Boolean by mutableStateOf(false)` — Una pagina sta arrivando.
   - `var finished: Boolean by mutableStateOf(false)` — Non ci sono altre pagine.
+  - `var failed: Boolean by mutableStateOf(false)` — L'ultima pagina chiesta non e' arrivata (R1): la sorgente non risponde (il NAS spento, una scadenza) o ha lanciato. Gli elementi gia' arrivati restano, la lista non si chiude: [retry] la richiede. Il selettore lo dice al posto di «Nessuna foto», o in fondo alla lista se l'errore arriva a meta'.
   - `var interpretation: List<String> by mutableStateOf(emptyList())` — Come la sorgente ha capito la ricerca («Mare», «Estate»).
   - `var total: Int? by mutableStateOf(null)` — Quanti elementi ha in tutto, se la sorgente lo sa.
-  - `fun loadMore()` — Chiede la pagina dopo, se non sta gia' arrivando e se c'e'.
+  - `fun loadMore()` — Chiede la pagina dopo, se non sta gia' arrivando e se c'e'. Dopo un errore ([failed]) serve [retry].
+  - `fun retry()` — Richiede la pagina che non era arrivata ([failed]), dal punto in cui ci si era fermati.
   - `fun reload()` — Ricomincia da capo (dopo uno sblocco, un permesso nuovo, un cambio della sorgente).
 - `class FluidMediaPickerState internal constructor(val sources: List<FluidMediaSource>, val request: FluidMediaRequest, val selection: FluidSelectionState<String>, private val scope: CoroutineScope, private val pageSize: Int = DefaultPageSize)` — Lo stato di un [FluidMediaPicker] (F8.14): le sorgenti (la prima e' quella di partenza), la richiesta dell'app, la scelta in ordine ([selection], col tetto della richiesta), le pagine di risultati gia' arrivate e la consegna.
   - `val primary: FluidMediaSource get()` — La sorgente di partenza (la prima).
@@ -184,7 +186,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `companion object`
     - `const val DefaultPageSize: Int` — Quanti elementi per pagina: 120, una decina di schermate di cinque colonne.
 - `data class FluidMediaPickerNotice(val refusal: FluidMediaRefusal?, val skipped: Int)` — Cosa dire dopo una consegna: il rifiuto ([refusal], null se e' andata) e quanti elementi non c'erano piu'.
-- `@Composable fun rememberFluidMediaPickerState(sources: List<FluidMediaSource>, request: FluidMediaRequest = FluidMediaRequest()): FluidMediaPickerState` — Lo stato di un [FluidMediaPicker] con queste [sources] (la prima e' quella di partenza) e questa [request]. Un cambio delle sorgenti o della richiesta fa uno stato nuovo; la scelta (le chiavi) resta alla rotazione.
+- `@Composable fun rememberFluidMediaPickerState(sources: List<FluidMediaSource>, request: FluidMediaRequest = FluidMediaRequest()): FluidMediaPickerState` — Lo stato di un [FluidMediaPicker] con queste [sources] (la prima e' quella di partenza) e questa [request]. Un cambio delle sorgenti o della richiesta fa uno stato nuovo; la scelta resta alla rotazione e alla morte del processo, con i suoi elementi (al piu' 200: oltre, quelli in piu' si dicono al ✓ come non piu' disponibili).
 
 ## `engine-media/media/FluidMediaSource.kt`
 

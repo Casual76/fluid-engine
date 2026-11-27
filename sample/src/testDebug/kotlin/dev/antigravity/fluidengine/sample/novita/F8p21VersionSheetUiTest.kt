@@ -252,4 +252,28 @@ class F8p21VersionSheetUiTest {
     assertEquals("poi fermo", 0, writesDuring(1000))
     assertNull(decisions.firstOrNull())
   }
+
+  /**
+   * R2, il minore di F8.21: due tocchi rapidi su «Tieni…» mentre l'app salva (il foglio lo chiude lei, dopo). Una scelta
+   * sola; se il salvataggio non va e l'app lascia il foglio aperto, toccare una card riaccende il tasto.
+   */
+  @Test fun `il doppio tocco su Tieni decide una volta sola`() {
+    show()
+    tap(FluidVersionChoiceTags.card("rev-a"))
+    tap(FluidVersionChoiceTags.card("rev-b"))
+    val at = bounds(FluidVersionChoiceTags.Keep).center
+    repeat(2) {
+      finger.down(at)
+      advance(32)
+      finger.up(at)
+      advance(160)
+    }
+    advance(400)
+    assertEquals(1, decisions.size)
+    assertTrue(decisions.single().keepsAll)
+    tap(FluidVersionChoiceTags.card("rev-a"))
+    tap(FluidVersionChoiceTags.Keep)
+    assertEquals(2, decisions.size)
+    assertEquals(listOf("rev-b"), decisions.last().keep)
+  }
 }

@@ -3,7 +3,12 @@ package dev.antigravity.fluidengine.notify
 import dev.antigravity.fluidengine.foundation.FluidRecurrenceRule
 import dev.antigravity.fluidengine.foundation.notify.FluidReminderDelivery
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.LocalDateTime
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -23,8 +28,14 @@ import kotlinx.serialization.json.put
 // F8.19 · La memoria di engine-notify: i promemoria in programma, il registro di quelli arrivati, il riepilogo (le
 // scelte dell'utente e le notifiche che aspettano). Un file JSON in `noBackupFilesDir`: sopravvive a riavvio e
 // aggiornamento dell'app; non va nel backup, perché un promemoria rimesso su un telefono nuovo suonerebbe due volte (lì
-// lo rimette l'app, coi suoi dati). Scritto per intero a ogni cambio, in un file nuovo e poi rinominato: un processo che
-// muore a metà lascia il file di prima.
+// lo rimette l'app, coi suoi dati). Scritto per intero a ogni cambio, in un file nuovo e poi rinominato in un colpo solo
+// (`ATOMIC_MOVE`): un processo che muore a metà lascia il file di prima.
+//
+// R2 (review `muse-f8-prime`, n. 11 e due minori): la scrittura va su un filo suo, subito dopo il cambio (prima stava sul
+// thread di chi chiamava, spesso il principale), e una scrittura che fallisce (il disco pieno) non sembra più riuscita:
+// lo dice «Le notifiche non arrivano?», e la scrittura dopo riscrive tutto. Un file rovinato (o un elemento illeggibile)
+// non si perde in silenzio: si copia in `fluid_notify.json.bak` e lo dice la stessa pagina. La copia in memoria resta la
+// verità del processo anche se il disco rifiuta: così un promemoria messo in programma suona finché il processo vive.
 
 /** Un promemoria come sta nella memoria. [lastScheduledMillis] è l'ultimo appuntamento già consegnato. */
 internal data class FluidStoredReminder(
@@ -51,40 +62,99 @@ internal data class FluidNotifyMemory(
   val digestQueue: List<FluidNotifyMessage> = emptyList(),
 )
 
-/** Il file della memoria, con accesso serializzato. */
+/**
+ * Il file della memoria, con accesso serializzato. La copia in memoria è la verità del processo; il disco la segue su un
+ * filo suo ([Writer]), sempre con l'ultima versione.
+ */
 internal class FluidNotifyStore(private val file: File?) {
   private var cached: FluidNotifyMemory? = null
+
+  /** L'ultima versione ancora da scrivere, o null. */
+  private var dirty: FluidNotifyMemory? = null
+
+  /** Vero se l'ultima scrittura su disco è fallita (il disco pieno): un riavvio perderebbe gli ultimi cambi. */
+  @Volatile
+  var writeFailed: Boolean = false
+    private set
+
+  /**
+   * Quanti elementi (promemoria, arrivi, notifiche in attesa) non si sono potuti leggere dal file, o -1 se il file intero
+   * era illeggibile. Il file com'era sta in `fluid_notify.json.bak`.
+   */
+  @Volatile
+  var unreadable: Int = 0
+    private set
+
+  /** Chiamata (da un filo qualsiasi) quando [writeFailed] o [unreadable] cambiano. */
+  @Volatile
+  var onTrouble: (() -> Unit)? = null
 
   @Synchronized
   fun read(): FluidNotifyMemory {
     cached?.let { return it }
-    val memory = file?.takeIf { it.exists() }?.let { runCatching { FluidNotifyCodec.decode(it.readText()) }.getOrNull() }
-      ?: FluidNotifyMemory()
+    val memory = load()
     cached = memory
     return memory
+  }
+
+  private fun load(): FluidNotifyMemory {
+    val target = file?.takeIf { it.isFile } ?: return FluidNotifyMemory()
+    val text = runCatching { target.readText() }.getOrNull()
+    val decoded = text?.let { runCatching { FluidNotifyCodec.decodeCounting(it) }.getOrNull() }
+    if (decoded == null || decoded.second > 0) {
+      // Rovinato, tutto o in parte: la copia com'era, prima che la prossima scrittura la sostituisca.
+      if (text != null) runCatching { File(target.parentFile, target.name + ".bak").writeText(text) }
+      unreadable = decoded?.second ?: -1
+      onTrouble?.invoke()
+    }
+    return decoded?.first ?: FluidNotifyMemory()
   }
 
   @Synchronized
   fun update(change: (FluidNotifyMemory) -> FluidNotifyMemory): FluidNotifyMemory {
     val next = change(read())
     cached = next
-    val target = file ?: return next
-    runCatching {
-      target.parentFile?.mkdirs()
-      val temp = File(target.parentFile, target.name + ".tmp")
-      temp.writeText(FluidNotifyCodec.encode(next))
-      if (!temp.renameTo(target)) {
-        target.delete()
-        temp.renameTo(target)
-      }
+    if (file != null) {
+      dirty = next
+      Writer.execute(::writeDirty)
     }
     return next
   }
 
+  private fun writeDirty() {
+    val memory = synchronized(this) { dirty.also { dirty = null } } ?: return
+    val target = file ?: return
+    val ok = runCatching {
+      target.parentFile?.mkdirs()
+      val temp = File(target.parentFile, target.name + ".tmp")
+      temp.writeText(FluidNotifyCodec.encode(memory))
+      // In un colpo solo: niente «cancella e rinomina», che con una morte in mezzo lasciava la memoria vuota.
+      Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+    }.isSuccess
+    if (writeFailed == ok) {
+      writeFailed = !ok
+      onTrouble?.invoke()
+    }
+  }
+
+  /** Aspetta che le scritture già chieste siano su disco (al più cinque secondi). */
+  fun flush() {
+    if (file == null) return
+    runCatching { Writer.submit(Runnable {}).get(5, TimeUnit.SECONDS) }
+  }
+
   /** Dimentica la copia in memoria (le prove simulano un processo nuovo). */
-  @Synchronized
   fun forget() {
-    cached = null
+    flush()
+    synchronized(this) { cached = null }
+  }
+
+  private companion object {
+    /** Il filo delle scritture, uno per il processo; si spegne da solo quando non c'è niente da scrivere. */
+    val Writer: ThreadPoolExecutor = ThreadPoolExecutor(
+      1, 1, 2L, TimeUnit.SECONDS, LinkedBlockingQueue(),
+      { runnable -> Thread(runnable, "fluid-notify-store").apply { isDaemon = true } },
+    ).apply { allowCoreThreadTimeOut(true) }
   }
 }
 
@@ -104,17 +174,25 @@ internal object FluidNotifyCodec {
     put("digestQueue", buildJsonArray { memory.digestQueue.forEach { add(message(it)) } })
   }.toString()
 
-  fun decode(text: String): FluidNotifyMemory {
+  fun decode(text: String): FluidNotifyMemory = decodeCounting(text).first
+
+  /** Come [decode], e quanti elementi illeggibili ha saltato (promemoria, arrivi, notifiche in attesa). */
+  fun decodeCounting(text: String): Pair<FluidNotifyMemory, Int> {
     val root = json.parseToJsonElement(text).jsonObject
-    return FluidNotifyMemory(
-      reminders = root.array("reminders").mapNotNull { runCatching { reminder(it.jsonObject) }.getOrNull() },
-      deliveries = root.array("deliveries").mapNotNull { runCatching { delivery(it.jsonObject) }.getOrNull() },
+    var skipped = 0
+    fun <T : Any> List<JsonElement>.readEach(read: (JsonObject) -> T): List<T> = mapNotNull { element ->
+      runCatching { read(element.jsonObject) }.getOrNull().also { if (it == null) skipped++ }
+    }
+    val memory = FluidNotifyMemory(
+      reminders = root.array("reminders").readEach { reminder(it) },
+      deliveries = root.array("deliveries").readEach { delivery(it) },
       digestEnabled = root.bool("digestEnabled") ?: false,
       digestTimes = root.array("digestTimes").mapNotNull { it.jsonPrimitive.contentOrNull?.toIntOrNull() }
         .ifEmpty { listOf(8 * 60, 18 * 60) },
       digestChannels = root.array("digestChannels").mapNotNull { it.jsonPrimitive.contentOrNull }.toSet(),
-      digestQueue = root.array("digestQueue").mapNotNull { runCatching { message(it.jsonObject) }.getOrNull() },
+      digestQueue = root.array("digestQueue").readEach { message(it) },
     )
+    return memory to skipped
   }
 
   private fun reminder(r: FluidStoredReminder): JsonObject = buildJsonObject {
@@ -188,6 +266,7 @@ internal object FluidNotifyCodec {
     put("scheduled", d.scheduledMillis)
     put("delivered", d.deliveredMillis)
     d.reason?.let { put("reason", it) }
+    if (!d.shown) put("shown", false)
   }
 
   private fun delivery(o: JsonObject): FluidReminderDelivery = FluidReminderDelivery(
@@ -196,6 +275,7 @@ internal object FluidNotifyCodec {
     scheduledMillis = o.long("scheduled") ?: 0L,
     deliveredMillis = o.long("delivered") ?: 0L,
     reason = o.string("reason"),
+    shown = o.bool("shown") ?: true,
   )
 
   private fun message(m: FluidNotifyMessage): JsonObject = buildJsonObject {

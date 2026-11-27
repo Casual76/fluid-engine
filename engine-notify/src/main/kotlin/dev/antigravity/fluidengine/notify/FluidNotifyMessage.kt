@@ -45,14 +45,20 @@ class FluidNotifyReply(
  * @param thread il filo: le notifiche dello stesso filo si raccolgono sotto una sola («3 nuovi voti», con la frase del
  *   canale), e le seguenti di una raffica arrivano in silenzio. Null: da sola.
  * @param open l'indirizzo da aprire al tocco (un indirizzo di pagina di F8.12, `https://…` o lo schema dell'app); di
- *   serie l'app.
+ *   serie l'app. Un indirizzo che nessuna attività dell'app apre va al browser se è `http`/`https`, altrimenti apre l'app.
  * @param actions i tasti (Android ne mostra tre, la risposta compresa).
  * @param reply la risposta rapida, o null.
- * @param person chi la manda («Alessio»): diventa una conversazione (`MessagingStyle`), e le modalità di concentrazione
- *   possono lasciarla passare se l'utente ha scelto quella persona.
+ * @param person chi la manda («Alessio»): diventa una **conversazione** di Android (`MessagingStyle`, `CATEGORY_MESSAGE` e
+ *   una scorciatoia dinamica di lunga vita per quella persona, `setShortcutId`): sta nella sezione «Conversazioni» e
+ *   l'utente la può rendere prioritaria, anche per Non disturbare. La persona compare anche nel menu dell'icona dell'app,
+ *   finché la conversazione ha notifiche a schermo; al più `getMaxShortcutCountPerActivity` scorciatoie in tutto (esce la
+ *   conversazione usata meno di recente, mai una scorciatoia dell'app). La persona si riconosce dal nome (R2, review
+ *   `muse-f8-prime`, n. 8, con la scelta di Alessio).
  * @param timeMillis l'ora dell'evento (sull'orologio di parete).
  * @param urgent vero per farla arrivare subito anche col riepilogo acceso; null lo lascia al canale.
- * @param sensitive vero per nasconderne il testo a telefono bloccato.
+ * @param sensitive vero per nasconderne titolo e testo a telefono bloccato, quando l'utente ha scelto di nascondere i
+ *   contenuti sensibili (in Android «Mostra contenuti sensibili solo da sbloccato», come «Mostra anteprime: Quando
+ *   sbloccato» di iOS): si vede il nome del canale. Anche i riassunti del filo e del riepilogo non la ripetono.
  */
 data class FluidNotifyMessage(
   val id: String,

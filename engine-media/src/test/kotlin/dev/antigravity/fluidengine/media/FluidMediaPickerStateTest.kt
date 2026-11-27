@@ -134,6 +134,70 @@ class FluidMediaPickerStateTest {
     assertTrue(state.unlockNeeded is FluidMediaAccess.Locked)
   }
 
+  /** Una sorgente il cui backup non risponde finche' [failing] e' vero. */
+  private class Flaky(private val inner: FluidFakeMediaSource) : FluidMediaSource by inner {
+    var failing = false
+    override suspend fun page(query: FluidMediaQuery, cursor: String?, limit: Int): FluidMediaPage {
+      if (failing) throw java.io.IOException("Il NAS non risponde")
+      return inner.page(query, cursor, limit)
+    }
+  }
+
+  @Test fun unaPaginaCheNonArrivaNonChiudeLaLista() = runTest {
+    // R1 (Muse 2): prima l'errore chiudeva la lista (finished) e una sorgente spenta sembrava una libreria vuota.
+    val flaky = Flaky(FluidFakeMediaSource.sample(count = 45))
+    val state = picker(10, flaky)
+    val feed = state.feed(flaky, state.request.query())
+    feed.loadMore()
+    advanceUntilIdle()
+    assertEquals(20, feed.items.size)
+    flaky.failing = true
+    feed.loadMore()
+    advanceUntilIdle()
+    assertTrue(feed.failed)
+    assertFalse("la lista non e' finita", feed.finished)
+    assertEquals("le foto arrivate restano", 20, feed.items.size)
+    // Senza «Riprova» non si richiede da se' (niente raffiche verso un NAS spento).
+    feed.loadMore()
+    advanceUntilIdle()
+    assertEquals(20, feed.items.size)
+    flaky.failing = false
+    feed.retry()
+    advanceUntilIdle()
+    assertFalse(feed.failed)
+    assertEquals("riparte dal punto giusto", 40, feed.items.size)
+    assertEquals(feed.items.map { it.key }.distinct(), feed.items.map { it.key })
+  }
+
+  @Test fun gliElementiSceltiSiSalvanoESiRitrovano() {
+    // R1 (Muse 1): i campi degli elementi scelti nel Bundle, e un formato che non torna non fa cadere niente.
+    val items = FluidFakeMediaSource.sample(count = 12).entries.map { it.item }
+    val saved = mediaItemsToSaved(items)
+    assertEquals(items, mediaItemsFromSaved(saved))
+    assertEquals(emptyList<FluidMediaItem>(), mediaItemsFromSaved(listOf("una", "riga", "vecchia")))
+    assertEquals(emptyList<FluidMediaItem>(), mediaItemsFromSaved(null))
+    // Il tetto: oltre MaxSavedMediaItems non si salva.
+    val many = List(MaxSavedMediaItems + 5) { FluidMediaItem("mycloud", "m$it") }
+    assertEquals(MaxSavedMediaItems, mediaItemsFromSaved(mediaItemsToSaved(many)).size)
+  }
+
+  @Test fun unaChiaveSenzaElementoEsceDallaSceltaESiDice() = runTest {
+    val cloud = FluidFakeMediaSource.sample(count = 6)
+    val state = picker(10, cloud)
+    val feed = state.feed(cloud, state.request.query()).also { it.loadMore() }
+    advanceUntilIdle()
+    state.selection.toggle(feed.items[0].key)
+    state.selection.toggle("mycloud/sparito")
+    state.restoreKnown(listOf(feed.items[2]))
+    state.selection.toggle(feed.items[2].key)
+    var result: List<FluidPickedMedia>? = null
+    launch { result = state.deliverSelection() }
+    advanceUntilIdle()
+    assertEquals(listOf(feed.items[0].id, feed.items[2].id), result!!.map { it.item!!.id })
+    assertEquals("la chiave persa conta fra i saltati", 1, state.notice?.skipped)
+    assertEquals(2, state.selection.countIn(0))
+  }
+
   private fun kotlinx.coroutines.CoroutineScope.launchDeliver(
     state: FluidMediaPickerState,
     items: List<FluidMediaItem>? = null,

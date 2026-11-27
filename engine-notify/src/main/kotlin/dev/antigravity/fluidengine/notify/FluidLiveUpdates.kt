@@ -5,12 +5,14 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import dev.antigravity.fluidengine.foundation.live.FluidLiveKind
 import dev.antigravity.fluidengine.foundation.live.FluidLiveOutcome
 import dev.antigravity.fluidengine.foundation.live.FluidLiveUpdate
 import dev.antigravity.fluidengine.foundation.live.FluidLiveUpdateSink
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,10 +45,15 @@ import kotlinx.coroutines.flow.asStateFlow
  * ```
  *
  * Come [FluidLiveUpdateSink] è il modo **diretto**: le notifiche si vedono sempre.
+ *
+ * A telefono bloccato, per chi ha scelto di nascondere i contenuti sensibili, si vede la versione pubblica: «Attività in
+ * corso» con la barra e il cronometro, senza titolo, riga e tasti (le notifiche sono `VISIBILITY_PRIVATE`; R2).
  */
 class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : FluidLiveUpdateSink {
-  private class Entry(val id: String, var update: FluidLiveUpdate, var mirrored: Boolean) {
+  private class Entry(val id: String, var update: FluidLiveUpdate, var mirrored: Boolean, val epoch: Long) {
     var tag: String? = LiveTagPrefix + id
+    /** L'istante (`elapsedRealtime`) in cui l'attività è andata in pausa: il tempo mostrato resta quello. */
+    var pausedAt: Long? = null
     var notificationId: Int = LiveNotificationId
     var bound: Boolean = false
     var posted: FluidLivePlan? = null
@@ -58,6 +65,13 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
   }
 
   private val entries = LinkedHashMap<String, Entry>()
+
+  /**
+   * Il numero dell'ultima attività creata. Ogni attività (anche una nuova con lo stesso `id` dopo la fine) ha il suo, e i
+   * tasti e il `deleteIntent` delle sue notifiche lo portano: un tocco su una notifica di un'attività finita non comanda
+   * quella nuova (R2, sospetto 4 della review `muse-f8-prime`).
+   */
+  private val lastEpoch = AtomicLong()
   private val always = MutableStateFlow(true)
   private val running = MutableStateFlow<List<FluidLiveUpdate>>(emptyList())
 
@@ -92,9 +106,13 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
    */
   fun foreground(update: FluidLiveUpdate, notificationId: Int): Notification {
     val plan = fluidLivePlan(update, notify.sdk, notify.elapsedNow(), notify.wallNow(), notify.config.labels)!!
+    // Il numero dell'attività si sceglie qui, sul filo di chi chiama, perché la notifica restituita lo porta già. Le
+    // attività si leggono solo dal principale (di solito `startForeground` sta lì); da un altro filo, un numero nuovo.
+    val running = if (Looper.myLooper() == Looper.getMainLooper()) entries[update.id]?.takeIf { it.outcome == null } else null
+    val epoch = running?.epoch ?: lastEpoch.incrementAndGet()
     notify.onMain {
-      val entry = entries[update.id]?.takeIf { it.outcome == null }
-        ?: Entry(update.id, update, mirrored = false).also { entries[update.id] = it }
+      val entry = entries[update.id]?.takeIf { it.outcome == null && it.epoch == epoch }
+        ?: Entry(update.id, update, mirrored = false, epoch = epoch).also { entries[update.id] = it }
       entry.update = update
       entry.mirrored = false
       entry.bound = true
@@ -106,7 +124,7 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
       entry.shown = true
       publishRunning()
     }
-    return build(update.id, update, plan)
+    return build(update.id, update, plan, epoch)
   }
 
   override fun finish(id: String, outcome: FluidLiveOutcome) = notify.onMain {
@@ -122,7 +140,7 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
       // Smessa di seguire: niente, nemmeno l'errore (l'utente non la vuole più vedere).
       entry.dismissed && (!outcome.failed || entry.unfollowed) -> drop(entry)
       else -> {
-        val plan = fluidLivePlan(entry.update, notify.sdk, notify.elapsedNow(), notify.wallNow(), notify.config.labels, outcome)
+        val plan = planOf(entry, outcome)
         entries.remove(id)
         publishRunning()
         if (plan == null) {
@@ -133,7 +151,7 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
         if (entry.bound) cancel(entry)
         val tag = LiveTagPrefix + id
         notify.gate.submit(gateKey(id)) {
-          notify.poster.notify(tag, LiveNotificationId, build(id, entry.update, plan))
+          notify.poster.notify(tag, LiveNotificationId, build(id, entry.update, plan, entry.epoch))
         }
       }
     }
@@ -156,7 +174,7 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
    */
   fun build(update: FluidLiveUpdate, outcome: FluidLiveOutcome? = null): Notification? {
     val plan = fluidLivePlan(update, notify.sdk, notify.elapsedNow(), notify.wallNow(), notify.config.labels, outcome) ?: return null
-    return build(update.id, update, plan)
+    return build(update.id, update, plan, epoch = 0L)
   }
 
   // --- dentro ---------------------------------------------------------------------------------------------------------
@@ -164,7 +182,7 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
   private fun publish(update: FluidLiveUpdate, mirrored: Boolean) = notify.onMain {
     val old = entries[update.id]
     val entry = if (old == null || old.outcome != null) {
-      Entry(update.id, update, mirrored).also { entries[update.id] = it }
+      Entry(update.id, update, mirrored, lastEpoch.incrementAndGet()).also { entries[update.id] = it }
     } else {
       old.also {
         it.update = update
@@ -189,7 +207,7 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
       notify.blocked(FluidNotifyChannel.LiveId)
       return
     }
-    val plan = fluidLivePlan(entry.update, notify.sdk, notify.elapsedNow(), notify.wallNow(), notify.config.labels) ?: return
+    val plan = planOf(entry) ?: return
     if (plan == entry.posted && entry.shown) return
     val notBefore = if (entry.shown && plan.onlyProgressDiffers(entry.posted)) {
       entry.postedAt + FluidNotifyProfile.ProgressGapMs
@@ -202,12 +220,30 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
   /** Pubblica lo stato di adesso di [entry] (la porta l'ha lasciata passare). */
   private fun post(entry: Entry) {
     if (entries[entry.id] !== entry || !visible(entry)) return
-    val plan = fluidLivePlan(entry.update, notify.sdk, notify.elapsedNow(), notify.wallNow(), notify.config.labels) ?: return
+    val plan = planOf(entry) ?: return
     if (plan == entry.posted && entry.shown) return
-    notify.poster.notify(entry.tag, entry.notificationId, build(entry.id, entry.update, plan))
+    notify.poster.notify(entry.tag, entry.notificationId, build(entry.id, entry.update, plan, entry.epoch))
     entry.posted = plan
     entry.postedAt = notify.elapsedNow()
     entry.shown = true
+  }
+
+  /**
+   * Il piano di adesso di [entry]. In pausa il tempo si legge all'istante della pausa: resta fermo anche se l'app lo dà
+   * come un tempo che corre (R2).
+   */
+  private fun planOf(entry: Entry, outcome: FluidLiveOutcome? = null): FluidLivePlan? {
+    val now = notify.elapsedNow()
+    entry.pausedAt = if (entry.update.paused) entry.pausedAt ?: now else null
+    return fluidLivePlan(entry.update, notify.sdk, entry.pausedAt ?: now, notify.wallNow(), notify.config.labels, outcome)
+  }
+
+  /**
+   * Le notifiche sono tornate (R2): le attività che si dovrebbero vedere e non sono a schermo, perché il permesso o il
+   * canale erano spenti quando l'app le ha pubblicate, si pubblicano adesso, senza aspettare che l'app ripubblichi.
+   */
+  internal fun retryBlocked() {
+    entries.values.toList().filter { visible(it) && !it.shown }.forEach { schedule(it) }
   }
 
   private fun drop(entry: Entry) {
@@ -238,9 +274,11 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
     }
   }
 
-  /** L'utente ha tolto la notifica di [id] (il `deleteIntent`). */
-  internal fun onDismissed(id: String) {
+  /** L'utente ha tolto la notifica di [id] (il `deleteIntent`) dell'attività numero [epoch]. */
+  internal fun onDismissed(id: String, epoch: Long) {
     val entry = entries[id] ?: return
+    // La notifica di un'attività di prima con lo stesso id: non riguarda quella di adesso.
+    if (epoch != entry.epoch) return
     entry.dismissed = true
     entry.shown = false
     entry.posted = null
@@ -248,14 +286,17 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
     notify.dispatch(FluidNotifyEvent.LiveDismissed(id))
   }
 
-  /** Il tasto [key] della notifica di [id], pubblicata nel processo [session]. */
-  internal fun onAction(id: String, key: String, session: Long) {
+  /** Il tasto [key] della notifica di [id], pubblicata nel processo [session] per l'attività numero [epoch]. */
+  internal fun onAction(id: String, key: String, session: Long, epoch: Long) {
     val entry = entries[id]
     if (entry == null || session != notify.session) {
       // Una notifica di un processo morto, o di un'attività già finita: era vecchia, se ne va.
       notify.poster.cancel(LiveTagPrefix + id, LiveNotificationId)
       return
     }
+    // Il tasto di un'attività di prima con lo stesso id (la notifica vecchia non era ancora stata sostituita): non
+    // comanda quella nuova, e la notifica a schermo è già la sua.
+    if (epoch != entry.epoch) return
     if (key == FluidLiveUnfollowKey) {
       // Come una notifica tolta dall'utente: non torna finché l'app non finisce o toglie l'attività (visto sul tablet il
       // 25/11/2026: la scena continuava a pubblicare il viaggio e la notifica tornava a ogni fermata).
@@ -271,7 +312,7 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
 
   // --- la notifica ----------------------------------------------------------------------------------------------------
 
-  private fun build(id: String, update: FluidLiveUpdate, plan: FluidLivePlan): Notification {
+  private fun build(id: String, update: FluidLiveUpdate, plan: FluidLivePlan, epoch: Long): Notification {
     val context = notify.context
     val icon = liveIcon(plan.icon)
     val builder = NotificationCompat.Builder(context, FluidNotifyChannel.LiveId)
@@ -282,11 +323,17 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
       .setOnlyAlertOnce(true)
       .setCategory(plan.category)
       .setPriority(NotificationCompat.PRIORITY_LOW)
-      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      // R2 (review `muse-f8-prime`): privata, con una versione pubblica senza dettagli. Prima era pubblica, e titolo e riga
+      // (il nome di un file, una destinazione, la risposta dell'assistente) si leggevano a telefono bloccato anche da chi
+      // nasconde i contenuti sensibili. Chi mostra tutto vede tutto, come per le altre notifiche.
+      .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+      .setPublicVersion(publicVersion(icon, plan))
       .setContentIntent(notify.openIntent(update.open, "live:$id"))
-      .setDeleteIntent(livePendingIntent(FluidNotifyReceiver.ActionLiveDismissed, id, null))
       .setShowWhen(plan.chronometer != null)
       .setRequestPromotedOngoing(plan.requestPromotion)
+    // Solo un'attività in corso ascolta chi la toglie: l'esito che scade (4 ore) o che l'utente toglie non riguarda
+    // un'attività nuova con lo stesso id (R2, sospetto 4).
+    if (!plan.finished) builder.setDeleteIntent(livePendingIntent(FluidNotifyReceiver.ActionLiveDismissed, id, null, epoch))
     notify.config.color?.let { builder.setColor(it) }
     plan.chip?.let { builder.setShortCriticalText(it) }
     plan.chronometer?.let { chrono ->
@@ -317,7 +364,7 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
     }
     plan.actions.forEach { action ->
       builder.addAction(
-        NotificationCompat.Action.Builder(0, action.label, livePendingIntent(FluidNotifyReceiver.ActionLiveAction, id, action.key))
+        NotificationCompat.Action.Builder(0, action.label, livePendingIntent(FluidNotifyReceiver.ActionLiveAction, id, action.key, epoch))
           .build(),
       )
     }
@@ -351,12 +398,36 @@ class FluidLiveUpdates internal constructor(private val notify: FluidNotify) : F
     else -> notify.config.smallIcon.takeIf { it != 0 } ?: R.drawable.fluid_notify_reminder
   }
 
-  private fun livePendingIntent(action: String, id: String, key: String?): PendingIntent {
+  /**
+   * La versione per la schermata di blocco di chi nasconde i contenuti sensibili: il nome del canale («Attività in
+   * corso»), la barra e il cronometro, l'esito in una parola; niente titolo, riga, tasti.
+   */
+  private fun publicVersion(icon: Int, plan: FluidLivePlan): Notification {
+    val labels = notify.config.labels
+    val redacted = NotificationCompat.Builder(notify.context, FluidNotifyChannel.LiveId)
+      .setSmallIcon(icon)
+      .setContentTitle(labels.liveChannel)
+      .setOngoing(plan.ongoing)
+      .setOnlyAlertOnce(true)
+      .setCategory(plan.category)
+      .setPriority(NotificationCompat.PRIORITY_LOW)
+      .setShowWhen(plan.chronometer != null)
+      .setRequestPromotedOngoing(plan.requestPromotion)
+    if (plan.finished) redacted.setContentText(if (plan.icon == "failed") labels.failed else labels.done)
+    plan.bar?.let { redacted.setProgress(it.max, it.progress, it.indeterminate) }
+    plan.chronometer?.let { redacted.setWhen(it.whenWallMillis).setUsesChronometer(true).setChronometerCountDown(it.countDown) }
+    notify.config.color?.let { redacted.setColor(it) }
+    return redacted.build()
+  }
+
+  private fun livePendingIntent(action: String, id: String, key: String?, epoch: Long): PendingIntent {
+    // Il numero dell'attività sta anche nell'indirizzo: un PendingIntent per attività, non uno condiviso e riscritto.
     val intent = Intent(action).setClass(notify.context, FluidNotifyReceiver::class.java)
-      .setData(Uri.parse("fluid-notify://live/" + Uri.encode(id) + "/" + Uri.encode(key ?: "")))
+      .setData(Uri.parse("fluid-notify://live/" + Uri.encode(id) + "/" + Uri.encode(key ?: "") + "?e=" + epoch))
       .putExtra(FluidNotifyReceiver.ExtraId, id)
       .putExtra(FluidNotifyReceiver.ExtraKey, key)
       .putExtra(FluidNotifyReceiver.ExtraSession, notify.session)
+      .putExtra(FluidNotifyReceiver.ExtraEpoch, epoch)
     return PendingIntent.getBroadcast(notify.context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   }
 

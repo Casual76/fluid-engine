@@ -21,6 +21,16 @@ internal class GlassFrameHistory {
 
   val recoveryReady get() = goodWindows >= 3 && activeNs >= RecoveryNs
 
+  /** F7.26d, diagnostica delle build di prova: i fotogrammi arrivati qui e quelli che hanno votato. Due somme, niente altro. */
+  var calls = 0L
+    private set
+  var votes = 0L
+    private set
+
+  /** F7.26d: lo stato delle finestre, per la riga dei voti delle build di prova. Mai sul percorso di un fotogramma. */
+  fun describe() = "finestra=$count tardi=$lateCount lenti=$slowWorkCount sana=$wholeWindowHealthy " +
+    "buone=$goodWindows cattive=$badWindows attivoMs=${activeNs / 1_000_000}"
+
   fun resetVotes() {
     count = 0
     lateCount = 0
@@ -56,6 +66,7 @@ internal class GlassFrameHistory {
   ): GlassQualityReason? {
     if (frameTime <= lastFrameTime) return null
     lastFrameTime = frameTime
+    calls++
     if (evidence != GlassFrameEvidence.MeasuredApp || droppedReports != 0 ||
       deadline <= 0 || total < 0 || work !in 0..total
     ) {
@@ -63,6 +74,7 @@ internal class GlassFrameHistory {
       invalidateRecovery()
       return null
     }
+    votes++
     if (healthy && lastObservation >= 0) {
       // Un callback dopo una pausa testimonia al più un periodo di moto, mai tutta l'attesa.
       activeNs = minOf(RecoveryNs, activeNs + minOf(period, frameTime - lastObservation))

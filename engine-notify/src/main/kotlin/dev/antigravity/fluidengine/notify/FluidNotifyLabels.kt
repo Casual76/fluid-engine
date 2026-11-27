@@ -49,6 +49,20 @@ data class FluidNotifyLabels(
   val fixOpen: String = "Apri le impostazioni",
   val fixBattery: String = "Apri «Batteria»",
   val fixAllow: String = "Consenti",
+  // R2 (review `muse-f8-prime`): in coda, con un valore di serie.
+  /**
+   * Perché un promemoria non è stato mostrato (nel registro, «non mostrato»): all'ora giusta le notifiche, o il suo canale,
+   * erano spente. Non arriva più quando tornano (la scelta di Alessio, R2).
+   */
+  val notShownNotificationsOff: String = "Le notifiche erano spente",
+  /** Perché un promemoria è arrivato tardi: l'app l'ha messo in programma per un'ora già passata. */
+  val latePastWhenScheduled: String = "Era già passato quando l'app l'ha messo in programma",
+  /** Il controllo della memoria di notifiche e promemoria (solo quando qualcosa non va). */
+  val checkStorage: String = "Memoria dei promemoria",
+  val checkStorageWriteFailed: String =
+    "Non riesco a salvare promemoria e riepilogo: lo spazio del telefono potrebbe essere pieno. Finché non si salvano, un riavvio li perde.",
+  val checkStorageUnreadable: String =
+    "Una parte della memoria dei promemoria era rovinata e non si è potuta leggere: controlla «Cosa succederà» e rimetti quelli che mancano.",
 ) {
   companion object {
     /** Le parole inglesi. */
@@ -77,6 +91,11 @@ data class FluidNotifyLabels(
       checkLive = "Live Updates", checkLiveOk = "On: ongoing activities stay in the status bar",
       checkLiveOff = "Off: ongoing activities stay ordinary notifications",
       fixOpen = "Open settings", fixBattery = "Open Battery", fixAllow = "Allow",
+      notShownNotificationsOff = "Notifications were off",
+      latePastWhenScheduled = "It was already past when the app scheduled it",
+      checkStorage = "Reminder storage",
+      checkStorageWriteFailed = "I can't save reminders and the summary: the phone may be out of space. Until they are saved, a restart loses them.",
+      checkStorageUnreadable = "Part of the reminder storage was damaged and couldn't be read: check «What's coming up» and add back the missing ones.",
     )
   }
 }

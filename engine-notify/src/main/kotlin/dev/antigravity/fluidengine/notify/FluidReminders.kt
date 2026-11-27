@@ -113,18 +113,30 @@ internal fun fluidReminderDue(
 /** Quante occorrenze si scorrono al massimo per trovare la prossima: più di cent'anni di una regola giornaliera. */
 private const val MaxOccurrenceSteps = 40_000
 
-/** Perché un promemoria è arrivato tardi, o null se è arrivato in orario. Pura. */
+/**
+ * Perché un promemoria è arrivato tardi, o null se è arrivato in orario. Pura.
+ *
+ * Il perché vero, prima il più preciso (R2, review `muse-f8-prime`: prima un promemoria mai armato prendeva «senza
+ * l'allarme esatto», e uno consegnato all'avvio dell'app dopo un riavvio «il sistema l'ha ritardato»):
+ * - [pastWhenScheduled]: l'app l'ha messo in programma per un'ora già passata;
+ * - [afterRestore], o il telefono acceso dopo l'ora del promemoria ([bootedAtMillis], sull'orologio di parete): era spento;
+ * - senza l'allarme esatto ([exact] falso): Android l'ha spostato;
+ * - altrimenti il sistema (il risparmio energetico).
+ */
 internal fun fluidReminderLateReason(
   scheduledMillis: Long,
   deliveredMillis: Long,
   afterRestore: Boolean,
   exact: Boolean,
   labels: FluidNotifyLabels,
+  bootedAtMillis: Long? = null,
+  pastWhenScheduled: Boolean = false,
 ): String? {
   val delay = deliveredMillis - scheduledMillis
   if (delay <= FluidNotifyProfile.LateThresholdMs) return null
   return when {
-    afterRestore -> labels.lateDeviceOff
+    pastWhenScheduled -> labels.latePastWhenScheduled
+    afterRestore || (bootedAtMillis != null && bootedAtMillis > scheduledMillis) -> labels.lateDeviceOff
     !exact -> labels.lateInexact
     else -> labels.lateSystem
   }
@@ -154,10 +166,23 @@ class FluidReminders internal constructor(private val notify: FluidNotify) {
   /**
    * Mette in programma il promemoria [id] a [at] con [content]. Lo stesso `id` sostituisce quello di prima.
    *
+   * Si può chiamare a ogni avvio dell'app con gli stessi promemoria: ciò che è già arrivato non arriva di nuovo (per una
+   * ripetizione, le occorrenze fino all'ultima consegnata; senza ripetizione, lo stesso istante già nel registro). Un'ora
+   * già passata arriva subito, segnata in ritardo. Si può chiamare da un filo qualsiasi: la notifica parte dal principale.
+   *
+   * Se all'ora giusta le notifiche (o il canale del promemoria) sono spente, il promemoria è perso: il registro lo segna
+   * «non mostrato» ([FluidReminderDelivery.shown] falso) e, quando le notifiche tornano, non arriva niente di vecchio. Una
+   * ripetizione suona di nuovo alla sua occorrenza dopo.
+   *
+   * Un limite di Android: dopo un riavvio i promemoria si rimettono al **primo sblocco** del telefono (la memoria sta
+   * nello spazio dell'app che Android apre solo allora, e il ricevitore del ripristino non è `directBootAware`). Un
+   * promemoria che cade fra l'accensione e il primo sblocco arriva allo sblocco, segnato in ritardo.
+   *
    * @param repeat la ripetizione (la regola delle date di F8.8, sull'orologio), o null.
    * @param exact vero per chiedere l'allarme esatto, se concesso; falso per un promemoria che può arrivare entro dieci
    *   minuti (consuma meno batteria).
-   * @param alarm vero per una sveglia (`setAlarmClock`): suona sempre all'ora giusta e mostra la sveglia nella barra.
+   * @param alarm vero per una sveglia (`setAlarmClock`): suona sempre all'ora giusta e mostra la sveglia nella barra. Anche
+   *   una sveglia, dopo un riavvio, aspetta il primo sblocco (vedi sopra): non è la sveglia del telefono.
    */
   fun schedule(
     id: String,
@@ -170,10 +195,23 @@ class FluidReminders internal constructor(private val notify: FluidNotify) {
     require(id.isNotBlank()) { "un promemoria ha un id" }
     require(content.title.isNotBlank()) { "un promemoria ha un titolo" }
     // Una ripetizione conta i giorni sull'orologio: un istante diventa la sua ora locale di adesso.
-    val time = if (repeat != null && at.wall == null) FluidReminderTime.local(at.wallIn(notify.zone())) else at
-    val reminder = FluidStoredReminder(id, time, content, repeat, exact, alarm)
-    store.update { memory -> memory.copy(reminders = memory.reminders.filterNot { it.id == id } + reminder) }
-    arm(id, afterRestore = false)
+    val zone = notify.zone()
+    val time = if (repeat != null && at.wall == null) FluidReminderTime.local(at.wallIn(zone)) else at
+    store.update { memory ->
+      val old = memory.reminders.firstOrNull { it.id == id }
+      // R2 (review `muse-f8-prime`, n. 10): un'app che rimette i suoi promemoria a ogni avvio non deve far suonare di
+      // nuovo ciò che è già arrivato. Una ripetizione tiene l'ultima consegna (le occorrenze fino a lì sono passate e
+      // già arrivate); senza ripetizione conta lo stesso istante già nel registro.
+      val delivered = if (repeat != null) {
+        old?.lastScheduledMillis ?: memory.deliveries.filter { it.id == id }.maxOfOrNull { it.scheduledMillis }
+      } else {
+        val instant = time.instantMillis(zone)
+        memory.deliveries.firstOrNull { it.id == id && it.scheduledMillis == instant }?.scheduledMillis
+      }
+      val reminder = FluidStoredReminder(id, time, content, repeat, exact, alarm, lastScheduledMillis = delivered)
+      memory.copy(reminders = memory.reminders.filterNot { it.id == id } + reminder)
+    }
+    arm(id, afterRestore = false, pastWhenScheduled = true)
     notify.remindersChanged()
   }
 
@@ -216,8 +254,11 @@ class FluidReminders internal constructor(private val notify: FluidNotify) {
     notify.remindersChanged()
   }
 
-  /** Arma il promemoria [id], o lo consegna subito se è già scaduto. */
-  internal fun arm(id: String, afterRestore: Boolean) {
+  /**
+   * Arma il promemoria [id], o lo consegna subito se è già scaduto. [pastWhenScheduled]: lo arma [schedule], e un
+   * appuntamento già passato vuol dire un'ora passata già quando l'app l'ha chiesto.
+   */
+  internal fun arm(id: String, afterRestore: Boolean, pastWhenScheduled: Boolean = false) {
     val reminder = store.read().reminders.firstOrNull { it.id == id } ?: return
     val now = notify.wallNow()
     val due = fluidReminderDue(reminder.time, reminder.repeat, notify.zone(), reminder.lastScheduledMillis, now)
@@ -228,39 +269,58 @@ class FluidReminders internal constructor(private val notify: FluidNotify) {
       return
     }
     if (due <= now) {
-      deliver(id, due, afterRestore)
+      deliver(id, due, afterRestore, pastWhenScheduled)
       return
     }
-    val exact = reminder.exact && canScheduleExact()
     val pi = pendingIntent(id)
     val am = alarmManager()
-    when {
-      reminder.alarm && exact -> am.setAlarmClock(AlarmManager.AlarmClockInfo(due, notify.openIntent(null, "reminder:$id")), pi)
-      exact -> am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, due, pi)
-      else -> am.setWindow(AlarmManager.RTC_WAKEUP, due, FluidNotifyProfile.InexactWindowMs, pi)
-    }
+    // R2: il permesso degli allarmi esatti può sparire fra il controllo e la richiesta (SecurityException): finestra.
+    val exact = reminder.exact && canScheduleExact() && runCatching {
+      if (reminder.alarm) {
+        am.setAlarmClock(AlarmManager.AlarmClockInfo(due, notify.openIntent(null, "reminder:$id")), pi)
+      } else {
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, due, pi)
+      }
+    }.isSuccess
+    if (!exact) am.setWindow(AlarmManager.RTC_WAKEUP, due, FluidNotifyProfile.InexactWindowMs, pi)
     store.update { memory ->
-      memory.copy(reminders = memory.reminders.map { if (it.id == id) it.copy(nextMillis = due, armedExact = exact) else it })
+      memory.copy(
+        reminders = memory.reminders.map { if (it.id == id) it.copy(nextMillis = due, armedExact = exact) else it },
+      )
     }
   }
 
-  /** L'allarme di [id] è suonato (o era già scaduto): mostra il promemoria, lo registra, arma il prossimo. */
-  internal fun deliver(id: String, scheduledHint: Long?, afterRestore: Boolean) {
+  /**
+   * L'allarme di [id] è suonato (o era già scaduto): mostra il promemoria, lo registra, arma il prossimo. Se non si può
+   * mostrare (le notifiche o il canale spenti) è perso: il registro lo segna «non mostrato», niente `ReminderDelivered`, e
+   * una ripetizione aspetta l'occorrenza dopo (R2, review `muse-f8-prime` n. 7, con la scelta B di Alessio: prima si
+   * segnava «arrivato» come se fosse stato mostrato).
+   */
+  internal fun deliver(id: String, scheduledHint: Long?, afterRestore: Boolean, pastWhenScheduled: Boolean = false) {
     val reminder = store.read().reminders.firstOrNull { it.id == id } ?: return
     val now = notify.wallNow()
     val scheduled = scheduledHint ?: reminder.nextMillis
       ?: fluidReminderDue(reminder.time, reminder.repeat, notify.zone(), reminder.lastScheduledMillis, now) ?: return
     if (reminder.lastScheduledMillis != null && scheduled <= reminder.lastScheduledMillis) return // già consegnato
-    val reason = fluidReminderLateReason(scheduled, now, afterRestore, reminder.armedExact, notify.config.labels)
-    notify.showReminder(reminder, scheduled)
-    val delivery = FluidReminderDelivery(id, reminder.content.title, scheduled, now, reason)
+    val shown = notify.showReminder(reminder, scheduled)
+    val reason = if (shown) {
+      fluidReminderLateReason(
+        scheduled, now, afterRestore, reminder.armedExact, notify.config.labels,
+        bootedAtMillis = now - notify.elapsedNow(), pastWhenScheduled = pastWhenScheduled,
+      )
+    } else {
+      notify.config.labels.notShownNotificationsOff
+    }
+    val delivery = FluidReminderDelivery(id, reminder.content.title, scheduled, now, reason, shown = shown)
     store.update { memory ->
       memory.copy(
-        reminders = memory.reminders.map { if (it.id == id) it.copy(lastScheduledMillis = scheduled, nextMillis = null) else it },
+        reminders = memory.reminders.map {
+          if (it.id == id) it.copy(lastScheduledMillis = scheduled, nextMillis = null) else it
+        },
         deliveries = (listOf(delivery) + memory.deliveries).take(FluidNotifyProfile.DeliveryLogSize),
       )
     }
-    notify.dispatch(FluidNotifyEvent.ReminderDelivered(id, scheduled, now))
+    if (shown) notify.dispatch(FluidNotifyEvent.ReminderDelivered(id, scheduled, now))
     arm(id, afterRestore = false)
     notify.remindersChanged()
   }

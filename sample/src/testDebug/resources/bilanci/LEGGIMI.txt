@@ -34,7 +34,22 @@ Un difetto vero trovato da una invariante (che non ha un tetto da alzare) si scr
 
 Le invarianti, senza colonna (rosse sempre, salvo un @difetto scritto): nessun layer registrato due volte nello stesso fotogramma, nessun vetro che
 cattura due volte nello stesso fotogramma, nessuna cattura più grande del vetro (o della sua finestra) alla scala
-scelta più il margine ottico, due campioni della posa uguali (nodi, layer, byte).
+scelta più il margine ottico, due campioni della posa uguali (nodi, layer, byte), nessuna fabbrica (layer, bitmap,
+programmi) in almeno metà dei fotogrammi del moto stabile, e almeno tre (F7.29).
+
+Il moto e la colonna fab (F7.29). Nel moto fab è il massimo per fotogramma del tratto stabile. Una lista o una griglia
+che scorre crea i layer di ciò che entra in vista (una riga, un gruppo), tutti nello stesso fotogramma e solo ogni tanto
+(a 12 px per fotogramma una riga ogni 4-12 fotogrammi): fab ne dice il costo, cioè quanti layer ha una riga che entra
+(Compose ne dà uno a ogni elemento di una lista pigra, più uno per ogni graphicsLayer, clip o Image della cella). Una
+fabbrica a ogni fotogramma (o a fotogrammi alterni) la ferma l'invariante della metà, anche sotto il tetto; le miniature o
+le cifre che arrivano a scaglioni in qualche fotogramma vicino non la fanno cadere. Le note della
+prova dicono, per ogni fotogramma con fabbriche, di chi sono i layer nati (il modificatore e la catena del nodo).
+
+Il processo caldo (F7.29). Una riga non deve dipendere da quale prova gira prima nella stessa JVM (Gradle fa girare
+prima le classi cadute l'ultima volta, e apre una JVM nuova ogni 80 classi). Per questo il banco compila tutti i
+programmi AGSL condivisi dell'engine prima della prima misura, e F8BalanceTest apre una volta la memoria di F9.3:
+sono costi che il processo paga una volta sola, e prima finivano sulla scena che capitava per prima (menu-tasto 17
+o 18, scorrimento-testo 45 o 47). Un programma che un componente crea per conto suo, fuori dalla cache, conta ancora.
 
 Se una riga diventa rossa
   1. Leggere il messaggio: dice elemento, fase, colonna, misura e tetto (e la riga misurata intera nell'uscita della

@@ -3,6 +3,7 @@ package dev.antigravity.fluidengine.sharein
 import android.content.ContentResolver
 import android.content.Context
 import androidx.compose.runtime.Immutable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -69,7 +70,10 @@ object FluidShareInFiles {
 
   fun root(context: Context): File = File(context.cacheDir, Folder)
 
-  fun newSession(context: Context): File = File(root(context), UUID.randomUUID().toString().take(12)).apply { mkdirs() }
+  fun newSession(context: Context): File = File(sessionPath(context)).apply { mkdirs() }
+
+  /** Il percorso di una cartella d'arrivo nuova, senza crearla (la crea la copia, fuori dal thread principale). */
+  internal fun sessionPath(context: Context): String = File(root(context), UUID.randomUUID().toString().take(12)).path
 
   /** Toglie gli arrivi piu' vecchi di [olderThanMillis] che l'app non ha spostato. Fuori dal thread principale. */
   fun clean(context: Context, olderThanMillis: Long = 24L * 60 * 60 * 1000, now: Long = System.currentTimeMillis()) {
@@ -83,8 +87,9 @@ object FluidShareInFiles {
  * - **Prima** scarta cio' che la [policy] non accetta: il tipo, il numero, il peso dichiarato oltre il tetto.
  * - **Durante** conta i byte: un file che dice di pesare poco (o non lo dice) e supera il tetto si ferma li', e la
  *   copia a meta' si cancella. Lo stesso per il totale.
- * - Un file che non si legge (permesso scaduto, app che non risponde) diventa [FluidShareInProblem.Unreadable]; gli
- *   altri continuano.
+ * - Un file che non si legge (permesso scaduto, app che non risponde, un provider guasto che lancia un'eccezione
+ *   qualsiasi) diventa [FluidShareInProblem.Unreadable]; gli altri continuano.
+ * - Un Uri insicuro (non `content://`, o dell'app stessa e non fidato) non si apre mai: [FluidShareInProblem.UnsafeUri].
  * - [onProgress] arriva dal thread della copia, al piu' ogni 256 KB e alla fine di ogni file.
  */
 suspend fun FluidShareIn.copy(
@@ -94,7 +99,7 @@ suspend fun FluidShareIn.copy(
   into: File = FluidShareInFiles.newSession(context),
   onProgress: (FluidShareInProgress) -> Unit = {},
 ): List<FluidCopiedFile> = withContext(Dispatchers.IO) {
-  fluidCopyIncoming(context.contentResolver, files, policy, into, onProgress)
+  fluidCopyIncoming(context.contentResolver, files, policy, into, onProgress, fluidUnsafeUri(context, policy))
 }
 
 internal const val FluidShareInProgressStep: Long = 256L * 1024
@@ -105,6 +110,7 @@ internal suspend fun fluidCopyIncoming(
   policy: FluidShareInPolicy,
   into: File,
   onProgress: (FluidShareInProgress) -> Unit,
+  unsafe: (android.net.Uri) -> Boolean = { false },
 ): List<FluidCopiedFile> {
   into.mkdirs()
   val declaredTotal = files.take(policy.maxFiles).mapNotNull { it.sizeBytes }.takeIf { it.size == minOf(files.size, policy.maxFiles) }?.sum()
@@ -113,6 +119,7 @@ internal suspend fun fluidCopyIncoming(
   return files.mapIndexed { index, file ->
     coroutineContext.ensureActive()
     val problem = when {
+      unsafe(file.uri) -> FluidShareInProblem.UnsafeUri
       index >= policy.maxFiles -> FluidShareInProblem.TooMany
       !policy.accepts(file.mimeType) -> FluidShareInProblem.TypeNotAccepted
       (file.sizeBytes ?: 0) > policy.maxFileBytes -> FluidShareInProblem.TooLarge
@@ -150,6 +157,13 @@ internal suspend fun fluidCopyIncoming(
     } catch (_: IOException) {
       FluidShareInProblem.Unreadable
     } catch (_: IllegalArgumentException) {
+      FluidShareInProblem.Unreadable
+    } catch (c: CancellationException) {
+      target.delete()
+      throw c
+    } catch (_: RuntimeException) {
+      // R2 · Un provider di un'altra app puo' lanciare qualsiasi eccezione che passa il Binder (IllegalStateException,
+      // NullPointerException, UnsupportedOperationException…): un arrivo rotto non butta gli altri.
       FluidShareInProblem.Unreadable
     } catch (t: Throwable) {
       target.delete()

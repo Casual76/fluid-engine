@@ -18,13 +18,25 @@ import android.print.PrintJob
 import android.print.PrintManager
 import dev.antigravity.fluidengine.ui.fluid.share.FluidImageSample
 import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.io.FileOutputStream
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 
 /**
  * La stampa con l'anteprima di Android (4.0, F8.10), per ogni pagina Compose e non solo per il contenuto web: come
  * `UIPrintInteractionController`. Android mostra l'anteprima, il foglio e la stampante, e la stessa anteprima ha «Salva
  * come PDF». Chiamare dal thread principale, con il contesto di un'attivita'.
+ *
+ * **I thread** (R2). Android chiama l'adattatore sul thread principale, ma lascia finire il lavoro altrove e rispondere da
+ * li': l'impaginazione di un documento senza viste Compose, la sua scrittura, la lettura di un'immagine e la copia di un
+ * PDF vanno su `Dispatchers.Default`, e l'annullamento dello spooler li ferma. Un documento con viste Compose resta sul
+ * thread principale, dove le viste si compongono.
  */
 object FluidPrint {
   /**
@@ -73,23 +85,63 @@ object FluidPrint {
   fun printPdf(context: Context, uri: Uri, jobName: String = "Documento"): PrintJob? {
     val manager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return null
     val resolver = context.applicationContext.contentResolver
-    return manager.print(jobName, object : PrintDocumentAdapter() {
-      override fun onLayout(oldAttributes: PrintAttributes?, newAttributes: PrintAttributes, cancellationSignal: CancellationSignal?, callback: LayoutResultCallback, extras: Bundle?) {
-        if (cancellationSignal?.isCanceled == true) return callback.onLayoutCancelled()
-        callback.onLayoutFinished(
-          PrintDocumentInfo.Builder(jobName).setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
-            .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN).build(),
-          false,
-        )
-      }
-
-      override fun onWrite(pages: Array<out PageRange>, destination: ParcelFileDescriptor, cancellationSignal: CancellationSignal?, callback: WriteResultCallback) {
-        val ok = runCatching {
-          resolver.openInputStream(uri)!!.use { input -> FileOutputStream(destination.fileDescriptor).use { input.copyTo(it) } }
-        }.isSuccess
-        if (ok) callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES)) else callback.onWriteFailed("Il PDF non si legge")
-      }
+    return manager.print(jobName, FluidPdfFilePrintAdapter(jobName) { out ->
+      requireNotNull(resolver.openInputStream(uri)) { "Il PDF non si legge" }.use { input -> input.copyTo(out) }
     }, PrintAttributes.Builder().build())
+  }
+}
+
+/**
+ * Un adattatore di stampa che lavora fuori dal thread principale (R2): [background] fa il lavoro su `Dispatchers.Default`
+ * e risponde **una volta sola**, da li': fatto, fallito, o annullato (dallo spooler col [CancellationSignal], o da
+ * [onFinish]). Il lavoro bloccante non si interrompe a meta', ma un lavoro annullato non risponde mai «fatto».
+ */
+internal abstract class FluidBackgroundPrintAdapter : PrintDocumentAdapter() {
+  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+  protected fun <T> background(
+    signal: CancellationSignal?,
+    work: () -> T,
+    cancelled: () -> Unit,
+    answer: (Result<T>) -> Unit,
+  ) {
+    val once = AtomicBoolean(false)
+    fun reply(block: () -> Unit) {
+      if (once.compareAndSet(false, true)) block()
+    }
+    val job = scope.launch {
+      val result = runCatching(work)
+      if (!isActive || signal?.isCanceled == true) reply(cancelled) else reply { answer(result) }
+    }
+    // Annullato prima di partire, o a meta': la risposta («annullato») c'e' sempre, e una volta sola.
+    job.invokeOnCompletion { reply(cancelled) }
+    signal?.setOnCancelListener { job.cancel() }
+  }
+
+  override fun onFinish() {
+    scope.cancel()
+  }
+}
+
+/** Un PDF fatto, scritto com'e' da [copy] nel file dello spooler. */
+internal class FluidPdfFilePrintAdapter(
+  private val jobName: String,
+  private val copy: (java.io.OutputStream) -> Unit,
+) : FluidBackgroundPrintAdapter() {
+  override fun onLayout(oldAttributes: PrintAttributes?, newAttributes: PrintAttributes, cancellationSignal: CancellationSignal?, callback: LayoutResultCallback, extras: Bundle?) {
+    if (cancellationSignal?.isCanceled == true) return callback.onLayoutCancelled()
+    callback.onLayoutFinished(
+      PrintDocumentInfo.Builder(jobName).setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+        .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN).build(),
+      false,
+    )
+  }
+
+  override fun onWrite(pages: Array<out PageRange>, destination: ParcelFileDescriptor, cancellationSignal: CancellationSignal?, callback: WriteResultCallback) {
+    if (cancellationSignal?.isCanceled == true) return callback.onWriteCancelled()
+    background(cancellationSignal, { FileOutputStream(destination.fileDescriptor).use(copy) }, callback::onWriteCancelled) { result ->
+      if (result.isSuccess) callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES)) else callback.onWriteFailed("Il PDF non si legge")
+    }
   }
 }
 
@@ -110,39 +162,51 @@ internal class FluidDocumentPrintAdapter(
   private val jobName: String,
   private val style: FluidPdfStyle,
   private val composer: FluidPdfComposer?,
-) : PrintDocumentAdapter() {
-  private var laidOut: FluidPdfDocument = document
-  private var pages: List<FluidPdfPage> = emptyList()
+) : FluidBackgroundPrintAdapter() {
+  // Scritte dal lavoro dell'impaginazione e lette dalla scrittura: lo spooler non chiede di scrivere prima che
+  // l'impaginazione abbia risposto.
+  @Volatile private var laidOut: FluidPdfDocument = document
+  @Volatile private var pages: List<FluidPdfPage> = emptyList()
 
   override fun onLayout(oldAttributes: PrintAttributes?, newAttributes: PrintAttributes, cancellationSignal: CancellationSignal?, callback: LayoutResultCallback, extras: Bundle?) {
     if (cancellationSignal?.isCanceled == true) return callback.onLayoutCancelled()
-    val result = runCatching {
-      laidOut = document.withPageSize(fluidPageSizeOf(newAttributes, document.pageSize))
-      pages = fluidLayoutPdf(laidOut, style, composer)
+    val sized = document.withPageSize(fluidPageSizeOf(newAttributes, document.pageSize))
+    fun answer(result: Result<List<FluidPdfPage>>) {
+      val laid = result.getOrElse { return callback.onLayoutFailed(it.message) }
+      laidOut = sized
+      pages = laid
+      callback.onLayoutFinished(
+        PrintDocumentInfo.Builder(fluidPdfName(jobName)).setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT).setPageCount(laid.size).build(),
+        true,
+      )
     }
-    if (result.isFailure) return callback.onLayoutFailed(result.exceptionOrNull()?.message)
-    callback.onLayoutFinished(
-      PrintDocumentInfo.Builder(fluidPdfName(jobName)).setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT).setPageCount(pages.size).build(),
-      true,
-    )
+    // Le viste Compose si compongono sul thread principale; il resto no (R2).
+    if (composer != null) answer(runCatching { fluidLayoutPdf(sized, style, composer) })
+    else background(cancellationSignal, { fluidLayoutPdf(sized, style, null) }, callback::onLayoutCancelled, ::answer)
   }
 
   override fun onWrite(pages: Array<out PageRange>, destination: ParcelFileDescriptor, cancellationSignal: CancellationSignal?, callback: WriteResultCallback) {
-    val result = runCatching {
-      val built = fluidBuildPdf(laidOut, style, composer, FluidGlassResources.get(context).budget)
+    if (cancellationSignal?.isCanceled == true) return callback.onWriteCancelled()
+    val budget = FluidGlassResources.get(context).budget
+    val document = laidOut
+    val write = {
+      val built = fluidBuildPdf(document, style, composer, budget)
       FileOutputStream(destination.fileDescriptor).use { built.writeAndClose(it) }
     }
-    when {
-      cancellationSignal?.isCanceled == true -> callback.onWriteCancelled()
-      result.isFailure -> callback.onWriteFailed(result.exceptionOrNull()?.message)
-      else -> callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
+    fun answer(result: Result<FluidPdfResult>) {
+      when {
+        cancellationSignal?.isCanceled == true -> callback.onWriteCancelled()
+        result.isFailure -> callback.onWriteFailed(result.exceptionOrNull()?.message)
+        else -> callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
+      }
     }
+    if (composer != null) answer(runCatching(write)) else background(cancellationSignal, write, callback::onWriteCancelled, ::answer)
   }
 }
 
-/** L'adattatore di un'immagine: una pagina, l'immagine intera al centro. */
-internal class FluidImagePrintAdapter(private val jobName: String, private val image: () -> Bitmap?) : PrintDocumentAdapter() {
-  private var size: FluidPdfPageSize = FluidPdfPageSize.A4
+/** L'adattatore di un'immagine: una pagina, l'immagine intera al centro. L'immagine si legge fuori dal thread principale. */
+internal class FluidImagePrintAdapter(private val jobName: String, private val image: () -> Bitmap?) : FluidBackgroundPrintAdapter() {
+  @Volatile private var size: FluidPdfPageSize = FluidPdfPageSize.A4
 
   override fun onLayout(oldAttributes: PrintAttributes?, newAttributes: PrintAttributes, cancellationSignal: CancellationSignal?, callback: LayoutResultCallback, extras: Bundle?) {
     if (cancellationSignal?.isCanceled == true) return callback.onLayoutCancelled()
@@ -154,16 +218,26 @@ internal class FluidImagePrintAdapter(private val jobName: String, private val i
   }
 
   override fun onWrite(pages: Array<out PageRange>, destination: ParcelFileDescriptor, cancellationSignal: CancellationSignal?, callback: WriteResultCallback) {
-    val bitmap = runCatching { image() }.getOrNull() ?: return callback.onWriteFailed("L'immagine non si legge")
-    val pdf = PdfDocument()
-    val result = runCatching {
-      val page = pdf.startPage(PdfDocument.PageInfo.Builder(size.widthPt, size.heightPt, 1).create())
-      fluidDrawImageOnPage(page.canvas, bitmap, size, margin = 36f)
-      pdf.finishPage(page)
-      FileOutputStream(destination.fileDescriptor).use { pdf.writeTo(it) }
+    if (cancellationSignal?.isCanceled == true) return callback.onWriteCancelled()
+    val page = size
+    background(cancellationSignal, { fluidWriteImagePdf(image, page, destination) }, callback::onWriteCancelled) { result ->
+      val error = result.exceptionOrNull()
+      if (error != null) callback.onWriteFailed(error.message) else callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
     }
+  }
+}
+
+/** La pagina di un'immagine nel file dello spooler; lancia se l'immagine non si legge o il PDF non si scrive. */
+private fun fluidWriteImagePdf(image: () -> Bitmap?, size: FluidPdfPageSize, destination: ParcelFileDescriptor) {
+  val bitmap = runCatching { image() }.getOrNull() ?: throw IllegalStateException("L'immagine non si legge")
+  val pdf = PdfDocument()
+  try {
+    val page = pdf.startPage(PdfDocument.PageInfo.Builder(size.widthPt, size.heightPt, 1).create())
+    fluidDrawImageOnPage(page.canvas, bitmap, size, margin = 36f)
+    pdf.finishPage(page)
+    FileOutputStream(destination.fileDescriptor).use { pdf.writeTo(it) }
+  } finally {
     pdf.close()
-    if (result.isFailure) callback.onWriteFailed(result.exceptionOrNull()?.message) else callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
   }
 }
 

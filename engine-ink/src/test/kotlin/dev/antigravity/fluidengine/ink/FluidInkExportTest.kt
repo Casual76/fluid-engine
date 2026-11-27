@@ -8,10 +8,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.IntSize
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -116,6 +121,52 @@ class FluidInkExportTest {
     assertEquals(0xFF, red(writer.pages.single().getPixel(590, 5)))
   }
 
+  @Test fun anExportThatStopsHalfwayClosesThePdf() = runBlocking {
+    // R1-C (review R1, Sol): la seconda pagina non si disegna. Il documento gia' aperto si chiude lo stesso.
+    val broken = object : InkPdfPages(listOf(Size(300f, 400f), Size(300f, 400f))) {
+      override fun draw(index: Int, bitmap: Bitmap) {
+        if (index == 1) throw IllegalStateException("pagina rotta")
+        bitmap.eraseColor(0xFFC8F064.toInt())
+      }
+    }
+    val writer = RecordingWriter()
+    try {
+      FluidInkExport.pdfWith(FluidInkSheet.pdf(broken, uri = null), emptyList(), ByteArrayOutputStream(), 1f, writer)
+      fail("la pagina rotta ferma la consegna")
+    } catch (_: IllegalStateException) {
+    }
+    assertEquals(1, writer.pages.size)
+    assertFalse(writer.finished)
+    assertTrue("il documento si chiude anche se la consegna si ferma", writer.closed)
+  }
+
+  @Test fun aCancelledExportClosesThePdf() = runBlocking {
+    // La seconda pagina e' lenta (un PDF pesante): l'annullo arriva mentre si disegna.
+    val pages = object : InkPdfPages(List(4) { Size(300f, 400f) }) {
+      override fun draw(index: Int, bitmap: Bitmap) {
+        if (index == 1) Thread.sleep(1_500)
+        bitmap.eraseColor(0xFFC8F064.toInt())
+      }
+    }
+    val writer = RecordingWriter()
+    val job = launch(Dispatchers.Default) {
+      FluidInkExport.pdfWith(FluidInkSheet.pdf(pages, uri = null), emptyList(), ByteArrayOutputStream(), 1f, writer)
+    }
+    // Annullata dopo la prima pagina (l'utente chiude il foglio di condivisione).
+    while (writer.pages.isEmpty()) delay(5)
+    job.cancelAndJoin()
+    assertEquals(1, writer.pages.size)
+    assertFalse(writer.finished)
+    assertTrue("il documento si chiude anche annullando", writer.closed)
+  }
+
+  @Test fun aCompleteExportClosesThePdfOnce() = runBlocking {
+    val writer = RecordingWriter()
+    FluidInkExport.pdfWith(FluidInkSheet.pdf(FakePages(listOf(Size(300f, 400f))), uri = null), emptyList(), ByteArrayOutputStream(), 1f, writer)
+    assertTrue(writer.finished)
+    assertTrue(writer.closed)
+  }
+
   /** Pagine di PDF finte: ognuna verde chiara con un bordo. */
   private class FakePages(sizes: List<Size>) : InkPdfPages(sizes) {
     override fun draw(index: Int, bitmap: Bitmap) {
@@ -126,12 +177,23 @@ class FluidInkExportTest {
   /** Lo scrittore delle prove: ogni pagina e' una bitmap alla misura in punti. */
   private class RecordingWriter : InkPdfWriter {
     val pages = mutableListOf<Bitmap>()
+    var finished = false
+    /** Come `PdfDocument`: chiuderlo due volte non fa niente. */
+    var closed = false
     override fun page(width: Int, height: Int, draw: (Canvas) -> Unit) {
       val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
       draw(Canvas(bitmap))
       pages += bitmap
     }
 
-    override fun finish(output: OutputStream) {}
+    /** Come lo scrittore vero: la fine chiude il documento. */
+    override fun finish(output: OutputStream) {
+      finished = true
+      close()
+    }
+
+    override fun close() {
+      closed = true
+    }
   }
 }

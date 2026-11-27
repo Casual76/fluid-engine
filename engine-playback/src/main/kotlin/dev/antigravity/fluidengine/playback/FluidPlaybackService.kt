@@ -7,11 +7,13 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
@@ -19,6 +21,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -39,9 +42,21 @@ import org.json.JSONObject
  *  - **la velocità** (dal controllo) e **il salto dei silenzi** ([FluidPlayback.CommandSkipSilence], il «Salta silenzi» di
  *    Memo Vocali, fatto dal lettore senza toccare il file);
  *  - **il timer di spegnimento** ([FluidPlayback.CommandSleepTimer]): fra tot minuti, o a fine elemento;
- *  - **la coda ricordata**: l'elenco, l'elemento e il punto si salvano mentre si ascolta, e tornano alla ripresa di sistema
- *    (Play sulle cuffie con l'app chiusa) e all'avvio, fermi ([FluidPlaybackConfig.restoreOnStart]): niente che suona da
- *    solo.
+ *  - **la coda ricordata**: l'elenco, l'elemento e il punto si salvano mentre si ascolta e a ogni cambio della coda (anche
+ *    da fermi), e tornano alla ripresa di sistema (Play sulle cuffie con l'app chiusa) e all'avvio, fermi
+ *    ([FluidPlaybackConfig.restoreOnStart]): niente che suona da solo. Una coda svuotata si dimentica.
+ *
+ * **Chi si collega** (R1, 26 novembre 2026). Il servizio è esportato perché lo trovino il sistema, l'orologio e l'auto,
+ * ma non risponde a tutti allo stesso modo:
+ *  - **l'app stessa** (il suo uid: l'interfaccia col suo controllo, la notifica di Media3) ha tutto, la coda e i comandi
+ *    dell'engine compresi;
+ *  - **il sistema e chi ha il permesso di comandare i media** (la tendina, la schermata di blocco, il Bluetooth, chi
+ *    ascolta le notifiche come l'app dell'orologio, Android Auto) vede il titolo e comanda l'ascolto (Play, i salti, la
+ *    velocità), ma non cambia la coda e non manda i comandi dell'engine;
+ *  - **le altre app** non si collegano: niente titoli dei memo, niente comandi.
+ *
+ * Media3 1.5.1 crede al nome del pacchetto che un controllo dice di avere (e da quel nome decide «fidato»): qui il nome
+ * deve essere di chi chiama.
  *
  * Android Auto mostra solo le app passate dalla sua revisione (o col modo sviluppatore): la sessione è quella giusta, ma
  * l'app nell'auto va chiesta a Google, quando servirà.
@@ -104,6 +119,11 @@ open class FluidPlaybackService : MediaSessionService() {
 
       override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
         if (reason == Player.DISCONTINUITY_REASON_SEEK) saveNow()
+      }
+
+      override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+        // La coda cambiata anche da ferma (R1): elementi aggiunti, tolti, spostati, la coda svuotata.
+        if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) saveNow(forgetIfEmpty = true)
       }
 
       override fun onPlaybackStateChanged(playbackState: Int) {
@@ -189,9 +209,17 @@ open class FluidPlaybackService : MediaSessionService() {
     session?.setSessionExtras(extras)
   }
 
-  private fun saveNow() {
+  /**
+   * Salva la coda. Vuota non scrive niente (un servizio che parte e finisce senza coda, con [FluidPlaybackConfig.restoreOnStart]
+   * spento, lascia quella ricordata alla ripresa di sistema), salvo [forgetIfEmpty]: l'app l'ha svuotata, e al riavvio non
+   * deve tornare quella di prima.
+   */
+  private fun saveNow(forgetIfEmpty: Boolean = false) {
     val exo = player ?: return
-    if (exo.mediaItemCount == 0) return
+    if (exo.mediaItemCount == 0) {
+      if (forgetIfEmpty) store.clear()
+      return
+    }
     val items = (0 until exo.mediaItemCount).map { exo.getMediaItemAt(it) }
     // Un elemento finito si ricorda dall'inizio: riaperto, riparte da capo invece di finire subito.
     val position = if (exo.playbackState == Player.STATE_ENDED) 0L else exo.currentPosition.coerceAtLeast(0L)
@@ -205,19 +233,42 @@ open class FluidPlaybackService : MediaSessionService() {
     return PendingIntent.getActivity(this, 0, launch, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
   }
 
+  /**
+   * Chi è [controller] per la sessione (R1): l'app stessa, il sistema o un'altra app. Vedi «Chi si collega» in testa alla
+   * classe.
+   */
+  internal fun accessOf(session: MediaSession, controller: MediaSession.ControllerInfo): FluidPlaybackAccess {
+    if (controller.uid == Process.myUid()) return FluidPlaybackAccess.App
+    // Prima di Android 9 la sessione di piattaforma non dice chi la comanda: ci arriva solo chi ne ha già il gettone (il
+    // sistema, chi ascolta le notifiche). Senza uid: un controllo di Media3 ne ha sempre uno.
+    if (controller.packageName == MediaSession.ControllerInfo.LEGACY_CONTROLLER_PACKAGE_NAME && controller.uid < 0) {
+      return FluidPlaybackAccess.System
+    }
+    // Media3 1.5.1 prende per buono il pacchetto che un controllo dice di essere. Chi si collega a questo servizio lo
+    // vediamo (Android rende visibile chi si lega a un nostro servizio): il nome deve essere del suo uid. Un uid che non
+    // si vede (un controllo della sessione di piattaforma, che il sistema ha già identificato) resta al giudizio di Media3.
+    val packages = runCatching { packageManager.getPackagesForUid(controller.uid) }.getOrNull()
+    if (packages != null && controller.packageName !in packages) return FluidPlaybackAccess.None
+    val system = controller.isTrusted || session.isAutomotiveController(controller) || session.isAutoCompanionController(controller)
+    return if (system) FluidPlaybackAccess.System else FluidPlaybackAccess.None
+  }
+
   /** Le risposte della sessione: chi si collega, gli elementi che arrivano, i comandi dell'engine, la ripresa. */
   internal inner class FluidPlaybackCallback : MediaSession.Callback {
 
-    override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
-      val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
-        .add(SessionCommand(FluidPlayback.CommandSleepTimer, Bundle.EMPTY))
-        .add(SessionCommand(FluidPlayback.CommandSkipSilence, Bundle.EMPTY))
-        .build()
-      return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-        .setAvailableSessionCommands(commands)
-        .setMediaButtonPreferences(skipButtons(FluidPlayback.config))
-        .build()
-    }
+    override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult =
+      when (accessOf(session, controller)) {
+        FluidPlaybackAccess.App -> MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+          .setAvailableSessionCommands(AppSessionCommands)
+          .setMediaButtonPreferences(skipButtons(FluidPlayback.config))
+          .build()
+        FluidPlaybackAccess.System -> MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+          .setAvailableSessionCommands(MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS)
+          .setAvailablePlayerCommands(SystemPlayerCommands)
+          .setMediaButtonPreferences(skipButtons(FluidPlayback.config))
+          .build()
+        FluidPlaybackAccess.None -> MediaSession.ConnectionResult.reject()
+      }
 
     override fun onAddMediaItems(
       mediaSession: MediaSession,
@@ -251,6 +302,17 @@ open class FluidPlaybackService : MediaSessionService() {
   internal companion object {
     const val SessionId = "fluid-playback"
     const val SaveEveryMillis = 5_000L
+
+    /** I comandi della sessione per l'app stessa: quelli di Media3 e i due dell'engine. */
+    val AppSessionCommands: SessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+      .add(SessionCommand(FluidPlayback.CommandSleepTimer, Bundle.EMPTY))
+      .add(SessionCommand(FluidPlayback.CommandSkipSilence, Bundle.EMPTY))
+      .build()
+
+    /** I comandi del lettore per il sistema: l'ascolto e il titolo sì, la coda no (la decide l'app). */
+    val SystemPlayerCommands: Player.Commands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+      .removeAll(Player.COMMAND_CHANGE_MEDIA_ITEMS, Player.COMMAND_SET_MEDIA_ITEM)
+      .build()
 
     /** Meno e più 15 secondi ai lati di Play, come comandi del lettore (le icone e i posti sono di Media3). */
     fun skipButtons(config: FluidPlaybackConfig): ImmutableList<CommandButton> = ImmutableList.of(
@@ -294,6 +356,18 @@ open class FluidPlaybackService : MediaSessionService() {
   }
 }
 
+/** Chi è un controllo per la sessione (R1): vedi «Chi si collega» in [FluidPlaybackService]. */
+internal enum class FluidPlaybackAccess {
+  /** L'app stessa: tutto. */
+  App,
+
+  /** Il sistema e chi può comandare i media: il titolo e l'ascolto, non la coda né i comandi dell'engine. */
+  System,
+
+  /** Un'altra app: non si collega. */
+  None,
+}
+
 /**
  * La coda ricordata: gli elementi (con l'indirizzo e i metadati che servono alla notifica), quale si ascoltava e dove. In
  * un file di preferenze del modulo, in JSON: è piccola e si scrive a ogni cambio e ogni 5 secondi mentre suona.
@@ -301,10 +375,22 @@ open class FluidPlaybackService : MediaSessionService() {
 internal class FluidPlaybackStore(context: Context) {
   private val prefs = context.getSharedPreferences("fluid-playback", Context.MODE_PRIVATE)
 
+  /**
+   * Salva [items], con [index] e [positionMillis] dell'elemento che si ascolta. Un elemento senza indirizzo (messo da
+   * fuori con la sola `mediaId`) non si può riaprire e non si salva: l'indice si conta fra quelli salvati (R1), e se è
+   * proprio quello che si ascoltava si riprende dal successivo, dall'inizio.
+   */
   fun save(items: List<MediaItem>, index: Int, positionMillis: Long) {
     val array = JSONArray()
-    items.forEach { item ->
-      val fluid = item.toFluidPlaybackItem() ?: return@forEach
+    var savedIndex = 0
+    var position = positionMillis
+    items.forEachIndexed { i, item ->
+      val fluid = item.toFluidPlaybackItem()
+      if (fluid == null) {
+        if (i == index) position = 0L
+        return@forEachIndexed
+      }
+      if (i < index) savedIndex++
       array.put(
         JSONObject()
           .put("id", fluid.id)
@@ -316,10 +402,14 @@ internal class FluidPlaybackStore(context: Context) {
           .putOpt("mime", fluid.mimeType),
       )
     }
+    if (array.length() == 0) {
+      clear()
+      return
+    }
     prefs.edit()
       .putString(KeyQueue, array.toString())
-      .putInt(KeyIndex, index)
-      .putLong(KeyPosition, positionMillis)
+      .putInt(KeyIndex, savedIndex)
+      .putLong(KeyPosition, position)
       .apply()
   }
 

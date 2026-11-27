@@ -374,7 +374,13 @@ così, saltando dov'era il dito. Un **tocco sulla pista** è un salto: la manigl
 
 **Etichette.** `startLabel` / `endLabel` stanno sotto la pista, calcolate dal valore *mostrato* (sotto il dito è il suo, non quello del
 lettore), `labelMedium` a cifre tabulari in `onSurfaceVariant`, tirate su verso la pista di 8 dp (la riga è alta 48 dp per il dito).
-Si ricompone solo la riga quando cambia la *stringa* (una volta al secondo per un orologio). Con tutti e due nulli lo scrubber è la
+Si ricompone solo la riga quando cambia la *stringa* (una volta al secondo per un orologio); così anche il valore a voce per
+TalkBack (R1, 26 novembre 2026): mentre si ascolta, la semantica si rifà quando cambia la scritta di `valueDescription`, non a
+ogni fotogramma del lettore. Il riempimento dell'accento si allarga **nel disegno**, non nel layout: un layout in meno a ogni
+fotogramma (R1). **Resta** che mentre si ascolta la maniglia di vetro si sposta con la traslazione del suo `graphicsLayer`
+(il renderer la inverte quando campiona), e in Compose una traslazione che cambia avvisa l'accessibilità come un layout: la
+pagina si ricontrolla ancora ogni 100 ms finché il lettore suona (R1, misurato: 33 fotogrammi con eventi su 3 s). Con tutti
+e due nulli lo scrubber è la
 sola riga da 48 dp. `onStartLabelClick` / `onEndLabelClick` (3.0.1) rendono toccabile la scritta (il tocco sulla durata che diventa il
 tempo che manca e torna indietro): lo scrubber non sa cosa scambiare, l'app cambia il formato che passa. La scritta diventa un
 pulsante per TalkBack con il suo testo; senza, resta muta (il valore è già nel nodo dello scrubber).
@@ -654,6 +660,10 @@ FluidRulerDial(value = { stato.valore }, onValueChange = { stato.valore = it }, 
   ricomporre (il valore di partenza si legge con `Snapshot.withoutReadObservation`). `FluidRulerDialDiagnostics`
   (contatori per le prove, non API per le app) conta le composizioni del corpo e della scritta. Da F7.24 anche la scritta sopra
   l'indice si disegna (non si ricompone), e la semantica aspetta la fine del gesto (`fluidSettledSemantics`).
+- **Il lancio si posa in fretta** (F7.24b): la molla dell'assestamento prende la mano quando il decadimento scende sotto
+  30 px/s (`FluidRulerLook.FlingHandoffSpeedPx`), non solo a un pixel dalla tacca. Prima un rilascio a 12–13 tacche al
+  secondo strisciava ~2,4 s sotto la tacca, e la pagina disegnava a 120 fotogrammi al secondo per tutto quel tempo; ora
+  il lancio dura ~1,4 s, come uno scorrimento di iOS alla stessa velocità. La tacca d'arrivo non cambia.
 - **Il valore è del chiamante**: `onValueChange` arriva durante il gesto e l'inerzia, già al passo; `onValueChangeFinished`
   quando si ferma (un tocco da solo non lo chiama): ~0,13 s dopo che sembra ferma, perché l'ultimo pixel lo chiude la
   molla come nella ruota (F8.2c). Il valore scritto si ricompone solo quando cambia la scritta.
@@ -687,6 +697,12 @@ messaggio»), al rilascio **un** `onSeek`, e il punto lasciato resta finché il 
 (`FluidMotion.ScrubberHoldMillis`); un tocco salta dove si tocca. Aptica: solo le estremità (`Threshold`), come lo scrubber
 continuo. Le altezze si calcolano quando cambia la larghezza o l'inviluppo, in un array riusato.
 
+**Le due regole di F7.24, anche qui** (R1, 26 novembre 2026). L'onda della riga, l'onda che scorre e `FluidRecorderClock`
+si ridisegnano **in uno strato loro** (`graphicsLayer`): durante l'ascolto il ridisegno a ogni fotogramma resta lì, e non fa
+riregistrare il gruppo della lista né la sorgente del vetro della pagina. Le due onde hanno la **semantica a fine gesto**
+(`fluidSettledSemantics`): ferma mentre il dito trascina o lancia, e mentre si ascolta il valore a voce («1:05 di 3:20») si
+dà a TalkBack quando cambia la scritta, una volta al secondo, non a ogni fotogramma.
+
 **`FluidAudioTimeline`, l'onda che scorre** (la registrazione e il taglio di Memo Vocali). La testina sta **ferma al centro**
 (1 dp, un pallino da 7 dp sopra e sotto la fascia), l'onda scorre sotto di lei a **100 dp al secondo** (il righello di Memo
 Vocali: 113 px fra due secondi), una barra da 1 dp ogni 4 dp; sotto, il **righello** con le scritte dei tempi (ogni 1, 2, 5,
@@ -702,7 +718,8 @@ testina è rossa (`systemRed`), a destra c'è la linea a puntini di ciò che dev
 (`FluidRecorderPanel`, nel piano flottante: un vetro solo con la stessa identità che cambia forma con Fluid-physics, e ci
 torna alla fine). Nel pannello: «Fine» in alto a destra, il titolo con l'ora, l'onda che scorre (rossa mentre registra), il
 **tempo grande** «00:07.00» (`FluidRecorderClock`: 34 sp in grassetto a cifre tabulari, ridisegnato dalle cifre misurate una
-volta, senza ricomporre né allocare; per TalkBack la durata ai secondi), i tasti dell'ascolto (meno e più 15 secondi e Play,
+volta, senza ricomporre né allocare; per TalkBack la durata ai secondi, anche nel riascolto in pausa, e oltre l'ora la
+larghezza delle ore), i tasti dell'ascolto (meno e più 15 secondi e Play,
 grigi mentre registra, come Memo Vocali) e la **capsula della pausa** (147 × 58 dp, due barre rosse; in pausa «Riprendi» in
 rosso). In pausa, con un lettore di quel che si è registrato (`playback`), l'onda si scorre e si riascolta prima di
 riprendere. Una riga dice quando il suono **taglia** (`clipping`) e quando la pausa l'ha decisa il telefono (`interrupted`).
@@ -734,7 +751,10 @@ FluidVoiceRecorder(
 `ascolto-paragrafo`). **Le prove**: `F8p13AudioUiTest` (`sample`, Robolectric, il dito vero): l'onda della riga relativa con un
 solo salto e il tocco; TalkBack (lo stato a voce, le due azioni, `setProgress`); l'onda che scorre col dito, il lancio che va
 oltre il dito, il pizzico, niente lancio con le animazioni ridotte, niente tocco mentre registra; il pannello nelle sue fasi;
-il registratore vero di engine-audio dietro il pannello, con un microfono finto.
+il registratore vero di engine-audio dietro il pannello, con un microfono finto. `F8p13R1AudioTest` (R1, con
+l'accessibilità accesa): nessun evento di accessibilità col dito giù sulle due onde, al più quattro in tre secondi d'ascolto
+(anche lo scrubber); lo strato loro per le onde e il cronometro; il cronometro che segue il riascolto in pausa oltre l'ora; le
+scene della galleria che non si ricompongono a ogni fotogramma; la trascrizione vuota che lo dice.
 
 ## La semantica a gesto finito (fluidSettledSemantics e FluidValueText, F7.24)
 
@@ -748,7 +768,16 @@ di un righello e un `semantics { stateDescription = … }` lo fanno a ogni tacca
   che i controlli dell'engine dicono a `FluidFingerDrive`) la semantica **resta ferma**: si aggiorna quando il gesto
   finisce, o al più una volta al secondo in un gesto lungo (`FluidSettledSemanticsLook.SlowPaceMillis`). Un valore cambiato
   da TalkBack («aumenta», «imposta») o dall'app arriva subito. La usano `FluidSlider`, `FluidRangeSlider`, `FluidScrubber`,
-  `FluidWheelPicker`, `FluidRulerDial` e il numero di `FluidNumericText`.
+  `FluidWheelPicker`, `FluidRulerDial`, il numero di `FluidNumericText` e, da R1, `FluidAudioWaveform` e `FluidAudioTimeline`.
+- **Anche un layout che cambia** a ogni fotogramma sotto un nodo di semantica (una barra che si allarga con `Modifier.layout`),
+  e anche un `graphicsLayer` che cambia **traslazione** (`translationX`), fanno ricontrollare la semantica della pagina ogni
+  100 ms, anche se nessuna semantica cambia (Compose li tratta come un layout). Quel che si muove a ogni fotogramma senza
+  il dito va nel disegno, non nel layout né nella traslazione dello strato (R1: il riempimento di `FluidScrubber` è nel
+  disegno; la sua maniglia di vetro no, ed è ancora aperto).
+- **Un valore che l'app fa avanzare a ogni fotogramma** (la posizione di un lettore) arriva subito anche lui, quindi rifarebbe
+  la semantica a ogni fotogramma: il blocco legge uno stato derivato della **scritta** (che cambia una volta al secondo per
+  un orologio) e, solo se il valore è tenuto (il dito, un salto che aspetta il lettore), del valore; il numero
+  dell'intervallo lo prende con `Snapshot.withoutReadObservation` (R1: lo scrubber e le due onde).
 - **`FluidValueText(text = { … }, style, color, textAlign)`**: un testo su una riga che cambia col dito («Rotazione: 12°»,
   il numero in un tasto). Si legge nel disegno: **non si ricompone, non si rimisura**, ha uno strato suo, e TalkBack lo
   legge con `fluidSettledSemantics`. Occupa la larghezza che riceve e l'altezza di una riga; non va a capo. Al pixel è
@@ -758,7 +787,8 @@ di un righello e un `semantics { stateDescription = … }` lo fanno a ogni tacca
   **sorgente di un vetro** (`glassBackdropSource`) nello stesso strato fanno ricatturare tutti i vetri a ogni fotogramma:
   la sorgente si riregistra ogni volta che si riregistra lo strato in cui sta (`LayerBackdropNode`). Si dà uno strato
   suo (`Modifier.graphicsLayer()`) a chi si ridisegna, o alla sorgente. Nell'editor delle foto (F7.24): cinque vetri
-  ricatturati a ogni fotogramma del righello, ~19 passate di disegno a fotogramma sul RenderThread.
+  ricatturati a ogni fotogramma del righello, ~19 passate di disegno a fotogramma sul RenderThread. **Vale per ogni
+  componente che si ridisegna a ogni fotogramma** (R1): le onde e il cronometro dell'audio hanno il loro strato.
 - `FluidSettledSemanticsDiagnostics` (`publishes`, `deferred`) conta le semantiche date e quelle tenute ferme: **non è API
   per le app**.
 

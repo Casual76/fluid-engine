@@ -3,7 +3,6 @@ package dev.antigravity.fluidengine.ui.fluid
 import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -121,9 +120,13 @@ fun FluidAsyncImage(
     }
     lastWasSuccess = success
   }
+  // F7.29: una foto ferma non ha layer suoi. Il riquadro si ritaglia nel disegno (una sagoma vera resta il ritaglio del
+  // layer, col suo contorno), l'immagine non ha il layer di ritaglio di `Image` ([FluidCellImage]) e il livello della
+  // sfocatura c'è solo mentre arriva: in una griglia che scorre ogni cella che entra creava tre layer in più.
+  val arriving = phase is FluidImagePhase.Success && !lastWasSuccess
   Box(
     modifier = modifier
-      .clip(shape)
+      .then(if (shape === RectangleShape) FluidClipToBoundsInDraw else Modifier.clip(shape))
       .then(
         if (placeholder == null && phase !is FluidImagePhase.Success) {
           Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -135,32 +138,34 @@ fun FluidAsyncImage(
   ) {
     val showPlaceholder = phase !is FluidImagePhase.Failure && placeholder != null
     if (showPlaceholder) {
-      Image(
-        bitmap = placeholder!!,
-        contentDescription = null,
-        contentScale = contentScale,
-        filterQuality = FilterQuality.Low,
-        modifier = Modifier.fillMaxSize(),
-      )
+      // Come `Image(bitmap, filterQuality = Low)`: lo stesso pennello, senza il layer di ritaglio.
+      val painter = remember(placeholder) { BitmapPainter(placeholder!!, filterQuality = FilterQuality.Low) }
+      FluidCellImage(painter = painter, contentDescription = null, contentScale = contentScale, modifier = Modifier.fillMaxSize())
     }
     when (phase) {
-      is FluidImagePhase.Success -> Image(
+      is FluidImagePhase.Success -> FluidCellImage(
         painter = phase.painter,
         contentDescription = contentDescription,
         contentScale = contentScale,
         modifier = Modifier
           .fillMaxSize()
-          .graphicsLayer {
-            val u = arrival.value.coerceIn(0f, 1f)
-            alpha = u
-            // σ che scende con l'arrivo: piena all'inizio, zero quando è nitida. Il livello è quello della foto.
-            val sigma = FluidTextMotion.ImageArrivalBlurDp.dp.toPx() * (1f - u)
-            renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sigma > 0.25f) {
-              BlurEffect(sigma, sigma, TileMode.Clamp)
+          .then(
+            if (arriving) {
+              Modifier.graphicsLayer {
+                val u = arrival.value.coerceIn(0f, 1f)
+                alpha = u
+                // σ che scende con l'arrivo: piena all'inizio, zero quando è nitida. Il livello è quello della foto.
+                val sigma = FluidTextMotion.ImageArrivalBlurDp.dp.toPx() * (1f - u)
+                renderEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && sigma > 0.25f) {
+                  BlurEffect(sigma, sigma, TileMode.Clamp)
+                } else {
+                  null
+                }
+              }
             } else {
-              null
-            }
-          },
+              Modifier
+            },
+          ),
       )
       is FluidImagePhase.Failure -> FluidImageFailure(words, onRetry)
       FluidImagePhase.Loading -> Box(

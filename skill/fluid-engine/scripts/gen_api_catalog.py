@@ -232,6 +232,8 @@ DIR_FAMILY = {
     "ai/bridge": "ai-bridge",
     # i connettori MCP: il protocollo, l'accesso, i gettoni, la pagina «Connettori» (F9.2)
     "ai/mcp": "ai-mcp",
+    # la memoria di PampAI (F9.3): i tipi comuni in engine-ai e il motore in engine-ai-memory, stesso pacchetto
+    "ai/memory": "ai-memory",
     "aiui": "ai-ui",
     # i moduli facoltativi della condivisione (F8.10)
     "qr": "qr",
@@ -319,6 +321,7 @@ FAMILY_TITLES = {
     "ai-chiavi-rete-voce": "engine-ai: chiavi, rete, voce",
     "ai-bridge": "engine-ai-bridge",
     "ai-mcp": "engine-ai-mcp",
+    "ai-memory": "engine-ai-memory e i ricordi di engine-ai",
     "ai-ui": "engine-ai-ui",
     "altro": "Non classificato",
 }

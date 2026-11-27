@@ -20,6 +20,7 @@ import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 /**
  * Il formato di un'immagine da condividere: la tela in pixel e la larghezza in dp a cui si compone il contenuto.
@@ -111,7 +112,8 @@ class FluidShareImageRenderer internal constructor(
 
   /**
    * [render] e poi il PNG in un file nuovo della cartella delle uscite dell'engine ([FluidShareFiles]), pronto per
-   * [dev.antigravity.fluidengine.ui.fluid.share.FluidShareItem.file]. La bitmap si ricicla appena scritta.
+   * [dev.antigravity.fluidengine.ui.fluid.share.FluidShareItem.file]. La bitmap si ricicla appena scritta. Un PNG che non
+   * si scrive per intero (il disco pieno) si cancella e lancia `IOException`: mai un file tronco da condividere.
    */
   suspend fun renderToFile(
     format: FluidShareImageFormat,
@@ -123,7 +125,13 @@ class FluidShareImageRenderer internal constructor(
       val name = if (fileName.lowercase().endsWith(".png")) fileName else "$fileName.png"
       val file = FluidShareFiles.newFile(view.context, name)
       try {
-        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        // R2 · `compress` dice col booleano che la scrittura non e' riuscita (il disco pieno a meta'): un PNG tronco non
+        // si consegna come pronto da condividere.
+        val written = file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        if (!written) {
+          file.delete()
+          throw IOException("Il PNG non si e' scritto: ${file.name}")
+        }
       } finally {
         bitmap.recycle()
       }

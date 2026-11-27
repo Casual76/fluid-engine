@@ -21,6 +21,8 @@
     <!--
       Riavvio, aggiornamento dell'app, cambio d'ora e di fuso, permesso degli allarmi esatti: si rimettono gli allarmi.
       Spento di serie: lo accende il primo promemoria, lo spegne l'ultimo.
+      Non e' directBootAware (R2): la memoria dei promemoria sta nello spazio dell'app che Android apre solo al primo
+      sblocco, quindi dopo un riavvio i promemoria si rimettono allo sblocco (BOOT_COMPLETED), non all'accensione.
     -->
     <receiver
         android:name="dev.antigravity.fluidengine.notify.FluidNotifyRestoreReceiver"

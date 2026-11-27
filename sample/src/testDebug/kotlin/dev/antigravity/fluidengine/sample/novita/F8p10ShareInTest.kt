@@ -9,6 +9,8 @@ import android.database.MatrixCursor
 import android.net.Uri
 import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.os.Parcelable
+import android.content.pm.ProviderInfo
 import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
@@ -19,6 +21,8 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -31,6 +35,7 @@ import dev.antigravity.fluidengine.sharein.FluidIncoming
 import dev.antigravity.fluidengine.sharein.FluidShareIn
 import dev.antigravity.fluidengine.sharein.FluidShareInContent
 import dev.antigravity.fluidengine.sharein.FluidShareInDestination
+import dev.antigravity.fluidengine.sharein.FluidShareInFiles
 import dev.antigravity.fluidengine.sharein.FluidShareInPolicy
 import dev.antigravity.fluidengine.sharein.FluidShareInProblem
 import dev.antigravity.fluidengine.sharein.FluidShareInSheet
@@ -43,6 +48,8 @@ import dev.antigravity.fluidengine.ui.fluid.share.FluidShareFiles
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
+import org.robolectric.Shadows.shadowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -80,6 +87,7 @@ class F8p10OtherApp : ContentProvider() {
       "enorme.mp4" to Triple(1024, 200L * 1024 * 1024, "video/mp4"),
       "bugiardo.bin" to Triple(7 * 1024 * 1024, 1024L, "application/octet-stream"),
       "negato.jpg" to Triple(1024, 1024L, "image/jpeg"),
+      "strano.jpg" to Triple(1024, 1024L, "image/jpeg"),
     )
   }
 
@@ -94,6 +102,8 @@ class F8p10OtherApp : ContentProvider() {
   override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
     val name = uri.lastPathSegment ?: throw FileNotFoundException()
     if (name == "negato.jpg") throw SecurityException("Permesso scaduto")
+    // R2: un provider guasto lancia un'eccezione che non e' ne' di permesso ne' di lettura.
+    if (name == "strano.jpg") throw IllegalStateException("Il provider dell'altra app e' guasto")
     val (bytes, _, _) = files[name] ?: throw FileNotFoundException(name)
     reads++
     opened += name
@@ -312,5 +322,93 @@ class F8p10ShareInTest {
     assertTrue(root.bottom > 0.dp)
     compose.onNodeWithTag(FluidShareInTags.Sheet).performTouchInput { swipeDown(startY = top + 20f, endY = top + 600f, durationMillis = 150) }
     compose.waitUntil(5_000) { closed }
+  }
+
+  // --- R2 · Provider guasti, Uri insicuri fra tanti, tipi sbagliati, salvataggio e rotazione ---------------------
+
+  private fun many(vararg uris: Uri) = Intent(Intent.ACTION_SEND_MULTIPLE).setType("*/*")
+    .putParcelableArrayListExtra(Intent.EXTRA_STREAM, arrayListOf(*uris))
+
+  @Test fun aStrangeErrorOfTheOtherAppLosesOnlyThatFile() {
+    val copies = copy(read(many(F8p10OtherApp.uri("foto.jpg"), F8p10OtherApp.uri("strano.jpg"), F8p10OtherApp.uri("nota.txt"))))
+    assertEquals("un arrivo rotto non butta gli altri", listOf(true, false, true), copies.map { it.ok })
+    assertEquals(FluidShareInProblem.Unreadable, copies[1].problem)
+  }
+
+  @Test fun aFileUriAmongManyIsRejectedOutLoud() {
+    val incoming = read(many(F8p10OtherApp.uri("foto.jpg"), Uri.parse("file:///sdcard/segreto.jpg"), F8p10OtherApp.uri("nota.txt"))) as FluidIncoming.Files
+    assertEquals("il file:// c'e', per dire che non e' arrivato: ${incoming.files}", 3, incoming.files.size)
+    val copies = copy(incoming)
+    assertEquals(listOf(null, FluidShareInProblem.UnsafeUri, null), copies.map { it.problem })
+    assertFalse("mai letto", F8p10OtherApp.opened.any { "segreto" in it })
+  }
+
+  @Test fun aWrongTypeInTheStreamIsNotACrash() {
+    // Un intent malevolo: nella lista di EXTRA_STREAM un oggetto che non e' un Uri.
+    val bad = Intent(Intent.ACTION_SEND_MULTIPLE).setType("*/*")
+      .putParcelableArrayListExtra(Intent.EXTRA_STREAM, arrayListOf<Parcelable>(Intent("non.un.uri"), F8p10OtherApp.uri("foto.jpg")))
+    val incoming = runCatching { read(bad) }
+    assertTrue("niente eccezione: ${incoming.exceptionOrNull()}", incoming.isSuccess)
+    assertEquals(listOf("foto.jpg"), (incoming.getOrThrow() as FluidIncoming.Files).files.map { it.name })
+  }
+
+  @Test fun anOwnProviderWithAnotherAuthorityIsStillOwn() {
+    // Un provider dell'app con un'autorita' che non comincia col nome del pacchetto.
+    shadowOf(context.packageManager).addOrUpdateProvider(ProviderInfo().apply {
+      authority = "dev.antigravity.note.archivio"
+      name = "dev.antigravity.note.ArchivioProvider"
+      packageName = context.packageName
+      applicationInfo = context.applicationInfo
+    })
+    val own = Intent(Intent.ACTION_SEND).setType("application/octet-stream")
+      .putExtra(Intent.EXTRA_STREAM, Uri.parse("content://dev.antigravity.note.archivio/privato.db"))
+    assertEquals(FluidShareInProblem.UnsafeUri, (read(own) as? FluidIncoming.Unsupported)?.problem)
+  }
+
+  @Test fun nothingClosesTheSheetWhileItSaves() {
+    val gate = CompletableDeferred<Unit>()
+    var closed = 0
+    val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "Portare il libro")
+    compose.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        val state = rememberFluidShareInState(intent, policy)
+        FluidShareInSheet(state, destinations, onSave = { _, _ -> gate.await() }, onClose = { closed++ }, title = "Fluid Glass")
+      }
+    }
+    compose.waitUntil(5_000) { runCatching { compose.onNodeWithTag(FluidShareInTags.Save).assertIsEnabled() }.isSuccess }
+    compose.onNodeWithTag(FluidShareInTags.Save).performTouchInput { click() }
+    compose.waitForIdle()
+    // Mentre l'app salva, ne' «Annulla» ne' il dito chiudono il foglio: la coroutine dell'app non si cancella.
+    compose.onNodeWithTag(FluidShareInTags.Cancel).performTouchInput { click() }
+    compose.onNodeWithTag(FluidShareInTags.Sheet).performTouchInput { swipeDown(startY = top + 20f, endY = top + 600f, durationMillis = 150) }
+    compose.waitForIdle()
+    assertEquals("chiuso a meta' salvataggio", 0, closed)
+    gate.complete(Unit)
+    compose.waitUntil(5_000) { closed == 1 }
+  }
+
+  @Test fun aRotationKeepsTheDestinationAndDoesNotCopyTwice() {
+    val restoration = StateRestorationTester(compose)
+    var saved: String? = null
+    val intent = send("foto.jpg")
+    restoration.setContent {
+      FluidTheme(settings = remember { EngineSettings() }) {
+        val state = rememberFluidShareInState(intent, policy)
+        FluidShareInSheet(state, destinations, onSave = { d, _ -> saved = d.id }, onClose = {}, title = "Fluid Glass")
+      }
+    }
+    fun ready() = runCatching { compose.onNodeWithTag(FluidShareInTags.Save).assertIsEnabled() }.isSuccess
+    fun sessions() = FluidShareInFiles.root(context).listFiles().orEmpty().count { it.isDirectory }
+    compose.waitUntil(5_000) { ready() }
+    compose.onNodeWithTag(FluidShareInTags.destination("scuola")).performTouchInput { click() }
+    compose.waitForIdle()
+    val before = sessions()
+    restoration.emulateSavedInstanceStateRestore()
+    compose.waitForIdle()
+    compose.waitUntil(5_000) { ready() }
+    assertEquals("nessuna copia orfana in una cartella nuova", before, sessions())
+    compose.onNodeWithTag(FluidShareInTags.Save).performTouchInput { click() }
+    compose.waitUntil(5_000) { saved != null }
+    assertEquals("la destinazione scelta resta dopo la rotazione", "scuola", saved)
   }
 }

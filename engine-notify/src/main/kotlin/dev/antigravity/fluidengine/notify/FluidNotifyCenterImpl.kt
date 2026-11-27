@@ -40,6 +40,10 @@ internal data class FluidNotifyHealthInputs(
   val samsung: Boolean,
   val focusActive: Boolean,
   val live: FluidNotifyLiveState,
+  /** La memoria su disco: l'ultima scrittura è fallita (R2). */
+  val storageWriteFailed: Boolean = false,
+  /** La memoria su disco: elementi illeggibili alla lettura (-1: il file intero). */
+  val storageUnreadable: Int = 0,
 )
 
 /** I secchi di standby di Android (`UsageStatsManager.STANDBY_BUCKET_*`): raro 40, limitato 45. */
@@ -48,6 +52,14 @@ internal const val StandbyBucketRare: Int = 40
 /** Le righe di «Le notifiche non arrivano?», dalla più grave. Pura. */
 internal fun fluidNotifyHealth(inputs: FluidNotifyHealthInputs, labels: FluidNotifyLabels): FluidNotifyHealth {
   val checks = ArrayList<FluidNotifyCheck>()
+  // La memoria compare solo quando qualcosa non va (R2): una riga «a posto» in più non dice niente all'utente.
+  if (inputs.storageWriteFailed || inputs.storageUnreadable != 0) {
+    checks += FluidNotifyCheck(
+      id = "storage", title = labels.checkStorage,
+      detail = if (inputs.storageWriteFailed) labels.checkStorageWriteFailed else labels.checkStorageUnreadable,
+      ok = false,
+    )
+  }
   checks += FluidNotifyCheck(
     id = "permission", title = labels.checkPermission,
     detail = if (inputs.notificationsAllowed) labels.checkPermissionOk else labels.checkPermissionOff,
@@ -68,7 +80,9 @@ internal fun fluidNotifyHealth(inputs: FluidNotifyHealthInputs, labels: FluidNot
     fixLabel = labels.fixBattery.takeIf { suspended },
   )
   if (inputs.notificationsAllowed) {
-    inputs.channels.filter { (channel, _) -> channel.id != FluidNotifyChannel.DigestId }.forEach { (channel, enabled) ->
+    // Tutti i canali degli input: quelli dell'app, «Promemoria», «Attività in corso» e, col riepilogo acceso,
+    // «Riepilogo» (li sceglie [FluidNotifyCenterImpl]; R2: prima gli ultimi due non c'erano).
+    inputs.channels.forEach { (channel, enabled) ->
       if (!enabled) {
         checks += FluidNotifyCheck(
           id = "channel:${channel.id}", title = channel.name, detail = labels.checkChannelOff, ok = false,
@@ -118,7 +132,11 @@ internal class FluidNotifyCenterImpl(private val notify: FluidNotify) : FluidNot
   override val deliveries: StateFlow<List<FluidReminderDelivery>> = deliveriesState.asStateFlow()
   override val health: StateFlow<FluidNotifyHealth> = healthState.asStateFlow()
 
-  override fun refresh() = refreshAll()
+  /** Rilegge tutto, e riprova ciò che aspettava le notifiche spente (le pagine lo chiamano a ogni ritorno, R2). */
+  override fun refresh() {
+    refreshAll()
+    notify.onMain { notify.retryWaiting() }
+  }
 
   fun refreshAll() {
     refreshSettings()
@@ -228,18 +246,25 @@ internal class FluidNotifyCenterImpl(private val notify: FluidNotify) : FluidNot
     }
     val restricted = Build.VERSION.SDK_INT >= 28 &&
       runCatching { context.getSystemService(ActivityManager::class.java).isBackgroundRestricted }.getOrDefault(false)
+    val memory = notify.store.read()
+    val engineChannels = listOfNotNull(
+      notify.channel(FluidNotifyChannel.RemindersId),
+      notify.channel(FluidNotifyChannel.LiveId),
+      notify.channel(FluidNotifyChannel.DigestId)?.takeIf { memory.digestEnabled },
+    )
     return FluidNotifyHealthInputs(
       sdk = notify.sdk,
       notificationsAllowed = notify.notificationsAllowed(),
-      channels = (notify.config.channels + listOfNotNull(notify.channel(FluidNotifyChannel.RemindersId)))
-        .map { it to notify.channelAllowed(it.id) },
+      channels = (notify.config.channels + engineChannels).map { it to notify.channelAllowed(it.id) },
       exactAllowed = notify.reminders.canScheduleExact(),
-      hasReminders = notify.store.read().reminders.isNotEmpty(),
+      hasReminders = memory.reminders.isNotEmpty(),
       standbyBucket = bucket,
       backgroundRestricted = restricted,
       samsung = Build.MANUFACTURER.equals("samsung", ignoreCase = true),
       focusActive = focusActive(),
       live = liveState(),
+      storageWriteFailed = notify.store.writeFailed,
+      storageUnreadable = notify.store.unreadable,
     )
   }
 

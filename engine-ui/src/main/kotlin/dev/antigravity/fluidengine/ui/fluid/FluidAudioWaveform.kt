@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -19,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -26,6 +28,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -42,7 +45,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextLayoutResult
@@ -84,6 +86,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 // niente sfocatura nel trascinamento, nel lancio ne' quando l'onda scorre da sola durante l'ascolto, che e' la stessa
 // pagina e non un contenuto che cambia identita'. La posizione arriva come lambda, come in `FluidSpokenText` e in
 // `FluidScrubber`: letta nel disegno, il battito del lettore ridipinge senza ricomporre, e un'onda ferma non disegna.
+//
+// R1 (26 novembre 2026), le due regole di F7.24:
+//  - il disegno sta in uno strato suo (`graphicsLayer`): il ridisegno a ogni fotogramma dell'ascolto resta li', e non fa
+//    riregistrare il gruppo in cui sta l'onda ne' la sorgente del vetro della pagina;
+//  - la semantica e' quella a fine gesto (`fluidSettledSemantics`): ferma finche' il dito trascina o lancia, e mentre si
+//    ascolta il valore per TalkBack si segue al secondo (la scritta «1:05 di 3:20», uno stato derivato che cambia quando
+//    cambia la scritta), non al millisecondo: il numero dell'intervallo si prende senza osservarlo quando la scritta
+//    cambia.
 
 /** Le misure, i colori di serie e i testi di [FluidAudioWaveform] e [FluidAudioTimeline]. */
 object FluidAudioWaveformDefaults {
@@ -174,8 +184,14 @@ fun FluidAudioWaveform(
   val hold = remember { FluidAudioSeekHold() }
   val latestPosition by rememberUpdatedState(position)
   val latestSeek by rememberUpdatedState(onSeek)
+  val latestDuration by rememberUpdatedState(duration)
+  val latestDescription by rememberUpdatedState(valueDescription)
   val bars = remember { FluidWaveformBars() }
   hold.Settle(latestPosition, duration)
+  // Il valore a voce, al secondo e non al fotogramma (R1, vedi l'intestazione del file).
+  val spoken = remember(hold) {
+    derivedStateOf { hold.spoken(hold.shown(latestPosition()).coerceIn(0L, latestDuration), latestDuration, latestDescription) }
+  }
 
   fun shown(): Long = hold.shown(latestPosition()).coerceIn(0L, duration)
   fun seek(target: Long, origin: Long) {
@@ -186,6 +202,8 @@ fun FluidAudioWaveform(
 
   val input = if (enabled && duration > 0L) {
     Modifier
+      // Il dito muove un valore (F7.24): la semantica a fine gesto aspetta che si alzi.
+      .fluidFingerDrivesValue()
       .pointerInput(duration, forward) {
         awaitEachGesture {
           val down = awaitFirstDown(requireUnconsumed = false)
@@ -263,10 +281,12 @@ fun FluidAudioWaveform(
     modifier
       .fillMaxWidth()
       .height(FluidAudioWaveformDefaults.Height)
-      .semantics {
+      .fluidSettledSemantics {
         this.contentDescription = contentDescription
-        val now = shown()
-        stateDescription = valueDescription(now, duration)
+        stateDescription = spoken.value.text
+        // Il numero, preso quando cambia la scritta (o il valore tenuto) e senza osservarlo: a ogni fotogramma
+        // dell'ascolto rifarebbe la semantica.
+        val now = Snapshot.withoutReadObservation { shown() }
         progressBarRangeInfo = ProgressBarRangeInfo(now.toFloat(), 0f..duration.coerceAtLeast(1L).toFloat())
         if (enabled && duration > 0L) {
           setProgress { target ->
@@ -283,6 +303,8 @@ fun FluidAudioWaveform(
         }
       }
       .then(input)
+      // Uno strato suo (R1): il ridisegno dell'ascolto resta qui (vedi l'intestazione del file).
+      .graphicsLayer()
       .drawBehind {
         val pitch = barPitch.toPx()
         val width = barWidth.toPx().coerceAtMost(pitch)
@@ -369,6 +391,13 @@ internal class FluidAudioSeekHold {
   private var heldAt by mutableLongStateOf(0L)
 
   fun shown(external: Long): Long = if (phase == 0) external else value
+
+  /**
+   * Quello che la semantica guarda (R1): la scritta di [shown] e, solo tenuto (il dito, un salto che aspetta il lettore),
+   * il valore. A riposo la posizione del lettore cambia a ogni fotogramma e conta solo la scritta.
+   */
+  fun spoken(shown: Long, duration: Long, describe: (Long, Long) -> String): FluidSpokenValue =
+    FluidSpokenValue(describe(shown, duration), if (phase == 0) null else shown.toDouble())
 
   fun drag(at: Long) {
     value = at
@@ -545,6 +574,14 @@ fun FluidAudioTimeline(
   val latestPosition by rememberUpdatedState(position)
   val latestDuration by rememberUpdatedState(durationMillis)
   val latestSeek by rememberUpdatedState(onSeek)
+  val latestDescription by rememberUpdatedState(valueDescription)
+  // Il valore a voce, al secondo e non al fotogramma (R1, vedi l'intestazione del file).
+  val spoken = remember(hold) {
+    derivedStateOf {
+      val total = latestDuration().coerceAtLeast(0L)
+      hold.spoken(hold.shown(latestPosition()).coerceIn(0L, total), total, latestDescription)
+    }
+  }
   val labels = remember { FluidRulerLabels() }
   val measurer = rememberTextMeasurer(cacheSize = 0)
   val labelStyle = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = "tnum", color = rulerColor)
@@ -571,6 +608,9 @@ fun FluidAudioTimeline(
   val interactive = enabled && !recording
   val input = if (interactive) {
     Modifier
+      // Il dito muove un valore (F7.24): la semantica a fine gesto aspetta che si alzi, e il lancio qui sotto conta come
+      // il dito finché non si ferma.
+      .fluidFingerDrivesValue()
       .pointerInput(forward, reducedMotion) {
         coroutineScope {
           var fling: Job? = null
@@ -659,27 +699,29 @@ fun FluidAudioTimeline(
               val msPerPx = 1000f / (state.dpPerSecond * density.density)
               flingOrigin = from
               fling = launch {
-                var speed = -velocity * msPerPx // ms di audio per secondo di tempo
-                var at = hold.value.toFloat()
-                var last = 0L
-                while (abs(speed) > FlingStopSpeed) {
-                  val now = withFrameNanos { it }
-                  if (last != 0L) {
-                    val dt = (now - last) / 1e9f
-                    at = (at + speed * dt).fastCoerceIn(0f, duration().toFloat())
-                    speed *= exp(-FlingFriction * dt)
-                    hold.moveDrag(at.roundToLong())
-                    onScrub?.invoke(at.roundToLong())
-                    if (at <= 0f || at >= duration()) {
-                      haptics.play(FluidHapticEvent.Threshold)
-                      break
+                fluidFingerMotion {
+                  var speed = -velocity * msPerPx // ms di audio per secondo di tempo
+                  var at = hold.value.toFloat()
+                  var last = 0L
+                  while (abs(speed) > FlingStopSpeed) {
+                    val now = withFrameNanos { it }
+                    if (last != 0L) {
+                      val dt = (now - last) / 1e9f
+                      at = (at + speed * dt).fastCoerceIn(0f, duration().toFloat())
+                      speed *= exp(-FlingFriction * dt)
+                      hold.moveDrag(at.roundToLong())
+                      onScrub?.invoke(at.roundToLong())
+                      if (at <= 0f || at >= duration()) {
+                        haptics.play(FluidHapticEvent.Threshold)
+                        break
+                      }
                     }
+                    last = now
                   }
-                  last = now
+                  hold.endDrag()
+                  seek(at.roundToLong(), from)
+                  onScrubEnd?.invoke()
                 }
-                hold.endDrag()
-                seek(at.roundToLong(), from)
-                onScrubEnd?.invoke()
               }
             } else {
               hold.endDrag()
@@ -712,11 +754,11 @@ fun FluidAudioTimeline(
     modifier
       .fillMaxWidth()
       .height(FluidAudioTimelineDefaults.Height)
-      .semantics {
+      .fluidSettledSemantics {
         this.contentDescription = contentDescription
-        val now = shown()
-        val total = duration()
-        stateDescription = valueDescription(now, total)
+        stateDescription = spoken.value.text
+        // Il numero, preso quando cambia la scritta (o il valore tenuto) e senza osservarlo (vedi l'onda della riga).
+        val (now, total) = Snapshot.withoutReadObservation { shown() to duration() }
         progressBarRangeInfo = ProgressBarRangeInfo(now.toFloat(), 0f..total.coerceAtLeast(1L).toFloat())
         if (interactive) {
           setProgress { target ->
@@ -735,6 +777,8 @@ fun FluidAudioTimeline(
         }
       }
       .then(input)
+      // Uno strato suo (R1): il ridisegno a ogni fotogramma resta qui (vedi l'intestazione del file).
+      .graphicsLayer()
       .drawBehind {
         // Il battito: lo si legge perche' il disegno si rifaccia a ogni fotogramma mentre la posizione avanza.
         if (frame < 0) return@drawBehind

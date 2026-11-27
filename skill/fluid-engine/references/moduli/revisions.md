@@ -30,7 +30,10 @@ Catalogo completo delle firme: [`../api/revisions.md`](../api/revisions.md).
 - **Una card per versione**: il dispositivo (o l'autore in uno spazio condiviso, «di Giulia»), l'ora («Oggi, 14:32»), il
   segno «Attuale» sulla versione che l'app mostra adesso, e l'anteprima **tagliata attorno al primo passaggio diverso**,
   con i passaggi diversi segnati dal fondo dell'accento. Oltre il tetto di lavoro del confronto, due estratti senza segni e
-  una riga che lo dice.
+  una riga che lo dice; con tre versioni e una oltre il tetto, anche l'attuale è l'inizio senza segni (R2). La
+  preparazione è lineare nella lunghezza dei testi (R2: prima ogni tratto ricontava dall'inizio).
+- **Dopo «Tieni…»** il tasto si spegne finché l'app non chiude il foglio: due tocchi rapidi decidono una volta sola. Se
+  il salvataggio non riesce e l'app lascia il foglio aperto, toccare una card lo riaccende (R2).
 - **Si sceglie toccando la card** (il segno di `FluidSelectionMark`); il tasto dice cosa fara': «Scegli una versione»
   (spento), «Tieni questa versione», «Tieni tutte e due». «Decidi dopo» chiude senza scegliere.
 - **La scelta** (`FluidVersionDecision`) porta le revisioni da tenere (`keep`) e quelle mostrate (`shown`). Il foglio non

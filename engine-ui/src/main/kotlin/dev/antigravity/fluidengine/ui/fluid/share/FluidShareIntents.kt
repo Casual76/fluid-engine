@@ -2,11 +2,13 @@ package dev.antigravity.fluidengine.ui.fluid.share
 
 import android.app.PendingIntent
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.PersistableBundle
 import android.service.chooser.ChooserAction
 
 /**
@@ -80,19 +82,34 @@ object FluidShareIntents {
     return chooser
   }
 
-  /** Cio' che «Copia» mette negli appunti: il testo, o gli Uri (che un'app che incolla legge col permesso concesso). */
+  /**
+   * Cio' che «Copia» mette negli appunti: il testo, o gli Uri (che un'app che incolla legge col permesso concesso). Con
+   * [FluidShareItem.sensitive] il clip e' segnato delicato (`ClipDescription.EXTRA_IS_SENSITIVE`, Android 13 e oltre):
+   * Android non ne mostra il testo nell'anteprima della copia ne' nei suggerimenti della tastiera (R2).
+   */
   fun clip(context: Context, item: FluidShareItem): ClipData = when {
     item.uris.isEmpty() -> ClipData.newPlainText(item.title, item.text.orEmpty())
     else -> ClipData.newUri(context.contentResolver, item.title, item.uris.first()).also { clip ->
       item.uris.drop(1).forEach { clip.addItem(ClipData.Item(it)) }
     }
-  }
+  }.also { clip -> if (item.sensitive) fluidMarkSensitive(clip) }
 
   /** «Salva in File» di un oggetto solo: il selettore di Android per scegliere dove e con che nome. */
   fun createDocument(item: FluidShareItem): Intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
     .addCategory(Intent.CATEGORY_OPENABLE)
     .setType(if (item.uris.isEmpty()) "text/plain" else item.mimeType)
     .putExtra(Intent.EXTRA_TITLE, fluidSaveName(item))
+}
+
+/**
+ * Segna [clip] come delicato, da Android 13 (la costante di sistema `ClipDescription.EXTRA_IS_SENSITIVE`); prima non
+ * c'e' niente da segnare. Tiene gli altri extra della descrizione.
+ */
+internal fun fluidMarkSensitive(clip: ClipData) {
+  if (Build.VERSION.SDK_INT < 33) return
+  val extras = clip.description.extras ?: PersistableBundle()
+  extras.putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+  clip.description.extras = extras
 }
 
 /** Il nome proposto per «Salva in File»: il nome del file, o il titolo con l'estensione giusta per un testo. */

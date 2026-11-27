@@ -180,4 +180,26 @@ class FluidFileFolderStateTest {
     recents.forget(Uri.parse("content://p/4"))
     assertEquals(listOf("File 1.pdf"), recents.entries.map { it.item.name })
   }
+
+  @Test
+  fun `after a search the folder goes back to reading by pages`() = runTest(StandardTestDispatcher()) {
+    val source = SlowSource(1000, sorts = true)
+    val folder = folder(source)
+    folder.start()
+    advanceUntilIdle()
+    assertEquals(200, folder.loadedCount)
+    // Una sorgente che ordina ma non cerca: per cercare si legge tutta la cartella.
+    folder.search("CITTA")
+    advanceUntilIdle()
+    assertTrue(folder.complete)
+    assertEquals(1000, folder.loadedCount)
+    folder.search("")
+    // Un cambio d'ordine rilegge da capo: senza ricerca bastano le prime pagine, non tutta la cartella.
+    val asked = source.queries.size
+    folder.sortBy(FluidFileSort.of(FluidFileSortKey.Date))
+    advanceUntilIdle()
+    assertEquals("una pagina sola dopo la ricerca: ${source.queries.size - asked} richieste", 200, folder.loadedCount)
+    assertEquals(1, source.queries.size - asked)
+    assertFalse(folder.complete)
+  }
 }

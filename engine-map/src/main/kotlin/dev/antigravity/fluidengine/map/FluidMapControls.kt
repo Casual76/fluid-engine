@@ -278,7 +278,6 @@ internal fun FluidMapAttributionChip(
 ) {
   var open by remember { mutableStateOf(false) }
   var origin by remember { mutableStateOf<Rect?>(null) }
-  val uri = LocalUriHandler.current
   Box(
     modifier
       .heightIn(min = 44.dp)
@@ -301,10 +300,26 @@ internal fun FluidMapAttributionChip(
       )
     }
   }
+  FluidMapCreditsPopover(open, onDismiss = { open = false }, origin = { origin }, attribution = attribution, labels = labels)
+}
+
+/**
+ * I crediti interi, coi collegamenti, nel popover che nasce da chi li apre: il vetro dei crediti sulla mappa e i crediti
+ * della cartolina. Senza host dei modali non compare.
+ */
+@Composable
+internal fun FluidMapCreditsPopover(
+  open: Boolean,
+  onDismiss: () -> Unit,
+  origin: () -> Rect?,
+  attribution: FluidMapAttribution,
+  labels: FluidMapLabels,
+) {
+  val uri = LocalUriHandler.current
   FluidGlassModalPortal(
     visible = open,
-    onDismissRequest = { open = false },
-    origin = { origin },
+    onDismissRequest = onDismiss,
+    origin = origin,
     presentation = FluidGlassModalPresentation.Popover,
     paneTitle = labels.credits,
   ) {

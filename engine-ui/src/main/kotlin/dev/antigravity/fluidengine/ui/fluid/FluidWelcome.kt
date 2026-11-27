@@ -262,7 +262,9 @@ object FluidLaunchOrigin {
  * novità, niente alla stessa versione. Mostra il foglio solo quando può: mai a un'apertura da link o da notifica
  * (`suppressed`), mai sopra un'azione in corso (`busy`, o un altro modale già aperto nell'host), e mai nel primo
  * fotogramma (la decisione legge la memoria, quindi arriva qualche fotogramma dopo la pagina). La versione si segna come
- * vista **nel momento in cui il foglio compare**: chi chiude l'app a foglio aperto non lo rivede.
+ * vista **appena prima che il foglio compaia** (il foglio aspetta la scrittura): chi chiude l'app a foglio aperto non lo
+ * rivede. Una memoria che non si legge (un DataStore corrotto, un errore di IO) decide «niente»: meglio nessun foglio che
+ * lo stesso foglio a ogni avvio; una che non si scrive non ferma il foglio.
  */
 @Stable
 class FluidWelcomeState internal constructor(
@@ -286,6 +288,9 @@ class FluidWelcomeState internal constructor(
 
   internal var seen: String? by mutableStateOf(null)
   internal var seenLoaded by mutableStateOf(false)
+
+  /** La memoria non si è potuta leggere (R2): la decisione è «niente», senza segnare. */
+  internal var seenFailed = false
   internal var finished by mutableStateOf(false)
   internal var epoch by mutableIntStateOf(0)
 
@@ -298,7 +303,7 @@ class FluidWelcomeState internal constructor(
   /** Dimentica la versione vista e decide di nuovo: per le prove e per una voce «Mostra di nuovo le novità». */
   fun forget() {
     scope.launch {
-      memory.write(key, null)
+      memory.writeSafely(key, null)
       isShowing = false
       finished = false
       kind = null
@@ -309,10 +314,12 @@ class FluidWelcomeState internal constructor(
     }
   }
 
-  internal suspend fun markSeen() = memory.write(key, versionName)
+  internal suspend fun markSeen(): Boolean = memory.writeSafely(key, versionName)
 
   internal suspend fun load() {
-    seen = memory.read(key)
+    val read = memory.readSafely(key)
+    seen = read.getOrNull()
+    seenFailed = read.isFailure
     seenLoaded = true
   }
 }
@@ -352,6 +359,11 @@ fun rememberFluidWelcomeState(
   LaunchedEffect(state, state.epoch) { state.load() }
   LaunchedEffect(state, state.epoch, state.seenLoaded, hasNews, fresh, hasWelcome) {
     if (!state.seenLoaded || state.isDecided) return@LaunchedEffect
+    if (state.seenFailed) {
+      state.kind = null
+      state.isDecided = true
+      return@LaunchedEffect
+    }
     val seen = state.seen
     val firstRun = seen == null && fresh
     if (!firstRun && hasNews == null) return@LaunchedEffect
@@ -363,8 +375,10 @@ fun rememberFluidWelcomeState(
   val hostBusy = LocalFluidGlassModalHostState.current?.isPresenting == true
   LaunchedEffect(state, state.kind, state.finished, suppressed, busy, hostBusy) {
     if (state.kind == null || state.finished || state.isShowing || suppressed || busy || hostBusy) return@LaunchedEffect
-    state.isShowing = true
+    // Prima si segna, poi si mostra (R2): un processo ucciso nei primi istanti a foglio comparso non lo fa rivedere. Se
+    // nel frattempo qualcosa cambia (un modale, un'azione dell'app) l'effetto riparte e il foglio aspetta ancora.
     state.markSeen()
+    state.isShowing = true
   }
   return state
 }

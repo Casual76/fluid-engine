@@ -123,6 +123,8 @@ internal class FluidDetentInertia {
   private var restSpeed = 0f
   private var handoffSteps = 0f
   private var handoffOmega = 0f
+  /** F7.24b: sotto questa velocita' (voci al secondo) il decadimento passa la mano alla molla; zero: solo [handoffSteps]. */
+  private var handoffSpeed = 0f
 
   /** Fermo a [value]. */
   fun snapTo(value: Float) {
@@ -135,15 +137,24 @@ internal class FluidDetentInertia {
 
   /**
    * Un lancio da [from] con [speed] (voci al secondo) che finisce su [to]. Se il decadimento che ci arriva e' troppo
-   * lontano da quello naturale, una molla critica di [settleSeconds] con la stessa velocita'.
+   * lontano da quello naturale, una molla critica di [settleSeconds] con la stessa velocita'. [handoffSpeedPx] (pixel al
+   * secondo, zero di serie) fa passare la mano alla molla anche quando il decadimento e' gia' lento (F7.24b, la ghiera).
    */
-  fun flingTo(from: Float, speed: Float, to: Float, pxPerStep: Float, settleSeconds: Double = FluidDetentMotion.SettleResponseSeconds) {
+  fun flingTo(
+    from: Float,
+    speed: Float,
+    to: Float,
+    pxPerStep: Float,
+    settleSeconds: Double = FluidDetentMotion.SettleResponseSeconds,
+    handoffSpeedPx: Float = 0f,
+  ) {
     val k = fluidDetentDecayFor(from, speed, to)
     if (k > 0f) {
       start(from, speed, to, pxPerStep)
       decayPerSecond = k
       // L'ultimo pixel lo chiude la molla dell'assestamento (F8.2c).
       handoffOmega = (2.0 * PI / settleSeconds).toFloat()
+      handoffSpeed = if (handoffSpeedPx > 0f) handoffSpeedPx / (if (pxPerStep > 0f) pxPerStep else 1f) else 0f
     } else {
       springTo(from, speed, to, pxPerStep, settleSeconds)
     }
@@ -173,7 +184,7 @@ internal class FluidDetentInertia {
       val decay = exp(-decayPerSecond * dtSeconds)
       e *= decay
       v = -decayPerSecond * e
-      if (abs(e) <= handoffSteps) {
+      if (abs(e) <= handoffSteps || abs(v) <= handoffSpeed) {
         // Sembra gia' ferma: da qui la molla, con la stessa velocita' (F8.2c). Senza, la coda sotto il pixel dura un secondo.
         decayPerSecond = 0f
         omega = handoffOmega
@@ -207,6 +218,7 @@ internal class FluidDetentInertia {
     restSteps = FluidDetentMotion.RestPx / px
     restSpeed = FluidDetentMotion.RestSpeedPx / px
     handoffSteps = FluidDetentMotion.HandoffPx / px
+    handoffSpeed = 0f
     moving = from != to || speed != 0f
     if (!moving) velocity = 0f
   }

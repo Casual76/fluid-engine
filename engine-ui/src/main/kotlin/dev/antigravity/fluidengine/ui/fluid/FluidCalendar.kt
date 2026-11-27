@@ -532,7 +532,7 @@ internal class FluidCalendarCells {
   fun reveal(r: FluidCalendarMarkReveal) {
     if (r !in reveals) reveals.add(r)
     if (revealJob?.isActive == true) return
-    val s = scope ?: run { r.progress.floatValue = 1f; reveals.remove(r); return }
+    val s = scope ?: run { r.progress.floatValue = 1f; r.revealing = false; reveals.remove(r); return }
     revealJob = s.launch {
       while (reveals.isNotEmpty()) withFrameNanos(revealFrame)
     }
@@ -546,6 +546,7 @@ internal class FluidCalendarCells {
       val t = (nanos - r.startNanos) / (FluidTextMotion.WordArrivalMillis * 1_000_000f)
       if (t >= 1f) {
         r.progress.floatValue = 1f
+        r.revealing = false
         reveals.removeAt(i)
       } else {
         r.progress.floatValue = t
@@ -561,6 +562,13 @@ internal class FluidCalendarMarkReveal(var shown: FluidCalendarMark?) {
   val progress = mutableFloatStateOf(1f)
   var startNanos = -1L
   var pending = false
+
+  /**
+   * Vero mentre il segno entra (F7.29): solo allora il segno ha il suo layer, quello della sfocatura. Un segno fermo si
+   * disegna nella cella; prima ogni segno teneva il layer per sempre, e una pagina o la striscia della settimana che
+   * entrava ne creava uno per giorno segnato. Cambia due volte per arrivo: la ricomposizione è del solo segno.
+   */
+  var revealing by mutableStateOf(false)
 }
 
 /** Il calendario con le descrizioni scelte: brevi in pagina, intere (con l'anno e il giorno) nel foglio della data. */
@@ -1049,6 +1057,7 @@ private fun CalendarDay(
       reveal.progress.floatValue = 0f
       reveal.startNanos = -1L
       reveal.pending = true
+      reveal.revealing = true
     }
   }
   SideEffect {
@@ -1156,7 +1165,9 @@ private fun CalendarDay(
 @Composable
 private fun CalendarMark(mark: FluidCalendarMark, color: Color, reveal: FluidCalendarMarkReveal, modifier: Modifier) {
   val density = LocalDensity.current
-  val arriving = Modifier.graphicsLayer {
+  // F7.29: il layer della sfocatura solo mentre il segno entra; fermo, il segno si disegna nella cella (stessi pixel:
+  // a fine arrivo il layer aveva alfa piena e nessun filtro).
+  val arriving = if (!reveal.revealing) Modifier else Modifier.graphicsLayer {
     val t = reveal.progress.floatValue
     if (t < 1f) {
       alpha = t

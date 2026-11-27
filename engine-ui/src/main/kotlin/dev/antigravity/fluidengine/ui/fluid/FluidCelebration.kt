@@ -111,6 +111,14 @@ internal object FluidCelebrationProfile {
    */
   const val StillHoldMs: Long = 900L
   const val StillFadeMs: Long = 250L
+
+  /**
+   * Quanti fotogrammi la festa aspetta che lo strato abbia una misura (R2): **30**, un quarto di secondo a 120 Hz e mezzo
+   * a 60. Uno strato a misura zero, o mai piazzato, non ha dove far cadere i coriandoli: la festa finisce senza niente
+   * invece di restare in corso per sempre. A occhio, 26 novembre 2026: il primo fotogramma piazzato arriva sempre al primo
+   * o al secondo.
+   */
+  const val PlacementFrames: Int = 30
 }
 
 /**
@@ -349,6 +357,7 @@ class FluidCelebrationState internal constructor() {
   private var seeded = false
   private var lastNanos = 0L
   private var running = false
+  private var unplaced = 0
 
   /** Il passo di un fotogramma: un oggetto solo, fatto una volta. */
   internal val onFrame: (Long) -> Unit = { nanos ->
@@ -357,6 +366,8 @@ class FluidCelebrationState internal constructor() {
         seed(Random(nanos))
         seeded = true
         lastNanos = nanos
+      } else if (++unplaced >= FluidCelebrationProfile.PlacementFrames) {
+        running = false
       }
     } else {
       // Un buco lungo (la finestra in pausa) non fa saltare i coriandoli: al piu' 1/30 di secondo per passo.
@@ -391,11 +402,19 @@ class FluidCelebrationState internal constructor() {
 
   internal suspend fun run(reduced: Boolean) {
     seeded = false
+    unplaced = 0
     running = true
     layerAlpha.floatValue = 1f
     if (reduced) {
-      // Il segno fermo: un fotogramma per sapere dove sta lo strato, poi un disegno solo.
-      while (layerWidth <= 0f) withFrameNanos { }
+      // Il segno fermo: un fotogramma per sapere dove sta lo strato, poi un disegno solo. Senza misura, niente (R2).
+      var waited = 0
+      while (layerWidth <= 0f || layerHeight <= 0f) {
+        if (waited++ >= FluidCelebrationProfile.PlacementFrames) {
+          isCelebrating = false
+          return
+        }
+        withFrameNanos { }
+      }
       val o = origin
       val ox = o?.x?.minus(layerX) ?: (layerWidth / 2f)
       val oy = o?.y?.minus(layerY) ?: (layerHeight * 0.22f)

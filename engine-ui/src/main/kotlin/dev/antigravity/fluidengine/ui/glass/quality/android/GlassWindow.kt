@@ -24,6 +24,8 @@ internal class GlassWindow(
   var owners = 0
   var visibleDenied = false
   var scrollSources = 0
+  /** F7.26: l'ultima decisione già scritta nella riga dei cambi di livello (solo col profilo simulato). */
+  var noted: dev.antigravity.fluidengine.ui.glass.quality.GlassQualityDecision? = null
   var visible = false
     private set
   private val decor = window.decorView as ViewGroup
@@ -145,6 +147,8 @@ internal class WindowFrames(
   private var lastVsync = -1L
   private var lastDelivery = 0L
   private val timings = GlassFrameTimings()
+  /** F7.26d: la diagnostica dei voti delle build di prova (in release la classe è vuota e le chiamate non si compilano). */
+  private val votes = GlassFrameVotes(displayId, period, policy)
 
   fun close() {
     closed = true
@@ -163,7 +167,7 @@ internal class WindowFrames(
       policy.onWindow(now, true, true, displayId, period)
     } else {
       lastVsync = -1
-      pose(now)
+      pose(now, GlassFrameVotes.ScrollEnd)
     }
   }
 
@@ -172,7 +176,10 @@ internal class WindowFrames(
       if (closed) return
       val vsync = metrics.getMetric(FrameMetrics.INTENDED_VSYNC_TIMESTAMP)
       val now = clock.asLong
-      if (vsync < born || vsync <= lastVsync || vsync > now) return
+      if (vsync < born || vsync <= lastVsync || vsync > now) {
+        if (GlassVariantSignals.noting) votes.discarded(vsync, born, lastVsync, now)
+        return
+      }
       val continuous = lastVsync >= 0 && vsync - lastVsync <= quietNs
       lastVsync = vsync
       lastDelivery = now
@@ -183,17 +190,24 @@ internal class WindowFrames(
         schedulePose(quietNs)
       } else if (moving && !scrolling && !continuous) {
         handler.removeCallbacks(this)
-        pose(now)
+        pose(now, GlassFrameVotes.Gap)
       }
-      if (!moving) return
+      if (!moving) {
+        if (GlassVariantSignals.noting) votes.still()
+        return
+      }
       val total = metrics.getMetric(FrameMetrics.TOTAL_DURATION)
       val modern = Build.VERSION.SDK_INT >= 31
       val deadline = if (modern) metrics.getMetric(FrameMetrics.DEADLINE) else period
       val work = appWork(metrics)
+      // F7.26e: un ritardo è dell'app quando il suo lavoro da solo supera la scadenza, ma mai una scadenza più lunga della
+      // coda di tre buffer. Sul Tab S9 col carico vero della GPU la scadenza di Android si allungava fino a 58 ms dietro i
+      // fotogrammi lenti, e 30 ms di GPU per fotogramma restavano «non attribuiti»: nessuna discesa.
+      val budget = minOf(deadline, AttributionPeriods * period)
       val evidence = when {
         !modern -> GlassFrameEvidence.Estimated
         total < 0 || deadline <= 0 || work !in 0..total -> GlassFrameEvidence.Incomplete
-        metrics.getMetric(FrameMetrics.FIRST_DRAW_FRAME) != 0L || (total > deadline && work <= deadline) ->
+        metrics.getMetric(FrameMetrics.FIRST_DRAW_FRAME) != 0L || (total > deadline && work <= budget) ->
           GlassFrameEvidence.Unattributed
         else -> GlassFrameEvidence.MeasuredApp
       }
@@ -201,6 +215,7 @@ internal class WindowFrames(
       val elapsed = timings.duration(total, deadline, period, evidence)
       val appDuration = timings.duration(work, deadline, period, evidence)
       if (policy.onFrame(now, vsync, elapsed, deadline, appDuration, evidence, dropped) != null) process.publish()
+      if (GlassVariantSignals.noting) votes.frame(metrics, dropped, total, deadline, work, evidence)
     }
   }
 
@@ -229,11 +244,11 @@ internal class WindowFrames(
       if (closed || !moving) return
       val now = clock.asLong
       val remaining = quietNs - (now - lastDelivery)
-      if (remaining > 0) schedulePose(remaining) else pose(now)
+      if (remaining > 0) schedulePose(remaining) else pose(now, GlassFrameVotes.Quiet)
     }
   }
 
-  private fun pose(now: Long) {
+  private fun pose(now: Long, why: Int) {
     moving = false
     render?.windowMotion = false
     // Un dito può restare fermo a lungo prima del rilascio: la posa usa condizioni ancora recenti.
@@ -242,7 +257,16 @@ internal class WindowFrames(
       render?.rejectedUpgrade?.let { if (policy.decision.optics >= it.optics) render.rejectedUpgrade = null }
       process.publish()
     }
+    // F7.26d: la riga della posa dopo la decisione, così dice il livello che ne è uscito.
+    if (GlassVariantSignals.noting) votes.pose(why)
   }
 }
 
 private val FrameClock = LongSupplier(System::nanoTime)
+
+/**
+ * F7.26e · Quanti periodi del pannello vale al più la scadenza con cui si attribuisce un ritardo all'app: la coda di tre
+ * buffer. Sui fotogrammi veri del Tab S9 (finestra del 26 novembre) separa lo scorrimento sano (V1: al più 2 ritardi
+ * dell'app per finestra da 120, come prima) dal carico vero della GPU (V3: 344 ritardi su 368, la discesa subito).
+ */
+internal const val AttributionPeriods = 3L

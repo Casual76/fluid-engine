@@ -62,6 +62,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.Shadow
 import dev.antigravity.fluidengine.ui.glass.backdrop.shadow.ShadowElement
 import dev.antigravity.fluidengine.ui.glass.backdrop.glassApiLevel
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidOnDrawBackdrop
+import dev.antigravity.fluidengine.ui.glass.quality.android.GlassVariantSignals
 import dev.antigravity.fluidengine.ui.glass.quality.android.ObserveGlassWindow
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidProfile
 import dev.antigravity.fluidengine.ui.glass.field.GlassLiquidPanels
@@ -320,7 +321,12 @@ fun Modifier.glassBackdropSource(
       // Anche a riposo il corpo conserva il ritaglio ai limiti che aveva fuori schermo.
       val samples = layer.pageSourceOrSelf() != null
       clip = !samples
-      compositingStrategy = if (samples) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+      // F7.26: nelle sole build di prova il profilo simulato può togliere la texture (`fonte=piatta`), per misurare sul
+      // tablet la memoria che risparmia contro il lavoro che costa ai vetri (domanda 3 di F7.26). In release è sempre falso.
+      compositingStrategy = if (samples && !GlassVariantSignals.flatSource) CompositingStrategy.Offscreen
+        else CompositingStrategy.Auto
+      // F7.26d: nelle build di prova col profilo simulato, una riga quando cambia (quante texture tiene la scena).
+      if (GlassVariantSignals.noting) GlassVariantSignals.noteSource(layer, samples, size.width, size.height)
     }
     // 4.0 (F3.10): dentro quel layer, il nodo che dice alle sonde che il contenuto si è ridisegnato. Il nodo che registra
     // la sorgente sta fuori dal layer, e quando cambia solo ciò che il layer disegna (un fondo che passa da chiaro a scuro,

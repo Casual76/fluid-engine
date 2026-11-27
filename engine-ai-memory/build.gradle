@@ -1,0 +1,62 @@
+// F9.3 · Una memoria che funziona (`ricordi-dell-assistente`): il motore della memoria di PampAI. Opt-in, e di fatto
+// solo per PampAI: le altre app propongono i loro ricordi col ponte (il formato e' in engine-ai, `ai.memory`) e non
+// includono questo modulo.
+//
+//   implementation project(':engine-ai-memory')
+//
+// Dentro:
+// - **la memoria** (`AiMemoryBook`): i ricordi con la fonte, la data, la scadenza; quello piu' recente vince fra due che
+//   si contraddicono, e l'avviso lo dice; Annulla, correggi, fissa, dimentica (uno, tutti, quelli di un'app);
+// - **la cassaforte**: tutto in un file cifrato di engine-vault, fuori dal backup; niente in chiaro sul disco;
+// - **la pertinenza**: l'indice di engine-search (l'italiano, gli errori di battitura, BM25F), solo in memoria, e il
+//   significato se c'e' un modello; il blocco per il prompt con un tetto di gettoni;
+// - **l'estrattore dopo i turni** (`AiMemoryExtractor`): un modello piccolo propone i fatti, con un tetto e il costo
+//   misurato; mai dalle chat temporanee, dal telefono bloccato o dai turni con dati privati o non affidabili;
+// - **i ricordi delle altre app** (`AiMemoryInbox`), dietro il cancello del provider dell'assistenza di F9.1;
+// - **la memoria di prima** (`AiMemoryLegacyImport`): la tabella `memories` di Room v7 di PampAI, letta senza toccarla.
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+apply from: "${projectDir}/../versions.gradle"
+
+android {
+  namespace = 'dev.antigravity.fluidengine.ai.memory'
+  compileSdk engine.compileSdk
+
+  defaultConfig {
+    minSdk engine.minSdk
+  }
+
+  compileOptions {
+    sourceCompatibility engine.javaVersion
+    targetCompatibility engine.javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = engine.jvmTarget
+  }
+
+  testOptions {
+    unitTests {
+      // L'indice e' SQLite FTS4 vero e la memoria di prima e' un database di Room vero: si provano in Robolectric.
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // `api`: i ricordi, le proposte e gli avvisi (engine-ai, `ai.memory`), il modello dell'estrattore (`ChatProvider`).
+  api project(':engine-ai')
+  // `api`: `AiMemoryBook.open(section)` prende una sezione della cassaforte.
+  api project(':engine-vault')
+  // `api`: il modello del significato facoltativo e' un `FluidTextEmbedder` di engine-search.
+  api project(':engine-search')
+
+  testImplementation "junit:junit:${engine.junit}"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:${engine.coroutinesTest}"
+  // Solo per le prove: SQLite FTS4 vero e il database di Room v7 finto, mai in un'app.
+  testImplementation "org.robolectric:robolectric:${engine.robolectric}"
+  testImplementation "androidx.test:core:1.7.0"
+}

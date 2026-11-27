@@ -50,6 +50,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -566,6 +569,20 @@ internal class FluidSymbolClock {
   private var job: Job? = null
   private var running = false
 
+  /**
+   * Il ciclo di vita di chi lo contiene è sotto STARTED (R2): una pagina coperta ma composta, l'app in sottofondo. Niente
+   * fotogrammi; i canali restano dove sono e ripartono al ritorno.
+   */
+  var stopped = false
+    private set
+
+  /**
+   * «Riduci movimento» (R2): rotazione, oscillazione e rimbalzo restano a riposo, e a riposo non chiedono fotogrammi. Le
+   * opacità (pulsazione, respiro, colore variabile) e la sostituzione continuano.
+   */
+  var reduced = false
+    private set
+
   private val onFrame: (Long) -> Unit = { nanos ->
     if (origin < 0L) origin = nanos
     val t = (nanos - origin) / 1_000_000f
@@ -574,7 +591,7 @@ internal class FluidSymbolClock {
     if (drawStart.isNaN()) drawStart = t
     frames++
     val replacing = replaceStart != Idle
-    running = busy(t)
+    running = busy(t) && !restsWhileReduced()
     if (replacing && replaceStart == Idle) onReplaceDone?.invoke()
     now.floatValue = t
   }
@@ -594,13 +611,41 @@ internal class FluidSymbolClock {
     return effectStart != Idle || replaceStart != Idle || drawStart != Idle
   }
 
-  /** Fa partire il giro dei fotogrammi in [scope], se non gira già. */
+  /** Vero se l'unico canale aperto è un effetto che col movimento ridotto non muove niente. */
+  private fun restsWhileReduced(): Boolean {
+    if (!reduced || replaceStart != Idle || drawStart != Idle) return false
+    val kind = effect?.kind ?: return true
+    return kind == FluidSymbolEffect.KindBounce || kind == FluidSymbolEffect.KindWiggle || kind == FluidSymbolEffect.KindRotate
+  }
+
+  private fun channelOpen(): Boolean = effectStart != Idle || replaceStart != Idle || drawStart != Idle
+
+  /** Fa partire il giro dei fotogrammi in [scope], se non gira già (e se chi lo contiene è in vista). */
   fun kick(scope: CoroutineScope) {
     running = true
-    if (job?.isActive == true) return
+    if (stopped || job?.isActive == true) return
     job = scope.launch {
-      while (running) withFrameNanos(onFrame)
+      while (running && !stopped) withFrameNanos(onFrame)
     }
+  }
+
+  /** Il ciclo di vita sopra o sotto STARTED: sotto il giro si ferma, sopra riparte se un canale è aperto. */
+  fun setStopped(value: Boolean, scope: CoroutineScope) {
+    if (stopped == value) return
+    stopped = value
+    if (value) {
+      job?.cancel()
+      job = null
+    } else if (running || channelOpen()) {
+      kick(scope)
+    }
+  }
+
+  /** Il movimento ridotto acceso o spento: spento, un effetto rimasto aperto riparte. */
+  fun setReduced(value: Boolean, scope: CoroutineScope) {
+    if (reduced == value) return
+    reduced = value
+    if (!value && channelOpen()) kick(scope)
   }
 
   fun cancel() {
@@ -680,7 +725,9 @@ fun Modifier.fluidSymbolEffect(effect: FluidSymbolEffect, trigger: Any?): Modifi
 /**
  * Tiene [effect] in corso finché [active] è vero, come `symbolEffect(_:isActive:)`: la sincronizzazione che gira, il
  * microfono che respira. Spento, finisce il ciclo in corso e si ferma a riposo (la rotazione finisce il giro frenando).
- * Fuori dallo schermo il giro dei fotogrammi si ferma col nodo.
+ * Fuori dallo schermo il giro dei fotogrammi si ferma col nodo; si ferma anche in una pagina coperta (il ciclo di vita
+ * sotto STARTED) e riparte al ritorno, e con «Riduci movimento» rotazione, oscillazione e rimbalzo restano a riposo
+ * senza chiedere fotogrammi.
  */
 fun Modifier.fluidSymbolEffectWhile(effect: FluidSymbolEffect, active: Boolean): Modifier =
   this then FluidSymbolEffectElement(effect, null, discrete = false, active = active)
@@ -724,11 +771,21 @@ private class FluidSymbolEffectNode(
     applySymbolFrame(frame)
   }
 
+  private var lifecycle: Lifecycle? = null
+  private val lifecycleObserver = LifecycleEventObserver { owner, _ ->
+    clock.setStopped(!owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED), coroutineScope)
+  }
+
   override fun onAttach() {
+    clock.setReduced(currentValueOf(LocalFluidMotionPolicy).reducedMotion, coroutineScope)
+    // Una pagina coperta (CREATED) o l'app in sottofondo: il giro dei fotogrammi si ferma (R2).
+    lifecycle = currentValueOf(LocalLifecycleOwner).lifecycle.also { it.addObserver(lifecycleObserver) }
     if (!discrete && active) clock.setActive(effect, true, coroutineScope)
   }
 
   override fun onDetach() {
+    lifecycle?.removeObserver(lifecycleObserver)
+    lifecycle = null
     clock.cancel()
     clock.effectStart = FluidSymbolClock.Idle
     clock.effectStop = Float.NaN
@@ -747,6 +804,8 @@ private class FluidSymbolEffectNode(
   }
 
   override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+    // Il movimento ridotto cambiato: Compose rimisura i nodi che leggono i locali quando i locali cambiano.
+    clock.setReduced(currentValueOf(LocalFluidMotionPolicy).reducedMotion, coroutineScope)
     val placeable = measurable.measure(constraints)
     return layout(placeable.width, placeable.height) { placeable.placeWithLayer(0, 0, layerBlock = layerBlock) }
   }
@@ -785,7 +844,8 @@ internal fun GraphicsLayerScope.applySymbolFrame(frame: FluidSymbolFrame) {
  *   croce o una freccia, che nel contorno di Material sono un pezzo solo, compaiono.
  *
  * Un solo giro di fotogrammi per icona, che si ferma a riposo: ferma, l'icona non ridisegna. Con «Riduci movimento»
- * restano le opacità; Draw On e Off diventano immediati.
+ * restano le opacità (e un effetto continuo che muove soltanto non chiede fotogrammi); Draw On e Off diventano
+ * immediati. In una pagina coperta (il ciclo di vita sotto STARTED) il giro si ferma e riparte al ritorno.
  *
  * @param icon l'icona; quando cambia c'è la sostituzione.
  * @param contentDescription ciò che TalkBack dice; null se l'icona accompagna un testo.
@@ -854,6 +914,7 @@ fun FluidSymbol(
       holder.magic = null
       holder.exitVersion.intValue++
     }
+    clock.setReduced(reduced, scope)
     if (replaced) clock.kick(scope)
     if (redraw) clock.startDraw(scope)
     if (effect != null) {
@@ -862,6 +923,15 @@ fun FluidSymbol(
     }
   }
   DisposableEffect(clock) { onDispose { clock.cancel() } }
+  // Una pagina coperta (CREATED) o l'app in sottofondo: il giro dei fotogrammi si ferma e riparte al ritorno (R2).
+  val lifecycle = LocalLifecycleOwner.current.lifecycle
+  DisposableEffect(lifecycle, clock) {
+    val observer = LifecycleEventObserver { owner, _ ->
+      clock.setStopped(!owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED), scope)
+    }
+    lifecycle.addObserver(observer)
+    onDispose { lifecycle.removeObserver(observer) }
+  }
   val exiting = holder.previous
   Box(
     modifier

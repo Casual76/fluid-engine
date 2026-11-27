@@ -2,6 +2,7 @@ package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -25,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,9 +41,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
@@ -305,7 +309,6 @@ fun FluidFastScroller(
   val reducedMotion = LocalFluidMotionPolicy.current.reducedMotion
   val currentLabel by rememberUpdatedState(label)
   val scheme = MaterialTheme.colorScheme
-  val panelTint = GlassDefaults.panelTint()
 
   // Il dito, mentre c'e': dove sta la maniglia (frazione) e quale etichetta ha attraversato. Lo stato e' di
   // chi guida, la lista lo segue: leggere la posizione dalla lista durante il gesto farebbe correre la
@@ -315,6 +318,22 @@ fun FluidFastScroller(
   var scrubLabel by remember { mutableStateOf<String?>(null) }
   // 0 = nascosta, 1 = tutta. Una sola dissolvenza, letta nel disegno.
   val appearance = remember { Animatable(0f) }
+
+  // F7.25 · La bolla si compone prima che serva. Prima nasceva nel fotogramma in cui si prende la maniglia: 120 funzioni
+  // composte (il vetro col suo modello e la sua sonda, la transizione, il testo misurato per la prima volta), sul Tab S9
+  // 2,3 ms di ricomposizione e 1,1 ms di misura del testo in un fotogramma da 8,4 ms. Ora la sua composizione vive con lo
+  // scorrimento rapido: a maniglia libera sta in un contenitore che la misura ma non la posa ([ScrubberBubbleHost]: niente
+  // disegno, niente cattura, e la sonda del vetro non legge senza una posizione), e quando la si prende la stessa
+  // composizione si sposta dentro l'`AnimatedVisibility` di sempre (`movableContentOf`), senza ricomporsi. Nel primo
+  // fotogramma si compone solo la transizione della bolla. Contenuto, tempi e animazione sono quelli di prima: chi
+  // decide se la bolla si vede e' lo stesso gesto, con la stessa condizione (`scrubbing` e un'etichetta non vuota).
+  // L'etichetta si legge solo nel testo ([ScrubberBubbleText]): quando cambia (a ogni salto, e al tocco) si ricompone il
+  // testo, non il vetro; e [ScrubberBubble] si salta quando la transizione della bolla si ricompone.
+  val bubbleState = remember { MutableTransitionState(false) }
+  val bubbleLabel: () -> String? = remember { { scrubLabel } }
+  val bubble = remember {
+    movableContentOf { bubbleBackdrop: GlassBackdropState? -> ScrubberBubble(bubbleBackdrop, bubbleLabel) }
+  }
 
   // La posizione della lista che si vede: dal dito mentre lo si tiene, dalla lista altrimenti.
   val listFraction = {
@@ -365,6 +384,8 @@ fun FluidFastScroller(
 
   // Si prende solo quello che si vede: a maniglia nascosta il bordo e' della lista.
   val grabbable by remember { derivedStateOf { appearance.value > GrabbableFrom } }
+  // F7.25: letto cosi', prendere la maniglia (`scrubbing`) non ricompone lo scorrimento rapido: e' gia' prendibile.
+  val touchable by remember { derivedStateOf { grabbable || scrubbing } }
 
   BoxWithConstraints(modifier = modifier.fillMaxSize()) {
     val trackPx = constraints.maxHeight.toFloat()
@@ -390,9 +411,10 @@ fun FluidFastScroller(
         },
     )
 
-    // La bolla, a sinistra della maniglia, solo mentre la si trascina.
+    // La bolla, a sinistra della maniglia, solo mentre la si trascina. Composta prima (F7.25): qui ci arriva gia' fatta.
+    ScrubberBubbleHost(bubbleState) { bubble(backdrop) }
     AnimatedVisibility(
-      visible = scrubbing && !scrubLabel.isNullOrBlank(),
+      visibleState = bubbleState,
       modifier = Modifier
         .align(Alignment.TopEnd)
         .layout { measurable, constraints ->
@@ -409,34 +431,7 @@ fun FluidFastScroller(
       enter = fadeIn(FluidMotion.fadeIn(110)) + scaleIn(initialScale = 0.94f, animationSpec = FluidMotion.snappy()),
       exit = fadeOut(FluidMotion.fadeOut(100)) + scaleOut(targetScale = 0.96f, animationSpec = FluidMotion.snappy()),
     ) {
-      Text(
-        text = scrubLabel.orEmpty(),
-        modifier = Modifier
-          .then(
-            if (backdrop != null && isRenderEffectSupported()) {
-              // Un pannello flottante come tutti: la pellicola e l'ottica sono quelle di ogni pannello,
-              // compatto (e' una pastiglia) e sopra una pagina che nessuno scrim ha sfocato, quindi il
-              // testo che passa dietro lo deve nascondere la sfocatura.
-              Modifier.glassSurface(
-                state = backdrop,
-                tint = panelTint,
-                shape = FluidCapsuleShape,
-                role = GlassRole.Modal,
-                optics = GlassDefaults.panelOptics(compact = true, overSharpPage = true),
-              )
-            } else {
-              Modifier
-                .clip(FluidCapsuleShape)
-                .background(scheme.surfaceContainerHigh.copy(alpha = 0.96f))
-            },
-          )
-          .padding(horizontal = 14.dp, vertical = 8.dp),
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = scheme.onSurface,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-      )
+      bubble(backdrop)
     }
 
     // La maniglia: la traslazione nel layer, PRIMA della goccia (che ha la sua scala nel proprio
@@ -475,7 +470,7 @@ fun FluidFastScroller(
         )
         .size(FluidFastScrollerDefaults.ThumbWidth, FluidFastScrollerDefaults.ThumbHeight)
         .then(
-          if (grabbable || scrubbing) {
+          if (touchable) {
             Modifier.pointerInput(target, travel) {
               awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
@@ -487,6 +482,7 @@ fun FluidFastScroller(
                 scrubFraction = start
                 scrubLabel = currentLabel(FluidFastScroll.indexForFraction(start, target.totalItems, target.visibleItems))
                 scrubbing = true
+                bubbleState.targetState = !scrubLabel.isNullOrBlank()
                 drag.press()
                 haptics.play(FluidHapticEvent.GestureStart)
                 try {
@@ -507,9 +503,11 @@ fun FluidFastScroller(
                     )
                     if (FluidFastScroll.labelCrossed(scrubLabel, next)) haptics.play(FluidHapticEvent.Tick)
                     scrubLabel = next
+                    bubbleState.targetState = !next.isNullOrBlank()
                   }
                 } finally {
                   scrubbing = false
+                  bubbleState.targetState = false
                   drag.release()
                 }
               }
@@ -554,6 +552,68 @@ fun FluidFastScroller(
   contentDescription: String = "Scorrimento rapido",
 ) {
   FluidFastScroller(rememberFluidFastScrollTarget(state), label, modifier, backdrop, minItems, contentDescription)
+}
+
+/**
+ * F7.25 · Dove la bolla dello scorrimento rapido aspetta, gia' composta, quando non si vede: la misura (testo e caratteri
+ * pronti) ma non la posa, quindi non si disegna, non cattura lo sfondo, e la sonda del suo vetro non legge (non ha una
+ * posizione). Fuori dall'albero di TalkBack. La tiene solo quando l'`AnimatedVisibility` della bolla non la mostra e non
+ * la sta togliendo: [content] e' la stessa `movableContentOf`, e passa da un posto all'altro senza ricomporsi.
+ */
+@Composable
+private fun ScrubberBubbleHost(state: MutableTransitionState<Boolean>, content: @Composable () -> Unit) {
+  if (!state.currentState && !state.targetState) {
+    Layout(content = content, modifier = Modifier.clearAndSetSemantics {}) { measurables, constraints ->
+      val loose = constraints.copy(minWidth = 0, minHeight = 0, maxWidth = Constraints.Infinity)
+      for (measurable in measurables) measurable.measure(loose)
+      layout(0, 0) {}
+    }
+  }
+}
+
+/** La bolla dello scorrimento rapido: il vetro dei pannelli, compatto, con l'etichetta di [label]. */
+@Composable
+private fun ScrubberBubble(backdrop: GlassBackdropState?, label: () -> String?) {
+  val colors = MaterialTheme.colorScheme
+  val tint = GlassDefaults.panelTint()
+  ScrubberBubbleText(
+    label = label,
+    modifier = Modifier
+      .then(
+        if (backdrop != null && isRenderEffectSupported()) {
+          // Un pannello flottante come tutti: la pellicola e l'ottica sono quelle di ogni pannello,
+          // compatto (e' una pastiglia) e sopra una pagina che nessuno scrim ha sfocato, quindi il
+          // testo che passa dietro lo deve nascondere la sfocatura.
+          Modifier.glassSurface(
+            state = backdrop,
+            tint = tint,
+            shape = FluidCapsuleShape,
+            role = GlassRole.Modal,
+            optics = GlassDefaults.panelOptics(compact = true, overSharpPage = true),
+          )
+        } else {
+          Modifier
+            .clip(FluidCapsuleShape)
+            .background(colors.surfaceContainerHigh.copy(alpha = 0.96f))
+        },
+      )
+      .padding(horizontal = 14.dp, vertical = 8.dp),
+    color = colors.onSurface,
+  )
+}
+
+/** Il testo della bolla: l'unico punto che legge l'etichetta (F7.25), cosi' un'etichetta nuova non ricompone il vetro. */
+@Composable
+private fun ScrubberBubbleText(label: () -> String?, modifier: Modifier, color: androidx.compose.ui.graphics.Color) {
+  Text(
+    text = label().orEmpty(),
+    modifier = modifier,
+    style = MaterialTheme.typography.titleSmall,
+    fontWeight = FontWeight.SemiBold,
+    color = color,
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
+  )
 }
 
 /** Da quando la maniglia si prende: appena si vede, non a meta' dissolvenza di un'uscita. */

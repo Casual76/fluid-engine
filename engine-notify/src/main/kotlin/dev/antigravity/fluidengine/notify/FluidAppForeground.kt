@@ -17,7 +17,14 @@ import kotlinx.coroutines.flow.asStateFlow
 /** Se l'app è fuori dal primo piano, letto dalle attività avviate. */
 internal class FluidAppForeground(private val handler: Handler) : Application.ActivityLifecycleCallbacks {
   private val state = MutableStateFlow(initialOutside())
-  private var started = 0
+
+  /**
+   * Le attività avviate che l'engine ha visto partire (o riprendere). Un'attività avviata prima dell'install (l'engine
+   * installato tardi) non c'è: il suo `onStop` non toglie una delle altre dal conto (R2: prima l'app risultava «fuori»
+   * con un'altra attività in vista). Se riprende o va in pausa, la si conta da lì.
+   */
+  private val startedActivities = HashSet<Activity>()
+  private val started: Int get() = startedActivities.size
   private val goOutside = Runnable { if (started == 0) set(true) }
 
   /** Vero quando nessuna attività dell'app è in vista. */
@@ -38,25 +45,41 @@ internal class FluidAppForeground(private val handler: Handler) : Application.Ac
     application.registerActivityLifecycleCallbacks(this)
   }
 
-  override fun onActivityStarted(activity: Activity) {
-    started++
-    handler.removeCallbacks(goOutside)
-    set(false)
-  }
+  override fun onActivityStarted(activity: Activity) = count(activity)
 
   override fun onActivityStopped(activity: Activity) {
-    started = (started - 1).coerceAtLeast(0)
+    // Un'attività mai contata (avviata prima dell'install) che si ferma non toglie nessuna delle altre.
+    if (!startedActivities.remove(activity)) return
     if (started == 0) {
       handler.removeCallbacks(goOutside)
       handler.postDelayed(goOutside, FluidNotifyProfile.OutsideDelayMs)
     }
   }
 
+  /** Riprendere o andare in pausa vuol dire essere avviata: un'attività di prima dell'install entra nel conto. */
+  override fun onActivityResumed(activity: Activity) {
+    if (activity !in startedActivities) count(activity)
+  }
+
+  override fun onActivityPaused(activity: Activity) {
+    if (activity !in startedActivities && !activity.isFinishing) count(activity)
+  }
+
+  private fun count(activity: Activity) {
+    startedActivities += activity
+    handler.removeCallbacks(goOutside)
+    set(false)
+  }
+
   override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
-  override fun onActivityResumed(activity: Activity) = Unit
-  override fun onActivityPaused(activity: Activity) = Unit
   override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
-  override fun onActivityDestroyed(activity: Activity) = Unit
+  override fun onActivityDestroyed(activity: Activity) {
+    // Una distrutta senza onStop visto (non dovrebbe succedere): esce dal conto, senza tenerla in memoria.
+    if (startedActivities.remove(activity) && started == 0) {
+      handler.removeCallbacks(goOutside)
+      handler.postDelayed(goOutside, FluidNotifyProfile.OutsideDelayMs)
+    }
+  }
 
   /** Le prove lo spostano a mano. */
   internal fun force(outside: Boolean) {

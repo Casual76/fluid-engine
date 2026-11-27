@@ -21,6 +21,12 @@ internal data class GlassDeviceCapacity(
   val lowRamDevice: Boolean? = null,
   val mediaPerformanceClass: Int = 0,
   val recognizedGpuDriver: Boolean = false,
+  /**
+   * F7.26: la classe della GPU dal nome del SoC ([GlassGpuTable]). Non tocca la riga di memoria ([memoryCeiling]: quella
+   * protegge dalla memoria che manca). Decide il vetro d'avvio di una GPU debole ([GlassGpuClass.Low]: Protetto) e la
+   * regola delle pagine nella memoria grafica (`viewerHardwarePagesFor`). [recognizedGpuDriver] vale [GlassGpuClass.High].
+   */
+  val gpu: GlassGpuClass = GlassGpuClass.Unknown,
 ) {
   private val classBytes get() = heapClassMiB.toLong() * MiB
   val heapReferenceBytes get() = when {

@@ -109,9 +109,12 @@ data class FluidReminderInfo(
 )
 
 /**
- * Un promemoria arrivato: quando doveva e quando è arrivato davvero (il registro dei ritardi).
+ * Un promemoria arrivato: quando doveva e quando è arrivato davvero (il registro dei ritardi). Anche uno scaduto che
+ * non si è potuto mostrare ([shown] falso: le notifiche o il canale erano spenti) sta nel registro: è perso, e non
+ * arriva più quando le notifiche tornano (la scelta di Alessio del 26/11/2026, R2).
  *
- * @property reason perché è arrivato tardi, se lo si sa («Il telefono era spento»), o null.
+ * @property reason perché è arrivato tardi, o perché non è stato mostrato, se lo si sa («Il telefono era spento»), o null.
+ * @property shown falso se all'ora del promemoria non si è potuto mostrare.
  */
 data class FluidReminderDelivery(
   val id: String,
@@ -119,6 +122,7 @@ data class FluidReminderDelivery(
   val scheduledMillis: Long,
   val deliveredMillis: Long,
   val reason: String? = null,
+  val shown: Boolean = true,
 ) {
   /** Il ritardo in millisecondi, mai meno di zero. */
   val delayMillis: Long get() = (deliveredMillis - scheduledMillis).coerceAtLeast(0L)

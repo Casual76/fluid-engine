@@ -25,7 +25,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-transcript/transcript/FluidTranscriptView.kt`
 
-- `data class FluidTranscriptStrings(val returnToVoice: String = "Torna alla voce", val listenFromHere: String = "Ascolta da qui", val nowPlaying: String = "In ascolto")` — I testi della vista, in italiano di serie.
+- `data class FluidTranscriptStrings(val returnToVoice: String = "Torna alla voce", val listenFromHere: String = "Ascolta da qui", val nowPlaying: String = "In ascolto", val empty: String = "Nessuna trascrizione")` — I testi della vista, in italiano di serie.
 - `class FluidTranscriptState(val list: LazyListState)` — Lo stato di una [FluidTranscriptView]: la lista e se la pagina **segue la voce**. Segue di serie; smette appena il dito scorre la lista (si sta leggendo altrove: la pagina non si strappa di mano), e riprende con un tocco sul testo, con «Torna alla voce» o con [follow].
   - `var following: Boolean by mutableStateOf(true)` — Vero se la pagina tiene in vista la parola che si sente.
   - `fun follow()` — Torna a seguire la voce: la pagina ci va.

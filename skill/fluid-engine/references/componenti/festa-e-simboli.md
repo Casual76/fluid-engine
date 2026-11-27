@@ -45,6 +45,8 @@ il movimento ridotto. I numeri sono di Apple, misurati fotogramma per fotogramma
   pronta e si collegherà con F7.11. Il numero è un parametro interno: niente manopole per l'app.
 - **«Riduci movimento»**: niente pioggia. Un segno fermo e breve (metà dei coriandoli già posati attorno al punto, o in
   alto), disegnato una volta, che dopo 0,9 s svanisce in 0,25 s (solo opacità); l'aptica resta.
+- **Uno strato senza misura** (a misura zero, o mai piazzato): la festa aspetta 30 fotogrammi e finisce senza niente,
+  `isCelebrating` torna falso (R2).
 
 ## Gli effetti dei simboli
 
@@ -89,8 +91,11 @@ il movimento ridotto. I numeri sono di Apple, misurati fotogramma per fotogramma
   resto (un punto, una croce o una freccia, che nel contorno di Material sono un pezzo solo) compare al suo turno.
 - **Un solo orologio per icona**: un giro di fotogrammi che scrive un solo stato, letto solo nel livello e nel disegno.
   Niente ricomposizioni per fotogramma, niente allocazioni nel giro; a riposo il giro si ferma e l'icona non ridisegna.
-- **«Riduci movimento»** toglie scala, spostamento e rotazione (rimbalzo, dondolio e rotazione non fanno niente); restano
-  le opacità: la pulsazione, il colore variabile, il respiro che schiarisce senza crescere. Draw On / Off sono immediati.
+- **«Riduci movimento»** toglie scala, spostamento e rotazione (rimbalzo, dondolio e rotazione non fanno niente, e un
+  effetto continuo che muove soltanto **non chiede fotogrammi**, R2); restano le opacità: la pulsazione, il colore
+  variabile, il respiro che schiarisce senza crescere. Draw On / Off sono immediati.
+- **Una pagina coperta** (il ciclo di vita sotto STARTED, `LocalLifecycleOwner`: la pagina sotto in `FluidNavHost`, l'app
+  in sottofondo): il giro dei fotogrammi si ferma e riparte al ritorno, anche per gli effetti continui (R2).
 
 ## Cosa fa l'engine e cosa resta all'app
 

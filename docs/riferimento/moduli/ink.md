@@ -113,6 +113,14 @@ file nuovo, e chi viene dopo apre quel file. Nessuno dei due scrive sopra l'orig
   nel suo front buffer; i tratti finiti si fanno una volta (`Stroke` di androidx.ink, tenuti finché il tratto è nel
   disegno). Niente allocazioni per punto: i punti stanno in un `FloatArray` che raddoppia quando serve.
 - Una foto annotata a 50 MP vuole 200 MB per la bitmap della consegna: chi ha poca memoria passa un `maxPixels` più basso.
+- **Le pagine di un PDF da annotare stanno sotto il tetto dei visori** (R1): la categoria dei visori nel registro del
+  processo (`FluidGlassResources.budget`, la stessa del PDF di `engine-viewer`: 48 MiB nel profilo Pieno, 24 nel Ridotto,
+  14 nel Protetto, meno con un heap piccolo). Nitide le pagine che si vedono, a metà larghezza le vicine; una pagina che
+  non entra fa uscire prima quelle lontane, poi scende alla larghezza più grande che entra nel posto libero (fino a
+  256 px). Prima non c'era un tetto: sul
+  Tab S9 a zoom 1,6 sei pagine A4 larghe 4096 px facevano 384 MiB.
+- **Un export del PDF fermato a metà** (una pagina che non si disegna, l'annullo fra due pagine) chiude lo stesso il
+  `PdfDocument` (R1).
 
 ## Trappole
 
@@ -139,7 +147,8 @@ file nuovo, e chi viene dopo apre quel file. Nessuno dei due scrive sopra l'orig
 - `engine-ink` (`testDebugUnitTest`): il modello (annulla e ripristina, un gesto un passo, il tetto della cronologia, la
   gomma a oggetti e a pixel, il lazo, duplica, colora), le forme su tratti tremolanti, il salvataggio, la consegna coi
   pixel (la firma trasparente ritagliata, la foto alla sua misura, l'evidenziatore che non si somma, il PDF con ogni tratto
-  sulla sua pagina).
+  sulla sua pagina); R1: il PDF che si chiude anche a export fermato o annullato, le pagine sotto il tetto dei visori
+  (`FluidInkPdfBudgetTest`).
 - `sample` (`F8p16InkUiTest`): il dito vero e la penna finta (tipo di strumento, pressione, inclinazione, gomma della penna,
   tasto laterale), il dito che scorre dopo la penna, due dita che ingrandiscono, il lazo che sceglie, sposta e toglie, le
   forme tenendo fermo, annulla e ripristina dai tasti, TalkBack, «Riduci movimento», la consegna della scena della foto.

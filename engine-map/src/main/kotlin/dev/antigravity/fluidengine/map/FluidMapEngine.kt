@@ -27,11 +27,15 @@ data class FluidMapCredit(val text: String, val url: String)
  * - le tessere di OpenFreeMap chiedono, nei termini d'uso, «OpenFreeMap © OpenMapTiles Data from OpenStreetMap» (dalla
  *   4.0, F8.26c: prima la scritta corta diceva solo «© OpenStreetMap»).
  *
- * Nella scritta corta lo spazio dopo «©» e' fisso (` `): se la scritta non sta su una riga va a capo fra un nome e
+ * Nella scritta corta lo spazio dopo «©» e' fisso (`\u00A0`): se la scritta non sta su una riga va a capo fra un nome e
  * l'altro, mai fra il «©» e il suo nome.
+ *
+ * [compact] e' quello che resta dove la scritta corta non sta su una riga (la cartolina piccola di una riga, F8.26d):
+ * di serie «© OpenStreetMap», il credito che l'ODbL chiede in vista; il resto e' dietro un tocco sui crediti, come
+ * «Legale» nelle mappe di Apple.
  */
 @Immutable
-data class FluidMapAttribution(val short: String, val credits: List<FluidMapCredit>)
+data class FluidMapAttribution(val short: String, val credits: List<FluidMapCredit>, val compact: String = short)
 
 /**
  * Uno stile della mappa: l'indirizzo dello stile di MapLibre ([uri]) e quello per il tema scuro ([darkUri], null se lo
@@ -72,7 +76,8 @@ object FluidMapStyles {
    * «OpenFreeMap © OpenMapTiles © OpenStreetMap» porta i tre nomi che i termini d'uso e l'ODbL chiedono in vista.
    */
   val OpenFreeMapAttribution: FluidMapAttribution = FluidMapAttribution(
-    short = "OpenFreeMap © OpenMapTiles © OpenStreetMap",
+    short = "OpenFreeMap \u00A9\u00A0OpenMapTiles \u00A9\u00A0OpenStreetMap",
+    compact = "\u00A9\u00A0OpenStreetMap",
     credits = listOf(
       FluidMapCredit("Dati © contributori di OpenStreetMap, licenza ODbL", "https://www.openstreetmap.org/copyright"),
       FluidMapCredit("Tessere di OpenFreeMap", "https://openfreemap.org"),

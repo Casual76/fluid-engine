@@ -51,16 +51,18 @@ import kotlin.math.roundToInt
  * Come si disegna la mappa vera.
  *
  * - [Texture]: una `TextureView`, disegnata dentro Compose. Il vetro dei comandi e del foglio la rifrange e la sfoca,
- *   come in Mappe. Costa una copia della tessera per fotogramma (la misura sul Tab S9 e' nella scheda del modulo).
- * - [Surface]: una `SurfaceView`, in una finestra sua: la strada piu' leggera, ma il vetro non la vede e sopra la mappa
- *   si vede chiaro, senza sfocatura (resta leggibile: la tinta e il filo ci sono). **Solo a mano, per ora.** Sul Tab S9
- *   (26/11/2026) la mappa in `SurfaceView` era nera: MapLibre la disegnava (681 fotogrammi nella traccia), ma la mappa
- *   stava dentro la registrazione del vetro, e il buco della `SurfaceView` nella finestra non si apriva. Dalla F8.26c
- *   [FluidMap] la tiene fuori; finche' il telefono non la mostra, nessuna fascia la sceglie da sola.
+ *   come in Mappe. **Di serie e per tutti i telefoni**, col limite dei fotogrammi ([FluidMapLibreEngine.maximumFps]).
+ *   Per i telefoni deboli il modo leggero e' questo con un vetro semplice sopra (la sfocatura con la tinta, dalla scala
+ *   del vetro), non [Surface].
+ * - [Surface]: una `SurfaceView`, in una finestra sua: il vetro non la vede e sopra la mappa si vede chiaro, senza
+ *   sfocatura (resta leggibile: la tinta e il filo ci sono). **Solo a mano: nessuna fascia la sceglie.** Fino alla
+ *   F8.26b era nera: [FluidMap] la teneva dentro la registrazione del vetro, e il buco della `SurfaceView` nella finestra
+ *   restava chiuso li' dentro. Dalla F8.26c sta fuori, e sul Tab S9 si vede (26/11/2026).
  *
- * Sul Tab S9, con la mappa trascinata, [Texture] costa piu' CPU (il filo di MapLibre 4,9 s contro 3,0 in 14 s, il
- * RenderThread dell'app 3,0 contro 1,6) ma i fotogrammi arrivano in tempo: 99° percentile del disegno 6,6 ms, 5
- * fotogrammi in ritardo su 705 (`sessioni/f8-26`, 26/11/2026).
+ * Le misure sul Tab S9 col dito che trascina (26/11/2026, `sessioni/f8-26`): [Texture] col limite disegna 112 fotogrammi
+ * al secondo (senza limite 252), il filo di MapLibre usa il 52% di un core (senza limite 76%, in [Surface] 51%), 2
+ * fotogrammi in ritardo su 636 come senza limite. Il RenderThread dell'app costa di piu' che in [Surface] (49% contro 27%):
+ * e' la tessera copiata nella finestra e il vetro che la rifrange.
  */
 enum class FluidMapRenderMode { Texture, Surface }
 

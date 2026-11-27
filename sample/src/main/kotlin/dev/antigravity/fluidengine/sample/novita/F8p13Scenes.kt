@@ -75,6 +75,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSegmentedControl
 import dev.antigravity.fluidengine.ui.fluid.FluidSpokenWord
 import dev.antigravity.fluidengine.ui.fluid.FluidSwitch
 import dev.antigravity.fluidengine.ui.fluid.FluidTextStyles
+import dev.antigravity.fluidengine.ui.fluid.FluidValueText
 import dev.antigravity.fluidengine.ui.fluid.FluidVoiceRecorder
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
@@ -470,8 +471,10 @@ private fun MemoRow(memo: Memo, expanded: Boolean, player: FluidMediaSession?, o
           enabled = current,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(
-            FluidScrubbing.clock(if (current) player?.positionMillis ?: 0L else 0L),
+          // I tempi cambiano a ogni fotogramma dell'ascolto: si leggono nel disegno (R1, F7.24), e la riga non si
+          // ricompone 120 volte al secondo per una scritta che cambia una volta al secondo.
+          FluidValueText(
+            text = { FluidScrubbing.clock(if (current) player?.positionMillis ?: 0L else 0L) },
             style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -486,8 +489,8 @@ private fun MemoRow(memo: Memo, expanded: Boolean, player: FluidMediaSession?, o
               player?.play()
             }
           })
-          Text(
-            "−" + FluidScrubbing.clock(memo.durationMillis - (if (current) player?.positionMillis ?: 0L else 0L)),
+          FluidValueText(
+            text = { "−" + FluidScrubbing.clock(memo.durationMillis - (if (current) player?.positionMillis ?: 0L else 0L)) },
             style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f).padding(start = 8.dp),
@@ -536,8 +539,8 @@ private fun WaveScene(onBack: () -> Unit) {
               enabled = player != null,
               modifier = Modifier.weight(1f).padding(horizontal = 8.dp).testTag(F8p13Tags.Bubble),
             )
-            Text(
-              FluidScrubbing.clock(player?.positionMillis ?: 0L),
+            FluidValueText(
+              text = { FluidScrubbing.clock(player?.positionMillis ?: 0L) },
               style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               modifier = Modifier.width(40.dp),
@@ -700,8 +703,8 @@ private fun TranscriptScene(onBack: () -> Unit) {
           PlayPause(player)
           Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text("Il ciclo dell'acqua", style = MaterialTheme.typography.titleMedium)
-            Text(
-              FluidScrubbing.clock(player?.positionMillis ?: 0L) + " / " + FluidScrubbing.clock(LectureDurationMillis),
+            FluidValueText(
+              text = { FluidScrubbing.clock(player?.positionMillis ?: 0L) + " / " + FluidScrubbing.clock(LectureDurationMillis) },
               style = FluidTextStyles.numeric.copy(fontSize = MaterialTheme.typography.labelMedium.fontSize),
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

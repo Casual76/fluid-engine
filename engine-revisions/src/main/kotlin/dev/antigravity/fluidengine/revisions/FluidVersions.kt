@@ -114,6 +114,8 @@ fun fluidVersionExcerpts(
   if (versions.isEmpty()) return emptyMap()
   val reference = versions.firstOrNull { it.current } ?: versions.first()
   val refTokens = FluidTextDiff.words(reference.text)
+  // Dove comincia ogni pezzo nel testo, contato una volta sola (R2): prima ogni tratto lo ricontava dall'inizio.
+  val refStarts = tokenStarts(refTokens)
   val refChanged = ArrayList<IntRange>()
   val out = LinkedHashMap<String, FluidVersionExcerpt>()
   var allCompared = true
@@ -126,17 +128,21 @@ fun fluidVersionExcerpts(
       out[v.id] = clip(v.text, emptyList(), maxChars, compared = false)
       continue
     }
+    val starts = tokenStarts(tokens)
     val mine = ArrayList<IntRange>()
     for (hunk in diff.hunks) {
-      charRange(tokens, hunk.bStart, hunk.bEnd)?.let(mine::add)
-      charRange(refTokens, hunk.aStart, hunk.aEnd)?.let(refChanged::add)
+      charRange(v.text, starts, hunk.bStart, hunk.bEnd)?.let(mine::add)
+      charRange(reference.text, refStarts, hunk.aStart, hunk.aEnd)?.let(refChanged::add)
     }
     out[v.id] = clip(v.text, joinAcrossSpaces(v.text, mine), maxChars, compared = true)
   }
   val ordered = LinkedHashMap<String, FluidVersionExcerpt>()
   for (v in versions) {
     ordered[v.id] = if (v === reference) {
-      clip(reference.text, joinAcrossSpaces(reference.text, mergeRanges(refChanged)), maxChars, compared = allCompared)
+      // Se un confronto ha superato il tetto, l'attuale non e' piu' confrontata con tutte: l'inizio senza segni, come
+      // le versioni troppo diverse (R2), e non i segni di quelle che si sono potute confrontare.
+      val marks = if (allCompared) joinAcrossSpaces(reference.text, mergeRanges(refChanged)) else emptyList()
+      clip(reference.text, marks, maxChars, compared = allCompared)
     } else {
       out.getValue(v.id)
     }
@@ -144,15 +150,26 @@ fun fluidVersionExcerpts(
   return ordered
 }
 
-private fun charRange(tokens: List<String>, from: Int, to: Int): IntRange? {
+/** Dove comincia ogni pezzo nel testo: `starts[i]` per il pezzo `i`, e in fondo la lunghezza del testo. */
+private fun tokenStarts(tokens: List<String>): IntArray {
+  val starts = IntArray(tokens.size + 1)
+  for (i in tokens.indices) starts[i + 1] = starts[i] + tokens[i].length
+  return starts
+}
+
+/** I caratteri dei pezzi [from]..[to) di [text]; null se sono solo spazi (si segnano parole, non buchi). */
+private fun charRange(text: String, starts: IntArray, from: Int, to: Int): IntRange? {
   if (from >= to) return null
-  var start = 0
-  for (i in 0 until from) start += tokens[i].length
-  var end = start
-  for (i in from until to) end += tokens[i].length
-  // Uno spazio da solo non e' un passaggio: si segnano parole, non buchi.
-  val text = tokens.subList(from, to).joinToString("")
-  if (text.isBlank()) return null
+  val start = starts[from]
+  val end = starts[to]
+  var blank = true
+  for (i in start until end) {
+    if (!text[i].isWhitespace()) {
+      blank = false
+      break
+    }
+  }
+  if (blank) return null
   return start until end
 }
 

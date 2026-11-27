@@ -263,6 +263,9 @@ dependencies {
   // galleria non cambia, e niente parte senza il si' (e solo verso il PC, `adb reverse tcp:8787 tcp:8787`).
   implementation project(':engine-diagnostics')
   implementation project(':engine-feedback')
+  // F9.3 · La memoria di PampAI: la conversazione finta che fa nascere ricordi, li corregge e li revoca, con un modello
+  // finto (nessuna chiamata vera) e la cassaforte vera.
+  implementation project(':engine-ai-memory')
 
   // I test Compose dei controlli (2.11.0): un dito finto su un vero albero Compose, sul computer.
   // Stanno qui e non in engine-ui di proposito: un'app ospite include engine-ui ed esegue i suoi

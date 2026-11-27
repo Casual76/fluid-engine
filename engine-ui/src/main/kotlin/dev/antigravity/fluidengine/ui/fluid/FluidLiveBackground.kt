@@ -83,8 +83,13 @@ object FluidLiveBackgroundDefaults {
    */
   const val RestSeconds: Float = 12f
 
-  /** Ogni quanto il tempo ricomincia: **30 min**. Tiene i seni precisi in `float`; il salto, una volta ogni mezz'ora, è sotto la soglia. */
-  const val WrapSeconds: Float = 1800f
+  /**
+   * Ogni quanto il tempo ricomincia: **200π s** (10 min e 28 s). Tiene i seni precisi in `float`, e il ritorno a zero non
+   * si vede: tutte le frequenze del disegno sono multipli di 0,01 rad/s, quindi in 200π secondi ogni onda fa un numero
+   * intero di giri (R2: con 30 minuti gli aloni saltavano fino a un decimo della pagina). Una frequenza nuova deve
+   * restare un multiplo di 0,01 rad/s (`F8p11LiveBackgroundWrapTest`).
+   */
+  const val WrapSeconds: Float = 628.31854f
 }
 
 /**

@@ -661,8 +661,13 @@ FluidFileViewer(count = 1, content = { FluidViewerContent.Image(ratio) {
   sfoglio del visore non parte.
 - **Dito nitido**: la linea segue il dito 1:1; un `Threshold` passando da metà. Le capsule portano la tendina con la molla
   standard (di colpo col movimento ridotto).
-- **TalkBack**: la maniglia è un cursore («Prima al 50%») con «aumenta», «diminuisci» e «imposta».
-- Ferma, non ridisegna: il taglio si legge nel disegno.
+- **TalkBack**: la maniglia è un cursore («Prima al 50%») con «aumenta», «diminuisci» e «imposta». Mentre il dito la
+  trascina la sua semantica resta ferma e si aggiorna a fine gesto (`fluidSettledSemantics` di F7.24, R1): con un servizio
+  di accessibilità acceso il dito non cambia la semantica a ogni passo. Un valore dato da TalkBack o dall'app arriva
+  subito. Il pomello di vetro che si sposta fa ancora ricontrollare a Compose le misure della pagina, al più ogni 100 ms,
+  come quello del cursore: si toglie solo spostando il vetro nel disegno.
+- Ferma, non ridisegna: il taglio si legge nel disegno. Mossa dal dito non si ricompone (R1): linea, taglio e maniglia si
+  leggono nel disegno e nella posa, e le capsule cambiano solo quando la tendina passa la loro soglia.
 
 **Non usarlo quando.** Le due immagini non sono la stessa inquadratura (allinea prima), o serve solo «com'era» mentre si
 modifica (tieni premuto nell'editor).

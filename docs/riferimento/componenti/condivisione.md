@@ -33,6 +33,7 @@ contratto e il disegno stanno qui. Catalogo delle firme: [../api/condivisione.md
 | «Mostra come QR» | il modulo `engine-qr` e `ProvideFluidQr { … }` attorno alla pagina |
 | le azioni dell'app dentro il foglio di Android (Android 14+) | `chooserActions = listOf(FluidShareChooserAction(etichetta, icona, pendingIntent))` |
 | solo l'intent, senza foglio | `FluidShareIntents.send(item)`, `.chooser(context, item)` |
+| «Copia» di un codice o di una password, senza anteprima negli appunti | `item.copy(sensitive = true)`: il clip esce segnato delicato (Android 13+) |
 | «Opzioni ›» nella testata del foglio, come Foto in iOS 26: una pagina dentro il foglio, e «Posizione inclusa» sotto il nome | `FluidShareSheet(…, copyOptions = FluidShareCopyOptions(prepare = { scelta -> copia }, options = …))` e `item.copy(detail = "Posizione inclusa")` |
 | far scegliere cosa mandare prima di aprire il foglio | `FluidPrepareCopySheet(visible, …, prepare = { scelta -> copia }, options = …)`, poi il foglio con `onReady` |
 | pagine dentro un altro foglio (un indietro in alto, il foglio fermo) | `FluidSheetPages` e `FluidSheetPageBar`: vedi [menu-modali.md](menu-modali.md) |
@@ -81,12 +82,22 @@ Dall'alto:
 
 **Le azioni.**
 - **Copia** mette negli appunti il testo, o gli Uri (con il permesso concesso a chi incolla). La riga diventa «Copiato»
-  con la spunta (sfocata: la cambia l'app), e il foglio se ne va dopo 450 ms.
+  con la spunta (sfocata: la cambia l'app), e il foglio se ne va dopo 450 ms. Un oggetto delicato
+  (`FluidShareItem.sensitive = true`: un codice, una password, un dato di salute) va negli appunti **segnato delicato**
+  (`ClipDescription.EXTRA_IS_SENSITIVE`, Android 13 e oltre; prima non c'e' niente da segnare): Android non ne mostra il
+  testo nell'anteprima della copia ne' nei suggerimenti della tastiera. Vale per ogni strada di «Copia» del foglio (il
+  dito, la tastiera, TalkBack: la stessa azione) e per la copia confermata nelle opzioni, anche dopo una rotazione (R2).
 - **Salva in File**: il selettore di Android (`ACTION_CREATE_DOCUMENT`) per un oggetto solo, la cartella
   (`ACTION_OPEN_DOCUMENT_TREE`) per piu' file; la copia dei byte va su `Dispatchers.IO`. «Salvato» o «Non si è salvato».
-- **Mostra come QR**: il corpo del foglio cambia (sfocato) nel codice grande, il testo sotto e «Fine».
-- **Stampa**: l'anteprima di stampa di Android (`FluidPrint`), poi il foglio si chiude.
-- **Un'app della fila**: `SEND` diretto a quell'attivita' (`FluidShareIntents.sendTo`), e il foglio si chiude.
+- **Mostra come QR**: il corpo del foglio cambia (sfocato) nel codice grande, il testo sotto e «Fine». Il codice si
+  calcola **alla pressione, su `Dispatchers.Default`**: aprire il foglio non codifica niente sul thread principale (R2).
+  L'azione c'e' per un testo che entra in un QR versione 40 con correzione M: al massimo 1200 caratteri e 2331 byte.
+- **Stampa**: l'anteprima di stampa di Android (`FluidPrint`), poi il foglio si chiude. Un `item.print` con viste
+  Compose si stampa col PDF del foglio (`FluidPdfWriter`): prima il tasto c'era ma non faceva niente (R2).
+- **Un'app della fila**: `SEND` diretto a quell'attivita' (`FluidShareIntents.sendTo`), e il foglio si chiude. Un'app
+  che non parte (disinstallata nel frattempo, un permesso) fa sentire l'aptica d'errore e il foglio resta.
+- **Un esito solo.** Dopo il primo esito (la spunta di «Copiato» o «Salvato» resta 450 ms) le altre azioni non
+  rispondono: niente secondo esito, niente seconda chiusura (R2).
 
 **Gli intent.** Tutti da `FluidShareIntents`: `FLAG_GRANT_READ_URI_PERMISSION` e un `ClipData` con **tutti** gli Uri (senza,
 `SEND_MULTIPLE` concede la lettura del primo solo); `EXTRA_TITLE` per l'anteprima del foglio di Android;
@@ -104,7 +115,10 @@ Il nome del pacchetto da solo non basta mai: un'app qualunque puo' chiamarsi com
 
 **I file.** `FluidShareFiles` e' la cartella delle uscite (`cacheDir/fluid-share/<una cartella per uscita>/<nome>`) con il
 suo FileProvider (`FluidShareFileProvider`, autorita' `<applicationId>.fluid.share`, non esportato): non litiga con il
-`FileProvider` dell'app. `FluidShareFiles.clean(context)` toglie le uscite piu' vecchie di un giorno.
+`FileProvider` dell'app. `FluidShareFiles.clean(context)` toglie le uscite piu' vecchie di un giorno. **La pulizia e'
+dell'app**: l'engine non la chiama mai da solo (non sa se un'uscita vecchia serve ancora), quindi l'app la chiama, fuori
+dal thread principale, per esempio all'avvio insieme a `FluidShareInFiles.clean` di `engine-share-in`. Senza, le copie
+(anche le foto con la posizione) restano nella cache finche' Android non la svuota.
 
 **Un file qualsiasi dell'app** (come `ShareLink`, che accetta qualunque file leggibile). `FluidShareItem.file(context,
 file, …)` non lancia mai: un file sotto la cartella dell'engine (`FluidShareFiles.isShareable`, percorsi canonici
@@ -114,7 +128,12 @@ confrontati cartella per cartella) ha subito il suo Uri; uno fuori (una foto in 
 - Mentre copia, la miniatura (letta dal file al suo posto) ha l'attesa sopra e il corpo dice «Preparo il file…»: dopo
   150 ms, cosi' una foto piccola non fa lampeggiare niente. Il cambio entra sfocato, lo fa l'app.
 - Il tetto della copia e' `FluidShareOptions.copyLimitBytes` (di serie `FluidShareFiles.DefaultCopyLimitBytes`, 512 MB);
-  la copia lascia anche 16 MB liberi sul disco.
+  la copia lascia anche 16 MB liberi sul disco. **I byte si contano copiando** (R2): un file che cresce mentre si copia
+  (un video ancora in registrazione) si ferma al tetto («troppo grande», col peso vero) o allo spazio libero («non c'e'
+  abbastanza spazio») invece di superarli; il disco pieno a meta' e' «spazio», non «non si legge»; il peso sotto il nome
+  e' quello della copia.
+- Un'uscita gia' dentro la cartella dell'engine ma **cancellata** (Android ha svuotato la cache) resta da controllare come
+  un file da copiare: il foglio dice «Il file non c'e' piu'» invece di mandare un Uri morto (R2).
 - Un file che non c'e', che non si legge (una cartella, un errore a meta' copia), oltre il tetto o senza spazio non
   parte: al posto delle azioni c'e' il **perche'** con parole sue (`FluidShareFileProblem`, le frasi in
   `FluidShareLabels`: il peso e il tetto quando contano) e «Chiudi». Nessun tocco lancia un'eccezione.
@@ -130,8 +149,17 @@ delle app che ricevono (le «persone» e i quaderni) compaiono nel foglio di And
 - Il foglio e' un portale: lo disegna l'host dei modali alla radice. `LocalFluidQrEncoder` lo legge il foglio dove e'
   dichiarato, quindi `ProvideFluidQr` attorno alla sola pagina basta.
 - Un `item` nuovo mentre il foglio e' aperto ne cambia il contenuto; `null` lo chiude.
-- Un Uri `file://` non parte mai: Android lo vieta fra app. Per un `File` dell'app c'e' `FluidShareItem.file(context, file, …)`,
-  che lo copia nella cartella dell'engine se serve; altrimenti un `FileProvider` dell'app.
+- Un Uri `file://` non parte mai: Android lo vieta fra app (`startActivity` lancerebbe `FileUriExposedException`). Per un
+  `File` dell'app c'e' `FluidShareItem.file(context, file, …)`, che lo copia nella cartella dell'engine se serve. Se un
+  `file://` finisce lo stesso fra gli `uris` (`FluidShareItem.file(uri, …)`), l'oggetto ha `needsCopy` e il foglio lo
+  copia come un file dell'app: fuori parte un `content://` (R2). Chi usa `FluidShareIntents` senza il foglio chiama
+  prima `FluidShareFiles.stage`.
+- **Il foglio ricorda la copia confermata** (R2). La scelta delle opzioni e la copia verificata si salvano dove il foglio
+  e' dichiarato, non nel suo contenuto (che l'host dei modali compone alla radice e che alla rotazione ripartirebbe da
+  zero): dopo una rotazione, o col processo ripristinato e l'app che ripassa lo stesso oggetto (riconosciuto da titolo,
+  tipo, testo, Uri e file), il foglio riparte dalla copia, **mai dall'originale**. Un'apertura nuova o un altro oggetto
+  ripartono da capo. La copia si salva senza l'anteprima (si rilegge dal file) e senza `print`; una col testo oltre i
+  20 000 caratteri non sta nello stato salvato, e al ritorno il foglio la rifa' dalla scelta, con l'attesa e la verifica.
 
 ## Prepara la copia: `FluidPrepareCopySheet`
 
@@ -141,7 +169,9 @@ formato (`formats`, un segmentato se piu' d'uno) e i dati da includere (`options
 **Chi fa cosa.** L'app prepara la copia **vera** (`prepare`, sospesa, fuori dal thread principale) e la verifica sul file
 uscito (`FluidCopyCheck`: «Posizione — tolta», «Peso — 1,2 MB»). L'engine:
 - rifa' la copia a ogni cambio di scelta, dopo 180 ms (due interruttori di fila fanno una copia sola), annullando quella
-  prima;
+  prima. **Una copia annullata non diventa mai quella pronta** (R2): anche se `prepare` non guarda l'annullamento (un
+  callback in `suspendCoroutine`, una copia bloccante) e finisce dopo che la persona ha tolto la posizione, la sua copia
+  si butta; la conferma prende solo la copia della scelta di adesso;
 - mostra l'attesa, poi il riepilogo delle verifiche (sfocati: li cambia l'app; gli interruttori e il segmentato li muove
   il dito e restano nitidi);
 - **blocca l'invio** se la copia non corrisponde alle opzioni (`fluidCopyProblems`): una verifica fallita, o un dato
@@ -156,10 +186,15 @@ torna alla condivisione con la **copia nuova al posto dell'oggetto** (anteprima,
 non si chiude e non si riapre. Indietro (il tasto, il back di sistema, il dito dal bordo sinistro) torna senza cambiare
 niente. Riaperta, la pagina riparte dall'ultima scelta confermata e non rifa' la copia finche' la scelta e' quella.
 L'oggetto passato al foglio dev'essere la copia della scelta di partenza (le `options` con `included`, il primo formato).
+**Se la scelta di partenza lascia a casa qualcosa** (un'opzione con `included = false`), il foglio non si fida
+dell'oggetto: all'apertura prepara e verifica lui la copia di partenza, con «Preparo il file…» al posto delle azioni, e
+manda quella; se non corrisponde dice «La copia non corrisponde alle opzioni: non parte.» con «Chiudi», e «Opzioni ›»
+resta per rifarla (R2). Con tutte le opzioni incluse di serie (come Foto) il foglio manda l'oggetto com'e'.
 
 **A se': `FluidPrepareCopySheet`.** Lo stesso contenuto in un foglio suo, per chi chiede prima di aprire la
 condivisione: `onReady` riceve l'oggetto da condividere, e di solito l'app chiude le opzioni e apre `FluidShareSheet` con
-lui.
+lui. La scelta si salva col foglio: dopo una rotazione gli interruttori restano come li ha lasciati il dito (la posizione
+tolta resta tolta) e la copia si rifa' per quella scelta (R2).
 
 `FluidCopyTools` porta gli attrezzi delle foto: `copyWithoutLocation` (copia il JPEG e svuota i campi GPS dell'EXIF) e
 `hasLocation` (legge il file), con `android.media.ExifInterface`. Una ricompressione perde tutto l'EXIF: chi riduce una
@@ -182,7 +217,9 @@ pagina.
   in scuro e' scuro: segue il tema della pagina. Dentro un'uscita `LocalFluidPrinting` e' vero.
 - **Il disegno** e' software, sul thread principale, una volta per immagine (pochi millisecondi): il testo e le forme
   sono veri. Il PNG si comprime su `Dispatchers.IO` (`renderToFile`). La tela si prenota nel registro della memoria
-  (`FluidMemoryBudget`, categoria `VIEWER`) prima di esistere: se non c'e' posto, `FluidOutputTooLargeException`.
+  (`FluidMemoryBudget`, categoria `VIEWER`) prima di esistere: se non c'e' posto, `FluidOutputTooLargeException`. Un PNG
+  che non si scrive per intero (il disco pieno) si cancella e `renderToFile` lancia `IOException`: mai un file tronco
+  pronto da condividere (R2).
 
 **Trappole.** Il contenuto deve essere pronto alla prima composizione: un'immagine che arriva dalla rete dopo non fa in
 tempo (si passa gia' decodificata). Niente `fluidGlassPanel`, `Modifier.blur` o ombre di elevazione dentro un'uscita: su
@@ -202,8 +239,10 @@ una tela software non ci sono.
   fino al contrasto 4,5:1 sul bianco.
 - **Nessuna riga tagliata.** Un paragrafo si spezza solo fra le righe, con almeno due righe per parte quando ne ha quattro
   o piu'; un titolo non resta solo in fondo; una riga «etichetta — valore» e una vista Compose non si spezzano (una vista
-  piu' alta di una pagina si riduce). Nel taglio la riga dopo non finisce nel file ritagliata via: nel testo che si
-  seleziona non c'e' niente di invisibile.
+  piu' alta di una pagina si riduce; una riga piu' alta di una pagina, un'etichetta lunghissima, si spezza fra le sue
+  righe come un paragrafo e ogni pagina ne mostra solo la sua fetta: R2, prima sbordava oltre il fondo e si ripeteva in
+  cima alla pagina dopo). Nel taglio la riga dopo non finisce nel file ritagliata via: nel testo che si seleziona non
+  c'e' niente di invisibile.
 - **A pezzi, nella memoria.** Si impagina un paragrafo alla volta; `PdfDocument` tiene ogni pagina finche' il file non e'
   scritto, e ogni pagina si prenota prima nel registro (`FluidMemoryBudget`, `VIEWER`: 24 KB per una pagina di testo, 96
   KB in piu' per ogni vista Compose). Un documento che non ci sta si ferma con `FluidOutputTooLargeException` invece di
@@ -211,7 +250,9 @@ una tela software non ci sono.
 - **I thread.** Senza viste Compose tutto va su `Dispatchers.Default` e `IO`; con le viste Compose l'impaginazione e il
   disegno stanno sul thread principale, la scrittura su `IO`.
 - **Le pagine senza file**: `FluidPdf.layout(documento)` (o `writer.layout`) da' il numero di pagine e disegna ogni pagina
-  su una tela qualunque: un'anteprima, una miniatura. E' la stessa impaginazione del file e della stampa.
+  su una tela qualunque: un'anteprima, una miniatura. E' la stessa impaginazione del file e della stampa. **Impagina
+  subito, sul thread di chi chiama**: per un documento lungo `withContext(Dispatchers.Default) { FluidPdf.layout(documento) }`
+  (`writer.layout`, con le viste Compose, resta sul principale).
 
 ## La stampa: `FluidPrint`
 
@@ -219,6 +260,13 @@ L'anteprima di Android (`PrintManager`), come `UIPrintInteractionController`: il
 Un documento si reimpagina sul foglio scelto (A4, Letter…), con gli stessi margini e lo stesso stile. `printImage` mette
 un'immagine intera al centro della pagina (da un Uri si legge a non piu' di 3508 px di lato, un A4 a 300 dpi);
 `printPdf` passa un PDF fatto alla stampante com'e'.
+
+**I thread** (R2). Android chiama l'adattatore di stampa sul thread principale, ma lascia finire il lavoro altrove e
+rispondere da li': l'impaginazione e la scrittura di un documento senza viste Compose, la lettura dell'immagine e la
+copia del PDF vanno su `Dispatchers.Default`, rispondono una volta sola, e l'annullamento dello spooler (o la chiusura
+dell'anteprima) le ferma. Un documento con viste Compose resta sul principale, dove le viste si compongono.
+**Le pagine scelte** nell'anteprima («2–3»): l'adattatore scrive tutte le pagine e lo dice (`PageRange.ALL_PAGES`), e
+lo spooler di Android tiene quelle scelte da un documento che le contiene. Da verificare su un servizio di stampa vero.
 
 ## Token, costanti, Defaults
 
@@ -231,7 +279,8 @@ un'immagine intera al centro della pagina (da un Uri si legge a non piu' di 3508
 | riga d'azione | 52 dp, nome a sinistra, simbolo da 22 dp a destra | il foglio di iOS 26; sopra i 44 dp delle regole |
 | app nella fila | al massimo 8 (`FluidShareTargets.MaxTargets`) | a occhio |
 | spunta di «Copiato» / «Salvato» | 450 ms, poi il foglio esce | a occhio, 24 novembre 2026 |
-| QR | correzione M, zona vuota 4 moduli, al massimo 1200 caratteri | ISO/IEC 18004; a occhio per la lunghezza |
+| QR | correzione M, zona vuota 4 moduli, al massimo 1200 caratteri e 2331 byte in UTF-8 | ISO/IEC 18004 (2331: versione 40, M, modo byte); a occhio per la lunghezza |
+| testo di una copia nello stato salvato | al massimo 20 000 caratteri (`FluidShareSavedTextChars`); oltre, la copia si rifa' dalla scelta | a occhio: 40 KB nel `Bundle` |
 | attesa prima della copia | 180 ms | a occhio |
 | tetto della copia di un file dell'app | 512 MB (`FluidShareFiles.DefaultCopyLimitBytes`), piu' 16 MB lasciati liberi | a occhio, 24 novembre 2026: un video di qualche minuto in 4K ci sta |
 | attesa della copia, prima di farsi vedere | 150 ms | a occhio: una foto si copia prima |
@@ -254,16 +303,29 @@ In `sample/src/testDebug/…/novita/`, Robolectric con la grafica vera:
   scelta confermata senza rifare la copia, e indietro col tasto, col back di sistema (al secondo back si chiude il
   foglio) e col dito dal bordo sinistro. Un file dell'app fuori dalla cartella dell'engine: copiato e mandato da «Altre
   app…» (la copia nella cartella, gli stessi byte, il permesso di lettura); un file che non c'e', una cartella e un file
-  oltre il tetto danno il messaggio al posto delle azioni, senza crash, e «Chiudi» chiude.
+  oltre il tetto danno il messaggio al posto delle azioni, senza crash, e «Chiudi» chiude. Dopo la review R2
+  (`StateRestorationTester` per la rotazione e il processo ripristinato): la copia senza posizione resta dopo la
+  rotazione e parte lei, non l'originale; il foglio delle opzioni a se' tiene la posizione tolta; una copia vecchia che
+  finisce in ritardo non si conferma; con la posizione spenta di serie parte la copia verificata, e una copia di partenza
+  che tiene la posizione non parte; un `file://` esce come `content://`; dopo «Copia» un secondo tocco non fa niente; il
+  QR si codifica solo alla pressione e fuori dal thread principale; un oggetto delicato va negli appunti segnato
+  delicato (col dito e con l'azione di TalkBack e della tastiera), uno qualsiasi no, e la copia delicata confermata
+  nelle opzioni resta delicata dopo la rotazione.
+- `F8p10PrintThreadTest`: l'impaginazione e la scrittura di un documento, e la lettura di un'immagine, rispondono da un
+  altro thread e una volta sola; un'impaginazione annullata risponde «annullata». Le callback dell'adattatore si
+  estendono dal pacchetto `android.print` (`F8p10PrintCallbacks`): i loro costruttori sono del pacchetto.
 - `F8p10StagingTest`: `FluidShareItem.file` non lancia mai (fuori dalla cartella diventa un file da copiare; dentro ha
   subito l'Uri; senza il provider finto ripiega sulla copia); `FluidShareFiles.stage` copia e da' Uri `content://`,
-  tiene l'ordine di piu' file, e un file mancante o oltre il tetto torna col motivo.
+  tiene l'ordine di piu' file, e un file mancante o oltre il tetto torna col motivo; un'uscita cancellata dentro la
+  cartella dice «non c'e' piu'».
 - In `engine-ui`, al JVM, `FluidShareStagingTest`: dentro o fuori la radice cartella per cartella (anche
   `fluid-share2/` e `..`), la copia vera (nome e byte), un file gia' dentro non si copia e non conta per il tetto, file
-  mancante, cartella, oltre il tetto e senza spazio (niente copiato), le frasi dei messaggi.
+  mancante, cartella, oltre il tetto e senza spazio (niente copiato), le frasi dei messaggi; un file che cresce mentre si
+  copia si ferma al tetto e allo spazio libero, col peso vero; la fiducia per impronta e' un valore (uguale se uguali).
 - `F8p10OutputTest`: l'immagine nei tre formati coi pixel veri (fondo colorato, pannello chiaro, pieno e piatto, il
   testo), lo scuro; il PDF di molte pagine con l'intestazione e il numero su ognuna, ogni riga intera dentro i margini,
-  ogni paragrafo una volta sola e nessuna bitmap; la pagella della galleria col grafico Compose che scrive testo vero.
+  ogni paragrafo una volta sola e nessuna bitmap; la pagella della galleria col grafico Compose che scrive testo vero;
+  una riga piu' alta di una pagina resta nei margini e ogni sua parola compare una volta sola.
 - `engine-qr`: il QR si rilegge con ZXing (link, testo con gli accenti), un testo troppo lungo non da' un codice.
 Il PDF vero (con `PdfDocument`, che Robolectric non ha) si rilegge sul dispositivo nella scena «La pagella in PDF»: le
 pagine con `PdfRenderer` e, da Android 15, il testo della prima pagina.

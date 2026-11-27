@@ -130,10 +130,12 @@ internal fun fluidLivePlan(
   val bar: FluidLiveBar? = when {
     update.stages.isNotEmpty() -> {
       val max = update.stages.sumOf { it.length }
+      // Senza avanzamento e senza tempo la barra gira, anche con le tappe (il KDoc di `FluidLiveUpdate.progress`; R2).
+      val spinning = update.progress == null && time == null && !update.paused
       FluidLiveBar(
         max = max,
         progress = ((update.progress ?: 0f).coerceIn(0f, 1f) * max).roundToInt(),
-        indeterminate = false,
+        indeterminate = spinning,
         stages = update.stages,
         points = update.points.filter { it.position <= max },
       )
@@ -148,7 +150,9 @@ internal fun fluidLivePlan(
     null
   }
   val text = if (update.paused) {
-    val still = time?.takeIf { !it.running }?.let { fluidLiveClock(it.shownMillis(nowElapsedMillis)) }
+    // In pausa il tempo è fermo: anche un tempo che corre si mostra fermo, al valore di [nowElapsedMillis] (chi pubblica
+    // passa l'istante della pausa: `FluidLiveUpdates`). Prima spariva dal testo (R2).
+    val still = time?.let { fluidLiveClock(it.shownMillis(nowElapsedMillis)) }
     listOfNotNull(labels.paused, still, update.text).joinToString(" · ")
   } else {
     update.text

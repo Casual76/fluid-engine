@@ -45,6 +45,14 @@ class FluidShareTarget(
  */
 @Immutable
 class FluidShareTrust private constructor(internal val sameSigner: Boolean, internal val sha256: Set<String>) {
+  // R2 · Un valore: `certificates(…)` creato a ogni ricomposizione e' la stessa fiducia, e la fila delle app (letta con
+  // la fiducia come chiave) non riparte e non lampeggia vuota.
+  override fun equals(other: Any?): Boolean = other is FluidShareTrust && other.sameSigner == sameSigner && other.sha256 == sha256
+
+  override fun hashCode(): Int = sameSigner.hashCode() * 31 + sha256.hashCode()
+
+  override fun toString(): String = if (sameSigner) "FluidShareTrust.SameSigner" else "FluidShareTrust.certificates(${sha256.size})"
+
   companion object {
     /** Le app firmate con la stessa chiave di questa. */
     val SameSigner: FluidShareTrust = FluidShareTrust(true, emptySet())

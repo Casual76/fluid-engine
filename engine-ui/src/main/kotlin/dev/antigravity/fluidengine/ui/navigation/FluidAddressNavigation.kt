@@ -5,6 +5,7 @@ import android.content.ContentProvider
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptionsBuilder
@@ -14,6 +15,7 @@ import dev.antigravity.fluidengine.foundation.FluidAddressTable
 import dev.antigravity.fluidengine.foundation.fluidAddressCallerTrusted
 
 private const val PendingUrl = "fluid.address.pending.url"
+private const val AddressLogTag = "FluidAddress"
 private const val PendingTrusted = "fluid.address.pending.trusted"
 
 private fun Intent?.addressRequest(verifiedPackage: String?, own: String, pm: PackageManager, allowed: Set<String>): FluidAddressRequest? {
@@ -59,7 +61,9 @@ fun ContentProvider.fluidAddressFromCall(url: String, allowedPackages: Set<Strin
 /**
  * Collega la tabella dell'app alle sue rotte in FluidNavHost. Le rotte di servizio [missingRoute]
  * e [signInRoute] mostrano rispettivamente lo stato gentile e l'accesso forniti dall'app.
- * Le rotte possono essere stringhe già pronte o oggetti serializzabili di Navigation.
+ * Le rotte possono essere stringhe già pronte o oggetti serializzabili di Navigation. Una rotta
+ * data da [routeOf] che il grafo non ha porta a [missingRoute] sopra i genitori già aperti
+ * (che invece devono esserci nel grafo, come le due rotte di servizio).
  */
 class FluidAddressNavigation<P : Any>(
   private val table: FluidAddressTable<P>,
@@ -81,15 +85,18 @@ class FluidAddressNavigation<P : Any>(
       is FluidAddressResult.SignIn -> result.parents.map(routeOf) + signInRoute
       FluidAddressResult.Rejected -> return false
     }
-    routes.forEachIndexed { index, route ->
-      val options: NavOptionsBuilder.() -> Unit = {
-        if (index == 0) popUpTo(nav.graph.id) { inclusive = true }
+    var opened = 0
+    try {
+      for (route in routes) {
+        navigateTo(nav, route, replace = opened == 0)
+        opened++
       }
-      // Sono due overload di Navigation: con Any anche una stringa verrebbe serializzata come oggetto.
-      when (route) {
-        is String -> nav.navigate(route, options)
-        else -> nav.navigate(route, options)
-      }
+    } catch (_: IllegalArgumentException) {
+      // Una rotta che il grafo non ha (R2: una pagina tolta in una versione nuova, un errore della tabella). La pila non
+      // resta a meta': i genitori gia' aperti restano, e in cima va la pagina gentile «non c'e'».
+      Log.w(AddressLogTag, "una rotta della tabella non e' nel grafo: pagina «non c'e'»")
+      navigateTo(nav, missingRoute, replace = opened == 0)
+      return true
     }
     if (result is FluidAddressResult.SignIn) {
       val handle = checkNotNull(nav.currentBackStackEntry).savedStateHandle
@@ -97,6 +104,17 @@ class FluidAddressNavigation<P : Any>(
       handle[PendingTrusted] = result.pending.trusted
     }
     return true
+  }
+
+  private fun navigateTo(nav: NavHostController, route: Any, replace: Boolean) {
+    val options: NavOptionsBuilder.() -> Unit = {
+      if (replace) popUpTo(nav.graph.id) { inclusive = true }
+    }
+    // Sono due overload di Navigation: con Any anche una stringa verrebbe serializzata come oggetto.
+    when (route) {
+      is String -> nav.navigate(route, options)
+      else -> nav.navigate(route, options)
+    }
   }
 
   /** Rivaluta l'indirizzo dopo l'accesso. Indietro o un nuovo indirizzo annullano l'attesa originale. */

@@ -34,12 +34,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,8 +99,10 @@ import dev.antigravity.fluidengine.ui.fluid.icons.Print
 import dev.antigravity.fluidengine.ui.fluid.icons.QrCode
 import dev.antigravity.fluidengine.ui.fluid.icons.Save
 import dev.antigravity.fluidengine.ui.fluid.icons.Warning
+import dev.antigravity.fluidengine.ui.fluid.output.FluidPdfWriter
 import dev.antigravity.fluidengine.ui.fluid.output.FluidPrint
 import dev.antigravity.fluidengine.ui.fluid.output.fluidPdfDocument
+import dev.antigravity.fluidengine.ui.fluid.output.rememberFluidPdfWriter
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.rememberFluidHaptics
 import dev.antigravity.fluidengine.ui.theme.FluidListDivider
@@ -277,6 +283,12 @@ fun FluidShareSheet(
   // Letto qui, dove il foglio e' dichiarato: il corpo lo disegna l'host dei modali, alla radice, che non vede i
   // CompositionLocal della pagina (un ProvideFluidQr intorno alla sola pagina deve bastare).
   val encoder = LocalFluidQrEncoder.current
+  // R2 · La copia confermata nelle opzioni si salva qui, dove il foglio e' dichiarato, e non nel contenuto: quello lo
+  // compone l'host dei modali alla radice, e alla rotazione (o col processo ripristinato) ripartiva da zero, cioe'
+  // dall'originale col GPS che la persona aveva appena tolto. Un'apertura nuova, o un altro oggetto, riparte da capo.
+  val memory = rememberSaveable(saver = FluidShareMemory.Saver) { FluidShareMemory() }
+  val origin = remember(item) { item?.let(::fluidShareOrigin) }
+  SideEffect { memory.follow(origin) }
   FluidGlassSheet(
     item = item,
     onDismissRequest = onDismissRequest,
@@ -284,19 +296,42 @@ fun FluidShareSheet(
     paneTitle = labels.chooserTitle,
     source = source,
   ) { shown ->
-    // L'oggetto del foglio: quello dell'app, o la copia confermata nelle opzioni finche' l'app non ne passa un altro.
-    var current by remember(shown) { mutableStateOf(shown) }
-    var choice by remember(shown) { mutableStateOf<FluidCopyChoice?>(null) }
-    var prepared by remember(shown) { mutableStateOf<FluidPreparedCopy?>(null) }
+    val shownOrigin = remember(shown) { fluidShareOrigin(shown) }
+    val mine = memory.origin == shownOrigin
+    // La scelta da rispettare: quella confermata nelle opzioni o, se la scelta di partenza lascia a casa qualcosa, la
+    // partenza stessa. Con una scelta da rispettare parte solo la sua copia verificata, mai l'oggetto dell'app.
+    val required = memory.choice?.takeIf { mine } ?: copyOptions?.strictStart
+    val kept = memory.copy?.takeIf { mine && required != null && memory.copyChoice == required }
+    val current: FluidShareItem? = if (required == null) shown else kept?.item
     var pages by remember(shown) { mutableStateOf(listOf(SharePage.Share)) }
+    // Una scelta senza la sua copia (la partenza, o una copia troppo grande per lo stato salvato): si prepara adesso.
+    val check = if (required != null && kept == null && copyOptions != null) {
+      rememberFluidShareCheck(copyOptions, shownOrigin, required) { copy ->
+        memory.origin = shownOrigin
+        memory.copyChoice = required
+        memory.copy = copy
+      }
+    } else {
+      null
+    }
     // Un file dell'app fuori dalla cartella dell'engine si copia li' adesso, fuori dal thread principale e col tetto
     // delle opzioni; l'esito vale solo per l'oggetto da cui e' partito.
     val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
     val staging by produceState<Pair<FluidShareItem, FluidShareStaged>?>(null, current, options.copyLimitBytes) {
-      if (current.needsCopy) value = current to FluidShareFiles.stage(context, current, options.copyLimitBytes)
+      val now = current
+      if (now != null && now.needsCopy) value = now to FluidShareFiles.stage(context, now, options.copyLimitBytes)
     }
     val result = staging?.takeIf { it.first === current }?.second
-    val ready = if (!current.needsCopy) current else (result as? FluidShareStaged.Ready)?.item
+    val ready = current?.let { now -> if (!now.needsCopy) now else (result as? FluidShareStaged.Ready)?.item }
+    val copyLabels = copyOptions?.labels ?: FluidPrepareCopyLabels()
+    val problem = when {
+      // Una scelta da rispettare senza la copia e senza chi la prepara (l'app ha tolto le opzioni): non parte niente.
+      current == null && check == null -> copyLabels.failed
+      current == null -> check?.let { fluidShareCheckProblem(it, copyLabels) }
+      result is FluidShareStaged.Failed -> fluidShareProblemText(result, labels, locale)
+      else -> null
+    }
     FluidSheetPages(
       pages = pages,
       onBack = { pages = pages.dropLast(1).ifEmpty { listOf(SharePage.Share) } },
@@ -305,29 +340,179 @@ fun FluidShareSheet(
       when (page) {
         SharePage.Share -> Column(Modifier.fillMaxSize()) {
           ShareSheetBody(
-            ready ?: current, onDismissRequest, actions, options, trust, chooserActions, labels, onShared, encoder,
-            header = current,
+            ready ?: current ?: shown, onDismissRequest, actions, options, trust, chooserActions, labels, onShared, encoder,
+            header = current ?: shown,
             onOptions = if (copyOptions != null) ({ pages = listOf(SharePage.Share, SharePage.Options) }) else null,
-            copying = ready == null && result == null,
-            failure = result as? FluidShareStaged.Failed,
+            copying = ready == null && problem == null,
+            problem = problem,
             people = people,
           )
         }
         SharePage.Options -> if (copyOptions != null) FluidShareOptionsPage(
           copyOptions = copyOptions,
-          start = choice,
-          startCopy = prepared,
+          start = required,
+          startCopy = kept,
           onBack = { pages = listOf(SharePage.Share) },
           onConfirm = { confirmed, copy ->
-            choice = confirmed
-            prepared = copy
-            current = copy.item
+            memory.origin = shownOrigin
+            memory.choice = confirmed
+            memory.copyChoice = confirmed
+            memory.copy = copy
             pages = listOf(SharePage.Share)
           },
         )
       }
     }
   }
+}
+
+/**
+ * Cio' che il foglio ricorda dell'oggetto aperto, salvato col foglio (R2): la scelta confermata nelle opzioni e la copia
+ * verificata, per l'oggetto dell'app di [origin]. Sopravvive alla rotazione e al processo ucciso; un'apertura nuova o un
+ * altro oggetto la dimenticano. La copia si salva senza l'anteprima e senza il documento da stampare (non stanno in un
+ * `Bundle`): la miniatura si rilegge dal file. Una copia col testo troppo lungo per lo stato salvato non si salva, e al
+ * ritorno il foglio la rifa' dalla scelta, con l'attesa e la verifica: l'originale non torna mai.
+ */
+@Stable
+internal class FluidShareMemory {
+  var open by mutableStateOf(false)
+  var origin by mutableStateOf<String?>(null)
+  var choice by mutableStateOf<FluidCopyChoice?>(null)
+  var copyChoice by mutableStateOf<FluidCopyChoice?>(null)
+  var copy by mutableStateOf<FluidPreparedCopy?>(null)
+
+  /** L'oggetto dell'app di adesso ([origin] null: il foglio si chiude, e la copia resta per l'uscita). */
+  fun follow(origin: String?) {
+    if (origin == null) {
+      open = false
+      return
+    }
+    if (!open || origin != this.origin) {
+      open = true
+      this.origin = origin
+      choice = null
+      copyChoice = null
+      copy = null
+    }
+  }
+
+  companion object {
+    val Saver: Saver<FluidShareMemory, Any> = Saver(
+      save = { memory ->
+        if (!memory.open) {
+          arrayListOf<Any?>(false)
+        } else {
+          val copy = memory.copy?.let(::fluidSaveCopy)
+          arrayListOf(
+            true,
+            memory.origin,
+            memory.choice?.let(::fluidSaveChoice),
+            memory.copyChoice?.takeIf { copy != null }?.let(::fluidSaveChoice),
+            copy,
+          )
+        }
+      },
+      restore = { saved ->
+        val list = saved as List<*>
+        FluidShareMemory().apply {
+          open = list[0] as Boolean
+          if (open) {
+            origin = list[1] as String?
+            choice = fluidRestoreChoice(list[2])
+            copyChoice = fluidRestoreChoice(list[3])
+            copy = fluidRestoreCopy(list[4])
+          }
+        }
+      },
+    )
+  }
+}
+
+/** Il testo piu' lungo che una copia porta nello stato salvato: 20 000 caratteri (40 KB nel `Bundle`). A occhio. */
+internal const val FluidShareSavedTextChars: Int = 20_000
+
+/**
+ * L'impronta dell'oggetto dell'app, per riconoscerlo dopo una rotazione: il titolo, il tipo, il testo, gli Uri e i file
+ * (non l'anteprima ne' il peso, che l'app puo' ricalcolare). SHA-256, cosi' un testo lungo non pesa nello stato salvato.
+ */
+internal fun fluidShareOrigin(item: FluidShareItem): String {
+  val digest = java.security.MessageDigest.getInstance("SHA-256")
+  fun add(text: String?) {
+    digest.update((text ?: "\u0000").toByteArray(Charsets.UTF_8))
+    digest.update(0x1f)
+  }
+  add(item.title)
+  add(item.mimeType)
+  add(item.text)
+  item.uris.forEach { add(it.toString()) }
+  add("|")
+  item.localFiles.forEach { add(it.path) }
+  return digest.digest().joinToString("") { "%02x".format(it) }
+}
+
+/** Una copia nel `Bundle`: solo stringhe, numeri e liste. Null se il testo e' troppo lungo per lo stato salvato. */
+internal fun fluidSaveCopy(copy: FluidPreparedCopy): ArrayList<Any?>? {
+  val item = copy.item
+  if ((item.text?.length ?: 0) > FluidShareSavedTextChars) return null
+  return arrayListOf(
+    item.title, item.mimeType, ArrayList(item.uris.map { it.toString() }), item.text, item.subject, item.sizeBytes,
+    item.fileName, item.detail, ArrayList(item.localFiles.map { it.path }),
+    ArrayList(copy.checks.map { arrayListOf(it.label, it.value, it.passed, it.option) }),
+    // Una copia delicata resta delicata dopo la rotazione: «Copia» segna ancora il clip.
+    item.sensitive,
+  )
+}
+
+/** Il contrario di [fluidSaveCopy]. */
+internal fun fluidRestoreCopy(saved: Any?): FluidPreparedCopy? {
+  val list = saved as? List<*> ?: return null
+  val item = FluidShareItem(
+    title = list[0] as String,
+    mimeType = list[1] as String,
+    uris = (list[2] as List<*>).map { Uri.parse(it as String) },
+    text = list[3] as String?,
+    subject = list[4] as String?,
+    sizeBytes = list[5] as Long?,
+    fileName = list[6] as String?,
+    detail = list[7] as String?,
+    localFiles = (list[8] as List<*>).map { java.io.File(it as String) },
+    sensitive = list.getOrNull(10) as? Boolean ?: false,
+  )
+  val checks = (list[9] as List<*>).map { entry ->
+    val c = entry as List<*>
+    FluidCopyCheck(c[0] as String, c[1] as String, c[2] as Boolean, c[3] as String?)
+  }
+  return FluidPreparedCopy(item, checks)
+}
+
+/**
+ * La copia di [choice] preparata e verificata adesso, per l'oggetto aperto: l'attesa, poi pronta o il perche' no. Pronta,
+ * la consegna a [onReady].
+ */
+@Composable
+private fun rememberFluidShareCheck(
+  copyOptions: FluidShareCopyOptions,
+  origin: String,
+  choice: FluidCopyChoice,
+  onReady: (FluidPreparedCopy) -> Unit,
+): FluidCopyState {
+  val options by rememberUpdatedState(copyOptions)
+  val ready by rememberUpdatedState(onReady)
+  var state by remember(origin, choice) { mutableStateOf<FluidCopyState>(FluidCopyState.Preparing) }
+  LaunchedEffect(origin, choice) {
+    val now = options
+    val checked = fluidPrepareChecked(now.prepare, now.options, choice, now.labels)
+    state = checked
+    if (checked is FluidCopyState.Ready) ready(checked.copy)
+  }
+  return state
+}
+
+/** Il perche' una copia di partenza non parte, con le parole delle opzioni; null mentre si prepara o se e' pronta. */
+internal fun fluidShareCheckProblem(state: FluidCopyState, labels: FluidPrepareCopyLabels): String? = when (state) {
+  is FluidCopyState.Blocked -> (listOf(labels.blocked) + state.problems.map { "• $it" }).joinToString("\n")
+  is FluidCopyState.Failed -> listOfNotNull(labels.failed, state.message).joinToString("\n")
+  else -> null
 }
 
 /** Le pagine del foglio: la condivisione e, sopra, le opzioni della copia. */
@@ -349,7 +534,7 @@ private fun ColumnScope.ShareSheetBody(
   encoder: FluidQrEncoder?,
   onOptions: (() -> Unit)?,
   copying: Boolean = false,
-  failure: FluidShareStaged.Failed? = null,
+  problem: String? = null,
   header: FluidShareItem = item,
   people: (@Composable (item: FluidShareItem, dismiss: () -> Unit) -> Unit)? = null,
 ) {
@@ -361,13 +546,24 @@ private fun ColumnScope.ShareSheetBody(
   var pane by remember(item) { mutableStateOf(SharePane.Actions) }
   var copied by remember(item) { mutableStateOf(false) }
   var saved by remember(item) { mutableStateOf<Boolean?>(null) }
-  val targets by rememberFluidShareTargets(if (options.apps && !copying && failure == null) item else null, trust)
-  LaunchedEffect(failure) { if (failure != null) haptics.play(FluidHapticEvent.Warning) }
+  // R2 · Dopo il primo esito (la spunta di «Copiato» resta 450 ms) le altre azioni non rispondono: un esito solo, una
+  // chiusura sola. Letto e scritto solo nei tocchi, quindi non e' uno stato di Compose.
+  val done = remember(item) { booleanArrayOf(false) }
+  val targets by rememberFluidShareTargets(if (options.apps && !copying && problem == null) item else null, trust)
+  LaunchedEffect(problem) { if (problem != null) haptics.play(FluidHapticEvent.Warning) }
+  // R2 · Le viste Compose di `item.print` si stampano col PDF della pagina: lo scrittore nasce qui, dove il foglio e'
+  // composto, e prende tema e parole del foglio.
+  val pdfWriter = rememberFluidPdfWriter()
 
   fun finish(outcome: FluidShareOutcome, after: Long = 0L) {
+    if (done[0]) return
+    done[0] = true
     report(outcome)
     if (after <= 0L) dismiss() else scope.launch { delay(after); dismiss() }
   }
+
+  /** Un tocco su un'azione: niente, se il foglio ha gia' un esito. */
+  fun act(block: () -> Unit): () -> Unit = { if (!done[0]) block() }
 
   val saveOne = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(fluidSaveMime(item))) { uri ->
     if (uri != null) scope.launch {
@@ -386,8 +582,12 @@ private fun ColumnScope.ShareSheetBody(
     }
   }
 
-  val qrText = item.text?.takeIf { !item.hasFiles && it.length <= FluidShareQrMaxChars }
-  val qr = remember(qrText, encoder) { if (qrText != null && encoder != null && options.qr) encoder.encode(qrText) else null }
+  // R2 · Il QR si calcola alla pressione, su `Dispatchers.Default`: aprire il foglio su un testo lungo non codifica niente
+  // sul thread principale. L'azione c'e' se il testo entra in un codice (al massimo i byte di un QR versione 40, M).
+  val qrText = item.text?.takeIf { !item.hasFiles && it.length <= FluidShareQrMaxChars && fluidQrFits(it) }
+  val qrEncoder = encoder.takeIf { options.qr && qrText != null }
+  var qr by remember(item) { mutableStateOf<FluidQrMatrix?>(null) }
+  val encoding = remember(item) { booleanArrayOf(false) }
 
   Column(Modifier.testTag(FluidShareSheetTags.Sheet).fillMaxWidth().weight(1f, fill = false)) {
     // La testata legge l'oggetto com'era prima della copia: la miniatura viene dal file al suo posto e non si rilegge
@@ -398,7 +598,7 @@ private fun ColumnScope.ShareSheetBody(
     // calendario (F8.8); la fila delle app dentro scorre col dito ed e' nitida.
     // L'attesa della copia e il perche' non parte sono cambi dell'app: entrano sfocati anche loro.
     val shownPane = when {
-      failure != null -> SharePane.Problem
+      problem != null -> SharePane.Problem
       copying -> SharePane.Preparing
       else -> pane
     }
@@ -410,8 +610,8 @@ private fun ColumnScope.ShareSheetBody(
     ) { current ->
       when (current) {
         SharePane.Preparing -> SharePreparing(labels)
-        SharePane.Problem -> if (failure != null) ShareProblem(failure, labels, onClose = onDismissRequest)
-        SharePane.Qr -> if (qr != null) ShareQrPanel(qr, qrText.orEmpty(), labels) { finish(FluidShareOutcome.QrShown) }
+        SharePane.Problem -> if (problem != null) ShareProblem(problem, labels, onClose = onDismissRequest)
+        SharePane.Qr -> qr?.let { matrix -> ShareQrPanel(matrix, qrText.orEmpty(), labels) { finish(FluidShareOutcome.QrShown) } }
         SharePane.Actions -> Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
           if (people != null) {
             people(item) { dismiss() }
@@ -423,13 +623,18 @@ private fun ColumnScope.ShareSheetBody(
               targets = apps,
               labels = labels,
               onPick = { target ->
-                val sent = runCatching { context.startActivity(FluidShareIntents.sendTo(item, target)) }.isSuccess
-                if (sent) {
-                  FluidShareTargets.remember(context, target)
-                  finish(FluidShareOutcome.SentTo(target))
-                }
+                act {
+                  val sent = runCatching { context.startActivity(FluidShareIntents.sendTo(item, target)) }.isSuccess
+                  if (sent) {
+                    FluidShareTargets.remember(context, target)
+                    finish(FluidShareOutcome.SentTo(target))
+                  } else {
+                    // R2 · Un'app che non parte (disinstallata nel frattempo, un permesso): il dito lo sente, il foglio resta.
+                    haptics.play(FluidHapticEvent.Error)
+                  }
+                }()
               },
-              onMore = { openChooser(context, item, labels, chooserActions) { finish(FluidShareOutcome.Chooser) } },
+              onMore = act { openChooser(context, item, labels, chooserActions, onFail = { haptics.play(FluidHapticEvent.Error) }) { finish(FluidShareOutcome.Chooser) } },
             )
             Spacer(Modifier.height(16.dp))
           }
@@ -438,13 +643,13 @@ private fun ColumnScope.ShareSheetBody(
           val commands = buildList {
             if (options.copy && (item.hasFiles || item.text != null)) add(
               ShareCommand(FluidShareSheetTags.Copy, if (copied) labels.copied else labels.copy,
-                if (copied) FluidIcons.Check else FluidIcons.ContentCopy, changed = copied) {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(FluidShareIntents.clip(context, item))
-                copied = true
-                haptics.play(FluidHapticEvent.Success)
-                finish(FluidShareOutcome.Copied, FluidShareDoneMillis)
-              },
+                if (copied) FluidIcons.Check else FluidIcons.ContentCopy, changed = copied, onClick = act {
+                  val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                  clipboard.setPrimaryClip(FluidShareIntents.clip(context, item))
+                  copied = true
+                  haptics.play(FluidHapticEvent.Success)
+                  finish(FluidShareOutcome.Copied, FluidShareDoneMillis)
+                }),
             )
             if (options.saveToFiles && (item.hasFiles || item.text != null)) add(
               ShareCommand(
@@ -452,25 +657,38 @@ private fun ColumnScope.ShareSheetBody(
                 when (saved) { true -> labels.saved; false -> labels.saveFailed; null -> labels.saveToFiles },
                 when (saved) { true -> FluidIcons.Check; false -> FluidIcons.Warning; null -> FluidIcons.Save },
                 changed = saved != null,
-              ) { runCatching { if (item.uris.size > 1) saveMany.launch(null) else saveOne.launch(fluidSaveName(item)) } },
+                onClick = act { runCatching { if (item.uris.size > 1) saveMany.launch(null) else saveOne.launch(fluidSaveName(item)) } },
+              ),
             )
-            if (qr != null) add(ShareCommand(FluidShareSheetTags.Qr, labels.showQr, FluidIcons.QrCode) {
-              haptics.play(FluidHapticEvent.Open)
-              pane = SharePane.Qr
-            })
-            if (options.print && fluidCanPrint(item)) add(ShareCommand(FluidShareSheetTags.Print, labels.print, FluidIcons.Print) {
-              if (fluidPrintItem(context, item)) finish(FluidShareOutcome.Printed)
-            })
+            if (qrEncoder != null && qrText != null) add(ShareCommand(FluidShareSheetTags.Qr, labels.showQr, FluidIcons.QrCode, onClick = act {
+              if (!encoding[0]) {
+                encoding[0] = true
+                scope.launch {
+                  val matrix = withContext(Dispatchers.Default) { runCatching { qrEncoder.encode(qrText) }.getOrNull() }
+                  encoding[0] = false
+                  if (matrix != null) {
+                    qr = matrix
+                    haptics.play(FluidHapticEvent.Open)
+                    pane = SharePane.Qr
+                  } else {
+                    haptics.play(FluidHapticEvent.Error)
+                  }
+                }
+              }
+            }))
+            if (options.print && fluidCanPrint(item)) add(ShareCommand(FluidShareSheetTags.Print, labels.print, FluidIcons.Print, onClick = act {
+              if (fluidPrintItem(context, item, pdfWriter)) finish(FluidShareOutcome.Printed) else haptics.play(FluidHapticEvent.Error)
+            }))
           }
           val appCommands = actions.map { action ->
-            ShareCommand(FluidShareSheetTags.action(action.id), action.title, action.icon) {
+            ShareCommand(FluidShareSheetTags.action(action.id), action.title, action.icon, onClick = act {
               action.onClick(item)
               if (action.dismisses) finish(FluidShareOutcome.Action(action.id)) else report(FluidShareOutcome.Action(action.id))
-            }
+            })
           }
-          val more = ShareCommand(FluidShareSheetTags.MoreApps, labels.moreApps, FluidIcons.MoreHoriz) {
-            openChooser(context, item, labels, chooserActions) { finish(FluidShareOutcome.Chooser) }
-          }
+          val more = ShareCommand(FluidShareSheetTags.MoreApps, labels.moreApps, FluidIcons.MoreHoriz, onClick = act {
+            openChooser(context, item, labels, chooserActions, onFail = { haptics.play(FluidHapticEvent.Error) }) { finish(FluidShareOutcome.Chooser) }
+          })
           if (options.actionsAsList) {
             ShareCommandList(appCommands + commands)
             Spacer(Modifier.height(12.dp))
@@ -499,6 +717,7 @@ private fun openChooser(
   item: FluidShareItem,
   labels: FluidShareLabels,
   chooserActions: List<FluidShareChooserAction>,
+  onFail: () -> Unit = {},
   then: () -> Unit,
 ) {
   try {
@@ -506,6 +725,11 @@ private fun openChooser(
     then()
   } catch (_: ActivityNotFoundException) {
     // Nessun foglio di sistema (un dispositivo senza): il foglio resta aperto.
+    onFail()
+  } catch (_: RuntimeException) {
+    // R2 · Nessun tocco lancia un'eccezione: un `SecurityException`, o il `FileUriExposedException` di un `file://` che
+    // un'app ha messo nell'oggetto senza passare dal foglio (il foglio li copia prima, `FluidShareItem.needsCopy`).
+    onFail()
   }
 }
 
@@ -514,6 +738,12 @@ internal const val FluidShareDoneMillis: Long = 450L
 
 /** Un QR oltre questa lunghezza e' troppo fitto per una fotocamera a un braccio di distanza. */
 internal const val FluidShareQrMaxChars: Int = 1200
+
+/** I byte che un QR versione 40 con correzione M tiene in modo byte: 2331 (ISO/IEC 18004, tabella 7). */
+internal const val FluidShareQrMaxBytes: Int = 2331
+
+/** Vero se [text] in UTF-8 entra in un QR con la correzione del foglio: 1200 lettere accentate sono 2400 byte e non ci stanno. */
+internal fun fluidQrFits(text: String): Boolean = text.toByteArray(Charsets.UTF_8).size <= FluidShareQrMaxBytes
 
 @Composable
 private fun ShareHeader(
@@ -849,10 +1079,9 @@ private fun SharePreparing(labels: FluidShareLabels) {
   }
 }
 
-/** Perche' il file non parte, con parole sue, al posto delle azioni; «Chiudi» chiude il foglio. */
+/** Perche' il file (o la copia) non parte, con parole sue, al posto delle azioni; «Chiudi» chiude il foglio. */
 @Composable
-private fun ShareProblem(failure: FluidShareStaged.Failed, labels: FluidShareLabels, onClose: () -> Unit) {
-  val locale = LocalConfiguration.current.locales[0]
+private fun ShareProblem(text: String, labels: FluidShareLabels, onClose: () -> Unit) {
   Column(
     Modifier
       .testTag(FluidShareSheetTags.Problem)
@@ -863,7 +1092,7 @@ private fun ShareProblem(failure: FluidShareStaged.Failed, labels: FluidShareLab
   ) {
     FluidIcon(FluidIcons.Warning, contentDescription = null, size = 30.dp, tint = MaterialTheme.colorScheme.error)
     Spacer(Modifier.height(10.dp))
-    Text(fluidShareProblemText(failure, labels, locale), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+    Text(text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
     Spacer(Modifier.height(18.dp))
     FluidButton(labels.close, onClose, fillWidth = true, size = FluidButtonSize.Large)
     Spacer(Modifier.height(16.dp))
@@ -918,11 +1147,15 @@ internal fun fluidCanPrint(item: FluidShareItem): Boolean = when {
   else -> false
 }
 
-/** Apre l'anteprima di stampa di Android per [item]; falso se non c'e' niente da stampare. */
-internal fun fluidPrintItem(context: Context, item: FluidShareItem): Boolean {
+/**
+ * Apre l'anteprima di stampa di Android per [item]; falso se non c'e' niente da stampare. Un documento con viste Compose
+ * si stampa con [writer] (R2: prima il tasto «Stampa» c'era, ma non faceva niente).
+ */
+internal fun fluidPrintItem(context: Context, item: FluidShareItem, writer: FluidPdfWriter? = null): Boolean {
   val document = item.print
   return when {
     document != null && !document.needsCompose -> FluidPrint.print(context, document, item.title) != null
+    document != null && writer != null -> writer.print(document, item.title) != null
     item.uris.size == 1 && item.mimeType.startsWith("image/") -> FluidPrint.printImage(context, item.uris.first(), item.title) != null
     item.uris.size == 1 && item.mimeType == "application/pdf" -> FluidPrint.printPdf(context, item.uris.first(), item.title) != null
     !item.hasFiles && item.text != null -> {

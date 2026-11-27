@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidScrubbing
@@ -57,6 +58,11 @@ data class FluidTranscriptStrings(
   val listenFromHere: String = "Ascolta da qui",
   /** Lo stato a voce del paragrafo che si sente. */
   val nowPlaying: String = "In ascolto",
+  /**
+   * La frase di una trascrizione senza paragrafi (non ancora pronta, o assente), sotto l'intestazione dell'app (R1, 26
+   * novembre 2026). Vuota: niente frase.
+   */
+  val empty: String = "Nessuna trascrizione",
 )
 
 /**
@@ -122,6 +128,9 @@ object FluidTranscriptDefaults {
  *
  * **TalkBack**: ogni paragrafo è un nodo con l'ora e il testo, e l'azione «Ascolta da qui»; quello che si sente dice «In
  * ascolto».
+ *
+ * **Vuota** (nessun paragrafo: la trascrizione non è ancora pronta, o non c'è): sotto l'intestazione la frase
+ * [FluidTranscriptStrings.empty], «Nessuna trascrizione», invece di una pagina bianca.
  *
  * @param position dove è l'ascolto, in millisecondi: una lambda letta fuori dalla composizione.
  * @param onSeek il salto chiesto da un tocco, in millisecondi.
@@ -209,6 +218,18 @@ fun FluidTranscriptView(
   Box(modifier) {
     LazyColumn(state = state.list, contentPadding = contentPadding, modifier = Modifier.fillMaxSize()) {
       header?.invoke(this)
+      if (transcript.paragraphs.isEmpty() && strings.empty.isNotEmpty()) {
+        // Una trascrizione vuota lo dice, invece di lasciare la pagina bianca (R1).
+        item(key = "fluid-transcript-empty") {
+          Text(
+            text = strings.empty,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+          )
+        }
+      }
       itemsIndexed(transcript.paragraphs, key = { index, paragraph -> transcriptKey(paragraph.key ?: index) }) { index, paragraph ->
         val isActive = index == active
         TranscriptParagraph(

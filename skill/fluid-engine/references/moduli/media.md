@@ -71,6 +71,11 @@ ufficiali in `artifacts/liquid-glass/sessioni/f8-14/riferimenti/`, `indice.md`):
   (`FluidMediaPickerState.deliver`). Se una sorgente rifiuta (il backup non risponde, troppi insieme) **non esce niente**:
   la scelta resta perché la persona la corregga e un avviso dice perché con parole semplici. Gli elementi spariti nel
   frattempo si contano e si dicono.
+- **Alla rotazione e alla morte del processo** la scelta resta **con i suoi elementi** (R1): con le chiavi si salvano i
+  campi degli elementi scelti (al più 200, una quarantina di kB nel `Bundle`), perché dopo la ricreazione le pagine
+  ripartono dalla prima e un elemento scelto oltre la prima pagina, da un album o da una ricerca non tornerebbe. La
+  consegna li ricontrolla con la sorgente. Una chiave che non si ritrova (messa nella scelta dall'app senza che una pagina
+  l'abbia portata) esce dalla scelta al ✓ e conta fra i saltati: mai un ✓ che non fa niente.
 
 ### L'accesso: i tre regimi delle foto, lo sblocco, la sorgente che non c'è
 
@@ -83,6 +88,7 @@ Ogni sorgente dice il suo `FluidMediaAccess` come stato; il selettore mostra la 
 | `NotAllowed` | «Consenti l'accesso alle foto» col tasto del permesso (`rememberFluidPermission(FluidPermission.PhotosAndVideos)`, la spiegazione nasce dal tasto; dopo due no, «Apri Impostazioni») e «Scegli con Android» (il Photo Picker, senza permessi) |
 | `Locked` | «MyCloud Gallery è bloccata» con «Sblocca»: apre lo sblocco dell'app sorgente (`PendingIntent`), poi rilegge |
 | `Unavailable` | «… non è disponibile» con «Riprova» |
+| una pagina che non arriva (il NAS spento, una scadenza, un errore della sorgente) | lo stesso «… non è disponibile» con «Riprova» al posto di «Nessuna foto»; a metà lista una capsula in fondo con «Riprova». Gli elementi arrivati restano (`FluidMediaFeed.failed`, `retry()`: R1) |
 
 L'accesso si **rilegge da solo** dopo il dialogo di Android, al ritorno dalle impostazioni (lo stato del permesso) e dopo
 lo sblocco; le pagine della sorgente si ricaricano solo se l'accesso è cambiato.
@@ -164,6 +170,11 @@ se vuole), le **scadenze** di ogni metodo (4 s, 8 s per una pagina, 2 minuti per
 `Unreachable`, mai un binder appeso), niente elenchi senza accesso, il **permesso di lettura** sugli indirizzi consegnati
 (`grantUriPermission`: gli indirizzi stanno in un provider dell'app con `grantUriPermissions`, come il `DocumentsProvider`
 di MyCloud con gli id opachi consegnati), il tetto della consegna, e la sola lettura (niente righe, niente scritture).
+**Quanto vale una consegna** (R1): il permesso di `grantUriPermission` non è legato a un'attività, e resta finché nessuno
+chiama `revokeUriPermission`, il telefono non si riavvia o una delle due app non viene fermata o tolta. Bloccare la
+sorgente non lo toglie: ciò che è consegnato resta all'app che l'ha chiesto, come nel selettore di iOS. Se il blocco deve
+chiudere anche quello, è il provider che serve i file (il `DocumentsProvider` di MyCloud) a ricontrollarlo a ogni
+apertura.
 Chi legge ignora le chiavi che non conosce; una versione nuova aggiunge chiavi, non le cambia.
 
 **Cosa resta a MyCloud Gallery in F12** (la galleria oggi non si tocca): la sua sorgente sopra la Libreria (la vista di
@@ -226,12 +237,14 @@ suo per `ACTION_IMAGE_CAPTURE`, i file `OpenMultipleDocuments`, la posizione il 
   finta, il lettore attraverso il `ContentResolver`: album, pagine, ricerca, miniature sul tubo, ordine della consegna,
   blocco, NAS spento, tetto, chi non può chiedere, le traduzioni dei `Bundle`), `FluidDeviceMediaSourceTest` (i tre regimi,
   le pagine e gli album contro un MediaStore finto, la consegna riletta, la ricerca come argomento),
-  `FluidMediaPickerStateTest` (pagine, ordine e tetto, la consegna da due sorgenti, il rifiuto, i saltati, lo sblocco).
+  `FluidMediaPickerStateTest` (pagine, ordine e tetto, la consegna da due sorgenti, il rifiuto, i saltati, lo sblocco;
+  R1: la pagina che non arriva e «Riprova», gli elementi scelti nel `Bundle`, la chiave senza elemento).
 - `engine-ui`: `FluidSelectionLimitTest` (l'ordine dei tocchi, il tetto, il salvataggio, le parole del numero).
 - `sample`: `F8p14MediaUiTest`, col dito vero e il vetro vero (la scelta col numero e lo scalare, il dito di lato, il tetto,
   la foto sola, gli album di due sorgenti, la ricerca per significato, il permesso negato e «solo alcune» col dialogo di
   Android finto e «Gestisci», lo sblocco e il NAS spento, TalkBack, l'anteprima dalla pressione lunga, il «+», il pannello
-  al posto della tastiera anche col movimento ridotto).
+  al posto della tastiera anche col movimento ridotto); `R1cMediaPickerTest` (la scelta oltre la prima pagina che
+  sopravvive alla ricreazione e si consegna intera, la chiave senza elemento che si dice, la sorgente che non risponde).
 - In galleria: «Elementi nuovi» › F8.14, scene `selettore-foto`, `foto-profilo`, `accesso-foto`, `allegati-piu`,
   `allegati-tastiera` (`sample/…/novita/F8p14Scenes.kt`).
 

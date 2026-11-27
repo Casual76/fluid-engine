@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -122,9 +124,11 @@ object FluidRecorderDefaults {
  * tabulari ([FluidTextStyles.largeNumeric]); oltre l'ora «1:02:03.45».
  *
  * Cambia cento volte al secondo, quindi **non e' un `Text`**: le cifre sono misurate una volta (dieci cifre, i due punti
- * e il punto) e ridisegnate dal disegno a ogni fotogramma, senza ricomporre e senza allocare. Con [advancing] vero
- * ridisegna a ogni fotogramma; fermo, non disegna. Per TalkBack dice la durata ai secondi interi, un aggiornamento al
- * secondo.
+ * e il punto) e ridisegnate dal disegno a ogni fotogramma, senza ricomporre e senza allocare, in uno strato suo (R1: il
+ * ridisegno resta lì, e non fa riregistrare il pannello). Con [advancing] vero ridisegna a ogni fotogramma; fermo, non
+ * disegna, salvo che [elapsedMillis] legga uno stato (la posizione di un lettore, nel riascolto in pausa): allora si
+ * ridisegna quando lui cambia. Per TalkBack dice la durata ai secondi interi, un aggiornamento al secondo, e la larghezza
+ * passa a quella delle ore oltre l'ora: nella registrazione e nel riascolto.
  */
 @Composable
 fun FluidRecorderClock(
@@ -142,11 +146,17 @@ fun FluidRecorderClock(
   val latest by rememberUpdatedState(elapsedMillis)
   LaunchedEffect(advancing) {
     seconds = latest() / 1000L
-    while (advancing) {
-      withFrameNanos { }
-      frame++
-      val now = latest() / 1000L
-      if (now != seconds) seconds = now
+    if (advancing) {
+      while (true) {
+        withFrameNanos { }
+        frame++
+        val now = latest() / 1000L
+        if (now != seconds) seconds = now
+      }
+    } else {
+      // Fermo, il tempo può essere quello di un lettore (il riascolto in pausa): uno stato, che si segue al secondo
+      // (R1). Un orologio che non è uno stato dà un valore solo.
+      snapshotFlow { latest() / 1000L }.collect { seconds = it }
     }
   }
   val hours = seconds >= 3_600L
@@ -158,6 +168,7 @@ fun FluidRecorderClock(
       .clearAndSetSemantics {
         contentDescription = "$label ${FluidScrubbing.clock(seconds * 1000L)}"
       }
+      .graphicsLayer()
       .drawBehind {
         if (frame < 0) return@drawBehind
         glyphs.draw(this, latest().coerceAtLeast(0L))

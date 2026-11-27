@@ -7,7 +7,6 @@ import dev.antigravity.fluidengine.foundation.audio.FluidAudioSilence
 import dev.antigravity.fluidengine.foundation.audio.FluidGrowingAudioEnvelope
 import dev.antigravity.fluidengine.foundation.audio.FluidRecordingQuality
 import java.io.File
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -87,10 +86,25 @@ sealed interface FluidRecorderStatus {
  * È la cattura di `engine-ai` resa comune: lo stesso `AudioRecord` in frame da 20 ms, ma per minuti e ore invece che per
  * una domanda, e senza la decisione di fermarsi da sola.
  *
- * **Thread.** I comandi ([start], [pause], [resume], [stop], [discard]) si chiamano da un thread qualunque (di solito il
- * principale) e tornano subito, tranne [stop], che sospende finché il file non è chiuso. La lettura del microfono ha un
- * thread suo, alla priorità audio, che scrive il file e l'onda. [status] e [clipping] sono `StateFlow`; il tempo è un
- * orologio ([elapsedMillis]) che l'interfaccia legge a ogni fotogramma, non uno stato.
+ * **Thread.** I comandi ([start], [pause], [resume], [stop], [discard], [reset]) si chiamano da un thread qualunque. Non
+ * tornano tutti subito (R1, 26 novembre 2026): [start] e [resume] aspettano che il microfono si apra (di solito qualche
+ * decina di millisecondi, di più su alcuni telefoni), [pause] e [discard] che il thread della cattura finisca la lettura in
+ * corso (al più [FluidRecorderConfig.frameMillis]); [stop] sospende finché il file non è chiuso. Dal thread principale è
+ * un'attesa breve al tocco; chi non la vuole li chiama da un altro thread, in fila (per esempio
+ * `Dispatchers.Default.limitedParallelism(1)`), e legge l'esito da [status]. La lettura del microfono ha un thread suo,
+ * alla priorità audio, che scrive il file e l'onda. [status] e [clipping] sono `StateFlow`; il tempo è un orologio
+ * ([elapsedMillis]) che l'interfaccia legge a ogni fotogramma, non uno stato.
+ *
+ * **Se qualcosa si rompe.** Un microfono perso o preso da un'altra app mette in pausa ([FluidRecorderStatus.Paused]); un
+ * errore vero (il file che non si scrive, il codificatore che si ferma) dà [FluidRecorderStatus.Failed], e il file scritto
+ * fin lì resta finché l'app decide: [stop] lo chiude e lo consegna; [discard], [reset] o un nuovo [start] lo buttano
+ * (scelta di Alessio del 26 novembre 2026: un file a metà che nessuno ha chiesto non resta sul disco).
+ *
+ * **Se il processo muore registrando** (il sistema chiude l'app, un crash altrove, la batteria): il WAV
+ * ([FluidRecordingFormat.Wav]) resta sul disco e si ascolta fino all'ultimo secondo, perché le misure dell'intestazione si
+ * riscrivono ogni secondo; l'AAC ([FluidRecordingFormat.Aac]) resta sul disco ma non si apre, perché il contenitore MP4
+ * scrive il suo indice solo alla fine. Per una lezione lunga che non si può perdere, il WAV ([FluidRecordingQuality.Lossless]);
+ * all'app resta decidere cosa fare dei file rimasti a metà al prossimo avvio.
  *
  * **Cosa resta all'app**: il permesso del microfono (chiesto al tasto), il servizio in primo piano di tipo `microphone`
  * per registrare a schermo spento o fuori dall'app (Android zittisce il microfono di un'app in sottofondo senza), dove
@@ -163,6 +177,7 @@ class FluidAudioRecorder(
    */
   fun start(target: File, quality: FluidRecordingQuality? = null): Boolean = synchronized(lock) {
     if (_status.value is FluidRecorderStatus.Recording || _status.value is FluidRecorderStatus.Paused) return false
+    closeLeftover()
     active = if (quality != null) config.with(quality) else config
     target.parentFile?.mkdirs()
     val opened = try {
@@ -178,13 +193,12 @@ class FluidAudioRecorder(
     accumulatedNanos = 0L
     resumedAtNanos = 0L
     _clipping.value = false
-    if (!launch()) {
+    if (!launch { _status.value = FluidRecorderStatus.Recording(target) }) {
       opened.abandon()
       writer = null
       file = null
       return false
     }
-    _status.value = FluidRecorderStatus.Recording(target)
     true
   }
 
@@ -196,9 +210,7 @@ class FluidAudioRecorder(
   /** Riprende dopo una pausa, scrivendo in coda allo stesso file. Falso se il microfono non riparte. */
   fun resume(): Boolean = synchronized(lock) {
     val paused = _status.value as? FluidRecorderStatus.Paused ?: return false
-    if (!launch()) return false
-    _status.value = FluidRecorderStatus.Recording(paused.file)
-    true
+    launch { _status.value = FluidRecorderStatus.Recording(paused.file) }
   }
 
   /**
@@ -216,7 +228,9 @@ class FluidAudioRecorder(
     }
     try {
       output.finish()
-    } catch (error: IOException) {
+    } catch (error: Exception) {
+      // Non solo IOException (R1): `MediaMuxer.stop()` lancia IllegalStateException sull'indice che non si scrive. Lo
+      // scrittore ha già liberato codificatore e contenitore; qui si butta il file e si dice perché.
       output.abandon()
       _status.value = FluidRecorderStatus.Failed(FluidMicrophoneFailure.Unknown, error)
       return@withContext null
@@ -257,13 +271,30 @@ class FluidAudioRecorder(
     }
   }
 
-  /** Dopo una registrazione finita o fallita, torna a riposo (l'onda resta finché non se ne comincia un'altra). */
+  /**
+   * Dopo una registrazione finita o fallita, torna a riposo (l'onda resta finché non se ne comincia un'altra). Dopo una
+   * cattura fallita da sola, il file scritto fin lì si butta: per tenerlo, [stop] prima.
+   */
   fun reset() {
     synchronized(lock) {
       if (_status.value is FluidRecorderStatus.Finished || _status.value is FluidRecorderStatus.Failed) {
+        closeLeftover()
         _status.value = FluidRecorderStatus.Idle
       }
     }
+  }
+
+  /**
+   * Butta lo scrittore che una cattura fallita da sola ([failAsync] → [FluidRecorderStatus.Failed]) ha lasciato aperto,
+   * se né [stop] né [discard] l'hanno preso (R1, scelta di Alessio del 26 novembre 2026): il file a metà si chiude e si
+   * cancella, invece di restare aperto fino al garbage collector. Sotto il lucchetto.
+   */
+  private fun closeLeftover() {
+    val output = writer ?: return
+    halt()
+    writer = null
+    file = null
+    output.abandon()
   }
 
   private fun interrupt() {
@@ -281,9 +312,14 @@ class FluidAudioRecorder(
     FluidRecordingFormat.Aac -> FluidAacWriter(target, active.sampleRate, active.aacBitRate)
   }
 
-  /** Fa partire il thread della cattura; il microfono lo apre lui. Vero se il microfono è partito. */
-  private fun launch(): Boolean {
+  /**
+   * Fa partire il thread della cattura; il microfono lo apre lui. Vero se il microfono è partito, e allora [recording]
+   * scrive lo stato prima che la cattura cominci (R1): un microfono perso o un file che non si scrive al primo blocco
+   * trovano già `Recording`, e il loro `Paused` o `Failed` non si perde sotto un `Recording` scritto dopo.
+   */
+  private fun launch(recording: () -> Unit): Boolean {
     val ready = java.util.concurrent.CountDownLatch(1)
+    val go = java.util.concurrent.CountDownLatch(1)
     var started = false
     running = true
     val capture = Thread({
@@ -294,6 +330,7 @@ class FluidAudioRecorder(
         return@Thread
       }
       try {
+        go.await()
         capture()
       } finally {
         source.stop()
@@ -308,6 +345,8 @@ class FluidAudioRecorder(
     }
     thread = capture
     resumedAtNanos = clock()
+    recording()
+    go.countDown()
     return true
   }
 
@@ -345,7 +384,9 @@ class FluidAudioRecorder(
       silentReads = 0
       try {
         writer?.write(frame, n)
-      } catch (error: IOException) {
+      } catch (error: Exception) {
+        // Anche le eccezioni del codificatore (IllegalStateException, CodecException): sul thread della cattura una
+        // non presa chiuderebbe l'app (R1).
         failAsync(FluidMicrophoneFailure.Unknown, error)
         return
       }

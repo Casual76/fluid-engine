@@ -120,6 +120,17 @@ class F8p10StagingTest {
     assertEquals(1_024L, staged.limitBytes)
   }
 
+  @Test fun aFileInTheFolderThatIsGoneSaysSo() = runBlocking {
+    // R2: un'uscita cancellata (Android ha svuotato la cache) dentro la cartella dell'engine. Prima aveva subito il suo
+    // Uri, e il foglio mandava un Uri morto senza dire perche'.
+    fakeUris()
+    val gone = File(FluidShareFiles.newFile(context, "Sparito.png").path)
+    val item = FluidShareItem.file(context, gone, "image/png")
+    assertTrue("si controlla come un file da copiare", item.needsCopy)
+    val staged = FluidShareFiles.stage(context, item)
+    assertEquals(FluidShareFileProblem.Missing, (staged as FluidShareStaged.Failed).problem)
+  }
+
   @Test fun anItemWithoutLocalFilesIsReadyAsItIs() = runBlocking {
     val link = FluidShareItem.link("https://example.org")
     val staged = FluidShareFiles.stage(context, link)

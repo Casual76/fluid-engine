@@ -20,9 +20,14 @@ package dev.antigravity.fluidengine.foundation.text
  */
 object FluidTextDiff {
   /**
-   * Il tetto di serie: mille pezzi tolti o aggiunti. Nel caso peggiore sono circa 4 MB di lavoro temporaneo e qualche
-   * decina di millisecondi su un telefono di fascia bassa; per questo chi lo usa lo chiama fuori dal thread principale.
-   * A occhio, 24/11/2026: due versioni di una nota con piu' di mille parole diverse non si fondono comunque in modo utile.
+   * Il tetto di serie: mille pezzi tolti o aggiunti. Nel caso peggiore il conto di Myers sono circa 4 MB di lavoro
+   * temporaneo e qualche decina di millisecondi su un telefono di fascia bassa; per questo chi lo usa lo chiama fuori dal
+   * thread principale. A occhio, 24/11/2026: due versioni di una nota con piu' di mille parole diverse non si fondono
+   * comunque in modo utile.
+   *
+   * Il tetto limita il conto, non i pezzi (R2): [words] e [lines] fanno un pezzo per parola o per riga di tutto il testo,
+   * e [diff] tiene per ogni pezzo un numero e la sua corrispondenza (una mappa dei pezzi diversi e quattro interi per
+   * pezzo). Per due testi di qualche megabyte sono decine di megabyte, che chi chiama deve poter dare, o tagliare prima.
    */
   const val DefaultMaxEdits: Int = 1_000
 

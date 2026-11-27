@@ -21,6 +21,7 @@ import androidx.annotation.RestrictTo
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryBudget
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryLimits
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.ui.glass.quality.GlassGpuClass
 import dev.antigravity.fluidengine.ui.glass.quality.GlassMemoryProfile
 import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics
 import dev.antigravity.fluidengine.ui.glass.quality.GlassQualityDecision
@@ -60,7 +61,7 @@ class FluidGlassResources private constructor(private val app: Application) {
   private var heap = initial.decision.heapReferenceBytes
   /** F8.18b: la regola delle pagine nella memoria grafica, rifatta a ogni [publish]; letta senza lock dal PDF. */
   @Volatile private var hardwarePages =
-    viewerHardwarePagesFor(initial.decision.memoryProfile, initial.decision.optics)
+    viewerHardwarePagesFor(initial.decision.memoryProfile, initial.decision.optics, reading.capacity.gpu)
   @Volatile private var lastReadingNs = System.nanoTime()
   /**
    * La stessa lettura sull'orologio di sistema ([android.os.SystemClock.elapsedRealtimeNanos]): da qui si misura se
@@ -93,13 +94,26 @@ class FluidGlassResources private constructor(private val app: Application) {
   }
   /**
    * F8.18b · Se le pagine dei documenti vanno nella memoria grafica, secondo la fascia del processo adesso: la regola è
-   * [viewerHardwarePagesFor], con la riga di memoria e il livello ottico più basso fra le finestre in vista. Cambia con
-   * la fascia (una pressione, una termica severa la accendono); il PDF la legge a ogni pagina resa, senza lock.
+   * [viewerHardwarePagesFor], con la riga di memoria, il livello ottico più basso fra le finestre in vista e (F7.26) la
+   * classe della GPU. Cambia con la fascia (una pressione, una termica severa la accendono); il PDF la legge a ogni pagina
+   * resa, senza lock.
    */
   val viewerHardwarePages: Boolean get() = hardwarePages
   private var hidden = false
 
-  /** Un solo registro per tutti i layer e i decoder, comprese finestre simultanee. */
+  /**
+   * Un solo registro per le catture del vetro e i decoder, comprese finestre simultanee.
+   *
+   * Che cosa conta, detto preciso (F7.26, review R2): nella categoria `GLASS` entrano la cattura e il campione di viaggio
+   * di ogni vetro grande (quelle sopra 262.144 pixel logici o 1 MiB di stima). **Non** entrano: la sorgente a schermo
+   * intero di [dev.antigravity.fluidengine.ui.fluid.glassBackdropSource] quando qualcuno la campiona (un layer fuori
+   * schermo grande quanto la pagina, che al renderer costa da uno a due buffer di quella misura: misurati sul Tab S9
+   * con una sorgente sola, 19,4 MiB a 1080 × 2340 (due) e 15,6 MiB a 1600 × 2560 (uno), F7.26d ed e. La seconda copia,
+   * quando c'è, è nella cache di Skia; la pagina privata dei lettori di una sorgente su richiesta è una registrazione e
+   * non ne aggiunge), i materiali esportati dei pannelli con vetro dentro, le maschere d'ombra e le
+   * catture piccole. Sono un costo fisso della schermata, fuori dal tetto: il tetto
+   * governa quanto il vetro **aggiunge** sopra quel costo, non la memoria grafica intera del vetro.
+   */
   val budget = FluidMemoryBudget(row.limits().forHeap(heap))
 
   /**
@@ -157,7 +171,8 @@ class FluidGlassResources private constructor(private val app: Application) {
       "totalRam=${c.totalRamBytes} maxHeap=${c.maxHeapBytes} memoryClassMiB=${c.heapClassMiB} lowRam=${c.lowRamDevice} " +
         "mediaClass=${c.mediaPerformanceClass} avail=${m.availableBytes} threshold=${m.pressureThresholdBytes} " +
         "heapFraction=${m.heapFraction} thermal=${m.thermal} powerSave=${m.powerSave} previousExit=${signals.previousExit} " +
-        "tier=${c.memoryCeiling} row=$row heapRef=$heap optics=${initial.decision.optics} ${usageLine()}"
+        "tier=${c.memoryCeiling} row=$row heapRef=$heap optics=${initial.decision.optics} ${signals.soc} " +
+        "pages=${if (hardwarePages) "on" else "off"} ${usageLine()}"
     }
     app.registerComponentCallbacks(object : ComponentCallbacks2 {
       override fun onTrimMemory(level: Int) = trim(level)
@@ -251,6 +266,8 @@ class FluidGlassResources private constructor(private val app: Application) {
       policy.updateCapacity(now, value.capacity)
       policy.updateConditions(now, value.conditions)
       policy.setCeilings(now, value.ceiling, sessionCeiling)
+      // F7.26 (R2): dove non si vede niente (nessuna finestra, o la finestra in fondo) si risale subito.
+      policy.riseUnseen(now)
     }
     update(initial)
     windows.values.forEach { update(it.policy) }
@@ -400,7 +417,8 @@ class FluidGlassResources private constructor(private val app: Application) {
       thread = null
       handler = null
     }
-    hardwarePages = viewerHardwarePagesFor(nextRow, nextOptics)
+    hardwarePages = viewerHardwarePagesFor(nextRow, nextOptics, reading.capacity.gpu)
+    noteLevels()
     if (row != nextRow || heap != nextHeap) {
       budget.updateLimits(nextRow.limits().forHeap(nextHeap))
       row = nextRow
@@ -411,6 +429,65 @@ class FluidGlassResources private constructor(private val app: Application) {
       }
     }
     prefetchState.value = active && prefetch
+  }
+
+  private var initialNoted: GlassQualityDecision? = null
+
+  /** F7.26: la memoria del processo e il registro, coi picchi, per la riga del profilo simulato. Sul main thread. */
+  private fun memoryLine(): String {
+    val runtime = Runtime.getRuntime()
+    val glass = budget.usage(FluidMemoryCategory.GLASS)
+    val process = budget.usage()
+    val mib = 1_048_576.0
+    fun f(bytes: Long) = "%.1f".format(java.util.Locale.ROOT, bytes / mib)
+    return "memoria javaUsata=${f(runtime.totalMemory() - runtime.freeMemory())} javaMax=${f(runtime.maxMemory())} " +
+      "nativa=${f(android.os.Debug.getNativeHeapAllocatedSize())} heapRif=${f(heap)} " +
+      "vetro=${f(glass.usedBytes)}/${f(glass.peakBytes)}/${f(glass.limitBytes)} " +
+      "processo=${f(process.usedBytes)}/${f(process.peakBytes)}/${f(process.limitBytes)} rifiuti=${process.refusals} MiB"
+  }
+
+  /**
+   * F7.26: una riga per ogni cambio di livello di una finestra (e della decisione d'avvio), con il motivo. Solo nelle
+   * build di debug e bench, e solo col profilo simulato acceso ([GlassVariantSignals.note]): in release non costa niente.
+   */
+  private fun noteLevels() {
+    if (!GlassVariantSignals.noting) return
+    if (initial.decision !== initialNoted) {
+      initialNoted = initial.decision
+      GlassVariantSignals.note { levelLine("avvio", initial) }
+    }
+    for (window in windows.values) {
+      val decision = window.policy.decision
+      if (decision === window.noted) continue
+      window.noted = decision
+      GlassVariantSignals.note { levelLine("finestra@${Integer.toHexString(System.identityHashCode(window))}", window.policy) }
+    }
+  }
+
+  private fun levelLine(owner: String, policy: GlassQualityPolicy): String {
+    val d = policy.decision
+    return "livello $owner ottica=${d.optics} riga=${d.memoryProfile} prefetch=${d.allowPrefetch} " +
+      "motivo=${policy.lastReason ?: "avvio"} pagine=${if (hardwarePages) "accese" else "spente"} ${usageLine()}"
+  }
+
+  /**
+   * F7.26: il profilo di dispositivo simulato delle build di prova arriva con l'extra `fluid.glass.device` della prima
+   * Activity ([GlassVariantSignals.launch]), prima del suo contenuto: la lettura si rifà subito, e il registro prende la
+   * riga del profilo prima della prima cattura. In release [GlassVariantSignals.launch] non fa niente.
+   */
+  @MainThread
+  internal fun launchedWith(activity: android.app.Activity) {
+    if (!GlassVariantSignals.launch(activity, refresh = { refresh() }, sample = ::memoryLine)) return
+    synchronized(this) {
+      refresh()
+      GlassVariantSignals.note {
+        val c = reading.capacity
+        "profilo applicato totalRam=${c.totalRamBytes} maxHeap=${c.maxHeapBytes} memoryClassMiB=${c.heapClassMiB} " +
+          "lowRam=${c.lowRamDevice} gpu=${c.gpu} tier=${c.memoryCeiling} thermal=${reading.conditions.thermal} " +
+          "ottica=${initial.decision.optics} riga=$row pagine=${if (hardwarePages) "accese" else "spente"} " +
+          "letto ${signals.soc} ${usageLine()}"
+      }
+    }
   }
 
   companion object {
@@ -446,13 +523,20 @@ private fun GlassMemoryProfile.limits() = when (this) {
  *   pressione vera o un'uscita per memoria della sessione prima), oppure se il vetro è sceso a [GlassOptics.Protected]
  *   (termica severa, fotogrammi persi di fila, una pressione critica): il dispositivo fatica, e la copia fatta prima
  *   toglie lavoro al fotogramma.
- * - **Spente** altrimenti: riga Piena e vetro almeno Ridotto, come il Tab S9 e il Galaxy S25 di Alessio. Sul Tab S9 non
- *   c'era un guadagno misurabile (25 novembre 2026, 120 Hz, slot saltati 6,0 e 6,7 % accese contro 3,2 e 7,7 % spente),
- *   e senza la copia il thread del documento lavora meno e non tiene due copie della pagina nel momento della copia.
+ * - **Accese** (F7.26) anche con la riga Piena se la GPU non è di punta ([GlassGpuClass]): il Galaxy S22 (Exynos 2200 o
+ *   Snapdragon 8 Gen 1, scaldano e rallentano, [GlassGpuClass.Mid]), le serie A ([GlassGpuClass.Low]), e un SoC che la
+ *   tabella non conosce ([GlassGpuClass.Unknown]) finché il vetro non arriva a [GlassOptics.Full] con i fotogrammi
+ *   misurati: parte prudente, e se regge le spegne.
+ * - **Spente** altrimenti: riga Piena, GPU di punta ([GlassGpuClass.High]) e vetro almeno Ridotto, come il Tab S9 e il
+ *   Galaxy S25 di Alessio. Sul Tab S9 non c'era un guadagno misurabile (25 novembre 2026, 120 Hz, slot saltati 6,0 e
+ *   6,7 % accese contro 3,2 e 7,7 % spente), e senza la copia il thread del documento lavora meno e non tiene due copie
+ *   della pagina nel momento della copia.
  *
- * Il limite, detto chiaro: la fascia di F7 guarda la memoria e il vetro, non la GPU. Un telefono con 8 GB e heap da
- * 512 MiB (il Galaxy S22) conta come alto finché il vetro non scende a Protetto; separarlo davvero vuole un segnale della
- * GPU o dei fotogrammi del visore, ed è lavoro della fase delle prestazioni (F7).
+ * Fino a F7.26 la fascia guardava solo la memoria e il vetro, e il Galaxy S22 (8 GB, heap 512 MiB) contava come alto.
  */
-internal fun viewerHardwarePagesFor(memory: GlassMemoryProfile, optics: GlassOptics): Boolean =
-  memory != GlassMemoryProfile.Full || optics == GlassOptics.Protected
+internal fun viewerHardwarePagesFor(memory: GlassMemoryProfile, optics: GlassOptics, gpu: GlassGpuClass): Boolean =
+  memory != GlassMemoryProfile.Full || optics == GlassOptics.Protected || when (gpu) {
+    GlassGpuClass.High -> false
+    GlassGpuClass.Unknown -> optics != GlassOptics.Full
+    GlassGpuClass.Mid, GlassGpuClass.Low -> true
+  }

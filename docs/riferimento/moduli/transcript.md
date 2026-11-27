@@ -34,7 +34,8 @@ Catalogo delle firme: [`../api/transcript.md`](../api/transcript.md).
 | quale paragrafo e quale parola si sentono | `transcript.paragraphAt(ms)`, `transcript.spokenOffset(index, ms)` |
 | riportare la pagina alla voce da un mio tasto | `state.follow()` con `val state = rememberFluidTranscriptState()` |
 | un'intestazione sopra il testo (il titolo, il lettore) | `FluidTranscriptView(…, header = { item { … } })` |
-| i testi in un'altra lingua | `FluidTranscriptStrings(returnToVoice = …, listenFromHere = …, nowPlaying = …)` |
+| i testi in un'altra lingua | `FluidTranscriptStrings(returnToVoice = …, listenFromHere = …, nowPlaying = …, empty = …)` |
+| una trascrizione non ancora pronta | `FluidTranscript(emptyList())`: la vista dice «Nessuna trascrizione» (`FluidTranscriptStrings.empty`; vuota, niente frase) |
 
 ## Come funziona
 
@@ -63,6 +64,9 @@ che avanza parola per parola (la posizione è letta nel disegno: non si ricompon
 testo pieno, da leggere. L'ora del paragrafo che si sente è nell'accento.
 
 **TalkBack.** Ogni paragrafo è un nodo (l'ora e il testo) con l'azione «Ascolta da qui»; quello che si sente dice «In ascolto».
+
+**Vuota** (R1, 26 novembre 2026). Senza paragrafi (la trascrizione non è ancora pronta, o non c'è) la vista mostra sotto
+l'intestazione dell'app la frase `FluidTranscriptStrings.empty` («Nessuna trascrizione»), invece di una pagina bianca.
 
 ## Trappole
 

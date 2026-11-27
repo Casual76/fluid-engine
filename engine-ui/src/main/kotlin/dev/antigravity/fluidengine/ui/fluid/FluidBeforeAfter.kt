@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +40,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.IntOffset
@@ -112,8 +112,14 @@ data class FluidBeforeAfterLabels(
  *   del visore muove le due versioni insieme, e la maniglia resta della sua misura e nel centro di cio' che si vede.
  *   La maniglia tiene il suo dito: lo sfoglio del visore non parte da li'.
  * - **Dito nitido**: la maniglia segue il dito 1:1, niente sfocature; un `Threshold` quando passa a meta'.
- * - **TalkBack**: la maniglia e' un cursore («Prima al 50%») che si regola con «aumenta» e «diminuisci».
- * - Fermo, non ridisegna: il taglio si legge nel disegno, e cambia solo quando la tendina si muove.
+ * - **TalkBack**: la maniglia e' un cursore («Prima al 50%») che si regola con «aumenta» e «diminuisci». Mentre il dito
+ *   la trascina la sua semantica resta ferma e si aggiorna a fine gesto (F7.24, `fluidSettledSemantics`): con un servizio
+ *   di accessibilita' acceso il dito non cambia la semantica a ogni passo. Un valore dato da TalkBack o dall'app arriva
+ *   subito. Il pomello che si sposta fa ancora ricontrollare a Compose le misure della pagina, al piu' ogni 100 ms, come
+ *   il pomello del cursore.
+ * - Fermo, non ridisegna: il taglio si legge nel disegno, e cambia solo quando la tendina si muove. Mosso dal dito, non
+ *   si ricompone: la linea, il taglio e la maniglia si leggono nel disegno e nella posa, e le capsule «Prima» e «Dopo»
+ *   cambiano solo quando la tendina passa la loro soglia.
  */
 @Composable
 fun FluidBeforeAfter(
@@ -151,16 +157,22 @@ fun FluidBeforeAfter(
             if (abs(down.position.x - lineX) * scale > handleTouch / 2f) return@awaitEachGesture
             down.consume()
             var last = state.fraction
-            horizontalDrag(down.id) { change ->
-              change.consume()
-              val next = (change.position.x / size.width).coerceIn(0f, 1f)
-              if ((last - 0.5f) * (next - 0.5f) < 0f) haptics.play(FluidHapticEvent.Threshold)
-              last = next
-              scope.launch { state.snapTo(next) }
+            // R1 (F7.24): il dito muove un valore; la semantica qui sotto aspetta la fine del gesto.
+            FluidFingerDrive.begin()
+            try {
+              horizontalDrag(down.id) { change ->
+                change.consume()
+                val next = (change.position.x / size.width).coerceIn(0f, 1f)
+                if ((last - 0.5f) * (next - 0.5f) < 0f) haptics.play(FluidHapticEvent.Threshold)
+                last = next
+                scope.launch { state.snapTo(next) }
+              }
+            } finally {
+              FluidFingerDrive.end()
             }
           }
         }
-        .semantics {
+        .fluidSettledSemantics {
           contentDescription = labels.divider
           stateDescription = labels.state((state.fraction * 100).roundToInt())
           progressBarRangeInfo = ProgressBarRangeInfo(state.fraction, 0f..1f, steps = 19)
@@ -212,14 +224,18 @@ fun FluidBeforeAfter(
       }
     }
     if (showLabels) {
+      // R1: le soglie delle capsule come stati derivati: la composizione cambia solo quando la tendina passa una soglia,
+      // non a ogni fotogramma del dito (prima `state.fraction` si leggeva qui e ricomponeva tutta la tendina).
+      val showBefore by remember(state) { derivedStateOf { state.fraction > 0.12f } }
+      val showAfter by remember(state) { derivedStateOf { state.fraction < 0.88f } }
       val labelModifier = Modifier.padding(FluidBeforeAfterLook.LabelMargin)
       Box(Modifier.align(Alignment.TopStart).then(labelModifier)) {
-        BeforeAfterLabel(labels.before, visible = state.fraction > 0.12f) {
+        BeforeAfterLabel(labels.before, visible = showBefore) {
           scope.launch { if (state.fraction > 0.95f) state.split(!reduced) else state.showBefore(!reduced) }
         }
       }
       Box(Modifier.align(Alignment.TopEnd).then(labelModifier)) {
-        BeforeAfterLabel(labels.after, visible = state.fraction < 0.88f) {
+        BeforeAfterLabel(labels.after, visible = showAfter) {
           scope.launch { if (state.fraction < 0.05f) state.split(!reduced) else state.showAfter(!reduced) }
         }
       }

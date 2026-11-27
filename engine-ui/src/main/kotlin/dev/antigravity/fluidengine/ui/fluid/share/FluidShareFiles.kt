@@ -74,19 +74,25 @@ object FluidShareFiles {
    */
   suspend fun stage(context: Context, item: FluidShareItem, limitBytes: Long = DefaultCopyLimitBytes): FluidShareStaged =
     withContext(Dispatchers.IO) {
-      if (item.localFiles.isEmpty()) return@withContext FluidShareStaged.Ready(item)
+      if (!item.needsCopy) return@withContext FluidShareStaged.Ready(item)
+      // R2 · Un `file://` messo fra gli Uri si copia come un file dell'app: fuori dall'app parte solo `content://`.
+      val fileUris = item.uris.filter(::fluidIsFileUri)
+      val locals = item.localFiles + fileUris.map(::fluidFileOf)
       val root = root(context)
       root.mkdirs()
-      when (val result = fluidStageFiles(root, item.localFiles, limitBytes, root.usableSpace) { newFile(context, it) }) {
+      when (val result = fluidStageFiles(root, locals, limitBytes, root.usableSpace) { newFile(context, it) }) {
         is FluidStageResult.Problem -> FluidShareStaged.Failed(result.problem, result.file.name, result.sizeBytes, limitBytes)
         is FluidStageResult.Done -> {
           val uris = try {
             result.files.map { uriFor(context, it) }
           } catch (_: IllegalArgumentException) {
-            return@withContext FluidShareStaged.Failed(FluidShareFileProblem.Unreadable, item.localFiles.first().name, null, limitBytes)
+            return@withContext FluidShareStaged.Failed(FluidShareFileProblem.Unreadable, locals.first().name, null, limitBytes)
           }
+          // Il peso detto dall'app vale per i file che non si sono copiati; quello delle copie e' quello vero (R2: un file
+          // che cresceva mentre si copiava mostrava il peso di prima).
+          val size = if (item.uris.size == fileUris.size) result.totalBytes else item.sizeBytes ?: result.totalBytes
           FluidShareStaged.Ready(
-            item.copy(uris = item.uris + uris, localFiles = emptyList(), sizeBytes = item.sizeBytes ?: result.totalBytes),
+            item.copy(uris = (item.uris - fileUris.toSet()) + uris, localFiles = emptyList(), sizeBytes = size),
           )
         }
       }
@@ -182,15 +188,20 @@ internal suspend fun fluidStageFiles(
   }
   val outside = files.filter { !fluidIsUnder(root, it) }
   val toCopy = outside.sumOf { it.length() }
-  val total = files.sumOf { it.length() }
+  val inside = files.filter { it !in outside }.sumOf { it.length() }
   if (toCopy > limitBytes) return FluidStageResult.Problem(FluidShareFileProblem.TooLarge, outside.maxBy { it.length() }, toCopy)
   if (outside.isNotEmpty() && toCopy + FluidStageSpareBytes > freeBytes) {
     return FluidStageResult.Problem(FluidShareFileProblem.NoSpace, outside.first(), toCopy)
   }
   val made = mutableListOf<File>()
+  // R2 · I byte si contano copiando: un file che cresce mentre si copia (un video ancora in registrazione) si ferma al
+  // tetto e allo spazio libero invece di superarli, e il peso che torna e' quello vero.
+  var copied = 0L
+  var current: File? = null
   try {
     val staged = files.map { file ->
       if (file !in outside) return@map file
+      current = file
       val target = newFile(file.name)
       made += target
       file.inputStream().use { input ->
@@ -200,20 +211,47 @@ internal suspend fun fluidStageFiles(
             currentCoroutineContext().ensureActive()
             val read = input.read(buffer)
             if (read < 0) break
+            copied += read
+            if (copied > limitBytes) throw FluidStageStop(FluidShareFileProblem.TooLarge)
+            if (copied + FluidStageSpareBytes > freeBytes) throw FluidStageStop(FluidShareFileProblem.NoSpace)
             output.write(buffer, 0, read)
           }
         }
       }
       target
     }
-    return FluidStageResult.Done(staged, total)
+    return FluidStageResult.Done(staged, inside + copied)
+  } catch (stop: FluidStageStop) {
+    made.forEach { it.delete() }
+    return FluidStageResult.Problem(stop.problem, current ?: files.first(), copied)
   } catch (e: IOException) {
     made.forEach { it.delete() }
-    return FluidStageResult.Problem(FluidShareFileProblem.Unreadable, files.first(), null)
+    // Il disco pieno a meta' copia e' «non c'e' spazio», non «non si legge».
+    val problem = if (fluidIsNoSpace(e)) FluidShareFileProblem.NoSpace else FluidShareFileProblem.Unreadable
+    return FluidStageResult.Problem(problem, current ?: files.first(), if (problem == FluidShareFileProblem.NoSpace) copied else null)
   } catch (e: CancellationException) {
     made.forEach { it.delete() }
     throw e
   }
+}
+
+/**
+ * Il file di un Uri `file://`. Android fa assoluto il percorso di ogni Uri con schema: un percorso di Windows (le prove
+ * sul JVM) arriva come «/C:\…», e la barra in testa si toglie. Su Android il percorso e' quello che e'.
+ */
+internal fun fluidFileOf(uri: Uri): File {
+  val path = uri.path.orEmpty()
+  val windows = path.length > 2 && path[0] == '/' && path[1].isLetter() && path[2] == ':'
+  return File(if (windows) path.substring(1) else path)
+}
+
+/** La copia si ferma per [problem] a meta' strada. */
+private class FluidStageStop(val problem: FluidShareFileProblem) : IOException(problem.name)
+
+/** Vero se [error] (o una sua causa) e' il disco pieno: `ENOSPC`, «No space left on device». */
+internal fun fluidIsNoSpace(error: Throwable): Boolean = generateSequence(error) { it.cause }.take(8).any { t ->
+  val message = t.message.orEmpty()
+  "ENOSPC" in message || message.contains("No space left", ignoreCase = true)
 }
 
 /** Un nome di file valido su Android e su un PC: niente separatori ne' caratteri riservati, al massimo 120 caratteri. */

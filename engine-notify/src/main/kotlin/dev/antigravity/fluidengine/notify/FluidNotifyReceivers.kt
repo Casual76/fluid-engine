@@ -18,6 +18,8 @@ class FluidNotifyReceiver : BroadcastReceiver() {
       ActionReminder -> if (id != null) notify.onMain { notify.reminders.deliver(id, scheduledHint = null, afterRestore = false) }
       ActionDigest -> notify.deliverDigest()
       ActionMessageAction -> if (id != null && key != null) notify.onMain { notify.onMessageAction(id, key) }
+      // Una conversazione tolta dall'utente: se non ha più notifiche esce dal menu dell'icona.
+      ActionMessageDismissed -> notify.onMain { notify.tidyConversations() }
       ActionReply -> if (id != null) {
         val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(FluidNotify.ReplyKey)?.toString()
         if (!text.isNullOrBlank()) notify.onMain { notify.onReply(id, text) }
@@ -28,9 +30,13 @@ class FluidNotifyReceiver : BroadcastReceiver() {
       }
       ActionLiveAction -> if (id != null && key != null) {
         val session = intent.getLongExtra(ExtraSession, 0L)
-        notify.onMain { notify.liveUpdates.onAction(id, key, session) }
+        val epoch = intent.getLongExtra(ExtraEpoch, -1L)
+        notify.onMain { notify.liveUpdates.onAction(id, key, session, epoch) }
       }
-      ActionLiveDismissed -> if (id != null) notify.onMain { notify.liveUpdates.onDismissed(id) }
+      ActionLiveDismissed -> if (id != null) {
+        val epoch = intent.getLongExtra(ExtraEpoch, -1L)
+        notify.onMain { notify.liveUpdates.onDismissed(id, epoch) }
+      }
     }
   }
 
@@ -38,6 +44,7 @@ class FluidNotifyReceiver : BroadcastReceiver() {
     const val ActionReminder = "dev.antigravity.fluidengine.notify.REMINDER"
     const val ActionDigest = "dev.antigravity.fluidengine.notify.DIGEST"
     const val ActionMessageAction = "dev.antigravity.fluidengine.notify.MESSAGE_ACTION"
+    const val ActionMessageDismissed = "dev.antigravity.fluidengine.notify.MESSAGE_DISMISSED"
     const val ActionReply = "dev.antigravity.fluidengine.notify.REPLY"
     const val ActionReminderAction = "dev.antigravity.fluidengine.notify.REMINDER_ACTION"
     const val ActionLiveAction = "dev.antigravity.fluidengine.notify.LIVE_ACTION"
@@ -45,6 +52,7 @@ class FluidNotifyReceiver : BroadcastReceiver() {
     const val ExtraId = "fluid.notify.id"
     const val ExtraKey = "fluid.notify.key"
     const val ExtraSession = "fluid.notify.session"
+    const val ExtraEpoch = "fluid.notify.epoch"
     const val ExtraOpenMessage = "fluid.notify.open"
   }
 }

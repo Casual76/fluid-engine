@@ -51,6 +51,8 @@ data class FluidImageEditorStrings(
   val aspectName: (FluidCropAspect) -> String = ::italianAspect,
   /** I gradi del raddrizzamento sul righello. */
   val degrees: (Float) -> String = { v -> "${if (v < 0) "−" else ""}${kotlin.math.abs(v).toInt()}°" },
+  /** Il tasto sotto «Impossibile aprire la foto» (R1): riapre la foto senza uscire dall'editor. */
+  val retry: String = "Riprova",
 ) {
   private companion object {
     fun italianName(a: FluidAdjustment): String = when (a) {

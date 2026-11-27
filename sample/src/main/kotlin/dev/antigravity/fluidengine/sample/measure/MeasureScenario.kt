@@ -64,6 +64,17 @@ internal enum class MeasureScenario(
     listOf(ScenarioPhase("apre", 900, 1_200), ScenarioPhase("chiude", 900, 1_200)),
     cycles = 3,
   ),
+  /**
+   * F7.27: il palco «Il gruppo che diventa menu» della galleria (schermata annidata con la barra in basso e due gruppi,
+   * `GroupMenuStage`) dentro una pagina con righe di vetro, come nella pagina «Menù liquidi». Quattro cicli: il primo è
+   * la prima apertura del processo, gli altri tre il gruppo a caldo (gli spike di F7.15).
+   */
+  MenuGroupBar(
+    "menu-gruppo-barra", "Menu dal gruppo in basso",
+    "Il palco della galleria: tocco su «Menu del gruppo» della barra in basso, chiusura dall'host dei modali.",
+    listOf(ScenarioPhase("apre", 900, 1_200), ScenarioPhase("chiude", 900, 1_200)),
+    cycles = 4,
+  ),
   ContextMenu(
     "contestuale", "Menu contestuale",
     "Una riga tenuta premuta 600 ms: si solleva e apre il menu; chiusura dall'host dei modali.",

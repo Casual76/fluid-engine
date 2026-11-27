@@ -1,8 +1,9 @@
 # F7.28 · I bilanci dei componenti del vetro e delle scene di «Misure». Formato e colonne: LEGGIMI.txt.
 # Finestra 800 × 1280 px a densità 1, profilo Pieno (il banco: 8 GiB, heap 1024 MiB), verdetti degli shader accettati,
-# orologio a passi di 16 ms, la sonda che legge come sul dispositivo. Lo misura GlassBalanceScenesTest: le diciotto
-# scene di «Misure» e i quattro componenti che GlassNodeCountTest monta da soli (tasto, gruppo, popover, tab-bar), con
-# lo stesso albero e gli stessi gesti di GlassNodeCountTest.
+# orologio a passi di 16 ms, la sonda che legge come sul dispositivo, i programmi condivisi già compilati (F7.29). Lo
+# misura GlassBalanceScenesTest: le scene di «Misure» (diciotto, più menu-gruppo-barra di F7.27 da F7.29) e i quattro
+# componenti che GlassNodeCountTest monta da soli (tasto, gruppo, popover, tab-bar), con lo stesso albero e gli stessi
+# gesti di GlassNodeCountTest.
 # I tetti di catture e filtri in entrata, moto e uscita sono il massimo di tre corse più un margine (catture 10%, almeno
 # 2; filtri 50%, almeno 3): il vetro decide alcune catture sull'orologio vero (la cattura tenuta si rinfresca ogni 110 ms
 # veri) e rifà alcuni filtri secondo la velocità stimata, che la prova non guida. Gli altri tetti sono la misura esatta.
@@ -68,6 +69,13 @@ menu-gruppo                moto:chiude          7      12       2      19  20372
 menu-gruppo                posa                 3       5       0       0       0       0       0       0       0       -  F7.28 GlassBalanceScenesTest | posa (F7.28, 26/11): ferma, fra due campioni separati da 2 s niente catture, fabbriche, filtri o ridisegni.
 menu-gruppo                uscita               3       5       0       2       0       0       0       3       -       -  F7.28 GlassBalanceScenesTest | uscita (F7.28, 26/11): 0 catture e 0 fabbriche nei 20 fotogrammi dopo aver tolto l'elemento, 0 filtri.
 menu-gruppo                rilascio             0       0       0       0       0       0       0       0       -       -  F7.28 GlassBalanceScenesTest | rilascio (F7.28, 26/11): dopo 1 s nodi, layer e byte del vetro tornano dov'erano prima dell'elemento.
+@margine menu-gruppo-barra 19
+menu-gruppo-barra          entrata              9      16       5      12 1024000    8836     115      48       -       -  F7.29 GlassBalanceScenesTest | entrata (F7.29, 27/11): 9 nodi e 16 layer del vetro, 10 catture (al più 5 per fotogramma, la più grande 1024000 px), 8836 KiB del vetro, 115 layer, bitmap o programmi nuovi e 32 filtri; il tetto è il massimo di 8 corse più il margine di catture e filtri (fx cambiano fra una corsa e l'altra).
+menu-gruppo-barra          moto:apre           11      19       3      65  615040    7781       0      17       -       -  F7.29 GlassBalanceScenesTest | moto (F7.29, 27/11), il tratto «apre»: 59 catture, al più 3 per fotogramma, la più grande 615040 px; nel tratto stabile 0 fabbriche e 11 filtri nuovi per fotogramma; il tetto è il massimo di 8 corse più il margine di catture e filtri.
+menu-gruppo-barra          moto:chiude         11      19       2      19  297168    7781       0       3       -       -  F7.29 GlassBalanceScenesTest | moto (F7.29, 27/11), il tratto «chiude»: 17 catture, al più 2 per fotogramma, la più grande 297168 px; nel tratto stabile 0 fabbriche e 0 filtri nuovi per fotogramma; il tetto è il massimo di 8 corse più il margine di catture e filtri.
+menu-gruppo-barra          posa                 7      12       0       0       0       0       0       0       0       -  F7.29 GlassBalanceScenesTest | posa (F7.29, 27/11): ferma, fra due campioni separati da 2 s niente catture, fabbriche, filtri o ridisegni; il tetto è il massimo di 8 corse.
+menu-gruppo-barra          uscita               7      12       0       2       0       0       0       3       -       -  F7.29 GlassBalanceScenesTest | uscita (F7.29, 27/11): 0 catture e 0 fabbriche nei 20 fotogrammi dopo aver tolto l'elemento, 0 filtri; il tetto è il massimo di 8 corse più il margine di catture e filtri.
+menu-gruppo-barra          rilascio             0       0       0       0       0       0       0       0       -       -  F7.29 GlassBalanceScenesTest | rilascio (F7.29, 27/11): dopo 1 s nodi, layer e byte del vetro tornano dov'erano prima dell'elemento.
 @margine capsula-premuta 20
 capsula-premuta            entrata              3       5       2       4   88000       0      38       8       -       -  F7.28 GlassBalanceScenesTest | entrata (F7.28, 26/11): 3 nodi e 5 layer del vetro, 2 catture (al più 2 per fotogramma, la più grande 88000 px), 0 KiB del vetro, 38 layer, bitmap o programmi nuovi e 5 filtri.
 capsula-premuta            moto:tieni           3       5       1     143   18612       0       0       5       -       -  F7.28 GlassBalanceScenesTest | moto (F7.28, 26/11), il tratto «tieni»: 130 catture, al più 1 per fotogramma, la più grande 18612 px; nel tratto stabile 0 fabbriche e 2 filtri nuovi per fotogramma.

@@ -33,9 +33,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * F7.28 · I bilanci del vetro: le diciotto scene di «Misure» e i quattro componenti che `GlassNodeCountTest` monta da
- * soli (tasto, gruppo, popover, tab bar), con lo stesso albero, la stessa finestra e gli stessi gesti di
- * `GlassNodeCountTest`, col copione comune ([BalanceRuns]) e le righe di `vetro.bilancio`.
+ * F7.28 · I bilanci del vetro: le scene di «Misure» (diciotto, più `menu-gruppo-barra` di F7.27 da F7.29) e i quattro
+ * componenti che `GlassNodeCountTest` monta da soli (tasto, gruppo, popover, tab bar), con lo stesso albero, la stessa
+ * finestra e gli stessi gesti di `GlassNodeCountTest`, col copione comune ([BalanceRuns]) e le righe di `vetro.bilancio`.
  *
  * Perché un gemello e non `GlassNodeCountTest` stesso: il suo copione dipende dal tempo vero (la cattura tenuta del
  * foglio si rinfresca ogni 110 ms di orologio vero, fuori dall'orologio della prova), e il lavoro in più per fotogramma
@@ -114,6 +114,7 @@ class GlassBalanceScenesTest {
 
   @Test fun menuTasto() = check(MeasureScenario.MenuButton)
   @Test fun menuGruppo() = check(MeasureScenario.MenuGroup)
+  @Test fun menuGruppoBarra() = check(MeasureScenario.MenuGroupBar)
   @Test fun contestuale() = check(MeasureScenario.ContextMenu)
   @Test fun capsulaPremuta() = check(MeasureScenario.CapsulePress)
   @Test fun foglioTrascinato() = check(MeasureScenario.SheetDrag)

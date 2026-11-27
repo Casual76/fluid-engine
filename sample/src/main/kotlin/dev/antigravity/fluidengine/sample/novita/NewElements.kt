@@ -79,6 +79,7 @@ internal val NewElementSections: List<NewElementSection> = listOf(
   F8p24Section,
   F9p1Section,
   F9p2Section,
+  F9p3Section,
 )
 
 /** Gli extra di lancio della pagina (solo nella build di debug). */

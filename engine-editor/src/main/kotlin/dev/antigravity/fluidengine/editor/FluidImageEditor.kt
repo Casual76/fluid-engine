@@ -70,6 +70,8 @@ import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidConfirmationDialog
 import dev.antigravity.fluidengine.ui.fluid.FluidContextAction
 import dev.antigravity.fluidengine.ui.fluid.FluidGlass
+import dev.antigravity.fluidengine.ui.fluid.FluidButton
+import dev.antigravity.fluidengine.ui.fluid.FluidButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButtonStyle
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContentTransition
@@ -203,10 +205,15 @@ internal fun EditorScaffold(
         EditorSecondBar(state, strings, menu, backdrop, onMarkup)
         Box(Modifier.weight(1f).fillMaxWidth().testTag(FluidImageEditorTags.Photo)) {
           when {
-            state.loadError != null -> Text(
-              strings.loadFailed, Modifier.align(Alignment.Center),
-              color = scheme.onBackground.copy(alpha = EditorChromeLook.TitleInk),
-            )
+            // R1: una foto che non si apre (il permesso scaduto, il file che arriva) ha «Riprova», come le cartelle dei file.
+            state.loadError != null -> Column(
+              Modifier.align(Alignment.Center),
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+              Text(strings.loadFailed, color = scheme.onBackground.copy(alpha = EditorChromeLook.TitleInk))
+              FluidButton(text = strings.retry, onClick = { state.retryLoad() }, style = FluidButtonStyle.Plain)
+            }
             state.image == null -> Text(
               strings.loading, Modifier.align(Alignment.Center),
               color = scheme.onBackground.copy(alpha = EditorChromeLook.TitleInk),

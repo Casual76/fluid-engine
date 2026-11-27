@@ -24,7 +24,7 @@ d'avvio di Android non si tocca.
 | non mostrarlo a chi arriva da un link o da una notifica | `suppressed = initialAddress != null || FluidLaunchOrigin.isDirect(intent)`; sulle notifiche dell'app `putExtra(FluidLaunchOrigin.ExtraFromNotification, true)` |
 | più passi coi pallini | `FluidWelcomeSheet(…, pages = listOf(FluidWelcomePage(…), …))` (o `FluidWelcomeContent` in una pagina intera) |
 | un passo del benvenuto che chiede un permesso | `FluidWelcomePage(…, content = { … un tasto con rememberFluidPermission … })` |
-| un tasto che ha bisogno di un permesso | `val mic = rememberFluidPermission(FluidPermission.Microphone, reason = "…")`, `FluidButton(…, onClick = { mic.request { … } }, modifier = Modifier.fluidPermissionSource(mic))` |
+| un tasto che ha bisogno di un permesso | `val mic = rememberFluidPermission(FluidPermission.Microphone, reason = "…", onGranted = { … })`, `FluidButton(…, onClick = { mic.request() }, modifier = Modifier.fluidPermissionSource(mic))` |
 | le foto «solo alcune» di Android 14 | `FluidPermission.Photos`: lo stato `Partial` fa partire l'azione; `requestMore()` riapre la scelta |
 | uno sfondo animato dietro un onboarding, un traguardo, l'assistente vuoto | `FluidScreen(ambient = FluidAmbient(tono, motivo, live = FluidLiveBackground.Aurora))`, o `FluidLiveBackgroundCanvas` in un `Box` |
 | la finestra del colore giusto prima del primo disegno | `android:theme="@style/Theme.Fluid"` (o un tema figlio) e `fluidFirstFrame()` in `onCreate`, prima di `setContent` |
@@ -55,7 +55,11 @@ d'avvio di Android non si tocca.
   aspetta), niente alla stessa versione. Un aggiornamento senza novità si segna come visto in silenzio. Il foglio compare
   qualche fotogramma dopo la pagina (la memoria si legge dopo il primo disegno: il primo fotogramma resta la pagina),
   **mai** con `suppressed` (link, notifica, condivisione), **mai** con `busy` o con un altro modale aperto nell'host, e la
-  versione si segna come vista **quando compare**. `forget()` lo fa rivedere (per le prove, o per una voce «Novità»).
+  versione si segna come vista **appena prima che compaia** (il foglio aspetta la scrittura: chi chiude l'app nei primi
+  istanti non lo rivede). `forget()` lo fa rivedere (per le prove, o per una voce «Novità»).
+- **Se la memoria non risponde** (il file del DataStore corrotto, un errore di IO): una memoria che non si legge decide
+  «niente» (`isDecided` vero, nessun foglio: meglio niente che lo stesso foglio a ogni avvio), una che non si scrive non
+  ferma il foglio. L'app non cade (R2).
 - **Le novità dal manifest.** `AppRelease.highlights` (`"highlights": [{"title", "text", "symbol"}]`, campo nuovo e
   facoltativo) o, senza, il `changelog` diviso in righe («Titolo: frase» con un titolo corto diventa titolo e frase).
   `EngineRemoteConfig.releaseNotes(versionName)` legge la copia in cache e non va in rete. `fluidReleaseNoteIcon` traduce
@@ -67,15 +71,25 @@ d'avvio di Android non si tocca.
   …)`: prende il posto del tasto e ci rientra) col titolo di serie («Consentire l'accesso al microfono?») e il **perché**
   dell'app (`reason`, una frase che dice cosa fa con il permesso). «Continua» apre il dialogo di Android, «Non ora» chiude.
   La spiegazione si mostra **una volta**: poi il tocco apre direttamente il dialogo, anche dopo un rifiuto. `explain =
-  false` la salta del tutto.
+  false` la salta del tutto. Un secondo tocco mentre la spiegazione o il dialogo sono aperti non fa niente (conta il
+  primo, con la sua azione); la spiegazione aperta resiste alla rotazione e al processo ucciso.
+- **L'azione: `onGranted`** (R2, scelta B di Alessio). `rememberFluidPermission(…, onGranted = { … })` e il tasto con
+  `request()`: l'azione parte al tocco se il permesso c'è già e dopo il sì, **anche se nel frattempo l'Activity si è
+  ricreata** (una rotazione, il processo ucciso con la spiegazione o il dialogo di Android sopra), perché è sempre
+  quella dell'albero di adesso; l'engine ricorda solo che un tocco aspettava il sì. Un'azione data a `request { … }`
+  vince nello stesso albero, ma dopo una ricreazione non parte (era dell'albero di prima). `onResult` riceve ogni
+  risposta, anche dopo una ricreazione.
 - **La macchina a stati** (`FluidPermissionStatus`): `NeverAsked`, `Granted`, `Partial` (le foto «solo alcune»),
   `Denied` (si chiede ancora), `DeniedForever` (Android non chiede più: il tocco mostra la spiegazione con «Apri
   Impostazioni» e porta alla pagina dell'app, o a quella delle notifiche). Al ritorno l'engine **rilegge da solo** lo
   stato (alla ripresa dell'Activity); l'azione non riparte da sola, si tocca di nuovo.
 - **Perché serve la memoria.** Android non distingue «mai chiesto» da «negato per sempre» (in tutti e due i casi niente
   permesso e niente spiegazione): l'engine scrive «chiesto» in `LocalFluidFirstUseMemory` dopo il primo dialogo vero. Un
-  primo dialogo chiuso senza scegliere (indietro, un tocco fuori) non conta come un no. Senza `EngineFirstUseStore` alla
-  radice la memoria dura quanto il processo.
+  primo dialogo chiuso senza scegliere (indietro, un tocco fuori) non conta come un no; **la seconda risposta di fila
+  così è un no** (R2): Android risponde allo stesso modo, senza mostrare niente, a un permesso già negato per sempre
+  prima dell'engine o assente dal manifest. Lo stato diventa `DeniedForever` e la spiegazione con «Apri Impostazioni»
+  compare subito. Una richiesta interrotta (le liste vuote di Android) non conta. Senza `EngineFirstUseStore` alla
+  radice la memoria dura quanto il processo; una memoria che non risponde vale «mai chiesto», e l'app non cade.
 - **I preset** (`FluidPermission`): `Microphone`, `Camera`, `Notifications` (da Android 13; prima porta alle impostazioni
   delle notifiche se sono spente), `Photos` e `PhotosAndVideos` (`READ_MEDIA_*`, `READ_MEDIA_VISUAL_USER_SELECTED` da
   Android 14, `READ_EXTERNAL_STORAGE` prima), `ApproximateLocation`; `FluidPermission.of(id, nome, permessi…)` per il resto.
@@ -93,7 +107,9 @@ d'avvio di Android non si tocca.
   vetro).
 - **Si ferma da solo** su una posa ferma e leggibile: col movimento ridotto, col risparmio energetico, con la batteria
   scarica (il segnale di Android) e quando la pagina non è in primo piano (ciclo di vita sotto RESUMED: una pagina coperta
-  di `FluidNavHost`, l'app in sottofondo). Riparte da dov'era.
+  di `FluidNavHost`, l'app in sottofondo). Riparte da dov'era. Il tempo ricomincia ogni 200π s
+  (`FluidLiveBackgroundDefaults.WrapSeconds`, 10 min e 28 s): tutte le frequenze del disegno sono multipli di 0,01 rad/s,
+  quindi ogni onda fa giri interi e il ritorno a zero non si vede (R2; con 30 minuti gli aloni saltavano).
 - **Il costo.** Il Canvas della piattaforma (gradienti e tracciati costruiti una volta per misura; niente AGSL, quindi
   niente compilatore né verdetti della sonda), nessuna allocazione e nessuna ricomposizione per fotogramma (il tempo si
   legge nel disegno), e il tempo avanza a **30 Hz** (`FluidLiveBackgroundDefaults.FrameRateHz`),

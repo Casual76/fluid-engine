@@ -34,6 +34,7 @@ Cosa sta altrove: l'orchestratore, gli stati, i provider, le chiavi e le imposta
 | cosa dire di un errore o di un limite di richieste | `FluidAssistantTexts.failure`, `FluidFailureReport` | [stringhe](ai-ui-stringhe.md), [overlay](ai-ui-overlay.md) |
 | leggere le risposte ad alta voce | `rememberFluidTtsSpeaker` / `FluidSpeaker` | [overlay](ai-ui-overlay.md) |
 | una pagina di prova con dati finti, per guardare tutto in mano | `fluidAiUiDemoItems()` | sotto |
+| «Vuoi che lo ricordi?» con Ricorda e No, «Ho ricordato…» con Annulla sotto la risposta, la notifica di un ricordo, la pagina «Cosa ricordo di te» | `FluidMemoryNoticeCard`, `FluidMemoryNotices.notification`, `FluidMemoryPage` (`aiui/memory/`) | [ai-memory.md](ai-memory.md) |
 | Markdown per una nota/novita' che **non** e' una risposta d'assistente | `FluidMarkdown` di `engine-ui` | [../design-system.md](../design-system.md) |
 | trasporto, provider, chiavi, failover, strumenti | `engine-ai` | [ai-orchestrator.md](ai-orchestrator.md), [ai-provider.md](ai-provider.md) |
 
@@ -48,7 +49,7 @@ Cosa sta altrove: l'orchestratore, gli stati, i provider, le chiavi e le imposta
 - **Nessun permesso proprio** (il manifest e' vuoto): `RECORD_AUDIO` arriva con `engine-ai`, e la UI lo chiede a runtime **solo** quando l'utente tocca il microfono.
 - **Richiede**, intorno: un `FluidTheme`, un `GlassBackdropState` della pagina, e un **host dei modali alla radice** (`FluidGlassModalHost`): il picker dei modelli e il foglio «Dettagli» ci passano e,
   senza, **non si aprono e non danno errore**.
-- **Struttura** (`dev.antigravity.fluidengine.aiui`): `overlay/`, `halo/`, `chat/`, `markdown/` (solo `FluidAssistantMarkdownOptions`), `settings/`, `strings/`, piu' `FluidAiUiDemo`.
+- **Struttura** (`dev.antigravity.fluidengine.aiui`): `overlay/`, `halo/`, `chat/`, `markdown/` (solo `FluidAssistantMarkdownOptions`), `settings/`, `strings/`, `memory/` (la card e la pagina della memoria, F9.3 e F9.3b: [ai-memory.md](ai-memory.md)), piu' `FluidAiUiDemo`.
 
 ## Montare l'assistente in un'app
 

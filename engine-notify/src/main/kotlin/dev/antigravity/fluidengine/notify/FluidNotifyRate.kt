@@ -62,6 +62,13 @@ internal object FluidNotifyProfile {
 
   /** Quanti promemoria arrivati tiene il registro. */
   const val DeliveryLogSize: Int = 50
+
+  /**
+   * Quante notifiche aspettano al più il riepilogo (le più recenti; R2): Android non tiene più di 50 notifiche a schermo
+   * per un'app e scarta le altre (AOSP, `NotificationManagerService.MAX_PACKAGE_NOTIFICATIONS = 50`, fiducia media-alta,
+   * letto a memoria il 26/11/2026). Una coda senza tetto faceva anche riscrivere un file sempre più grande a ogni `post`.
+   */
+  const val DigestQueueSize: Int = 50
 }
 
 /**
@@ -69,7 +76,7 @@ internal object FluidNotifyProfile {
  * aspetta il suo turno viene sostituita da una nuova con la stessa chiave (vince l'ultima, al posto della prima nella
  * fila). Pura, con l'orologio e il timer dati da fuori: le prove la guidano a mano.
  *
- * Va usata da un thread solo (quello del timer, il principale).
+ * Va usata da un thread solo (quello del timer, il principale): chi arriva da un altro filo passa da `FluidNotify.onMain`.
  */
 internal class FluidNotifyGate(
   private val clock: () -> Long,

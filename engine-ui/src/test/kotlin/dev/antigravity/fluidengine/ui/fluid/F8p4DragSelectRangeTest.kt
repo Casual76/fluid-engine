@@ -57,4 +57,52 @@ class F8p4DragSelectRangeTest {
     assertEquals(6, r.extendTo(8))
     assertEquals(setOf(1, 2, 3, 5, 6, 7), chosen)
   }
+
+  /**
+   * R2 #43: la lista cambia sotto il dito (una riga nuova in cima, come una lista che si aggiorna dal vivo). L'intervallo
+   * segue gli elementi, non i posti: chi esce torna com'era, e niente di quello che il dito non ha attraversato si accende.
+   */
+  @Test
+  fun `una riga nuova in cima durante il gesto non sposta l'intervallo su altri elementi`() {
+    val rows = mutableListOf("a", "b", "c", "d", "e", "f", "g", "h")
+    val picked = HashSet<String>()
+    val r = FluidDragSelectRange(
+      anchor = 2,
+      adding = true,
+      keyAt = { rows.getOrNull(it) },
+      isSelected = { it in picked },
+      setSelected = { key, on -> if (on) picked += key else picked -= key },
+    )
+    r.extendTo(5)
+    assertEquals(setOf("c", "d", "e", "f"), picked)
+    // Arriva una riga nuova in cima: tutti scendono di un posto, e il dito ora e' sulla «d» (posto 4).
+    rows.add(0, "nuova")
+    r.extendTo(4)
+    assertEquals(setOf("c", "d"), picked)
+    // E oltre l'ancora dall'altra parte, nei posti nuovi: la «b» e' al posto 2.
+    r.extendTo(2)
+    assertEquals(setOf("b", "c"), picked)
+  }
+
+  /** Una riga tolta sotto l'intervallo: chi resta nell'intervallo resta scelto, chi esce torna com'era. */
+  @Test
+  fun `una riga tolta durante il gesto non lascia accesi elementi fuori dall'intervallo`() {
+    val rows = mutableListOf("a", "b", "c", "d", "e", "f", "g", "h")
+    val picked = HashSet<String>()
+    val r = FluidDragSelectRange(
+      anchor = 1,
+      adding = true,
+      keyAt = { rows.getOrNull(it) },
+      isSelected = { it in picked },
+      setSelected = { key, on -> if (on) picked += key else picked -= key },
+    )
+    r.extendTo(5)
+    assertEquals(setOf("b", "c", "d", "e", "f"), picked)
+    rows.removeAt(0)
+    // La «c» ora e' al posto 1: si torna indietro fin li', poi sull'ancora (la «b», ora al posto 0).
+    r.extendTo(1)
+    assertEquals(setOf("b", "c"), picked)
+    r.extendTo(0)
+    assertEquals(setOf("b"), picked)
+  }
 }

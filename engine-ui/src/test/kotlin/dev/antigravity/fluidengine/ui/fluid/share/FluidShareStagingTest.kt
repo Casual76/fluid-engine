@@ -128,4 +128,51 @@ class FluidShareStagingTest {
     val english = fluidShareProblemText(failed(FluidShareFileProblem.TooLarge), FluidShareLabels.english(), Locale.US)
     assertTrue(english, english.startsWith("The file is too large") && !english.contains("%"))
   }
+
+  // --- R2 · Un file che cresce mentre si copia (un video ancora in registrazione) --------------------------------
+
+  /** Il posto della copia; intanto il file di partenza cresce di [grow] byte, dopo i controlli e prima della copia. */
+  private fun growingWhileCopied(source: File, grow: Int): (String) -> File = { name ->
+    source.appendBytes(ByteArray(grow) { 7 })
+    newFileUnder(root)(name)
+  }
+
+  @Test fun aFileThatGrowsPastTheLimitWhileCopiedStopsThere() = runBlocking {
+    val video = write(File(tmp, "files/Video.mp4"), 1_000)
+    val result = fluidStageFiles(root, listOf(video), limitBytes = 2_000, freeBytes = roomy, newFile = growingWhileCopied(video, 300_000))
+    assertTrue("oltre il tetto a meta' copia: $result", result is FluidStageResult.Problem)
+    result as FluidStageResult.Problem
+    assertEquals(FluidShareFileProblem.TooLarge, result.problem)
+    assertTrue("il peso detto e' quello vero, non quello di prima: ${result.sizeBytes}", (result.sizeBytes ?: 0) > 2_000)
+    assertTrue("la copia a meta' si cancella", root.walkTopDown().none { it.isFile })
+  }
+
+  @Test fun aFileThatGrowsPastTheFreeSpaceIsNoSpace() = runBlocking {
+    val video = write(File(tmp, "files/Video.mp4"), 1_000)
+    val free = FluidStageSpareBytes + 50_000
+    val result = fluidStageFiles(root, listOf(video), limitBytes = Long.MAX_VALUE, freeBytes = free, newFile = growingWhileCopied(video, 300_000))
+    assertTrue("lo spazio finisce a meta' copia: $result", result is FluidStageResult.Problem)
+    assertEquals(FluidShareFileProblem.NoSpace, (result as FluidStageResult.Problem).problem)
+    assertTrue(root.walkTopDown().none { it.isFile })
+  }
+
+  @Test fun theWeightOfTheCopyIsTheBytesReallyCopied() = runBlocking {
+    val video = write(File(tmp, "files/Video.mp4"), 1_000)
+    val result = fluidStageFiles(root, listOf(video), limitBytes = 1_000_000, freeBytes = roomy, newFile = growingWhileCopied(video, 500))
+    result as FluidStageResult.Done
+    assertEquals(1_500L, result.files.single().length())
+    assertEquals("l'anteprima dice il peso della copia", 1_500L, result.totalBytes)
+  }
+
+  // --- R2 · La fiducia per impronta e' un valore --------------------------------------------------------------------
+
+  @Test fun twoTrustsWithTheSameDigestsAreEqual() {
+    val digest = "AB:CD:" + "0".repeat(60)
+    val a = FluidShareTrust.certificates(setOf(digest))
+    val b = FluidShareTrust.certificates(setOf(digest.replace(":", "").lowercase(Locale.ROOT)))
+    assertEquals("creata a ogni ricomposizione, la fila delle app non deve ripartire", a, b)
+    assertEquals(a.hashCode(), b.hashCode())
+    assertNotEquals(a, FluidShareTrust.SameSigner)
+    assertNotEquals(a, FluidShareTrust.certificates(setOf("1".repeat(64))))
+  }
 }

@@ -58,6 +58,7 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.Choreographer
 import android.view.View
+import android.view.ViewTreeObserver
 import androidx.annotation.MainThread
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
@@ -137,9 +138,22 @@ internal const val GlassProbeStatsSide: Int = 16
  * erano 384 KiB), e il lato più lungo resta 512 px, molto sotto la texture minima di GLES 3.0 (2048; in fila sarebbero
  * stati 4096). Una richiesta disegna e conta **solo** le caselle chieste: il tempo di una lettura non cresce col tetto. Oltre il tetto vale la regola di [glassProbePriority]: entrano prima i vetri più grandi e più vicini al centro
  * della finestra; chi non entra non misura e tiene il lato del tema; chi viene spinto fuori da uno più importante tiene
- * l'ultimo lato misurato (nessuno scatto).
+ * l'ultimo lato misurato (nessuno scatto). Dalla F7.25b (review R2) né l'uno né l'altro si spengono per sempre: riprovano
+ * al primo evento dopo un'attesa che cresce ([glassProbeReaderRetryMillis]), e una casella liberata si riprende.
  */
 internal const val GlassProbeMaxSlots: Int = 64
+
+/**
+ * F7.25b (review R2, difetto 5) · Dopo quanto una sonda rimasta senza lettore (caselle piene, sfrattata, lettore che non è
+ * nato) riprova, alla [misses]-esima volta di fila: la cadenza massima raddoppiata a ogni volta, fino al tetto delle
+ * letture fallite (240, 480, 960, 1920, poi 2000 ms), come le letture fallite. Si riprova al primo evento dopo l'attesa,
+ * non a tempo: a pagina ferma una sonda senza casella non sveglia niente.
+ */
+internal fun glassProbeReaderRetryMillis(misses: Int): Long {
+  val shift = misses.coerceIn(1, 16)
+  val grown = GlassProbeMinIntervalMillis shl shift
+  return if (grown <= 0L) GlassProbeMaxBackoffMillis else min(grown, GlassProbeMaxBackoffMillis)
+}
 
 /** Le colonne della griglia delle caselle nell'immagine del lettore (vedi [GlassProbeMaxSlots]). */
 internal const val GlassProbeSlotColumns: Int = 8
@@ -722,7 +736,13 @@ internal class GlassProbeNode(
 
   private var reader: GlassProbeWindowReader? = null
   private var slot = -1
+
+  /** Vero solo dove la sonda non può esistere (sotto Android 10): per sempre. I lettori mancati sono passeggeri. */
   private var unavailable = false
+
+  /** F7.25b · Lettori mancati di fila (caselle piene, sfratto, lettore che non nasce) e quando si può riprovare. */
+  private var readerMisses = 0
+  private var readerRetryAt = Long.MIN_VALUE
 
   override var thumbnailLayer: GraphicsLayer? = null
     private set
@@ -794,6 +814,8 @@ internal class GlassProbeNode(
     recordedGeometry = null
     lastGeometry = null
     unavailable = false
+    readerMisses = 0
+    readerRetryAt = Long.MIN_VALUE
     FluidGlassProbeDiagnostics.onProbeAttached(1)
     subscribe()
     signal()
@@ -895,9 +917,11 @@ internal class GlassProbeNode(
       is GlassProbeDecision.Read -> {
         // F7.4: una lettura chiesta da una revisione aspetta, se le ultime sono tornate uguali. Non una geometria nuova
         // (la miniatura da rifare), non la cadenza fissa delle sorgenti che non avvisano.
-        val notBefore = glassProbeRestGate(decision, rest, unannounced, GlassFieldLevers.probeRest)
+        val rested = glassProbeRestGate(decision, rest, unannounced, GlassFieldLevers.probeRest)
+        // F7.25b: dopo un lettore mancato si riprova solo passata la sua attesa (un evento arrivato prima la aspetta).
+        val notBefore = max(rested, readerRetryAt)
         if (now < notBefore) {
-          FluidGlassProbeDiagnostics.onWake(GlassProbeWake.Rested)
+          if (now < rested) FluidGlassProbeDiagnostics.onWake(GlassProbeWake.Rested)
           wakeAt = min(wakeAt, notBefore)
         } else {
           startRead(now, decision.rerecord)
@@ -992,12 +1016,15 @@ internal class GlassProbeNode(
     }
     val reader = obtainReader()
     if (reader == null) {
-      // Nessun lettore per questa finestra (non accelerata, caselle finite, piattaforma che rifiuta): la sonda resta
-      // sul lato del tema per tutta la vita del nodo. Non si riprova a ogni evento.
-      unavailable = true
-      unsubscribe()
+      // Nessun lettore adesso (caselle finite, finestra non ancora accelerata, lettore che non è nato). F7.25b (review R2,
+      // difetto 5): prima la sonda si spegneva per tutta la vita del nodo, e una tab bar restava sul lato del tema anche
+      // quando le caselle si liberavano. Ora resta iscritta alle sorgenti e riprova al primo evento dopo un'attesa che
+      // cresce; intanto tiene l'ultimo lato (o quello del tema, se non ha mai letto).
+      onReaderMissed(now)
       return
     }
+    readerMisses = 0
+    readerRetryAt = Long.MIN_VALUE
     scheduler.onReadSent(now, rerecord)
     rest?.onReadSent(now)
     FluidGlassProbeDiagnostics.onWake(if (rerecord) GlassProbeWake.ReadRerecord else GlassProbeWake.Read)
@@ -1017,7 +1044,9 @@ internal class GlassProbeNode(
     val assigned = obtained.register(this)
     if (assigned < 0) {
       FluidGlassProbeDiagnostics.onSlotRefused()
-      Log.w(GlassProbeLogTag, "Sonda dello sfondo: più di $GlassProbeMaxSlots vetri radice in una finestra, questo resta sul lato del tema")
+      if (readerMisses == 0) {
+        Log.w(GlassProbeLogTag, "Sonda dello sfondo: più di $GlassProbeMaxSlots vetri radice in una finestra, questo riprova quando c'è posto")
+      }
       return null
     }
     reader = obtained
@@ -1048,13 +1077,25 @@ internal class GlassProbeNode(
   }
 
   override fun onEvicted() {
-    // Un vetro più importante ha preso la casella: questo resta con l'ultima lettura (nessuno scatto) e non legge più.
+    // Un vetro più importante ha preso la casella: questo resta con l'ultima lettura (nessuno scatto). F7.25b (review R2,
+    // difetto 5): non si spegne più per sempre, riprova al primo evento dopo un'attesa che cresce.
     reader = null
     slot = -1
-    unavailable = true
-    unsubscribe()
     FluidGlassProbeDiagnostics.onSlotRefused()
-    Log.w(GlassProbeLogTag, "Sonda dello sfondo: casella ceduta a un vetro più grande o più centrale, questo tiene l'ultimo lato")
+    if (readerMisses == 0) {
+      Log.w(GlassProbeLogTag, "Sonda dello sfondo: casella ceduta a un vetro più grande o più centrale, questo tiene l'ultimo lato e riprova")
+    }
+    val now = SystemClock.uptimeMillis()
+    // Una lettura chiesta e non tornata non tornerà più a questa sonda (la casella ha un'altra generazione): lo
+    // schedulatore la conta saltata, così l'evento resta in attesa e la sonda non resta «in volo» per sempre.
+    scheduler?.let { if (it.inFlight) it.onReadDone(now, GlassProbeOutcome.Skipped) }
+    onReaderMissed(now)
+  }
+
+  /** F7.25b · Un lettore mancato: si riprova al primo evento dopo [glassProbeReaderRetryMillis]. */
+  private fun onReaderMissed(now: Long) {
+    readerMisses++
+    readerRetryAt = now + glassProbeReaderRetryMillis(readerMisses)
   }
 
   private fun releaseSlot() {
@@ -1171,9 +1212,15 @@ internal class GlassProbeNode(
     } else if (outcome == GlassProbeOutcome.Failed) {
       FluidGlassProbeDiagnostics.onFailure()
     }
-    // Dopo una lettura saltata non si riparte da soli: un nuovo tentativo subito salterebbe di nuovo, e il prossimo
-    // evento (la finestra che torna e ridisegna, la sorgente che avvisa, il vetro che si posa) arriva comunque.
-    if (outcome != GlassProbeOutcome.Skipped) signal()
+    // Dopo una lettura saltata non si riparte subito: un nuovo tentativo salterebbe di nuovo, e il prossimo evento (la
+    // finestra che torna e ridisegna, la sorgente che avvisa, il vetro che si posa) arriva comunque. F7.25b (review R2,
+    // difetto 7): non per una sorgente che non avvisa (un `CanvasBackdrop`), che a pagina ferma non manda eventi: per lei
+    // il timer della cadenza fissa, finché il tetto delle letture a vuoto lo permette.
+    if (outcome != GlassProbeOutcome.Skipped) {
+      signal()
+    } else {
+      armTimer(now, scheduler.afterSkipMillis(now))
+    }
   }
 
   override fun onReaderLost() {
@@ -1303,23 +1350,64 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   private val imageHeight = side * ((GlassProbeMaxSlots + GlassProbeSlotColumns - 1) / GlassProbeSlotColumns)
   private val density = root.resources.displayMetrics.density
   private val main = Handler(Looper.getMainLooper())
-  private val thread = HandlerThread("FluidGlass.sonda").apply { start() }
-  private val worker = Handler(thread.looper)
-  private val reader = ImageReader.newInstance(imageWidth, imageHeight, PixelFormat.RGBA_8888, MaxImages)
-  private val rootNode = RenderNode("FluidGlass.sonda").also { it.setPosition(0, 0, imageWidth, imageHeight) }
-  private val renderer = HardwareRenderer().also {
-    it.setName("FluidGlass.sonda")
-    it.setContentRoot(rootNode)
-    it.setSurface(reader.surface)
-    // Una casella senza sonda deve leggersi vuota, non sporca del fotogramma di prima.
-    it.isOpaque = false
+
+  // F7.25b (review R2, difetto 6) · Le parti che tengono una superficie, un renderer o un filo nascono in un blocco solo:
+  // se una non nasce, quelle già nate si chiudono prima di rilanciare. Prima il filo partiva per primo e, con il renderer
+  // rifiutato, restava aperto per la vita del processo, insieme all'`ImageReader`: uno per vetro radice che riprovava.
+  // Il filo parte per ultimo, dopo le parti che possono essere rifiutate; poi il ping del RenderThread (F7.25).
+  private val reader: ImageReader
+  private val rootNode: RenderNode
+  private val renderer: HardwareRenderer
+  private val thread: HandlerThread
+  private val worker: Handler
+  private val fence: GlassProbeFence?
+
+  init {
+    var image: ImageReader? = null
+    var node: RenderNode? = null
+    var hardware: HardwareRenderer? = null
+    var started: HandlerThread? = null
+    var ping: GlassProbeFence? = null
+    try {
+      val newImage = ImageReader.newInstance(imageWidth, imageHeight, PixelFormat.RGBA_8888, MaxImages).also { image = it }
+      val newNode = RenderNode("FluidGlass.sonda").also {
+        it.setPosition(0, 0, imageWidth, imageHeight)
+        node = it
+      }
+      constructionStepForTesting?.invoke(StepRenderer)
+      HardwareRenderer().also {
+        hardware = it
+        it.setName("FluidGlass.sonda")
+        it.setContentRoot(newNode)
+        it.setSurface(newImage.surface)
+        // Una casella senza sonda deve leggersi vuota, non sporca del fotogramma di prima.
+        it.isOpaque = false
+      }
+      constructionStepForTesting?.invoke(StepThread)
+      started = HandlerThread("FluidGlass.sonda").apply { start() }
+      constructionStepForTesting?.invoke(StepPing)
+      ping = fenceForTesting?.invoke { seq -> onPingReturned(seq) }
+        ?: if (Build.FINGERPRINT == "robolectric") null else GlassProbeRenderThreadPing { seq -> onPingReturned(seq) }
+    } catch (error: Throwable) {
+      ping?.release()
+      started?.quitSafely()
+      hardware?.destroy()
+      node?.discardDisplayList()
+      image?.close()
+      throw error
+    }
+    reader = checkNotNull(image)
+    rootNode = checkNotNull(node)
+    renderer = checkNotNull(hardware)
+    thread = checkNotNull(started)
+    worker = Handler(thread.looper)
+    fence = ping
   }
   private val drawScope = CanvasDrawScope()
   private val clients = arrayOfNulls<GlassProbeClient>(GlassProbeMaxSlots)
   private val generations = IntArray(GlassProbeMaxSlots)
   private val pending = ConcurrentLinkedQueue<Batch>()
   private var requested = 0L
-  private var framePosted = false
   private var watchdogPosted = false
 
   // Del filo di lavoro soltanto.
@@ -1332,37 +1420,34 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   /** Vero finché il lettore si può usare. */
   val isAlive: Boolean get() = !released
 
-  private val afterDraw = Runnable { afterWindowDraw() }
-  private val frameCallback = Choreographer.FrameCallback { frameTimeNanos -> armCommit(frameTimeNanos) }
   private val watchdog = Runnable { checkStuck() }
 
-  // F7.22 · Quando chiedere: dopo che il RenderThread ha consegnato il fotogramma della finestra, non subito dopo il disegno.
-  // `syncAndDraw` aspetta che il RenderThread finisca quello che sta facendo; chiesto subito dopo il disegno (la fase
-  // `post` di S1-bis) aspettava tutto il fotogramma della finestra: sul Tab S9, nel PDF di 3000 pagine di F8.18, 3,2–5,7 ms
-  // di mediana e fino a 9,3 ms di thread principale fermo, 8–12 volte al secondo, proprio quando il fotogramma dopo
-  // doveva cominciare. La sicurezza di `post` resta: se la finestra ha già disegnato un fotogramma più nuovo si riprova al
-  // fotogramma dopo (e dopo [MaxCommitDeferrals] tentativi si chiede come prima); se ha cambiato qualcosa dall'ultimo
-  // disegno (`isDirty`), dopo la lettura il suo fotogramma seguente si ridisegna tutto, così il danno non si perde.
-  private val commit = Runnable {
-    commitTimeouts = 0
-    onWindowCommit()
+  // F7.25 · Quando chiedere: solo col RenderThread libero (`GlassProbeTiming.kt`). `syncAndDraw` aspetta che il
+  // RenderThread finisca quello che sta facendo. F7.22 chiedeva al commit della finestra e, se intanto la finestra aveva
+  // già disegnato un fotogramma più nuovo, dopo tre rinvii chiedeva subito dopo il disegno (la fase `post` di S1-bis):
+  // sul Tab S9, nel PDF di 3000 pagine, 4,5–5,7 ms di thread principale fermo a lettura, a ogni lettura della maniglia.
+  // Ora un ping ([GlassProbeFence]) dice quando il RenderThread ha finito il fotogramma della finestra, e si legge lì:
+  // fra due fotogrammi, o al pre-disegno di quello dopo; se non ha finito si salta un fotogramma, e il vetro tiene la
+  // lettura di prima ([GlassProbeReadGate]: al più [GlassProbeCeilingNanos], 250 ms dalla F7.25d).
+  // Il ping ([fence]) nasce nel blocco del costruttore, con le altre parti che vanno chiuse se una non nasce.
+  private val gate = GlassProbeReadGate()
+  private val frameCallback = Choreographer.FrameCallback { onFrame() }
+  private val afterFrame = Runnable { onAfterFrame() }
+  private val preDraw = ViewTreeObserver.OnPreDrawListener {
+    atPreDraw()
+    true
   }
-  private val commitTimeout = Runnable {
-    // Il commit non è arrivato in tempo (un RenderThread fermo su una compilazione, una finestra che non li consegna): si
-    // legge lo stesso. Tre volte di fila e questa finestra torna a chiedere come prima.
-    if (++commitTimeouts >= MaxCommitTimeouts) commitTiming = false
-    dropCommit()
-    onWindowCommit()
-  }
-  /** Falso in Robolectric (nessun RenderThread: i commit non arrivano) e dopo [MaxCommitTimeouts] commit mai arrivati. */
-  private var commitTiming = Build.FINGERPRINT != "robolectric"
-  private var commitTimeouts = 0
-  private var commitRegistered = false
-  private var awaitingCommit = false
-  private var armedFrameMillis = Long.MIN_VALUE
-  private var commitDeferrals = 0
-  /** F7.22 · Il nome della sezione di traccia della prossima `syncAndDraw`: da quale strada parte. */
-  private var sendSection = SectionNow
+  private var preDrawObserver: ViewTreeObserver? = null
+
+  /** Una lettura aspetta il suo momento (o, senza ping, il disegno della finestra come prima). */
+  private var waiting = false
+  private var pingSent = 0
+
+  /** `drawingTime` della finestra quando è partito l'ultimo ping: se cambia, la finestra ha disegnato dopo. */
+  private var pingDrawingTime = Long.MIN_VALUE
+
+  /** Il nome della sezione di traccia della prossima `syncAndDraw`: da quale strada parte (F7.22, F7.25). */
+  private var sendSection = SectionLegacy
 
   init {
     reader.setOnImageAvailableListener({ source -> drain(source) }, worker)
@@ -1420,98 +1505,128 @@ internal class GlassProbeWindowReader private constructor(private val root: View
   fun request(slot: Int): Boolean {
     if (released || slot !in clients.indices || clients[slot] == null) return false
     requested = requested or (1L shl slot)
-    if (!framePosted) {
-      framePosted = true
-      Choreographer.getInstance().postFrameCallback(frameCallback)
-    }
+    if (!waiting) startWaiting()
     return true
   }
 
-  /**
-   * F7.22 · Nella fase delle animazioni del fotogramma: la richiesta del commit della finestra (la prende il disegno di
-   * questo stesso fotogramma), poi il controllo dopo il disegno.
-   */
-  private fun armCommit(frameTimeNanos: Long) {
-    armedFrameMillis = frameTimeNanos / 1_000_000
-    if (commitTiming && !commitRegistered && !released && root.isAttachedToWindow) {
-      commitRegistered = try {
-        root.viewTreeObserver.registerFrameCommitCallback(commit)
-        true
-      } catch (_: IllegalStateException) {
-        false
-      }
-    }
-    main.post(afterDraw)
-  }
-
-  /** Dopo il fotogramma della finestra sul principale: se non ha disegnato si legge subito, se no si aspetta il commit. */
-  private fun afterWindowDraw() {
-    if (released) return
-    if (!commitRegistered || root.drawingTime != armedFrameMillis) {
-      // Nessun disegno in questo fotogramma (niente in volo sul RenderThread), o nessun commit da aspettare: subito.
-      dropCommit()
-      sendSection = SectionNow
-      send()
-      return
-    }
-    awaitingCommit = true
-    main.postDelayed(commitTimeout, CommitTimeoutMillis)
-  }
-
-  /** Il RenderThread ha consegnato il fotogramma della finestra (o il tempo è scaduto). Dal principale. */
-  private fun onWindowCommit() {
-    commitRegistered = false
-    main.removeCallbacks(commitTimeout)
-    if (!awaitingCommit || released) return
-    awaitingCommit = false
-    val newerFrame = root.drawingTime != armedFrameMillis
-    if (newerFrame && commitDeferrals < MaxCommitDeferrals) {
-      // Il RenderThread sta già rendendo un fotogramma più nuovo della finestra: si riprova al fotogramma dopo.
-      commitDeferrals++
-      Choreographer.getInstance().postFrameCallback(frameCallback)
-      return
-    }
-    commitDeferrals = 0
-    if (newerFrame) {
-      // Dopo i tentativi: come prima di F7.22, subito dopo il disegno della finestra.
+  /** F7.25 · Una lettura comincia ad aspettare il RenderThread libero (o, senza ping, il disegno della finestra). */
+  private fun startWaiting() {
+    waiting = true
+    val ping = fence
+    if (ping == null || !ping.healthy || !root.isAttachedToWindow) {
+      // Robolectric (nessun RenderThread), o il ping non è nato: subito dopo il disegno della finestra, come prima.
       Choreographer.getInstance().postFrameCallback(legacyFrameCallback)
       return
     }
-    // La finestra ha già qualcosa da ridisegnare (sul vetro capita quasi sempre: la sorgente avvisa le sonde nel disegno,
-    // e i vetri si invalidano subito dopo). Fra il suo disegno e questa lettura un nodo condiviso può aver cambiato le
-    // proprietà: il lettore lo sincronizzerebbe per primo e la finestra non ne vedrebbe il danno (il rischio di S1-bis).
-    // Il fotogramma della finestra che arriva comunque lo ridisegna tutto: la radice si invalida, niente resta indietro.
-    val pending = root.isDirty
-    sendSection = if (pending) SectionCommitDirty else SectionCommit
-    send()
-    if (pending) root.invalidate()
+    gate.begin(glassProbeNowNanos())
+    // Il RenderThread può avere ancora in mano un fotogramma disegnato prima: un ping dietro di lui.
+    sendPing()
+    root.viewTreeObserver.let { observer ->
+      if (observer.isAlive) {
+        observer.addOnPreDrawListener(preDraw)
+        preDrawObserver = observer
+      }
+    }
+    Choreographer.getInstance().postFrameCallback(frameCallback)
+  }
+
+  /** La lettura è partita (o il lettore chiude): niente più fotogrammi, ping né pre-disegni per lei. */
+  private fun stopWaiting() {
+    waiting = false
+    Choreographer.getInstance().removeFrameCallback(frameCallback)
+    Choreographer.getInstance().removeFrameCallback(legacyFrameCallback)
+    main.removeCallbacks(afterFrame)
+    main.removeCallbacks(legacyAfterDraw)
+    preDrawObserver?.let { observer -> if (observer.isAlive) observer.removeOnPreDrawListener(preDraw) }
+    preDrawObserver = null
+  }
+
+  private fun sendPing() {
+    pingSent++
+    pingDrawingTime = root.drawingTime
+    fence?.ping(pingSent)
+  }
+
+  /** Il RenderThread è libero: il ping dell'ultimo fotogramma della finestra è tornato, e lei non ne ha disegnato altri. */
+  private fun renderThreadFree(): Boolean = (fence?.returned ?: 0) >= pingSent && root.drawingTime == pingDrawingTime
+
+  /** Nella fase delle animazioni di ogni fotogramma, mentre una lettura aspetta. */
+  private fun onFrame() {
+    if (!waiting || released) return
+    gate.onFrame(glassProbeNowNanos())
+    main.post(afterFrame)
+  }
+
+  /** Dopo il fotogramma sul principale: se la finestra ha disegnato, un ping dietro il suo fotogramma; se no, si decide. */
+  private fun onAfterFrame() {
+    if (!waiting || released) return
+    if (root.drawingTime != pingDrawingTime) {
+      sendPing()
+    } else {
+      // Un fotogramma senza disegno della finestra: fra due fotogrammi, il principale libero.
+      decide(beforeDraw = false)
+      if (!waiting) return
+    }
+    Choreographer.getInstance().postFrameCallback(frameCallback)
+  }
+
+  /** Il pre-disegno della finestra (prima che registri e sincronizzi il suo fotogramma). */
+  private fun atPreDraw() {
+    if (!waiting || released) return
+    decide(beforeDraw = true)
+  }
+
+  /** Il ping [seq] è tornato, sul principale e fra due fotogrammi: se la finestra non ha disegnato altro, si legge. */
+  private fun onPingReturned(seq: Int) {
+    if (!waiting || released || seq != pingSent || root.drawingTime != pingDrawingTime) return
+    read(SectionFree, beforeDraw = false)
+  }
+
+  /** La regola dei fotogrammi saltati ([GlassProbeReadGate]): leggere adesso, aspettare poco, o saltare. */
+  private fun decide(beforeDraw: Boolean) {
+    val free = renderThreadFree()
+    when (gate.verdict(free)) {
+      GlassProbeGateVerdict.ReadNow -> read(if (beforeDraw) SectionBeforeDraw else SectionFree, beforeDraw)
+      GlassProbeGateVerdict.Skip -> Unit
+      GlassProbeGateVerdict.WaitBriefly -> {
+        val returned = fence?.await(pingSent, GlassProbeBriefWaitNanos) == true
+        if (returned && root.drawingTime == pingDrawingTime) read(SectionAwaited, beforeDraw)
+      }
+      GlassProbeGateVerdict.ReadAnyway -> read(SectionCeiling, beforeDraw)
+    }
+  }
+
+  /**
+   * Si legge, dalla strada [section]. Prima di un disegno della finestra ([beforeDraw]) la radice si invalida sempre:
+   * il disegno di questo stesso fotogramma ha il danno intero, e ciò che la lettura ha sincronizzato per prima (le
+   * proprietà dei nodi condivisi cambiate dalla misura) non si perde. Fra due fotogrammi si invalida se la finestra aveva
+   * già qualcosa da ridisegnare (`isDirty`, come al commit di F7.22): il suo fotogramma dopo si ridisegna tutto.
+   */
+  private fun read(section: String, beforeDraw: Boolean) {
+    val frames = gate.frames
+    stopWaiting()
+    val pendingRedraw = beforeDraw || root.isDirty
+    sendSection = section
+    android.os.Trace.setCounter(CounterFrames, frames.toLong())
+    FluidGlassProbeDiagnostics.onTimedRead(section, frames)
+    if (send() && pendingRedraw) root.invalidate()
   }
 
   private val legacyAfterDraw = Runnable {
+    waiting = false
     sendSection = SectionLegacy
     send()
   }
   private val legacyFrameCallback = Choreographer.FrameCallback { main.post(legacyAfterDraw) }
 
-  private fun dropCommit() {
-    if (!commitRegistered) return
-    commitRegistered = false
-    try {
-      root.viewTreeObserver.unregisterFrameCommitCallback(commit)
-    } catch (_: IllegalStateException) {
-      // Già preso da un disegno, o l'osservatore non è più vivo: il commit arriverà e non troverà niente da fare.
-    }
-  }
-
-  /** Dopo il disegno della finestra: registra ciò che serve e chiede il fotogramma del lettore. */
-  private fun send() {
-    framePosted = false
-    if (released) return
+  /** Registra ciò che serve e chiede il fotogramma del lettore. Vero se la `syncAndDraw` è partita. */
+  private fun send(): Boolean {
+    if (released) return false
     val asked = requested
-    if (asked == 0L) return
+    if (asked == 0L) return false
     if (pending.size >= MaxInFlight) {
       // Le richieste restano: le riprende l'arrivo dell'immagine in volo (vedi `deliver`).
-      return
+      return false
     }
     requested = 0L
     // In secondo piano non si legge: il fotogramma sarebbe rifiutato, e al ritorno la finestra ridisegna e le sorgenti
@@ -1527,12 +1642,12 @@ internal class GlassProbeWindowReader private constructor(private val root: View
         client.onProbeResult(GlassProbeOutcome.Skipped, null)
       }
     }
-    if (drawable == 0L) return
+    if (drawable == 0L) return false
     recordRoot(drawable)
     val batch = Batch(drawable, generations.copyOf(), SystemClock.uptimeMillis())
     pending.add(batch)
     val result = try {
-      // F7.22: una sezione per strada (commit, subito, come prima), per leggere nelle tracce Perfetto quanto aspetta.
+      // F7.22, F7.25: una sezione per strada, per leggere nelle tracce Perfetto quanto aspetta (GlassProbeTiming.kt).
       android.os.Trace.beginSection(sendSection)
       try {
         renderer.createRenderRequest().setVsyncTime(System.nanoTime()).syncAndDraw()
@@ -1547,13 +1662,15 @@ internal class GlassProbeWindowReader private constructor(private val root: View
       // Nessun fotogramma, quindi nessuna immagine: la richiesta non resta in coda ad aspettarla.
       pending.remove(batch)
       fail(batch)
-      return
+      // La sincronizzazione può esserci stata anche se il fotogramma è rifiutato: chi chiama invalida comunque.
+      return true
     }
     FluidGlassProbeDiagnostics.onRequest()
     if (!watchdogPosted) {
       watchdogPosted = true
       main.postDelayed(watchdog, GlassProbeReadTimeoutMillis)
     }
+    return true
   }
 
   /** La radice: la miniatura di ogni casella chiesta, al suo posto. Le altre restano trasparenti. */
@@ -1641,10 +1758,7 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     }
     if (released) return
     // Richieste rimaste indietro mentre due fotogrammi erano in volo.
-    if (requested != 0L && !framePosted) {
-      framePosted = true
-      Choreographer.getInstance().postFrameCallback(frameCallback)
-    }
+    if (requested != 0L && !waiting) startWaiting()
   }
 
   private fun fail(batch: Batch) {
@@ -1680,14 +1794,9 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     released = true
     if (readers[root] === this) readers.remove(root)
     live.decrementAndGet()
-    main.removeCallbacks(afterDraw)
-    main.removeCallbacks(legacyAfterDraw)
-    main.removeCallbacks(commitTimeout)
-    Choreographer.getInstance().removeFrameCallback(legacyFrameCallback)
-    awaitingCommit = false
-    dropCommit()
+    stopWaiting()
+    fence?.release()
     main.removeCallbacks(watchdog)
-    Choreographer.getInstance().removeFrameCallback(frameCallback)
     reader.setOnImageAvailableListener(null, null)
     renderer.stop()
     renderer.destroy()
@@ -1706,23 +1815,34 @@ internal class GlassProbeWindowReader private constructor(private val root: View
     private const val MaxInFlight = 2
 
     /**
-     * F7.22 · Quante volte una lettura aspetta un commit «pulito» prima di partire come prima: 3, a occhio (25 novembre
-     * 2026). Con la finestra che cambia a ogni fotogramma e il principale sempre in ritardo sul RenderThread la sonda
-     * non resta mai senza letture: al più tre fotogrammi in più.
+     * F7.25 · Le sezioni di traccia della lettura, una per strada (`GlassProbeTiming.kt`): «libera» fra due fotogrammi
+     * col ping tornato; «pre-disegno» prima del disegno della finestra col ping tornato; «attesa» dopo l'attesa breve
+     * del ping; «al tetto» dopo [GlassProbeCeilingNanos] (250 ms); «come prima» senza ping (Robolectric), subito
+     * dopo il disegno della finestra. Il contatore dice quanti fotogrammi la lettura ha aspettato.
      */
-    private const val MaxCommitDeferrals = 3
+    internal const val SectionFree = "Glass.sonda libera"
+    internal const val SectionBeforeDraw = "Glass.sonda pre-disegno"
+    internal const val SectionAwaited = "Glass.sonda attesa"
+    internal const val SectionCeiling = "Glass.sonda al tetto"
+    internal const val SectionLegacy = "Glass.sonda come prima"
+    private const val CounterFrames = "Glass.sonda fotogrammi saltati"
 
-    /** F7.22 · Se il commit non arriva (la finestra non disegna più), si legge lo stesso dopo 50 ms, a occhio. */
-    private const val CommitTimeoutMillis = 50L
+    /**
+     * F7.25 · Per le prove: un ping finto al posto di [GlassProbeRenderThreadPing] (che in Robolectric non c'è). Riceve
+     * la funzione da chiamare, sul principale, quando un ping torna. Null di serie.
+     */
+    @Volatile
+    internal var fenceForTesting: ((onReturn: (Int) -> Unit) -> GlassProbeFence)? = null
 
-    /** F7.22 · Dopo tre commit di fila mai arrivati il lettore chiede come prima di F7.22. */
-    private const val MaxCommitTimeouts = 3
-
-    /** F7.22 · Le sezioni di traccia della lettura, una per strada. */
-    private const val SectionCommit = "Glass.sonda commit"
-    private const val SectionCommitDirty = "Glass.sonda commit sporca"
-    private const val SectionNow = "Glass.sonda subito"
-    private const val SectionLegacy = "Glass.sonda come prima"
+    /**
+     * F7.25b · Per le prove (R2, difetti 5 e 6): chiamata a ogni passo della costruzione del lettore col nome del passo;
+     * se lancia, la costruzione fallisce lì, come su un dispositivo che rifiuta il renderer. Null di serie.
+     */
+    @Volatile
+    internal var constructionStepForTesting: ((step: String) -> Unit)? = null
+    internal const val StepRenderer = "renderer"
+    internal const val StepThread = "filo"
+    internal const val StepPing = "ping"
 
     private const val RefusedSync = HardwareRenderer.SYNC_LOST_SURFACE_REWARD_IF_FOUND or
       HardwareRenderer.SYNC_CONTEXT_IS_STOPPED or
@@ -1883,6 +2003,8 @@ object FluidGlassProbeDiagnostics {
     refused.set(0)
     peak.set(0)
     wakes.forEach { it.set(0) }
+    timedPaths.clear()
+    timedFrames.forEach { it.set(0) }
   }
 
   /** I fotogrammi chiesti ai lettori in tutto il processo (una richiesta può leggere più sonde). */
@@ -1938,4 +2060,21 @@ object FluidGlassProbeDiagnostics {
   internal fun onFailure() {
     failures.incrementAndGet()
   }
+
+  // F7.25 · Le letture di `GlassProbeWindowReader` per strada, e quanti fotogrammi hanno aspettato il RenderThread
+  // libero (`GlassProbeTiming.kt`). Per le prove: sul dispositivo le stesse cose sono nelle sezioni di traccia.
+  private val timedPaths = java.util.concurrent.ConcurrentHashMap<String, AtomicLong>()
+  // F7.25d: il tetto è 250 ms, cioè 30 fotogrammi a 120 Hz e 36 a 144: 64 caselle, l'ultima per «oltre».
+  private val timedFrames = Array(64) { AtomicLong() }
+
+  internal fun onTimedRead(section: String, frames: Int) {
+    timedPaths.getOrPut(section) { AtomicLong() }.incrementAndGet()
+    timedFrames[frames.coerceIn(0, timedFrames.size - 1)].incrementAndGet()
+  }
+
+  /** Le letture per strada (le sezioni di traccia `Glass.sonda …`), da [resetForTesting]. */
+  internal fun timedReads(): Map<String, Long> = timedPaths.mapValues { it.value.get() }
+
+  /** Quante letture hanno aspettato 0, 1, 2… fotogrammi (l'ultima casella: oltre il tetto). */
+  internal fun timedFrames(): LongArray = LongArray(timedFrames.size) { timedFrames[it].get() }
 }

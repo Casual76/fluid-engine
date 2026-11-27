@@ -12,14 +12,18 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PersistableBundle
 import android.os.SystemClock
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
 import dev.antigravity.fluidengine.foundation.notify.FluidNotifyCenter
 import java.io.File
 import java.time.ZoneId
@@ -41,7 +45,11 @@ class FluidNotifyResult private constructor(val name: String) {
   override fun toString(): String = "FluidNotifyResult($name)"
 
   companion object {
-    /** Pubblicata (o in fila per il ritmo, che non la perde). */
+    /**
+     * Pubblicata, o in fila per il ritmo (al più quattro al secondo per l'app intera). La fila sta in memoria: se il
+     * processo muore prima del suo turno (di solito meno di un secondo; con molte notifiche insieme qualche secondo), la
+     * notifica non parte.
+     */
     val Posted: FluidNotifyResult = FluidNotifyResult("posted")
 
     /** Messa da parte per il prossimo riepilogo, come ha scelto l'utente. */
@@ -50,7 +58,11 @@ class FluidNotifyResult private constructor(val name: String) {
     /** Non mostrata: le notifiche dell'app sono spente (il permesso negato, o spente dall'utente). */
     val NotificationsOff: FluidNotifyResult = FluidNotifyResult("off")
 
-    /** Non mostrata: il canale è spento nelle impostazioni di Android. */
+    /**
+     * Non mostrata: il canale è spento nelle impostazioni di Android, oppure non è dichiarato in
+     * `FluidNotifyConfig.channels` (per esempio un canale tolto in un aggiornamento dell'app, arrivato da una notifica
+     * push): l'app non cade.
+     */
     val ChannelOff: FluidNotifyResult = FluidNotifyResult("channel-off")
   }
 }
@@ -116,8 +128,17 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
   internal var wallNow: () -> Long = System::currentTimeMillis
   internal var zone: () -> ZoneId = ZoneId::systemDefault
 
-  /** L'ultima volta che ogni filo ha suonato (`elapsedRealtime`), per la raffica. */
+  /** L'ultima volta che ogni filo ha suonato (`elapsedRealtime`), per la raffica. Solo sul principale. */
   private val threadAlerts = HashMap<String, Long>()
+
+  /**
+   * Gli eventi arrivati prima che l'app installasse engine-notify (un processo fatto ripartire da un tocco, con l'install
+   * in un'attività): aspettano il gestore vero invece di perdersi nel gestore vuoto di serie. Solo sul principale.
+   */
+  private val earlyEvents = ArrayList<FluidNotifyEvent>()
+
+  /** Vero quando la configurazione l'ha data l'app ([install]), falso per quella di serie di [get]. */
+  private var installedByApp = false
 
   /** Le attività vive fuori dall'app. */
   val liveUpdates: FluidLiveUpdates = FluidLiveUpdates(this)
@@ -135,11 +156,31 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
   }
 
   private fun start() {
+    // Una scrittura fallita o un file rovinato si vedono in «Le notifiche non arrivano?» (R2, n. 11).
+    store.onTrouble = { handler.post { centerImpl.refreshAll() } }
     ensureChannels()
-    // Le attività specchiate seguono l'app dentro e fuori.
-    foreground.onChange = { outside -> liveUpdates.onOutsideChanged(outside) }
+    // Le conversazioni di un processo di prima senza più notifiche escono dal menu dell'icona.
+    tidyConversations()
+    // Le attività specchiate seguono l'app dentro e fuori; al rientro si riprova ciò che aspettava le notifiche.
+    foreground.onChange = { outside ->
+      liveUpdates.onOutsideChanged(outside)
+      if (!outside) retryWaiting()
+    }
     reminders.restore()
     armDigest()
+  }
+
+  /**
+   * Le notifiche sono (forse) tornate: la pagina si rilegge ([FluidNotifyCenter.refresh]) o l'app torna in primo piano.
+   * Arriva ciò che aspettava: le attività vive non pubblicate e le notifiche del riepilogo rimaste da consegnare dopo
+   * averlo spento (R2, due minori). I promemoria scaduti nel frattempo no: sono persi, segnati «non mostrato» (la scelta
+   * di Alessio). Sul principale.
+   */
+  internal fun retryWaiting() {
+    if (!notificationsAllowed()) return
+    liveUpdates.retryBlocked()
+    val memory = store.read()
+    if (!memory.digestEnabled && memory.digestQueue.isNotEmpty()) deliverDigest()
   }
 
   // --- i canali -------------------------------------------------------------------------------------------------------
@@ -183,9 +224,16 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
   /** Vero se le notifiche dell'app sono accese (da Android 13: il permesso è concesso). */
   fun notificationsAllowed(): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-  /** Vero se il canale [channelId] è acceso. */
-  fun channelAllowed(channelId: String): Boolean =
-    notificationManager().getNotificationChannel(channelId)?.importance != NotificationManager.IMPORTANCE_NONE
+  /**
+   * Vero se il canale [channelId] è acceso. Un canale dichiarato che in Android non c'è (cancellato, o mai creato) si
+   * ricrea: senza, Android scarterebbe la notifica in silenzio (R2). Un canale che non c'è e non è dichiarato: falso.
+   */
+  fun channelAllowed(channelId: String): Boolean {
+    val nm = notificationManager()
+    val existing = nm.getNotificationChannel(channelId)
+      ?: if (channel(channelId) != null) runCatching { ensureChannels() }.let { nm.getNotificationChannel(channelId) } else null
+    return existing != null && existing.importance != NotificationManager.IMPORTANCE_NONE
+  }
 
   /** Vero se una notifica sul canale [channelId] si può mostrare adesso. */
   fun canPost(channelId: String): Boolean = notificationsAllowed() && channelAllowed(channelId)
@@ -195,15 +243,21 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
   /**
    * Pubblica [message], o la mette nel riepilogo se l'utente l'ha chiesto per il suo canale (e non è urgente). Le
    * notifiche dello stesso filo si raccolgono; quelle che arrivano in raffica dopo la prima arrivano in silenzio.
+   *
+   * Un canale non dichiarato in `FluidNotifyConfig.channels` dà [FluidNotifyResult.ChannelOff] (prima faceva cadere
+   * l'app). Si può chiamare da un filo qualsiasi: la notifica parte dal principale.
    */
   fun post(message: FluidNotifyMessage): FluidNotifyResult {
-    val channel = channel(message.channel) ?: error("il canale «${message.channel}» non è dichiarato in FluidNotifyConfig.channels")
+    val channel = channel(message.channel) ?: return FluidNotifyResult.ChannelOff
     if (!notificationsAllowed()) return FluidNotifyResult.NotificationsOff.also { blocked(channel.id) }
     if (!channelAllowed(channel.id)) return FluidNotifyResult.ChannelOff.also { blocked(channel.id) }
     val memory = store.read()
     val urgent = message.urgent ?: !channel.digestible
     if (memory.digestEnabled && !urgent && channel.digestible && channel.id in memory.digestChannels) {
-      store.update { it.copy(digestQueue = it.digestQueue.filterNot { q -> q.id == message.id } + message) }
+      // Al più [FluidNotifyProfile.DigestQueueSize], le più recenti: Android non ne mostra di più per un'app.
+      store.update {
+        it.copy(digestQueue = (it.digestQueue.filterNot { q -> q.id == message.id } + message).takeLast(FluidNotifyProfile.DigestQueueSize))
+      }
       armDigest()
       centerImpl.refreshSettings()
       return FluidNotifyResult.InDigest
@@ -219,18 +273,94 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
     poster.cancel(MessageTagPrefix + messageId, MessageNotificationId)
     store.update { it.copy(digestQueue = it.digestQueue.filterNot { q -> q.id == messageId }) }
     thread?.let { summaryLater(it) }
+    tidyConversations()
   }
 
-  /** Toglie tutte le notifiche del filo [thread]. */
+  /** Toglie tutte le notifiche del filo [thread], anche quelle che aspettano il riepilogo. */
   fun cancelThread(thread: String) = onMain {
     val key = ThreadGroupPrefix + thread
+    gate.cancel("sum/$key")
     active().filter { it.notification.group == key }.forEach { poster.cancel(it.tag, it.id) }
+    store.update { it.copy(digestQueue = it.digestQueue.filterNot { q -> q.thread == thread }) }
+    centerImpl.refreshSettings()
+    tidyConversations()
   }
 
-  /** Quante notifiche dell'app contano nel pallino dell'icona: quelle a schermo dei canali col pallino. */
+  // --- le conversazioni -----------------------------------------------------------------------------------------------
+  //
+  // La scelta di Alessio (R2, domanda 2, 26/11/2026): una notifica con `person` è una conversazione vera di Android. Android
+  // le vuole legate a una scorciatoia dinamica di lunga vita con la `Person` (developer.android.com, «People and
+  // conversations», fiducia alta): così entrano nella sezione «Conversazioni» e l'utente le può rendere prioritarie, anche
+  // per Non disturbare. Le scorciatoie compaiono anche nel menu dell'icona dell'app, quindi restano poche e pulite: al più
+  // `getMaxShortcutCountPerActivity` in tutto (quelle dell'app non si toccano mai; esce la conversazione usata meno di
+  // recente), e una conversazione senza più notifiche a schermo esce dal menu. Esce solo la scorciatoia dinamica: la copia
+  // che Android tiene per una conversazione (`removeDynamicShortcuts`, non `removeLongLivedShortcuts`) resta, così la scelta
+  // «prioritaria» dell'utente non si perde fra un messaggio e l'altro.
+
+  /** L'id della scorciatoia (e la chiave della `Person`) della conversazione con [person]. */
+  private fun conversationId(person: String): String = ConversationShortcutPrefix + person.trim().lowercase()
+
+  /**
+   * Pubblica, o rinfresca, la scorciatoia della conversazione con [person] prima della notifica, e ne dà l'id; null se non
+   * c'è posto (il menu è pieno di scorciatoie dell'app) o se Android la rifiuta: allora la notifica resta un messaggio.
+   */
+  private fun conversationShortcut(person: String, sender: Person): String? = runCatching {
+    val id = conversationId(person)
+    val max = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context)
+    if (max <= 0) return null
+    tidyConversations(keep = id)
+    val dynamic = ShortcutManagerCompat.getDynamicShortcuts(context)
+    val ours = dynamic.filter { it.id.startsWith(ConversationShortcutPrefix) }
+    if (ours.none { it.id == id } && dynamic.size >= max) {
+      // Il tetto: esce la conversazione usata meno di recente, mai una scorciatoia dell'app.
+      val oldest = ours.minByOrNull { it.lastUsed() } ?: return null
+      ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(oldest.id))
+    }
+    val stamp = maxOf(wallNow(), (ours.maxOfOrNull { it.lastUsed() } ?: 0L) + 1)
+    val shortcut = ShortcutInfoCompat.Builder(context, id)
+      .setShortLabel(person)
+      .setLongLived(true)
+      .setPerson(sender)
+      .setCategories(setOf(ConversationCategory))
+      .setIntent(conversationIntent())
+      .setExtras(PersistableBundle().apply { putLong(ExtraLastUsed, stamp) })
+      .build()
+    if (!ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)) return null
+    id
+  }.getOrNull()
+
+  /**
+   * Toglie dal menu dell'icona le conversazioni senza più notifiche a schermo (lette, tolte dall'utente o dall'app),
+   * tranne [keep]. Sul principale.
+   */
+  internal fun tidyConversations(keep: String? = null) {
+    runCatching {
+      val live = active().mapNotNull { it.notification.shortcutId }.toSet()
+      val stale = ShortcutManagerCompat.getDynamicShortcuts(context).map { it.id }
+        .filter { it.startsWith(ConversationShortcutPrefix) && it != keep && it !in live }
+      if (stale.isNotEmpty()) ShortcutManagerCompat.removeDynamicShortcuts(context, stale)
+    }
+  }
+
+  private fun ShortcutInfoCompat.lastUsed(): Long = extras?.getLong(ExtraLastUsed) ?: 0L
+
+  /** Dove porta la scorciatoia dal menu dell'icona: l'app (Android vuole un'azione nell'`Intent`). */
+  private fun conversationIntent(): Intent {
+    val intent = config.launchActivity?.let { Intent(context, it) }
+      ?: context.packageManager.getLaunchIntentForPackage(context.packageName)
+      ?: Intent().setPackage(context.packageName)
+    if (intent.action == null) intent.action = Intent.ACTION_MAIN
+    return intent
+  }
+
+  /**
+   * Quante notifiche dell'app contano nel pallino dell'icona: quelle a schermo dei canali col pallino, messaggi e
+   * promemoria (i riassunti e le attività in corso no).
+   */
   fun badgeCount(): Int = active().count { sbn ->
     val n = sbn.notification
-    sbn.tag?.startsWith(MessageTagPrefix) == true && (n.flags and Notification.FLAG_GROUP_SUMMARY) == 0 &&
+    val tag = sbn.tag.orEmpty()
+    (tag.startsWith(MessageTagPrefix) || tag.startsWith(ReminderTagPrefix)) && (n.flags and Notification.FLAG_GROUP_SUMMARY) == 0 &&
       channel(n.channelId)?.badge != false
   }
 
@@ -243,7 +373,10 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
     val key = intent.getStringExtra(FluidNotifyReceiver.ExtraKey) ?: return false
     intent.removeExtra(FluidNotifyReceiver.ExtraOpenMessage)
     if (id.startsWith("reminder:")) {
-      dispatch(FluidNotifyEvent.ReminderAction(id.removePrefix("reminder:"), key))
+      val reminderId = id.removePrefix("reminder:")
+      dispatch(FluidNotifyEvent.ReminderAction(reminderId, key))
+      // Eseguito: la notifica se ne va, come col tasto in sottofondo (R2).
+      cancelReminderNotification(reminderId)
     } else {
       dispatch(FluidNotifyEvent.Action(id, key))
       cancel(id)
@@ -252,25 +385,34 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
   }
 
   private fun show(message: FluidNotifyMessage, channel: FluidNotifyChannel, digest: Boolean) {
-    val now = elapsedNow()
     val thread = when {
       digest -> DigestGroup
       message.thread != null -> ThreadGroupPrefix + message.thread
       else -> null
     }
-    // La raffica: dopo la prima notifica del filo, le altre entro la finestra arrivano in silenzio, raccolte.
-    val alert = when {
-      digest -> false
-      thread == null -> true
-      else -> {
-        val last = threadAlerts[thread]
-        (last == null || now - last > FluidNotifyProfile.BurstWindowMs).also { if (it) threadAlerts[thread] = now }
-      }
-    }
     gate.submit("msg/${message.id}") {
+      // La raffica, decisa al turno della porta (quando le notifiche di prima sono già a schermo): dopo la prima del filo,
+      // le altre entro la finestra arrivano in silenzio, raccolte. Se l'utente ha già scartato tutto il filo, la
+      // notifica dopo suona di nuovo (R2).
+      val alert = when {
+        digest -> false
+        thread == null -> true
+        else -> threadAlert(thread)
+      }
       poster.notify(MessageTagPrefix + message.id, MessageNotificationId, buildMessage(message, channel, thread, alert))
       if (thread != null && !digest) summaryLater(thread)
     }
+  }
+
+  /** Vero se una notifica nuova del filo [thread] deve suonare; tiene [threadAlerts] corta (solo le raffiche vive). */
+  private fun threadAlert(thread: String): Boolean {
+    val now = elapsedNow()
+    threadAlerts.entries.removeAll { now - it.value > FluidNotifyProfile.BurstWindowMs }
+    val onScreen = active().any { it.notification.group == thread && it.tag?.startsWith(MessageTagPrefix) == true }
+    val last = threadAlerts[thread]
+    val alert = last == null || !onScreen
+    if (alert) threadAlerts[thread] = now
+    return alert
   }
 
   private fun buildMessage(message: FluidNotifyMessage, channel: FluidNotifyChannel, group: String?, alert: Boolean): Notification {
@@ -287,7 +429,11 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
     config.color?.let { builder.setColor(it) }
     if (message.person != null) {
       val me = Person.Builder().setName(config.labels.meName).build()
-      val sender = Person.Builder().setName(message.person).build()
+      val sender = Person.Builder().setName(message.person).setKey(conversationId(message.person)).build()
+      // La conversazione vera: la scorciatoia prima della notifica, poi la notifica legata a lei (R2, domanda 2).
+      conversationShortcut(message.person, sender)?.let { builder.setShortcutId(it) }
+      // Chi la toglie avvisa l'engine: una conversazione senza più notifiche esce dal menu dell'icona.
+      builder.setDeleteIntent(messagePendingIntent(FluidNotifyReceiver.ActionMessageDismissed, message.id, "", mutable = false))
       builder.setStyle(
         NotificationCompat.MessagingStyle(me).addMessage(message.text ?: message.title, message.timeMillis, sender)
           .setConversationTitle(message.title.takeIf { message.text != null }),
@@ -300,6 +446,8 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
       builder.setPublicVersion(
         NotificationCompat.Builder(context, channel.id).setSmallIcon(smallIcon()).setContentTitle(channel.name).build(),
       )
+      // Il segno per i riassunti: non devono ripetere ciò che la notifica nasconde (R2, n. 9).
+      builder.addExtras(Bundle().apply { putBoolean(ExtraSensitive, true) })
     }
     if (group != null) {
       builder.setGroup(group)
@@ -350,18 +498,13 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
     val newest = children.maxByOrNull { it.notification.`when` }!!.notification
     val channel = channel(newest.channelId) ?: return
     val style = NotificationCompat.InboxStyle()
-    children.sortedByDescending { it.notification.`when` }.take(InboxLines).forEach { sbn ->
-      val extras = sbn.notification.extras
-      val title = extras.getCharSequence(NotificationCompat.EXTRA_TITLE)
-      val text = extras.getCharSequence(NotificationCompat.EXTRA_TEXT)
-      style.addLine(listOfNotNull(title, text).joinToString(" · "))
-    }
+    children.sortedByDescending { it.notification.`when` }.take(InboxLines).forEach { sbn -> style.addLine(summaryLine(sbn.notification)) }
     val summary = channel.summary(children.size)
     style.setBigContentTitle(summary)
     val builder = NotificationCompat.Builder(context, channel.id)
       .setSmallIcon(smallIcon())
       .setContentTitle(summary)
-      .setContentText(newest.extras.getCharSequence(NotificationCompat.EXTRA_TITLE))
+      .setContentText(if (newest.isSensitive()) publicTitle(newest) else newest.extras.getCharSequence(NotificationCompat.EXTRA_TITLE))
       .setStyle(style)
       .setGroup(group)
       .setGroupSummary(true)
@@ -373,42 +516,82 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
       .setCategory(channel.category)
       .setContentIntent(openIntent(null, "sum:$group"))
     config.color?.let { builder.setColor(it) }
+    if (children.any { it.notification.isSensitive() }) protect(builder, channel.id, channel.name, children.size)
     poster.notify(tag, SummaryNotificationId, builder.build())
+  }
+
+  // R2 (review `muse-f8-prime`, n. 9): un riassunto non ripete ciò che una notifica sensibile nasconde a telefono
+  // bloccato. Le sue righe portano la versione pubblica di quella notifica (il nome del canale), e il riassunto ha la sua
+  // versione pubblica, senza contenuto: vale anche se l'utente nasconde i contenuti di un canale solo.
+
+  private fun Notification.isSensitive(): Boolean = extras.getBoolean(ExtraSensitive)
+
+  /** Il titolo pubblico di una notifica sensibile: il nome del suo canale, come la sua versione pubblica. */
+  private fun publicTitle(notification: Notification): String =
+    channel(notification.channelId)?.name ?: config.labels.digestChannel
+
+  private fun summaryLine(notification: Notification): CharSequence {
+    if (notification.isSensitive()) return publicTitle(notification)
+    val extras = notification.extras
+    return listOfNotNull(extras.getCharSequence(NotificationCompat.EXTRA_TITLE), extras.getCharSequence(NotificationCompat.EXTRA_TEXT))
+      .joinToString(" · ")
+  }
+
+  private fun protect(builder: NotificationCompat.Builder, channelId: String, title: String, count: Int) {
+    builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+    builder.setPublicVersion(
+      NotificationCompat.Builder(context, channelId).setSmallIcon(smallIcon()).setContentTitle(title).setNumber(count).build(),
+    )
   }
 
   // --- il riepilogo ---------------------------------------------------------------------------------------------------
 
-  /** Il riepilogo è suonato: le notifiche messe da parte arrivano raccolte, con un riassunto che suona una volta. */
+  /**
+   * Il riepilogo è suonato: le notifiche messe da parte arrivano raccolte, con un riassunto che suona una volta.
+   *
+   * Dalla coda esce solo ciò che è stato pubblicato davvero, una notifica alla volta, al turno della porta del ritmo (R2,
+   * review `muse-f8-prime`, n. 12: prima la coda si svuotava subito, e con le notifiche spente, o col processo morto a
+   * metà, le attese erano perse). Con le notifiche (o il canale) spente restano in coda per il riepilogo dopo; una
+   * notifica di un canale che l'app non dichiara più si toglie, perché non potrebbe uscire mai.
+   */
   internal fun deliverDigest() = onMain {
-    val memory = store.read()
-    val queue = memory.digestQueue
-    store.update { it.copy(digestQueue = emptyList()) }
+    val queue = store.read().digestQueue.filter { channel(it.channel) != null }
+    store.update { memory -> memory.copy(digestQueue = memory.digestQueue.filter { channel(it.channel) != null }) }
     armDigest()
     centerImpl.refreshSettings()
     if (queue.isEmpty() || !notificationsAllowed()) return@onMain
-    queue.forEach { message ->
-      val channel = channel(message.channel) ?: return@forEach
-      if (!channelAllowed(channel.id)) return@forEach
+    val ready = queue.filter { channelAllowed(it.channel) }
+    if (ready.isEmpty()) return@onMain
+    ready.forEach { message ->
+      val channel = channel(message.channel)!!
       gate.submit("msg/${message.id}") {
         poster.notify(MessageTagPrefix + message.id, MessageNotificationId, buildMessage(message, channel, DigestGroup, alert = false))
+        // Uscita: via dalla coda (solo questa versione: una più nuova con lo stesso id arrivata nel frattempo resta).
+        store.update { memory -> memory.copy(digestQueue = memory.digestQueue.filterNot { it == message }) }
       }
     }
     gate.submit("digest") {
       val style = NotificationCompat.InboxStyle()
-      queue.takeLast(InboxLines).reversed().forEach { m -> style.addLine(listOfNotNull(m.title, m.text).joinToString(" · ")) }
-      val title = config.labels.digestTitle(queue.size)
-      val summary = NotificationCompat.Builder(context, FluidNotifyChannel.DigestId)
+      ready.takeLast(InboxLines).reversed().forEach { m ->
+        style.addLine(if (m.sensitive) channel(m.channel)!!.name else listOfNotNull(m.title, m.text).joinToString(" · "))
+      }
+      val title = config.labels.digestTitle(ready.size)
+      val last = ready.last()
+      val builder = NotificationCompat.Builder(context, FluidNotifyChannel.DigestId)
         .setSmallIcon(smallIcon())
         .setContentTitle(title)
-        .setContentText(queue.last().title)
+        .setContentText(if (last.sensitive) channel(last.channel)!!.name else last.title)
         .setStyle(style.setBigContentTitle(title))
         .setGroup(DigestGroup)
         .setGroupSummary(true)
         .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
         .setAutoCancel(true)
         .setContentIntent(openIntent(null, "digest"))
-        .build()
-      poster.notify(DigestTag, SummaryNotificationId, summary)
+      if (ready.any { it.sensitive }) protect(builder, FluidNotifyChannel.DigestId, config.labels.digestChannel, ready.size)
+      poster.notify(DigestTag, SummaryNotificationId, builder.build())
+      // Tutto uscito: l'allarme del prossimo riepilogo serve solo se nel frattempo è arrivato altro.
+      armDigest()
+      centerImpl.refreshSettings()
     }
   }
 
@@ -432,13 +615,18 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
 
   // --- i promemoria ---------------------------------------------------------------------------------------------------
 
-  internal fun showReminder(reminder: FluidStoredReminder, scheduledMillis: Long) {
+  /**
+   * Mostra il promemoria (al turno della porta del ritmo, sempre sul principale: `schedule` e `restore` si possono
+   * chiamare da un filo di sottofondo, R2 n. 13). Falso se non si può mostrare: le notifiche o il canale sono spenti, e
+   * il promemoria è perso, segnato «non mostrato» (R2 n. 7).
+   */
+  internal fun showReminder(reminder: FluidStoredReminder, scheduledMillis: Long): Boolean {
     val content = reminder.content
     val channelId = content.channel?.takeIf { channel(it) != null } ?: FluidNotifyChannel.RemindersId
     val channel = channel(channelId)!!
     if (!canPost(channelId)) {
       blocked(channelId)
-      return
+      return false
     }
     val builder = NotificationCompat.Builder(context, channelId)
       .setSmallIcon(config.smallIcon.takeIf { it != 0 } ?: R.drawable.fluid_notify_reminder)
@@ -461,7 +649,9 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
       builder.addAction(NotificationCompat.Action.Builder(0, action.label, pi).build())
     }
     val tag = ReminderTagPrefix + reminder.id
-    gate.submit("reminder/${reminder.id}") { poster.notify(tag, ReminderNotificationId, builder.build()) }
+    val notification = builder.build()
+    onMain { gate.submit("reminder/${reminder.id}") { poster.notify(tag, ReminderNotificationId, notification) } }
+    return true
   }
 
   internal fun cancelReminderNotification(id: String) = onMain {
@@ -481,7 +671,22 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
 
   // --- gli eventi e i tocchi ------------------------------------------------------------------------------------------
 
-  internal fun dispatch(event: FluidNotifyEvent) = onMain { config.onEvent(event) }
+  internal fun dispatch(event: FluidNotifyEvent) = onMain {
+    if (installedByApp) {
+      config.onEvent(event)
+    } else if (earlyEvents.size < MaxEarlyEvents) {
+      // L'app non ha ancora installato engine-notify: l'evento aspetta il suo gestore (R2).
+      earlyEvents += event
+    }
+  }
+
+  /** L'app ha installato engine-notify: gli eventi arrivati prima vanno al suo gestore. */
+  private fun installedNow() = onMain {
+    installedByApp = true
+    val early = earlyEvents.toList()
+    earlyEvents.clear()
+    early.forEach { config.onEvent(it) }
+  }
 
   internal fun onMessageAction(id: String, key: String) {
     dispatch(FluidNotifyEvent.Action(id, key))
@@ -503,11 +708,17 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
 
   /**
    * L'apertura al tocco: l'indirizzo [open] dentro l'app (`ACTION_VIEW` col pacchetto dell'app), o l'attività di avvio.
-   * [eventId] e [eventKey] portano un tasto che apre l'app fino a [handleIntent]. [unique] distingue i `PendingIntent`.
+   * Un indirizzo `http`/`https` che nessuna attività dell'app apre va al browser; un altro indirizzo che l'app non apre,
+   * all'attività di avvio (R2: prima il tocco non apriva niente). [eventId] e [eventKey] portano un tasto che apre l'app
+   * fino a [handleIntent]. [unique] distingue i `PendingIntent`.
    */
   internal fun openIntent(open: String?, unique: String, eventId: String? = null, eventKey: String? = null): PendingIntent {
+    val inApp = open?.let { Intent(Intent.ACTION_VIEW, Uri.parse(it)).setPackage(context.packageName) }
+      ?.takeIf { runCatching { context.packageManager.resolveActivity(it, 0) != null }.getOrDefault(true) }
+    val web = open?.takeIf { inApp == null && (it.startsWith("https://") || it.startsWith("http://")) }
     val intent = when {
-      open != null -> Intent(Intent.ACTION_VIEW, Uri.parse(open)).setPackage(context.packageName)
+      inApp != null -> inApp
+      web != null -> Intent(Intent.ACTION_VIEW, Uri.parse(web))
       config.launchActivity != null -> Intent(context, config.launchActivity)
       else -> context.packageManager.getLaunchIntentForPackage(context.packageName)
         ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
@@ -555,8 +766,19 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
     internal const val SummaryNotificationId = 0x5F1F
     internal const val ReminderNotificationId = 0x5F20
     internal const val ReplyKey = "fluid.reply"
+    /** Il segno, negli extra di una notifica dell'engine, che il suo contenuto è sensibile (per i riassunti). */
+    internal const val ExtraSensitive = "fluid.sensitive"
+    /** Il prefisso delle scorciatoie delle conversazioni dell'engine: le altre sono dell'app, e non si toccano. */
+    internal const val ConversationShortcutPrefix = "fluid.person/"
+    /** Negli extra di una scorciatoia di conversazione: quando l'ha usata l'ultima notifica (per il tetto). */
+    private const val ExtraLastUsed = "fluid.lastUsed"
+    /** `ShortcutInfo.SHORTCUT_CATEGORY_CONVERSATION`. */
+    private const val ConversationCategory = "android.shortcut.conversation"
     private const val LongTextChars = 60
     private const val InboxLines = 5
+
+    /** Quanti eventi aspettano al più l'install dell'app: un'app che non installa mai non accumula senza fine. */
+    private const val MaxEarlyEvents = 32
 
     @Volatile
     private var instance: FluidNotify? = null
@@ -566,33 +788,45 @@ class FluidNotify private constructor(context: Context, config: FluidNotifyConfi
      * comincia a seguire l'app dentro e fuori. Una seconda chiamata cambia la configurazione.
      */
     @JvmStatic
-    fun install(context: Context, config: FluidNotifyConfig): FluidNotify = synchronized(this) {
+    fun install(context: Context, config: FluidNotifyConfig): FluidNotify = install(context, config, byApp = true)
+
+    private fun install(context: Context, config: FluidNotifyConfig, byApp: Boolean): FluidNotify = synchronized(this) {
       val current = instance
       // Un'Application nuova vuol dire un processo nuovo (nelle prove Robolectric, una prova nuova): si riparte da capo.
       if (current != null && current.context !== context.applicationContext) reset()
       if (current != null && instance != null) {
         current.config = config
         current.ensureChannels()
+        if (byApp) current.installedNow()
         return current
       }
       FluidNotify(context, config).also {
         instance = it
+        it.installedByApp = byApp
         it.start()
       }
     }
 
-    /** engine-notify dell'app; se l'app non l'ha installato, con la configurazione di serie. */
+    /**
+     * engine-notify dell'app; se l'app non l'ha installato, con la configurazione di serie. Un tocco arrivato prima
+     * dell'[install] (un processo fatto ripartire da una notifica, con l'install in un'attività) aspetta l'install: il
+     * suo evento arriva allora al gestore dell'app, invece di perdersi.
+     */
     @JvmStatic
     fun get(context: Context): FluidNotify {
       val current = instance
       if (current != null && current.context === context.applicationContext) return current
-      return install(context, current?.config ?: FluidNotifyConfig())
+      return install(context, current?.config ?: FluidNotifyConfig(), byApp = current?.installedByApp ?: false)
     }
 
     internal fun peek(): FluidNotify? = instance
 
     internal fun reset() {
-      instance?.let { it.handler.removeCallbacksAndMessages(null) }
+      instance?.let {
+        it.handler.removeCallbacksAndMessages(null)
+        // Le scritture già chieste finiscono su disco: il «processo nuovo» delle prove le ritrova.
+        it.store.flush()
+      }
       instance = null
     }
   }

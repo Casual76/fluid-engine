@@ -19,20 +19,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -43,11 +49,13 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidAsyncImage
+import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
 import dev.antigravity.fluidengine.ui.fluid.FluidImagePhase
 import dev.antigravity.fluidengine.ui.fluid.FluidRadius
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerLocation
@@ -64,6 +72,18 @@ object FluidMapPostcardDefaults {
 
   /** L'altezza nel pannello info dei visori: 160 dp, la mappa di «Informazioni» di Foto in iOS 26. A occhio, 26/11/2026. */
   val ViewerHeight: Dp = 160.dp
+
+  /**
+   * La cartolina piu' stretta che tiene i crediti in vista: 80 dp. Li' «© OpenStreetMap» sta su una riga, sopra
+   * [CreditsMinFontSize]; piu' stretta non e' garantito (F8.26d). Una prova lo tiene fermo a questa misura.
+   */
+  val MinWidth: Dp = 80.dp
+
+  /** Il corpo dei crediti sulla cartolina: 9 sp, e giu' fino a [CreditsMinFontSize] se la cartolina e' piccola. */
+  val CreditsFontSize = 9.sp
+
+  /** Il corpo piu' piccolo dei crediti sulla cartolina: 7 sp. */
+  val CreditsMinFontSize = 7.sp
 }
 
 /**
@@ -77,7 +97,16 @@ object FluidMapPostcardDefaults {
  * primo arrivo entra sfocata e si mette a fuoco ([FluidAsyncImage]: e' contenuto che arriva da solo); dalla cache c'e' gia'.
  * Senza rete, il colore dello stile e il segnaposto (il luogo resta leggibile).
  *
- * TalkBack la legge come «Mappa di [title]» (o delle coordinate), con l'azione [FluidMapLabels.openMap].
+ * **I crediti** stanno nell'angolo su un fondo chiaro o scuro (si leggono anche sopra i nomi della mappa), **su una riga
+ * che non va a capo**. Se la scritta corta non ci sta resta la forma compatta ([FluidMapAttribution.compact]: «©
+ * OpenStreetMap», il credito che l'ODbL chiede in vista), che si rimpicciolisce fino a
+ * [FluidMapPostcardDefaults.CreditsMinFontSize]; il resto e' dietro un tocco sui crediti, che apre il popover coi
+ * collegamenti, come «Legale» nelle mappe di Apple. La cartolina piu' stretta che li tiene e'
+ * [FluidMapPostcardDefaults.MinWidth]. Fino alla F8.26c la scritta andava a capo in tre pezzi e la cartolina piccola ne
+ * mostrava due, senza «© OpenStreetMap».
+ *
+ * TalkBack la legge come «Mappa di [title]» (o delle coordinate), con l'azione [FluidMapLabels.openMap]; i crediti sono
+ * un tasto a parte, «Crediti della mappa».
  */
 @Composable
 fun FluidMapPostcard(
@@ -133,19 +162,72 @@ fun FluidMapPostcard(
     Box(Modifier.align(Alignment.Center).offset(y = -(FluidMapPinDefaults.Balloon + FluidMapPinDefaults.Tail) / 2)) {
       PostcardPin(markerTint)
     }
-    // I crediti interi anche sulla cartolina piccola di una riga: vanno a capo fra un nome e l'altro (al piu' due righe).
-    BasicText(
-      style.attribution.short,
-      modifier = Modifier.align(Alignment.BottomStart).padding(start = 6.dp, end = 6.dp, bottom = 4.dp),
-      style = TextStyle(
-        color = if (dark) Color.White.copy(alpha = 0.78f) else Color.Black.copy(alpha = 0.62f),
-        fontSize = 9.sp,
-        fontWeight = FontWeight.Medium,
-      ),
-      maxLines = 2,
+    FluidMapPostcardCredits(
+      attribution = style.attribution,
+      labels = labels,
+      dark = dark,
+      postcardWidthPx = widthPx,
+      modifier = Modifier.align(Alignment.BottomStart),
     )
   }
 }
+
+/**
+ * I crediti della cartolina: su un fondo, su una riga, la scritta corta se ci sta e se no quella compatta (che si
+ * rimpicciolisce se serve); un tocco apre i crediti interi.
+ */
+@Composable
+private fun FluidMapPostcardCredits(
+  attribution: FluidMapAttribution,
+  labels: FluidMapLabels,
+  dark: Boolean,
+  postcardWidthPx: Int,
+  modifier: Modifier,
+) {
+  val density = LocalDensity.current
+  val measurer = rememberTextMeasurer()
+  val textStyle = TextStyle(
+    color = if (dark) Color.White.copy(alpha = 0.92f) else Color.Black.copy(alpha = 0.74f),
+    fontSize = FluidMapPostcardDefaults.CreditsFontSize,
+    fontWeight = FontWeight.Medium,
+  )
+  val text = remember(attribution, postcardWidthPx, textStyle, density) {
+    val room = postcardWidthPx - with(density) { ((PostcardCreditsOuter + PostcardCreditsInner) * 2).roundToPx() }
+    val full = measurer.measure(attribution.short, textStyle, maxLines = 1, softWrap = false, density = density).size.width
+    if (postcardWidthPx <= 0 || full <= room) attribution.short else attribution.compact
+  }
+  var open by remember { mutableStateOf(false) }
+  var origin by remember { mutableStateOf<Rect?>(null) }
+  Box(
+    modifier
+      .padding(PostcardCreditsOuter)
+      .onGloballyPositioned { origin = it.boundsInRoot() }
+      .testTag(FluidMapTags.PostcardCredits)
+      .clip(FluidCapsuleShape)
+      .background(if (dark) Color.Black.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.8f))
+      // «Crediti della mappa» e poi la scritta che si vede; il tocco apre quelli interi.
+      .semantics { contentDescription = labels.credits }
+      .clickable(onClickLabel = labels.credits, role = Role.Button) { open = true }
+      .padding(horizontal = PostcardCreditsInner, vertical = 1.5.dp),
+  ) {
+    BasicText(
+      text,
+      style = textStyle,
+      maxLines = 1,
+      softWrap = false,
+      autoSize = TextAutoSize.StepBased(
+        minFontSize = FluidMapPostcardDefaults.CreditsMinFontSize,
+        maxFontSize = FluidMapPostcardDefaults.CreditsFontSize,
+        stepSize = 0.25.sp,
+      ),
+    )
+  }
+  FluidMapCreditsPopover(open, onDismiss = { open = false }, origin = { origin }, attribution = attribution, labels = labels)
+}
+
+/** Lo spazio fra i crediti e il bordo della cartolina, e fra la scritta e il bordo del suo fondo. */
+private val PostcardCreditsOuter = 3.dp
+private val PostcardCreditsInner = 4.dp
 
 @Composable
 private fun PostcardPin(tint: Color) {

@@ -1,8 +1,10 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import dev.antigravity.fluidengine.foundation.FluidFirstUseMemory
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Le parole della prima volta (F8.11): il foglio di benvenuto e delle novità, la spiegazione di un permesso e il suo
@@ -77,3 +79,32 @@ val LocalFluidFirstUseLabels = staticCompositionLocalOf { FluidFirstUseLabels() 
 val LocalFluidFirstUseMemory = staticCompositionLocalOf<FluidFirstUseMemory> { ProcessFirstUseMemory }
 
 private val ProcessFirstUseMemory: FluidFirstUseMemory = FluidFirstUseMemory.inMemory()
+
+/**
+ * Legge [key] senza far cadere l'app (R2): una memoria che non risponde (il file del DataStore corrotto, un errore di IO,
+ * una memoria dell'app che lancia) dà un fallimento, e chi chiama decide come se non sapesse. Non ripete l'errore nel log
+ * con la chiave o il valore: solo il tipo.
+ */
+internal suspend fun FluidFirstUseMemory.readSafely(key: String): Result<String?> =
+  try {
+    Result.success(read(key))
+  } catch (e: CancellationException) {
+    throw e
+  } catch (e: Exception) {
+    Log.w(FirstUseLogTag, "memoria della prima volta illeggibile: ${e.javaClass.simpleName}")
+    Result.failure(e)
+  }
+
+/** Scrive [key] senza far cadere l'app (R2). Falso se la memoria non l'ha preso. */
+internal suspend fun FluidFirstUseMemory.writeSafely(key: String, value: String?): Boolean =
+  try {
+    write(key, value)
+    true
+  } catch (e: CancellationException) {
+    throw e
+  } catch (e: Exception) {
+    Log.w(FirstUseLogTag, "memoria della prima volta non scritta: ${e.javaClass.simpleName}")
+    false
+  }
+
+private const val FirstUseLogTag = "FluidFirstUse"

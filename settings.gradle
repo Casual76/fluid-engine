@@ -121,6 +121,10 @@ include ':engine-wear-sync'
 // (engine-feedback: lo screenshot segnato col dito, il file per WhatsApp, la issue su GitHub). Opt-in tutti e due.
 include ':engine-diagnostics'
 include ':engine-feedback'
+// F9.3 · Una memoria che funziona: il motore della memoria di PampAI (la cassaforte, la pertinenza con engine-search,
+// l'estrattore dopo i turni, la revoca, i ricordi delle altre app, la memoria di prima). Opt-in, solo PampAI: i tipi
+// comuni e il formato delle proposte stanno in engine-ai, la card e la pagina in engine-ai-ui.
+include ':engine-ai-memory'
 
 // F6C.8 · Il modulo di famiglia di prova e l'app che lo prova in release (R8): solo nel build dell'engine.
 include ':engine-viewer-prova'

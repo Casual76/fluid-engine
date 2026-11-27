@@ -38,6 +38,11 @@ import kotlinx.coroutines.withContext
  * lettura ([reload]). [add] prende il permesso, [remove] lo restituisce. Il nome è quello della cartella; la seconda
  * riga dice da dove viene («Sul telefono», «Download», il nome dell'app del provider).
  *
+ * **Il permesso di chi è** (R1). Lo sfoglia-file mostra tutte le cartelle concesse all'app, anche quelle che usa un'altra
+ * sua funzione (la cartella delle esportazioni, un'importazione). [remove] restituisce il permesso solo se l'ha preso lo
+ * sfoglia-file con [add] e nessuno ci scrive; altrimenti la cartella si **nasconde** soltanto (anche ai prossimi avvii),
+ * e l'altra funzione non perde l'accesso. Riscelta con [add], torna.
+ *
  * Android non concede la radice della memoria interna né la cartella Download intera (da Android 11): il selettore
  * propone di scegliere una cartella dentro. È la regola della piattaforma, non dell'engine.
  */
@@ -64,27 +69,42 @@ class FluidFileLocations internal constructor(context: Context) {
    * Restituisce la sorgente, o null se il permesso non si può prendere (il selettore non l'ha concesso).
    */
   suspend fun add(treeUri: Uri): FluidFileSource? {
-    val taken = try {
-      app.contentResolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-      true
-    } catch (_: SecurityException) {
-      false
+    val taken = withContext(Dispatchers.IO) {
+      // Una cartella che l'app teneva già (un'altra funzione) non diventa dello sfoglia-file: togliendola si nasconde.
+      val held = app.contentResolver.persistedUriPermissions.any { it.uri == treeUri }
+      try {
+        app.contentResolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val key = treeUri.toString()
+        store(owned = if (held) stored(OwnedKey) else stored(OwnedKey) + key, hidden = stored(HiddenKey) - key)
+        true
+      } catch (_: SecurityException) {
+        false
+      }
     }
     reload()
     if (!taken) return null
     return sources.firstOrNull { (it as? FluidDocumentTreeSource)?.treeUri == treeUri }
   }
 
-  /** Toglie la cartella: restituisce il permesso persistente. I file restano dove sono. */
+  /**
+   * Toglie la cartella dalle posizioni. Se il permesso l'ha preso lo sfoglia-file ([add]) e nessuno ci scrive, lo
+   * restituisce; altrimenti (la usa un'altra funzione dell'app) la nasconde soltanto. I file restano dove sono.
+   */
   suspend fun remove(source: FluidFileSource) {
     val tree = (source as? FluidDocumentTreeSource)?.treeUri ?: return
     withContext(Dispatchers.IO) {
-      for (flags in listOf(Intent.FLAG_GRANT_READ_URI_PERMISSION,
-          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)) {
+      val key = tree.toString()
+      val held = app.contentResolver.persistedUriPermissions.firstOrNull { it.uri == tree }
+      val ours = key in stored(OwnedKey)
+      if (ours && held?.isWritePermission != true) {
         try {
-          app.contentResolver.releasePersistableUriPermission(tree, flags)
+          app.contentResolver.releasePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: SecurityException) {
         }
+        store(owned = stored(OwnedKey) - key, hidden = stored(HiddenKey) - key)
+      } else {
+        // R1: prima si restituivano lettura e scrittura, e l'export perdeva la sua cartella.
+        store(owned = stored(OwnedKey) - key, hidden = stored(HiddenKey) + key)
       }
     }
     reload()
@@ -94,8 +114,9 @@ class FluidFileLocations internal constructor(context: Context) {
   fun owns(source: FluidFileSource): Boolean = source is FluidDocumentTreeSource && sources.any { it.id == source.id }
 
   private fun read(): List<FluidFileSource> {
+    val hidden = stored(HiddenKey)
     val trees = app.contentResolver.persistedUriPermissions
-      .filter { it.isReadPermission && DocumentsContract.isTreeUri(it.uri) }
+      .filter { it.isReadPermission && DocumentsContract.isTreeUri(it.uri) && it.uri.toString() !in hidden }
       .map { it.uri }
       .distinct()
     return trees.map { tree ->
@@ -143,6 +164,15 @@ class FluidFileLocations internal constructor(context: Context) {
     else -> FluidIcons.Cloud
   }
 
+  /** Quali cartelle ha preso lo sfoglia-file ([OwnedKey]) e quali ha nascosto ([HiddenKey]): un file corto dell'app. */
+  private val prefs by lazy { app.getSharedPreferences(PrefsName, Context.MODE_PRIVATE) }
+
+  private fun stored(key: String): Set<String> = prefs.getStringSet(key, null)?.toSet().orEmpty()
+
+  private fun store(owned: Set<String>, hidden: Set<String>) {
+    prefs.edit().putStringSet(OwnedKey, owned).putStringSet(HiddenKey, hidden).apply()
+  }
+
   /** Le parole delle posizioni (le stesse di [FluidFileBrowserStrings]). */
   internal var words: FluidFileBrowserStrings = FluidFileBrowserStrings()
 
@@ -150,6 +180,9 @@ class FluidFileLocations internal constructor(context: Context) {
     internal const val ExternalStorage = "com.android.externalstorage.documents"
     internal const val Downloads = "com.android.providers.downloads.documents"
     internal const val Media = "com.android.providers.media.documents"
+    private const val PrefsName = "fluid_file_locations"
+    private const val OwnedKey = "owned"
+    private const val HiddenKey = "hidden"
 
     /**
      * Dove apre il selettore: la memoria interna del telefono (il documento `primary:`). È un suggerimento: l'utente

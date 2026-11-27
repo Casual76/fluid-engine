@@ -38,6 +38,12 @@ import java.io.FileOutputStream
  *   (`grantUriPermission`), nell'ordine chiesto; un indirizzo che non si puo' dare conta fra i saltati. Gli indirizzi
  *   devono stare in un provider di questa app con `grantUriPermissions` (MyCloud Gallery: il suo `DocumentsProvider` con
  *   gli id opachi consegnati);
+ * - **quanto vale la consegna** (R1): il permesso dato con `Context.grantUriPermission` non ha un'attività che lo chiuda.
+ *   Vale finché qualcuno non chiama `revokeUriPermission`, il telefono non si riavvia o una delle due app non viene
+ *   fermata o tolta: **bloccare la sorgente non lo toglie**. È come il selettore di iOS, dove ciò che è consegnato resta
+ *   all'app che l'ha chiesto. Se il blocco deve chiudere anche ciò che è già stato consegnato, è il provider che serve i
+ *   file a ricontrollare il blocco a ogni apertura (`openDocument`/`openFile`), perché ogni lettura passa da lì;
+
  * - **le miniature**: `openTypedAssetFile` su [FluidMediaSourceContract.thumbnailUri], col lato chiesto in
  *   `ContentResolver.EXTRA_SIZE`, scritte in JPEG su un tubo, mai il file intero.
  *

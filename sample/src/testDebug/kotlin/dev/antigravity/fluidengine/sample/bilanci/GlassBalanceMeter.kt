@@ -14,7 +14,11 @@ import kotlin.math.max
  *  - **stesso campo, stessa revisione**: nessun layer (RenderNode) registrato due volte nello stesso fotogramma, e nessun
  *    vetro che cattura due volte nello stesso fotogramma (il mondo, in un fotogramma, ha una revisione sola);
  *  - **il filtro dentro il rettangolo più il margine ottico**: ogni cattura è grande quanto il vetro (o la sua finestra,
- *    nei menu) alla scala scelta, più al massimo il margine dichiarato (`@margine`, di serie zero) per lato.
+ *    nei menu) alla scala scelta, più al massimo il margine dichiarato (`@margine`, di serie zero) per lato;
+ *  - **nessuna fabbrica a ogni fotogramma** (F7.29): layer, bitmap o programmi nuovi in almeno metà dei fotogrammi del
+ *    moto stabile. Il tetto `fab` del moto è il massimo per fotogramma, e una lista che scorre lo raggiunge quando
+ *    entra una riga; questa invariante ferma ciò che nasce a ogni fotogramma (o a fotogrammi alterni) anche sotto il
+ *    tetto.
  *
  * Il misuratore non disegna: chi lo usa disegna un fotogramma e gli passa gli eventi del log `FluidGlassFrame` di quel
  * fotogramma ([frame]). Legge da solo la diagnostica del vetro, i byte del vetro ([usage]) e le fabbriche
@@ -66,6 +70,8 @@ internal class GlassBalanceMeter(
   private var effects = 0L
   private var stableFactories = 0L
   private var stableEffects = 0L
+  private var stableFrameCount = 0
+  private var stableFactoryFrames = 0
   private var recordings = 0L
   private var lastCaptures = 0L
   private var lastFactories = GlassFactoryCounters.snapshot()
@@ -96,10 +102,13 @@ internal class GlassBalanceMeter(
     effects = 0
     stableFactories = 0
     stableEffects = 0
+    stableFrameCount = 0
+    stableFactoryFrames = 0
     recordings = 0
     lastCaptures = FluidGlassDiagnostics.totalCaptures
     lastFactories = GlassFactoryCounters.snapshot()
     GlassFactoryCounters.takeRecordings()
+    GlassFactoryCounters.takeBornNodes()
   }
 
   /** Comincia la posa: il primo dei due campioni separati. */
@@ -131,13 +140,19 @@ internal class GlassBalanceMeter(
     factories += born.heavy
     effects += born.effects
     val createdNow = GlassFactoryCounters.takeCreated()
+    val bornNodes = GlassFactoryCounters.takeBornNodes()
     val inStable = stable?.contains(frameIndex) == true
     if (inStable) {
       stableFactories = max(stableFactories, born.heavy)
       stableEffects = max(stableEffects, born.effects)
+      // F7.29 · Una fabbrica a ogni fotogramma: si contano i fotogrammi stabili che ne hanno (la guardia è in [end]).
+      stableFrameCount++
+      if (born.heavy > 0) stableFactoryFrames++
     }
     if ((inStable || quietStart != null) && born.heavy > 0) {
-      notes += "$name: fabbriche nuove ($born), layer nati: ${createdNow.groupingBy { it }.eachCount()}"
+      val owners = runCatching { LayerOwners.describe(root(), bornNodes) }.getOrDefault(emptyMap())
+      notes += "$name, fotogramma $frameIndex: fabbriche nuove ($born), layer nati: ${createdNow.groupingBy { it }.eachCount()}" +
+        (if (owners.isNotEmpty()) "; di chi: $owners" else "")
     }
     for (twice in GlassFactoryCounters.takeOutside().filter { it.count > 1 }) {
       notes += "$name: ${twice.name} registrato ${twice.count} volte fuori dal disegno della prova (non conta)"
@@ -184,6 +199,15 @@ internal class GlassBalanceMeter(
       }
     }
     val stableRange = stable
+    // F7.29 · Una fabbrica a ogni fotogramma. Una lista che scorre crea i layer di ciò che entra in vista solo ogni tanto
+    // (a 12 px per fotogramma una riga ogni 4–12 fotogrammi, tutta in un fotogramma), e le miniature o le cifre che
+    // arrivano a scaglioni in qualche fotogramma vicino: il tetto `fab` ne dice il costo. Layer, bitmap o programmi
+    // nuovi in almeno metà dei fotogrammi stabili vogliono dire che qualcosa nasce a ogni fotogramma (o a fotogrammi
+    // alterni): rosso anche sotto il tetto. Almeno tre, perché un tratto stabile corto con una riga che entra non basta.
+    if (stableRange != null && stableFactoryFrames >= 3 && stableFactoryFrames * 2 >= stableFrameCount) {
+      violations += "$label/$name, fotogrammi stabili: layer, bitmap o programmi nuovi in $stableFactoryFrames su " +
+        "$stableFrameCount (una fabbrica a ogni fotogramma: almeno la metà, e almeno tre)"
+    }
     GlassFactoryCounters.traceCreations = false
     val measured = linkedMapOf(
       BalanceColumn.Nodes to (if (release) liveNodes() - baseNodes else maxNodes - baseNodes).toLong(),

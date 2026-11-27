@@ -7,12 +7,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Velocity
 import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics as ResourceOptics
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /** Solo il fondale. Il filo e la finitura del materiale hanno la griglia dello schermo. */
@@ -89,6 +94,14 @@ class FluidGlassQuality internal constructor(
   internal var scrolling by mutableStateOf(false)
     private set
 
+  /**
+   * F7.26, review R2 (difetto 4): chi fa risalire il materiale dopo la posa, un fotogramma alla volta. Lo dà
+   * [rememberFluidGlassQuality] (lo scope della composizione, col suo orologio dei fotogrammi). Senza, la fine del gesto
+   * riporta il materiale intero subito, come fino a F7.25.
+   */
+  internal var settleScope: CoroutineScope? = null
+  private var settleJob: Job? = null
+
   /** 1 = materiale pieno, [ScrollingFloor] = quanto ne resta durante uno scorrimento veloce. */
   val level: Float get() = minOf(_level, ceiling())
 
@@ -104,7 +117,10 @@ class FluidGlassQuality internal constructor(
 
   internal fun onScrollDelta(deltaPx: Float, horizontalPx: Float) {
     if (deltaPx.isFinite() && deltaPx != 0f || horizontalPx.isFinite() && horizontalPx != 0f) scrolling = true
-    val speed = abs(deltaPx)
+    // F7.26, review R2 (difetto 3): la velocità è la più grande delle due componenti, come già `scrolling`. Fino a
+    // F7.25 contava solo la y, e un pager o una fila lanciati in orizzontale sotto una barra di vetro tenevano il
+    // materiale intero per tutto il lancio. Una componente non finita vale ferma.
+    val speed = maxOf(if (deltaPx.isFinite()) abs(deltaPx) else 0f, if (horizontalPx.isFinite()) abs(horizontalPx) else 0f)
     val target = targetLevel(speed)
     _level = if (target < _level) {
       // Giù subito: la pagina si sta muovendo e nessuno vede il cambio.
@@ -115,10 +131,37 @@ class FluidGlassQuality internal constructor(
     }
   }
 
-  /** Il gesto è finito e non c'è più inerzia: il materiale torna pieno. */
+  /**
+   * Il gesto è finito e non c'è più inerzia: il materiale torna pieno, **con la stessa rampa** della pagina che rallenta
+   * ([RecoveryRate] della distanza per fotogramma, da [ScrollingFloor] a pieno in 40 fotogrammi: un terzo di secondo a 120 Hz).
+   *
+   * F7.26, review R2 (difetto 4): fino a F7.25 tornava pieno in un fotogramma. Nel lancio che si spegne da solo non si
+   * vedeva (la coda lenta aveva già recuperato), ma quando il dito **ferma** un lancio veloce il livello saltava dal
+   * pavimento a 1 proprio sotto il dito che aveva appena preso la pagina: la lente quattro volte più profonda, la
+   * sfocatura dal 59 al 100 %, la frangia che si riaccende. Un nuovo scorrimento interrompe la rampa.
+   */
   internal fun onSettled() {
     scrolling = false
-    _level = 1f
+    val scope = settleScope
+    if (scope == null) {
+      _level = 1f
+      return
+    }
+    settleJob?.cancel()
+    if (_level >= 1f) return
+    settleJob = scope.launch {
+      while (_level < 1f) {
+        withFrameNanos { }
+        if (scrolling) break
+        settleFrame()
+      }
+    }
+  }
+
+  /** Un fotogramma della rampa di [onSettled]. */
+  internal fun settleFrame() {
+    val next = _level + (1f - _level) * RecoveryRate
+    _level = if (next >= 1f - SettledEpsilon) 1f else next
   }
 
   companion object {
@@ -140,6 +183,9 @@ class FluidGlassQuality internal constructor(
     /** Frazione della distanza recuperata per fotogramma quando la pagina rallenta. */
     private const val RecoveryRate: Float = 0.12f
 
+    /** Sotto questa distanza dal pieno la rampa della posa chiude a 1 (mezzo per cento: non si vede). */
+    private const val SettledEpsilon: Float = 0.005f
+
     internal fun targetLevel(speedPxPerFrame: Float): Float {
       if (!speedPxPerFrame.isFinite()) return 1f
       if (speedPxPerFrame <= FullQualityVelocity) return 1f
@@ -157,8 +203,10 @@ class FluidGlassQuality internal constructor(
 val LocalFluidGlassQuality = compositionLocalOf<FluidGlassQuality?> { null }
 
 @Composable
-fun rememberFluidGlassQuality(ceiling: () -> Float = { 1f }): FluidGlassQuality =
-  remember { FluidGlassQuality(ceiling) }
+fun rememberFluidGlassQuality(ceiling: () -> Float = { 1f }): FluidGlassQuality {
+  val scope = rememberCoroutineScope()
+  return remember { FluidGlassQuality(ceiling).also { it.settleScope = scope } }
+}
 
 /** Il valore che una superficie deve usare adesso. */
 @Composable
@@ -182,7 +230,8 @@ fun fluidGlassQualityScrollConnection(quality: FluidGlassQuality): NestedScrollC
     override suspend fun onPreFling(available: Velocity): Velocity {
       // Un lancio *comincia* veloce: portare giù la qualità qui evita il fotogramma pieno che
       // altrimenti si paga proprio mentre l'inerzia parte.
-      quality.onScrollDelta(abs(available.y) / 60f)
+      // F7.26 (R2): anche la componente orizzontale del lancio.
+      quality.onScrollDelta(abs(available.y) / 60f, abs(available.x) / 60f)
       return Velocity.Zero
     }
 

@@ -119,6 +119,66 @@ class FluidAudioRecorderTest {
     assertTrue(recording.durationMillis in 150L..260L)
   }
 
+  /** Le due misure dell'intestazione di un WAV sul disco: la dimensione del RIFF e quella dei dati. */
+  private fun sizesOnDisk(file: File): Pair<Int, Int> {
+    val header = ByteBuffer.wrap(file.readBytes(), 0, 44).order(ByteOrder.LITTLE_ENDIAN)
+    return header.getInt(4) to header.getInt(40)
+  }
+
+  @Test
+  fun aWavBeingRecordedKeepsItsSizesOnDiskIfTheProcessDies() = runBlocking {
+    // R1 (Muse 4): una lezione registrata e il processo che muore a meta'. Niente stop(): quel che resta e' il file sul disco,
+    // che deve dire quanto audio contiene (al piu' un secondo indietro).
+    val mic = ScriptedMicrophone(tone(seconds = 2.6, amplitude = 0.25))
+    val recorder = FluidAudioRecorder(mic, config)
+    val target = File(folder, "lezione.wav")
+    assertTrue(recorder.start(target))
+    waitFor { recorder.envelope.size >= 125 }
+    val (riff, data) = sizesOnDisk(target)
+    val onDisk = target.length() - 44
+    println("R1 Muse 4: $data byte di dati nell'intestazione, $onDisk sul disco")
+    assertTrue("l'intestazione dice $data byte su $onDisk", data >= 2 * 48_000 * 2)
+    assertTrue(data <= onDisk)
+    assertEquals(36 + data, riff)
+    recorder.discard()
+  }
+
+  @Test
+  fun afterAFailedCaptureResetAndStartThrowTheHalfFileAway() = runBlocking {
+    // R1 (Muse 13, scelta di Alessio del 26/11/2026: b): la cattura fallisce da sola (Failed). Chi torna a riposo o
+    // ricomincia senza stop() non lascia il file aperto, e il file a meta' si butta. Solo stop() lo chiude e lo consegna.
+    val mic = ScriptedMicrophone(tone(seconds = 0.3, amplitude = 0.3), failAfterScript = true, failWith = FluidMicrophoneFailure.Unknown)
+    val recorder = FluidAudioRecorder(mic, config)
+    val first = File(folder, "prima.wav")
+    assertTrue(recorder.start(first))
+    waitFor { recorder.status.value is FluidRecorderStatus.Failed }
+    recorder.reset()
+    assertFalse("reset() lascia il file a meta'", first.exists())
+    assertTrue(recorder.status.value is FluidRecorderStatus.Idle)
+
+    // Lo stesso con start(): la registrazione nuova butta quella fallita.
+    val again = ScriptedMicrophone(tone(seconds = 0.2, amplitude = 0.3), failAfterScript = true, failWith = FluidMicrophoneFailure.Unknown)
+    val second = FluidAudioRecorder(again, config)
+    val failed = File(folder, "seconda.wav")
+    assertTrue(second.start(failed))
+    waitFor { second.status.value is FluidRecorderStatus.Failed }
+    assertTrue(second.start(File(folder, "terza.wav")))
+    assertFalse("start() lascia il file a meta'", failed.exists())
+    second.discard()
+
+    // stop() dopo una cattura fallita invece consegna quel che c'e', chiuso e leggibile.
+    val third = FluidAudioRecorder(
+      ScriptedMicrophone(tone(seconds = 0.3, amplitude = 0.3), failAfterScript = true, failWith = FluidMicrophoneFailure.Unknown),
+      config,
+    )
+    val kept = File(folder, "quarta.wav")
+    assertTrue(third.start(kept))
+    waitFor { third.status.value is FluidRecorderStatus.Failed }
+    val recording = third.stop()
+    assertNotNull(recording)
+    assertEquals(0.3 * 48_000 * 2, sizesOnDisk(kept).second.toDouble(), 0.0)
+  }
+
   @Test
   fun trimSilenceCutsHeadAndTail() = runBlocking {
     val script = silence(1.0) + tone(seconds = 0.6, amplitude = 0.3)
@@ -195,12 +255,15 @@ class FluidAudioRecorderTest {
     private val script: ShortArray,
     private val startsOk: Boolean = true,
     private val failAfterScript: Boolean = false,
+    /** Il perché di un errore: di serie quello di un microfono perso (o occupato, se non parte). */
+    private val failWith: FluidMicrophoneFailure? = null,
   ) : FluidPcmSource {
     @Volatile var started = false
     @Volatile var starts = 0
     private var at = 0
     override var onInterrupted: (() -> Unit)? = null
-    override val failure: FluidMicrophoneFailure get() = if (startsOk) FluidMicrophoneFailure.Lost else FluidMicrophoneFailure.Busy
+    override val failure: FluidMicrophoneFailure
+      get() = failWith ?: if (startsOk) FluidMicrophoneFailure.Lost else FluidMicrophoneFailure.Busy
 
     override fun start(sampleRate: Int): Boolean {
       if (!startsOk) return false

@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.files
 
+import android.content.Intent
 import android.provider.DocumentsContract
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -172,5 +173,60 @@ class FluidFileSourcesTest {
     locations.remove(added)
     assertTrue(locations.sources.isEmpty())
     assertTrue(context.contentResolver.persistedUriPermissions.none { it.uri == tree })
+  }
+
+  @Test
+  fun `removing a location the export also uses hides it and keeps the permission`() = runBlocking {
+    FakeTreeProvider.names["primary:Export"] = "Export"
+    val tree = FakeTreeProvider.tree("primary:Export")
+    // Un'altra funzione dell'app (l'export) ha preso lettura e scrittura sulla stessa cartella.
+    val both = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+    context.contentResolver.takePersistableUriPermission(tree, both)
+    val locations = FluidFileLocations.of(context)
+    locations.reload()
+    val shown = locations.sources.single()
+    assertEquals("Export", shown.title)
+    locations.remove(shown)
+    assertTrue("l'export tiene lettura e scrittura", context.contentResolver.persistedUriPermissions.any {
+      it.uri == tree && it.isReadPermission && it.isWritePermission
+    })
+    assertTrue("lo sfoglia-file non la mostra piu'", locations.sources.isEmpty())
+    assertTrue("nemmeno al prossimo avvio", FluidFileLocations.of(context).apply { reload() }.sources.isEmpty())
+    // Riscelta dal selettore, torna fra le posizioni.
+    assertNotNull(locations.add(tree))
+    assertEquals(listOf("Export"), locations.sources.map { it.title })
+  }
+
+  @Test
+  fun `removing a location the app already had before keeps its permission`() = runBlocking {
+    FakeTreeProvider.names["primary:Import"] = "Import"
+    val tree = FakeTreeProvider.tree("primary:Import")
+    // L'app la teneva gia' in sola lettura (un'importazione), prima che lo sfoglia-file la aggiungesse.
+    context.contentResolver.takePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    val locations = FluidFileLocations.of(context)
+    val added = locations.add(tree)!!
+    locations.remove(added)
+    assertTrue("l'importazione tiene la lettura", context.contentResolver.persistedUriPermissions.any {
+      it.uri == tree && it.isReadPermission
+    })
+    assertTrue(locations.sources.isEmpty())
+  }
+
+  @Test
+  fun `the pages of the app folder come from one reading`() = runBlocking {
+    val root = File(context.filesDir, "pagine-${System.nanoTime()}").apply { mkdirs() }
+    for (i in 1..450) File(root, "File %03d.txt".format(Locale.ROOT, i)).writeText("$i")
+    val source = FluidFileSources.appFolder(root, "app", "In Fluid Glass")
+    val first = source.list(FluidFileQuery(null))
+    assertEquals(200, first.items.size)
+    // Un file nuovo arriva mentre si scorre: le pagine dopo restano quelle della prima lettura (niente doppioni).
+    File(root, "File 000.txt").writeText("0")
+    val second = source.list(FluidFileQuery(null, cursor = first.next))
+    val third = source.list(FluidFileQuery(null, cursor = second.next))
+    val all = (first.items + second.items + third.items).map { it.name }
+    assertEquals("nessun doppione fra le pagine", all.size, all.toSet().size)
+    assertEquals(450, all.size)
+    // Una lettura da capo (senza segno) vede il file nuovo.
+    assertEquals("File 000.txt", source.list(FluidFileQuery(null)).items.first().name)
   }
 }

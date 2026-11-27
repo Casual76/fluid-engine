@@ -65,6 +65,12 @@ Catalogo delle firme: [`../api/map.md`](../api/map.md) (generato). Il foglio sot
   l'altro (il «©» resta attaccato al suo nome) e non passa mai sotto i comandi. TalkBack la legge **una volta**, come un
   tasto: «Crediti della mappa: OpenFreeMap © OpenMapTiles © OpenStreetMap» (F8.26c; prima la scritta del vetro si
   aggiungeva e i crediti si sentivano due volte).
+- **Il luogo scelto si vede** (F8.26d), come in Mappe: con `selectedMarkerId` la mappa porta il segnaposto in vista da
+  sé. Se il foglio lo copre, se sta sotto le barre o fuori dallo schermo lo centra nella parte che si vede (sopra il
+  foglio, all'altezza a cui il foglio si posa); se sta dentro un grappolo avvicina fin dove è da solo; se si vede già la
+  mappa non si muove. L'app sceglie e basta (non serve un `animateTo` suo).
+- **I segnaposto stanno sopra il vetro dei crediti** (F8.26d): un grappolo che passa accanto ai crediti non finisce
+  sotto il vetro. I comandi restano sopra tutto.
 - **Il tasto della posizione** per TalkBack è «Posizione», anche prima che l'app la sappia (il tocco la chiede), e
   «Posizione, la mappa ti segue» quando la segue. Fino alla F8.26b prima del tocco diceva «Posizione non disponibile».
 - **Il dito.** La mappa vera la muove MapLibre; il disegno ha gli stessi gesti: un dito trascina e lancia, due dita
@@ -77,21 +83,27 @@ grappoli (un raggio di schermo e mezzo attorno a una cella del livello); la buss
 numero letto da TalkBack solo quando cambia. A camera ferma niente ridisegna.
 
 **Il vetro.** I comandi, il foglio e i pannelli rifrangono la mappa solo se il motore la disegna dentro Compose
-(`FluidMapEngine.glassSamplesMap`): il disegno sempre, MapLibre con `FluidMapRenderMode.Texture` (una `TextureView`, di
-serie). Con `FluidMapRenderMode.Surface` (una `SurfaceView`, in una finestra sua) il vetro non la vede: sopra la mappa si
-vede chiaro, con la tinta e il filo ma senza sfocatura. Le misure dei due modi sono nel rapporto di F8.26
-(`artifacts/liquid-glass/sessioni/f8-26/rapporto.md`): sul Tab S9, col dito che trascina, `Texture` costa più CPU (il
-filo di MapLibre 4,9 s contro 3,0 in 14 s) ma il 99° percentile del disegno è 6,6 ms e i fotogrammi in ritardo 5 su 705.
-**Il limite dei fotogrammi** (F8.26c): in una `TextureView` MapLibre non aspetta lo schermo, e sul Tab S9 col dito che
-trascina disegnava **220 fotogrammi al secondo** su uno schermo da 120 (quasi metà buttati). Di serie
-`FluidMapLibreEngine` gli mette il limite del ritmo più alto dello schermo (`maximumFps =
-FluidMapLibreEngine.screenMaximumFps(context)`, `MapView.setMaximumFps`); `maximumFps = 0` lo toglie.
+(`FluidMapEngine.glassSamplesMap`): il disegno sempre, MapLibre con `FluidMapRenderMode.Texture` (una `TextureView`).
 
-**`Surface` solo a mano, per ora.** Sul Tab S9 (26/11/2026) la mappa in `SurfaceView` era **nera**: MapLibre la
-disegnava (681 fotogrammi nella traccia), ma `FluidMap` la teneva dentro la registrazione del vetro
-(`glassBackdropSource`, che quando il vetro la campiona si compone in un layer fuori schermo), e il buco che la
-`SurfaceView` apre nella finestra restava chiuso lì dentro. Dalla F8.26c una mappa che il vetro non vede sta **fuori**
-dalla sorgente, sotto. Nessuna fascia sceglie `Surface` da sola finché il telefono non mostra la mappa. Il foglio e i pannelli si disegnano nell'host dei modali: perché
+**`TextureView` per tutti, col limite dei fotogrammi di serie.** In una `TextureView` MapLibre non aspetta lo schermo:
+sul Tab S9 col dito che trascina disegnava **252 fotogrammi al secondo** su uno schermo da 120. Di serie
+`FluidMapLibreEngine` gli mette il limite del ritmo più alto dello schermo (`maximumFps =
+FluidMapLibreEngine.screenMaximumFps(context)`, `MapView.setMaximumFps`; `maximumFps = 0` lo toglie). Misurato sul Tab S9
+(26/11/2026, tre corse alternate per modo e una traccia): col limite **112 fotogrammi al secondo**, regolari (uno ogni
+8,2 ms), il filo di MapLibre al **52%** di un core invece del 76%, e gli stessi fotogrammi in ritardo (2 su 636; in
+`gfxinfo` 0,30–0,44% in tutti e due i modi). **Per i telefoni deboli** il modo leggero è questo stesso con un vetro
+semplice sopra (la sfocatura con la tinta, senza rifrazione: la scala del vetro), non la `SurfaceView`. Il resto del
+costo di `Texture` è nel RenderThread dell'app (49% contro 27% della `SurfaceView`): la tessera copiata nella finestra e
+il vetro che la rifrange.
+
+**`Surface` solo a mano.** Con `FluidMapRenderMode.Surface` (una `SurfaceView`, in una finestra sua) il vetro non vede
+la mappa: sopra si vede chiaro, con la tinta e il filo ma senza sfocatura. **Nessuna fascia la sceglie.** Fino alla
+F8.26b era **nera**: `FluidMap` la teneva dentro la registrazione del vetro (`glassBackdropSource`, che quando il vetro
+la campiona si compone in un layer fuori schermo), e il buco che la `SurfaceView` apre nella finestra restava chiuso lì
+dentro. Dalla F8.26c una mappa che il vetro non vede sta **fuori** dalla sorgente, sotto, e sul Tab S9 si vede. Le
+misure dei tre modi sono nel rapporto di F8.26 (`artifacts/liquid-glass/sessioni/f8-26/rapporto.md`).
+
+Il foglio e i pannelli si disegnano nell'host dei modali: perché
 rifrangano la mappa e non la pagina sotto, l'host va messo **sopra la mappa** con la stessa registrazione
 (`FluidMapGlassHost(backdrop)` e `FluidMap(…, backdrop = backdrop)`).
 
@@ -142,6 +154,14 @@ disco (240 cartoline nella cache dell'app, `FluidMapSnapshots`). La prima volta 
 (`FluidAsyncImage`); dalla cache c'è già. Senza rete resta il colore dello stile col segnaposto. TalkBack la legge «Mappa
 di Piazza della Signoria» con l'azione «Apri la mappa».
 
+**I crediti della cartolina** (F8.26d) stanno nell'angolo su un fondo chiaro o scuro, così si leggono anche sopra i nomi
+della mappa, e **su una riga che non va a capo**. Se la scritta corta non ci sta resta la forma compatta
+(`FluidMapAttribution.compact`, di serie «© OpenStreetMap»: il credito che l'ODbL chiede in vista), che scende fino a
+7 sp; il resto è **dietro un tocco** sui crediti, che apre il popover coi collegamenti, come «Legale» nelle mappe di
+Apple. La cartolina più stretta che tiene i crediti è `FluidMapPostcardDefaults.MinWidth` (80 dp); una prova lo tiene
+fermo. Per TalkBack i crediti sono un tasto a parte, «Crediti della mappa». Fino alla F8.26c la scritta andava a capo in
+tre pezzi e la cartolina di una riga ne mostrava due, senza «© OpenStreetMap».
+
 `fluidViewerLocation(punto, nome, onOpen)` dà il `FluidViewerLocation` del pannello info dei visori: le coordinate come
 Mappe, la cartolina alta 160 dp al posto della mappa che prima disegnava l'app, e «Apri la mappa».
 
@@ -182,6 +202,9 @@ MapLibre. Il DEX misurato nella bench della galleria è nel rapporto di F8.26.
   stessa `backdrop` di `FluidMap`: l'host della radice registra la pagina, non la mappa.
 - *Sintomo*: i comandi di vetro neri o vuoti. → La mappa in una `SurfaceView` (`FluidMapRenderMode.Surface`): il vetro
   campiona solo una `TextureView` o Compose.
+- *Sintomo*: nella cartolina manca «© OpenStreetMap». → La cartolina è più stretta di `FluidMapPostcardDefaults.MinWidth`
+  (80 dp), o uno stile dell'app ha una `FluidMapAttribution` senza `compact`: la forma compatta deve dire almeno il
+  credito che la licenza dei dati chiede.
 - *Sintomo*: la mappa nera, con i segnaposto e i comandi sopra. → Una `SurfaceView` dentro un layer fuori schermo (la
   registrazione del vetro, un `graphicsLayer` con `CompositingStrategy.Offscreen` o con l'alfa): il buco nella finestra
   non si apre. `FluidMap` la tiene fuori dalla sua sorgente (F8.26c); fuori da `FluidMap` non va messa dentro un layer.

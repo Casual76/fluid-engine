@@ -182,11 +182,15 @@ fun FluidInkCanvas(
   if (pdf != null) {
     LaunchedEffect(controller, pdf) {
       snapshotFlow { controller.visiblePdfRequest() }.collect { request ->
-        for (index in request.pages) pdf.prepare(index, request.widthPx)
         // Solo le pagine vicine a quelle che si vedono restano in memoria (due per parte): un PDF lungo non si accumula.
+        // R1: prima si tolgono le lontane, poi si chiedono quelle di adesso, dentro il tetto dei visori.
         val first = request.pages.minOrNull() ?: return@collect
         val last = request.pages.maxOrNull() ?: return@collect
-        pdf.ready.keys.filter { it < first - 2 || it > last + 2 }.forEach { pdf.ready.remove(it) }
+        pdf.ready.keys.filter { it < first - 2 || it > last + 2 }.forEach { pdf.release(it) }
+        // Nitide quelle che si vedono; le vicine (che arrivano scorrendo) a meta' larghezza.
+        request.pages.forEachIndexed { i, index ->
+          pdf.prepare(index, if (i < request.sharp) request.widthPx else request.widthPx / 2, keep = request.pages)
+        }
       }
     }
   }
@@ -304,7 +308,7 @@ internal val OverlayInk = Color(0xFF636366)
 internal val RulerFill = Color(0x598E8E93)
 
 /** Le pagine del PDF da preparare e a che larghezza. */
-internal data class InkPdfRequest(val pages: List<Int>, val widthPx: Int)
+internal data class InkPdfRequest(val pages: List<Int>, val widthPx: Int, val sharp: Int = pages.size)
 
 /**
  * Il cervello del foglio: la vista, i gesti, il tratto in corso, la resa e i disegni sopra. Uno per foglio
@@ -402,7 +406,7 @@ internal class InkCanvasController(val state: FluidInkState, val sheet: FluidInk
     val target = widest * v.scale
     var step = size.width.toFloat()
     while (step < target && step < InkPdfPages.MaxPagePixels) step *= 1.5f
-    return InkPdfRequest(pages, step.roundToInt().coerceAtMost(InkPdfPages.MaxPagePixels))
+    return InkPdfRequest(pages, step.roundToInt().coerceAtMost(InkPdfPages.MaxPagePixels), sharp = seen.size)
   }
 
   // --- Il tratto nativo ----------------------------------------------------------------------------------------------

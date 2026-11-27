@@ -301,6 +301,9 @@ FluidWidgetShowcase(
   `android:previewImage` (un'immagine, prima), nell'`appwidget-provider` XML. E' quella che il launcher mostra nel foglio
   della richiesta e nell'elenco dei widget. **Senza, «Aggiungi alla Home» si presenta male**: sul Tab S9 (One UI, Android
   16) il foglio «Aggiungere alla schermata Home?» scriveva «Aggiunta del widget non riuscita» al posto del widget (F8.25c).
+  Ogni testo del layout sta su una riga e si taglia **coi puntini** (`android:maxLines="1"` e `android:ellipsize="end"`,
+  come lo stile dei testi di Glance): il launcher mostra l'anteprima anche in celle piu' strette del widget, e senza i
+  puntini il nome si taglia a meta' («Matem» invece di «Matem…», visto sul Tab S9, F8.25d).
   Il layout usa solo viste ammesse in `RemoteViews` (niente `<View>`: un separatore e' un `FrameLayout`), i colori della
   palette di serie con le varianti in `values-night` (il launcher lo legge col tema del sistema), e il contenuto della
   taglia di serie. Un widget Glance non puo' usare il suo composable li': il layout si scrive a mano, e una prova lo gonfia

@@ -69,6 +69,10 @@ internal class FluidAppFolderSource(
 ) : FluidFileSource {
   override val sorts: Boolean get() = true
 
+  // R2: la cartella letta e ordinata, per consegnarla a pagine senza rileggerla, come fa l'albero concesso: l'ultima,
+  // con l'ordine. Una richiesta senza segno (la prima pagina, una rilettura) legge da capo.
+  @Volatile private var cached: Triple<String, FluidFileSort, List<FluidFileItem>>? = null
+
   override suspend fun list(query: FluidFileQuery): FluidFilePage = withContext(Dispatchers.IO) {
     val base = root.canonicalFile
     val folder = if (query.folder.isNullOrEmpty()) base else File(base, query.folder).canonicalFile
@@ -76,13 +80,17 @@ internal class FluidAppFolderSource(
     if (folder.path != base.path && !folder.path.startsWith(base.path + File.separator)) {
       throw IOException("Cartella fuori dalla sorgente: ${query.folder}")
     }
-    val children = folder.listFiles() ?: throw IOException("La cartella non si legge: ${folder.name}")
-    children.asSequence()
-      .filter { !it.name.startsWith(".") }
-      .map { file -> file.item(base) }
-      .sortedWith(query.sort.comparator())
-      .toList()
-      .page(query)
+    val hit = cached?.takeIf { query.cursor != null && it.first == folder.path && it.second == query.sort }
+    val items = hit?.third ?: run {
+      val children = folder.listFiles() ?: throw IOException("La cartella non si legge: ${folder.name}")
+      children.asSequence()
+        .filter { !it.name.startsWith(".") }
+        .map { file -> file.item(base) }
+        .sortedWith(query.sort.comparator())
+        .toList()
+        .also { cached = Triple(folder.path, query.sort, it) }
+    }
+    items.page(query)
   }
 
   private fun File.item(base: File): FluidFileItem {

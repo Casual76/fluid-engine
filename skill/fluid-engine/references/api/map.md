@@ -53,6 +53,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `const val Attribution: String`
   - `const val UserDot: String`
   - `const val Postcard: String`
+  - `const val PostcardCredits: String`
   - `fun marker(id: String): String`
   - `fun style(id: String): String`
 - `enum class FluidMapControlsPlacement` — Dove stanno i comandi di vetro.
@@ -92,7 +93,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-map/map/FluidMapEngine.kt`
 
 - `data class FluidMapCredit(val text: String, val url: String)` — Un credito della mappa: la riga da leggere e il collegamento che la spiega.
-- `data class FluidMapAttribution(val short: String, val credits: List<FluidMapCredit>)` — L'attribuzione di una mappa: la scritta corta sempre visibile nell'angolo ([short]) e i crediti interi che compaiono toccandola ([credits]). La mappa la disegna sempre, anche sulla cartolina, e non si spegne:
+- `data class FluidMapAttribution(val short: String, val credits: List<FluidMapCredit>, val compact: String = short)` — L'attribuzione di una mappa: la scritta corta sempre visibile nell'angolo ([short]) e i crediti interi che compaiono toccandola ([credits]). La mappa la disegna sempre, anche sulla cartolina, e non si spegne:
 - `data class FluidMapStyle(val id: String, val label: String, val uri: String, val darkUri: String? = null, val attribution: FluidMapAttribution = FluidMapStyles.OpenFreeMapAttribution, val maxZoom: Double = 19.0, val swatch: Color = Color(0xFFE9E4DA), val darkSwatch: Color = Color(0xFF1D2330))` — Uno stile della mappa: l'indirizzo dello stile di MapLibre ([uri]) e quello per il tema scuro ([darkUri], null se lo stile non ne ha uno: allora resta chiaro anche di notte), il nome nel pannello dei livelli e i due colori del suo campione. Lo stile dice anche fin dove arriva lo zoom ([maxZoom]) e chi va citato ([attribution]).
   - `fun uriFor(dark: Boolean): String` — L'indirizzo per il tema: [darkUri] di notte, se c'e'.
 - `object FluidMapStyles` — Gli stili di serie: le mappe di OpenStreetMap servite da **OpenFreeMap** (tiles.openfreemap.org), gratis, senza chiave, senza account, senza limiti di visite (openfreemap.org, letto il 26/11/2026). Le regole del servizio, che l'app accetta usandolo:
@@ -149,6 +150,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 - `object FluidMapPostcardDefaults` — I numeri della cartolina.
   - `const val Zoom: Double` — Lo zoom di serie: un quartiere, come la mappa del pannello info di Foto. A occhio, 26/11/2026.
   - `val ViewerHeight: Dp` — L'altezza nel pannello info dei visori: 160 dp, la mappa di «Informazioni» di Foto in iOS 26. A occhio, 26/11/2026.
+  - `val MinWidth: Dp` — La cartolina piu' stretta che tiene i crediti in vista: 80 dp. Li' «© OpenStreetMap» sta su una riga, sopra [CreditsMinFontSize]; piu' stretta non e' garantito (F8.26d). Una prova lo tiene fermo a questa misura.
+  - `val CreditsFontSize` — Il corpo dei crediti sulla cartolina: 9 sp, e giu' fino a [CreditsMinFontSize] se la cartolina e' piccola.
+  - `val CreditsMinFontSize` — Il corpo piu' piccolo dei crediti sulla cartolina: 7 sp.
 - `@Composable fun FluidMapPostcard(point: FluidGeoPoint, modifier: Modifier = Modifier, title: String? = null, zoom: Double = FluidMapPostcardDefaults.Zoom, style: FluidMapStyle = FluidMapStyles.Explore, engine: FluidMapEngine = rememberFluidMapEngine(), shape: Shape = ContinuousCornerShape(FluidRadius.Card), markerTint: Color = Color.Unspecified, labels: FluidMapLabels = FluidMapLabels(), onClick: (() -> Unit)? = null)` — La cartolina: una mappa **piccola e ferma** di [point] (`MKMapSnapshotter`, la mappa del pannello info di Foto), col segnaposto al centro e l'attribuzione nell'angolo. Si mette in una riga o nel pannello info di un visore ([fluidViewerLocation]); toccata chiama [onClick] (di solito apre la mappa intera: con `fluidZoomSource` sulla cartolina la mappa nasce da lei).
 - `fun fluidViewerLocation(point: FluidGeoPoint, title: String? = null, zoom: Double = FluidMapPostcardDefaults.Zoom, style: FluidMapStyle = FluidMapStyles.Explore, labels: FluidMapLabels = FluidMapLabels(), onOpen: (() -> Unit)? = null): FluidViewerLocation` — Il luogo di un file per il pannello info dei visori ([FluidViewerLocation]): le coordinate come le scrive Mappe, la [FluidMapPostcard] alta [FluidMapPostcardDefaults.ViewerHeight] al posto della mappa che prima disegnava l'app, e «Apri la mappa» ([onOpen]) nelle azioni del pannello e sul tocco della cartolina.
 - `object FluidMapSnapshots` — La cache delle cartoline: in memoria (un sedicesimo della memoria dell'app, al piu' 16 MiB: una decina di cartoline grandi) e su disco, nella cache dell'app (al piu' [DiskEntries] file, i piu' vecchi vanno via). La chiave e' lo stile, il tema, il punto a cinque decimali, lo zoom e la misura: la stessa cartolina in un altro elenco non si rifa'.

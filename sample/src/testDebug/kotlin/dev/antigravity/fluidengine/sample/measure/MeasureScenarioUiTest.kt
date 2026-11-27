@@ -191,6 +191,7 @@ class MeasureScenarioUiTest {
   @Test fun scorrimentoTesto() = runs(MeasureScenario.ScrollText, scrolled("Paragrafo 1"))
   @Test fun menuTasto() = runs(MeasureScenario.MenuButton, menuOpensAndCloses)
   @Test fun menuGruppo() = runs(MeasureScenario.MenuGroup, menuOpensAndCloses)
+  @Test fun menuGruppoBarra() = runs(MeasureScenario.MenuGroupBar, menuOpensAndCloses)
   @Test fun contestuale() = runs(MeasureScenario.ContextMenu, menuOpensAndCloses)
 
   @Test fun barraContesto() = runs(

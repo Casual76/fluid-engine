@@ -36,12 +36,14 @@ internal interface FluidActivityObserver {
 /**
  * La stessa attività come attività viva fuori dall'app: titolo, riga, avanzamento letto adesso, tempo, pausa e comandi.
  * Il genere passa per nome (`sync`, `transfer`, `timer`, `assistant`, `recording`; un genere su misura resta su misura).
+ * «Offline» ([FluidActivityKind.Offline], F8.20) è un lavoro che aspetta la rete, non un'attività avviata dall'utente:
+ * fuori è una notifica, mai un Live Update (R2).
  *
  * @param open l'indirizzo da aprire al tocco della notifica (un indirizzo di pagina di F8.12), o null per l'app.
  */
 fun FluidActivity.toLiveUpdate(open: String? = null): FluidLiveUpdate = FluidLiveUpdate(
   id = id,
-  kind = FluidLiveKind.named(kind.name),
+  kind = if (kind == FluidActivityKind.Offline) FluidLiveKind.custom(kind.name, promotable = false) else FluidLiveKind.named(kind.name),
   title = title.ifBlank { kind.name },
   text = detail,
   progress = progress?.invoke()?.takeIf { !it.isNaN() }?.coerceIn(0f, 1f),

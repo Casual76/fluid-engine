@@ -126,7 +126,9 @@ object FluidSegmentedPagerDefaults {
  * **TalkBack**: ogni segmento e' un tasto col suo titolo, e quello scelto dice «selezionato». **Movimento ridotto**: la goccia arriva
  * al suo posto senza viaggio e senza lente, e il pager cambia pagina con la sua animazione di sistema.
  *
- * @param segments i titoli dei segmenti, uno per pagina.
+ * @param segments i titoli dei segmenti, uno per pagina. Vuota (i dati non ancora arrivati) non mostra niente, né pagine
+ *   né capsula, e `selectedPage` resta 0: lo stato vuoto lo mostra l'app. Se si accorcia mentre il pager è su una pagina
+ *   che non c'è più, il pager torna sull'ultima che c'è.
  * @param state il pager e la pillola ([rememberFluidSegmentedPagerState]).
  * @param backdrop cio' che la capsula rifrange; null: le pagine stesse (di serie).
  * @param page il contenuto della pagina [index]; `contentPadding` e' il margine in alto da lasciare alla capsula,

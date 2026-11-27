@@ -33,7 +33,8 @@ internal class GlassActivities(private val process: FluidGlassResources) : Appli
   }
   override fun onActivityStopped(activity: Activity) { started.remove(activity)?.close() }
   override fun onActivityDestroyed(activity: Activity) { started.remove(activity)?.close() }
-  override fun onActivityCreated(activity: Activity, state: Bundle?) = Unit
+  // F7.26: nelle build di prova l'extra del profilo simulato, prima del contenuto dell'Activity (in release niente).
+  override fun onActivityCreated(activity: Activity, state: Bundle?) = process.launchedWith(activity)
   override fun onActivityResumed(activity: Activity) = Unit
   override fun onActivityPaused(activity: Activity) = Unit
   override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) = Unit

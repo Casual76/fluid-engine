@@ -37,6 +37,12 @@ object GlassFactoryCounters {
    */
   private var outside = IdentityHashMap<Any, Int>()
 
+  /**
+   * F7.29 · I RenderNode nati dall'ultima [takeBornNodes] mentre [traceCreations] è vero, per identità: [LayerOwners]
+   * dice di quale nodo e modificatore sono.
+   */
+  private var bornNodes: MutableSet<Any> = java.util.Collections.newSetFromMap(IdentityHashMap())
+
   /** I nomi dei RenderNode nati dall'ultima [takeCreated] (per dire chi sono le fabbriche contate). */
   private var created = ArrayList<String>()
 
@@ -73,6 +79,7 @@ object GlassFactoryCounters {
       renderNodes++
       names[node] = name?.substringAfterLast('.') ?: "?"
       if (created.size < 64) created.add(if (traceCreations) "${name ?: "?"} da ${origin()}" else name ?: "?")
+      if (traceCreations && bornNodes.size < 256) bornNodes.add(node)
     }
   }
 
@@ -164,6 +171,13 @@ object GlassFactoryCounters {
     taken
   }
 
+  /** I RenderNode nati dall'ultima chiamata (solo mentre [traceCreations] è vero). */
+  fun takeBornNodes(): Set<Any> = synchronized(lock) {
+    val taken = bornNodes
+    bornNodes = java.util.Collections.newSetFromMap(IdentityHashMap())
+    taken
+  }
+
   /** I nomi dei RenderNode nati dall'ultima chiamata. */
   fun takeCreated(): List<String> = synchronized(lock) {
     val taken = created
@@ -182,6 +196,7 @@ object GlassFactoryCounters {
     recordings = IdentityHashMap()
     outside = IdentityHashMap()
     created = ArrayList()
+    bornNodes = java.util.Collections.newSetFromMap(IdentityHashMap())
     repeats = LinkedHashMap()
     insideHarness = false
   }

@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -75,6 +76,7 @@ object FluidMapTags {
   const val Attribution: String = "fluid-map:attribuzione"
   const val UserDot: String = "fluid-map:tu"
   const val Postcard: String = "fluid-map:cartolina"
+  const val PostcardCredits: String = "fluid-map:cartolina:crediti"
   fun marker(id: String): String = "fluid-map:segnaposto:$id"
   fun style(id: String): String = "fluid-map:stile:$id"
 }
@@ -127,7 +129,9 @@ data class FluidMapControls(
  * senza viaggio.
  *
  * @param markers i segnaposto. I grappoli si calcolano fuori dal thread principale quando l'elenco cambia.
- * @param selectedMarkerId il segnaposto scelto (si ingrandisce, come in Mappe); null nessuno.
+ * @param selectedMarkerId il segnaposto scelto (si ingrandisce, come in Mappe); null nessuno. La mappa lo porta in vista
+ *   da se' (F8.26d): se il foglio lo copre o e' fuori dallo schermo lo centra nella parte che si vede, se sta in un
+ *   grappolo avvicina fin dove e' da solo; se si vede gia' non si muove.
  * @param onMarkerClick il tocco su un segnaposto solo.
  * @param onClusterClick il tocco su un grappolo; null (di serie) avvicina fino a dividerlo.
  * @param onMapClick il tocco sulla mappa fuori dai segnaposto (per togliere la scelta).
@@ -204,6 +208,24 @@ fun FluidMap(
     }
   }
 
+  // Il luogo scelto si vede, come in Mappe (F8.26d): se il foglio lo copre, se sta sotto le barre o fuori dallo schermo,
+  // la mappa lo porta al centro della parte che si vede; se sta dentro un grappolo avvicina fin dove e' da solo. Se si
+  // vede gia', la mappa non si muove. Due fotogrammi prima: il foglio dice quanto copre alla sua altezza nuova (un luogo
+  // scelto di solito lo porta a meta'). Il dito sulla mappa vince.
+  val currentIndex by rememberUpdatedState(index)
+  val currentTopPadding by rememberUpdatedState(contentPadding.calculateTopPadding())
+  LaunchedEffect(state, selectedMarkerId) {
+    val id = selectedMarkerId ?: return@LaunchedEffect
+    withFrameNanos { }
+    withFrameNanos { }
+    val marker = currentMarkers.firstOrNull { it.id == id } ?: return@LaunchedEffect
+    if (state.isGestureActive) return@LaunchedEffect
+    val alone = currentIndex.zoomToSeeAlone(id, state.camera.zoom)
+    val top = with(density) { (currentTopPadding + RevealTop).toPx() }
+    if (alone == null && !state.hides(marker.point, top)) return@LaunchedEffect
+    state.animateTo(state.shiftedForSheet(state.camera.copy(center = marker.point, zoom = alone ?: state.camera.zoom)))
+  }
+
   Box(
     modifier
       .clipToBounds()
@@ -230,6 +252,32 @@ fun FluidMap(
     ) {
       if (glassSees) engine.Surface(state, style, dark, Modifier.fillMaxSize())
     }
+    val layoutDirection = LocalLayoutDirection.current
+    // Il foglio sopra la mappa: i comandi (in Mappe di iOS 26) e l'attribuzione ci stanno appoggiati sopra, e lo seguono
+    // quando si posa a un'altra altezza (con la molla dei comandi; col movimento ridotto subito).
+    val lift = animateDpAsState(
+      targetValue = state.bottomObscured,
+      animationSpec = if (reduced) snap() else spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow),
+      label = "fluid-map-lift",
+    )
+    val aboveSheet = controls.placement == FluidMapControlsPlacement.AboveSheet
+    // I crediti sotto il punto e i segnaposto (F8.26d): il vetro dei crediti non copre un grappolo che gli passa accanto,
+    // come le etichette della mappa stanno sotto i segnaposto. I comandi restano sopra tutto.
+    FluidMapAttributionChip(
+      attribution = style.attribution,
+      backdrop = backdrop,
+      labels = labels,
+      modifier = Modifier
+        .align(Alignment.BottomStart)
+        .padding(
+          start = contentPadding.calculateStartPadding(layoutDirection),
+          bottom = contentPadding.calculateBottomPadding(),
+        )
+        .padding(start = 8.dp, bottom = 4.dp)
+        // Accanto ai comandi in basso, mai sotto: su un telefono stretto la scritta va a capo prima della capsula.
+        .padding(end = if (aboveSheet) FluidMapControlsDefaults.EdgeMargin + FluidMapControlsDefaults.Button + 8.dp else 8.dp)
+        .offset { IntOffset(0, -lift.value.roundToPx()) },
+    )
     FluidMapUserDot(state, labels)
     FluidMapMarkerLayer(
       state = state,
@@ -248,15 +296,6 @@ fun FluidMap(
       },
       markerContent = markerContent,
     )
-    val layoutDirection = LocalLayoutDirection.current
-    // Il foglio sopra la mappa: i comandi (in Mappe di iOS 26) e l'attribuzione ci stanno appoggiati sopra, e lo seguono
-    // quando si posa a un'altra altezza (con la molla dei comandi; col movimento ridotto subito).
-    val lift = animateDpAsState(
-      targetValue = state.bottomObscured,
-      animationSpec = if (reduced) snap() else spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow),
-      label = "fluid-map-lift",
-    )
-    val aboveSheet = controls.placement == FluidMapControlsPlacement.AboveSheet
     FluidMapControlsColumn(
       state = state,
       controls = controls,
@@ -281,22 +320,37 @@ fun FluidMap(
           .padding(top = FluidMapControlsDefaults.TopMargin, end = FluidMapControlsDefaults.EdgeMargin)
       },
     )
-    FluidMapAttributionChip(
-      attribution = style.attribution,
-      backdrop = backdrop,
-      labels = labels,
-      modifier = Modifier
-        .align(Alignment.BottomStart)
-        .padding(
-          start = contentPadding.calculateStartPadding(layoutDirection),
-          bottom = contentPadding.calculateBottomPadding(),
-        )
-        .padding(start = 8.dp, bottom = 4.dp)
-        // Accanto ai comandi in basso, mai sotto: su un telefono stretto la scritta va a capo prima della capsula.
-        .padding(end = if (aboveSheet) FluidMapControlsDefaults.EdgeMargin + FluidMapControlsDefaults.Button + 8.dp else 8.dp)
-        .offset { IntOffset(0, -lift.value.roundToPx()) },
-    )
   }
+}
+
+/**
+ * Lo spazio che un segnaposto scelto vuole attorno per dirsi in vista: sopra il punto il pallino (fino a 72 dp con il
+ * bordo), sotto il nome (32 dp), ai lati 24 dp.
+ */
+private val RevealTop = 72.dp
+private val RevealBottom = 32.dp
+private val RevealSide = 24.dp
+
+/**
+ * Lo zoom a cui il segnaposto [markerId] si vede da solo, fuori dai grappoli (a meta' del livello, come il tocco su un
+ * grappolo); null se a [zoom] si vede gia' da solo o se l'indice non lo conosce.
+ */
+internal fun FluidMapClusterIndex.zoomToSeeAlone(markerId: String, zoom: Double): Double? {
+  if (size == 0) return null
+  val level = clusterLevel(zoom, minZoom, maxZoom)
+  val container = ancestor(markerId, maxZoom, level) ?: return null
+  if (container.isSingle) return null
+  for (l in level + 1..maxZoom) if (ancestor(markerId, maxZoom, l)?.isSingle == true) return l + 0.5
+  return maxZoom.toDouble()
+}
+
+/** Vero se [point] e' coperto dal foglio, sopra [topPx] (le barre) o fuori dai lati, coi margini di un segnaposto. */
+internal fun FluidMapState.hides(point: FluidGeoPoint, topPx: Float): Boolean {
+  val projector = projector() ?: return false
+  val at = projector.toScreen(point)
+  val side = RevealSide.value * density
+  val bottom = sizePx.height - (bottomObscured.value + RevealBottom.value) * density
+  return at.x < side || at.x > sizePx.width - side || at.y < topPx || at.y > bottom
 }
 
 /** Quanti grappoli si vedono adesso (per TalkBack): letto in un `derivedStateOf`, cambia solo col numero. */

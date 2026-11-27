@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStream
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -58,6 +59,9 @@ object FluidPdf {
   /**
    * L'impaginazione di [document] senza scrivere il file: quante pagine, e ogni pagina disegnata su una tela qualunque
    * (l'anteprima delle pagine prima di salvare, una miniatura). Senza viste Compose; per quelle [FluidPdfWriter.layout].
+   *
+   * **Impagina subito, sul thread di chi chiama** (R2): per un documento lungo chiamarla fuori dal thread principale
+   * (`withContext(Dispatchers.Default) { FluidPdf.layout(documento) }`), e disegnare le pagine dove serve.
    */
   fun layout(document: FluidPdfDocument, style: FluidPdfStyle = FluidPdfStyle.Default): FluidPdfLayout {
     require(!document.needsCompose) { "Un documento con viste Compose si impagina con FluidPdfWriter" }
@@ -226,13 +230,42 @@ internal class FluidPdfRowPiece(
   private val detail: StaticLayout?,
   private val gap: Float,
   spaceBefore: Float,
+  /** L'altezza di una pagina: una riga piu' alta si spezza fra le righe, come un paragrafo (R2). */
+  maxHeight: Float = Float.MAX_VALUE,
 ) : FluidPdfPiece(spaceBefore) {
   override val height: Float = max(label.height.toFloat() + (detail?.let { gap / 2 + it.height } ?: 0f), value.height.toFloat())
-  override val breaks: FloatArray = floatArrayOf(height)
+
+  /**
+   * Una riga che sta in una pagina non si spezza mai. Una piu' alta (un'etichetta lunghissima) si spezza solo dove
+   * nessuno dei tre testi ha una riga a meta': i fondi delle righe dell'etichetta e del dettaglio, sotto il valore.
+   */
+  override val breaks: FloatArray = if (height <= maxHeight) floatArrayOf(height) else fluidRowBreaks()
+
   override val text: String = listOfNotNull(label.text, value.text, detail?.text).joinToString(" ")
+
+  private fun fluidRowBreaks(): FloatArray {
+    val detailTop = label.height + gap / 2
+    val candidates = sortedSetOf(height)
+    for (i in 0 until label.lineCount) candidates += label.getLineBottom(i).toFloat()
+    detail?.let { d -> for (i in 0 until d.lineCount) candidates += detailTop + d.getLineBottom(i) }
+    fun cutsALine(layout: StaticLayout, top: Float, y: Float): Boolean {
+      if (y <= top + 0.01f || y >= top + layout.height - 0.01f) return false
+      return (0 until layout.lineCount).none { abs(top + layout.getLineBottom(it) - y) < 0.01f }
+    }
+    return candidates.filter { y ->
+      !cutsALine(value, 0f, y) && !cutsALine(label, 0f, y) && (detail == null || !cutsALine(detail, detailTop, y))
+    }.toFloatArray()
+  }
 
   override fun draw(canvas: Canvas, from: Float, to: Float, width: Float) {
     canvas.save()
+    // R2 · Come il pezzo di testo: solo la fetta [from, to]. Una riga piu' alta di una pagina non sborda oltre il fondo
+    // e non ripete in cima alla pagina dopo le righe gia' scritte (il margine dentro l'interlinea, mai sui segni).
+    if (from > 0.01f || to < height - 0.01f) {
+      val top = if (from > 0.01f) 1f else -4f
+      val bottom = if (to >= height - 0.01f) to - from + 4f else to - from - 1.5f
+      canvas.clipRect(-4f, top, width + 4f, bottom)
+    }
     canvas.translate(0f, -from)
     label.draw(canvas)
     detail?.let {
@@ -345,7 +378,7 @@ internal fun fluidPdfPieces(
         val labelWidth = (w - valueWidth - 12).coerceAtLeast(w / 3)
         val label = layout(block.label, paint(FluidPdfType.Body, false, style.ink), labelWidth)
         val detail = block.detail?.let { layout(it, paint(FluidPdfType.Detail, false, style.secondaryInk), labelWidth) }
-        pieces += FluidPdfRowPiece(label, value, detail, gap = 3f, spaceBefore = if (first) 0f else 7f)
+        pieces += FluidPdfRowPiece(label, value, detail, gap = 3f, spaceBefore = if (first) 0f else 7f, maxHeight = contentHeight)
       }
       FluidPdfBlock.Divider -> pieces += FluidPdfRulePiece(style.rule, if (first) 0f else 8f, after = 0f)
       is FluidPdfBlock.Space -> pieces += FluidPdfSpacePiece(block.heightPt.coerceAtLeast(0f))

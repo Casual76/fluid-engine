@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   F8.25c · L'anteprima dell'agenda di prova per il launcher (android:previewLayout, da Android 12): la taglia piccola come
-  la disegna il widget vero (righe impilate, nomi interi). Solo viste ammesse in RemoteViews: niente View, il separatore
+  la disegna il widget vero (righe impilate, nomi interi). Ogni testo sta su una riga e, se non ci sta, si taglia coi
+  puntini (F8.25d: «Matem…», non «Matem»), come i testi di Glance. Solo viste ammesse in RemoteViews: niente View, il separatore
   e' un FrameLayout.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -13,6 +14,8 @@
 
   <TextView
       android:id="@+id/f8p25_preview_title"
+      android:ellipsize="end"
+      android:maxLines="1"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="@string/f8p25_preview_today"
@@ -37,6 +40,7 @@
         android:paddingBottom="7dp">
 
       <TextView
+          android:ellipsize="end"
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
           android:maxLines="1"
@@ -45,6 +49,8 @@
           android:textSize="13sp" />
 
       <TextView
+          android:ellipsize="end"
+          android:maxLines="1"
           android:layout_width="wrap_content"
           android:layout_height="wrap_content"
           android:text="@string/f8p25_preview_time1"
@@ -69,6 +75,7 @@
         android:paddingBottom="7dp">
 
       <TextView
+          android:ellipsize="end"
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
           android:maxLines="1"
@@ -77,6 +84,8 @@
           android:textSize="13sp" />
 
       <TextView
+          android:ellipsize="end"
+          android:maxLines="1"
           android:layout_width="wrap_content"
           android:layout_height="wrap_content"
           android:text="@string/f8p25_preview_time2"

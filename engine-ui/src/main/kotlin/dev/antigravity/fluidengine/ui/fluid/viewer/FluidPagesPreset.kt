@@ -302,20 +302,17 @@ fun FluidPagesPreset(
         val bottom = viewerBottomCapsuleTop() + gap
         PageCounterLayout(top, 16.dp, (maxWidth - column) / 2 + 16.dp, counter = {
           if (chromeVisible) {
-            // F7.22: la pagina per TalkBack si legge qui, nella composizione. Letta dentro il blocco `semantics` (che gira
-            // più tardi e non osserva niente) la lambda restava la stessa a ogni pagina e la descrizione si fermava al
-            // primo salto: la lista arrivava a pagina 1000, il contatore diceva ancora «Pagina 3999».
-            val pageState = strings.page(current + 1, count)
+            // F7.25: la pagina si legge solo nel testo del contatore ([ViewerCounterText]): a ogni salto della maniglia e a
+            // ogni pagina nuova di un lancio si ricompone il testo, non la capsula di vetro. La descrizione per TalkBack sta
+            // sul testo e la capsula, che unisce i discendenti, la prende da lì.
             Row(Modifier.viewerGlass(backdrop).fluidPressable(onClick = { thumbnails = true }, role = Role.Button)
               .semantics(mergeDescendants = true) {
                 contentDescription = strings.thumbnails
-                stateDescription = pageState
               }.heightIn(min = if (info == null) FluidGlassSize.Regular.touchTarget else 34.dp)
               .padding(horizontal = 12.dp, vertical = if (info == null) 4.dp else 0.dp),
               verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
               FluidIcon(FluidIcons.GridView, null, modifier = Modifier.size(17.dp))
-              Text(strings.counter(current + 1, count), Modifier.clearAndSetSemantics {},
-                style = MaterialTheme.typography.labelLarge.viewerSize(13.5f, FontWeight.SemiBold).copy(fontFeatureSettings = "tnum"))
+              ViewerCounterText(page = { current }, count = count, strings = strings)
             }
           }
         }) { firstPageTop ->
@@ -434,6 +431,20 @@ private fun ViewerSlideShow(cache: ViewerPageRenderCache, count: Int, initial: I
       }
     }
   }
+}
+
+/**
+ * F7.25 · Il testo del contatore delle pagine («37 di 3000»), l'unico punto che legge la pagina corrente: quando cambia
+ * si ricompone lui e non la capsula di vetro che lo contiene. F7.22: la pagina per TalkBack si legge nella composizione,
+ * e il blocco di semantica riceve il valore. Letta dentro il blocco `semantics` (che gira più tardi e non osserva niente)
+ * la descrizione si fermava al primo salto: la lista arrivava a pagina 1000, il contatore diceva ancora «Pagina 3999».
+ */
+@Composable
+private fun ViewerCounterText(page: () -> Int, count: Int, strings: FluidPagesPresetStrings) {
+  val current = page()
+  val pageState = strings.page(current + 1, count)
+  Text(strings.counter(current + 1, count), Modifier.clearAndSetSemantics { stateDescription = pageState },
+    style = MaterialTheme.typography.labelLarge.viewerSize(13.5f, FontWeight.SemiBold).copy(fontFeatureSettings = "tnum"))
 }
 
 /**

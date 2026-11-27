@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    F9.3 · Nessun permesso e niente di esportato. La memoria sta nella cassaforte dell'app (noBackupFilesDir, cifrata
+    col Keystore); l'indice della pertinenza vive solo in memoria. I ricordi proposti dalle altre app arrivano dal
+    provider dell'assistenza di PampAI (F9.1), che ha gia' il suo cancello: qui non c'e' un'altra porta.
+  -->
+</manifest>

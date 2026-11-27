@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ui.fluid
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -9,8 +10,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -107,6 +111,10 @@ data class FluidNotifyPageLabels(
   val allGood: String = "Tutto a posto",
   val toFix: String = "Da sistemare",
   val ok: String = "A posto",
+  /** Un tocco che doveva aprire le impostazioni di Android, ma nessuna pagina si è aperta (R2; in coda, con un valore di serie). */
+  val openFailed: String = "Non riesco ad aprire le impostazioni di Android da qui. Aprile tu: Impostazioni › App › questa app › Notifiche.",
+  /** Il segno di un promemoria che all'ora giusta non si è potuto mostrare (R2; in coda, con un valore di serie). */
+  val notShown: String = "Non mostrato",
 ) {
   companion object {
     /** Le parole inglesi. */
@@ -134,6 +142,8 @@ data class FluidNotifyPageLabels(
       late = { m -> if (m == 1L) "1 minute late" else "$m minutes late" },
       healthIntro = "I check what can stop notifications and reminders. Tap a row to go to the right place in settings.",
       allGood = "All good", toFix = "To fix", ok = "OK",
+      openFailed = "I can't open Android settings from here. Open them yourself: Settings › Apps › this app › Notifications.",
+      notShown = "Not shown",
     )
   }
 }
@@ -162,6 +172,30 @@ private fun RefreshOnResume(center: FluidNotifyCenter) {
     val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) center.refresh() }
     lifecycle.addObserver(observer)
     onDispose { lifecycle.removeObserver(observer) }
+  }
+}
+
+/**
+ * Chi apre le impostazioni di Android dalle pagine: ricorda se l'ultimo tocco non ha aperto niente
+ * (`FluidNotifyCenter.open` falso), perché la pagina lo dica invece di restare muta (R2).
+ */
+@Stable
+private class SettingsOpener(private val center: FluidNotifyCenter) {
+  var failed by mutableStateOf(false)
+    private set
+
+  fun open(fix: FluidNotifyFix) {
+    failed = !center.open(fix)
+  }
+}
+
+@Composable
+private fun rememberSettingsOpener(center: FluidNotifyCenter): SettingsOpener = remember(center) { SettingsOpener(center) }
+
+/** Il messaggio del tocco che non ha aperto le impostazioni, in cima alla pagina. */
+private fun LazyListScope.openFailedItem(opener: SettingsOpener, labels: FluidNotifyPageLabels) {
+  if (opener.failed) {
+    item(key = "open-failed") { FluidInlineMessage(message = labels.openFailed, tone = FluidTone.Warning) }
   }
 }
 
@@ -212,8 +246,15 @@ fun FluidNotificationSettingsPage(
   val permission = rememberFluidPermission(FluidPermission.Notifications, reason = labels.permissionReason) {
     center.refresh()
   }
-  val times = remember { (5..23).map { hour -> FluidPickerOption(hour * 60, "%d:00".format(hour)) } }
+  // Le ore intere dalle 5 alle 23, più gli orari salvati come sono (8:30, le 3 di notte): la scelta non li arrotonda
+  // e non li perde (R2; prima un 8:30 dato con `center.setDigest` diventava 8:00 al primo tocco).
+  val times = remember(settings.digest.times) {
+    ((5..23).map { it * 60 } + settings.digest.times).distinct().sorted()
+      .map { minutes -> FluidPickerOption(minutes, "%d:%02d".format(minutes / 60, minutes % 60)) }
+  }
+  val opener = rememberSettingsOpener(center)
   FluidScreen(title = labels.settingsTitle, onBack = onBack, modifier = modifier.testTag(FluidNotifyPageTags.Settings)) {
+    openFailedItem(opener, labels)
     if (!settings.notificationsAllowed) {
       item(key = "off") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -249,7 +290,7 @@ fun FluidNotificationSettingsPage(
                 },
                 tone = if (channel.enabled) FluidTone.Primary else FluidTone.Neutral,
                 badge = { StatusMark(channel.enabled, delivery) },
-                onClick = { center.open(FluidNotifyFix.channel(channel.id)) },
+                onClick = { opener.open(FluidNotifyFix.channel(channel.id)) },
               )
             }
           }
@@ -270,17 +311,22 @@ fun FluidNotificationSettingsPage(
             tone = FluidTone.Info,
           )
           if (settings.digest.enabled) {
-            val first = settings.digest.times.firstOrNull() ?: 8 * 60
-            val second = settings.digest.times.getOrNull(1) ?: 18 * 60
+            val saved = settings.digest.times
+            val first = saved.getOrNull(0) ?: 8 * 60
+            val second = saved.getOrNull(1) ?: 18 * 60
+            // Si cambia un orario solo: gli altri (anche un terzo, dato con `center.setDigest`) restano com'erano.
+            val chosen = { index: Int, minutes: Int ->
+              center.setDigest(true, (if (saved.size >= 2) saved else listOf(first, second)).toMutableList().also { it[index] = minutes })
+            }
             FluidListDivider()
             FluidPickerRow(
-              title = labels.digestFirst, selectedKey = first - first % 60, options = times,
-              onSelected = { center.setDigest(true, listOf(it, second)) },
+              title = labels.digestFirst, selectedKey = first, options = times,
+              onSelected = { chosen(0, it) },
             )
             FluidListDivider()
             FluidPickerRow(
-              title = labels.digestSecond, selectedKey = second - second % 60, options = times,
-              onSelected = { center.setDigest(true, listOf(first, it)) },
+              title = labels.digestSecond, selectedKey = second, options = times,
+              onSelected = { chosen(1, it) },
             )
             if (settings.digest.waiting > 0) {
               FluidListDivider()
@@ -324,7 +370,7 @@ fun FluidNotificationSettingsPage(
               leading = { FluidIcon(FluidIcons.Bolt, contentDescription = null) },
               tone = FluidTone.Primary,
               badge = { StatusMark(settings.live.allowed, if (settings.live.allowed) labels.ok else labels.toFix) },
-              onClick = { center.open(FluidNotifyFix.LiveUpdates) },
+              onClick = { opener.open(FluidNotifyFix.LiveUpdates) },
             )
           }
         }
@@ -335,7 +381,7 @@ fun FluidNotificationSettingsPage(
         FluidInlineMessage(
           message = labels.focusOn, tone = FluidTone.Info,
           leading = { FluidIcon(FluidIcons.Bedtime, contentDescription = null) },
-          onClick = { center.open(FluidNotifyFix.Focus) },
+          onClick = { opener.open(FluidNotifyFix.Focus) },
         )
       }
     }
@@ -424,6 +470,8 @@ fun FluidUpcomingRemindersPage(
             deliveries.forEachIndexed { index, delivery ->
               if (index > 0) FluidListDivider()
               val late = delivery.delayMillis >= 60_000L
+              // Un promemoria che all'ora giusta non si è potuto mostrare è perso: si dice così, non «in orario» (R2).
+              val good = delivery.shown && !late
               FluidListRow(
                 title = delivery.title,
                 subtitle = listOfNotNull(
@@ -431,7 +479,7 @@ fun FluidUpcomingRemindersPage(
                   delivery.reason,
                 ).joinToString(" · "),
                 modifier = Modifier.testTag(FluidNotifyPageTags.delivery(index)),
-                badge = { StatusMark(!late, fluidNotifyDelay(delivery, labels)) },
+                badge = { StatusMark(good, if (delivery.shown) fluidNotifyDelay(delivery, labels) else labels.notShown) },
                 disclosure = false,
               )
             }
@@ -491,7 +539,9 @@ fun FluidNotificationHealthPage(
   val permission = rememberFluidPermission(FluidPermission.Notifications, reason = labels.permissionReason) {
     center.refresh()
   }
+  val opener = rememberSettingsOpener(center)
   FluidScreen(title = labels.healthTitle, onBack = onBack, modifier = modifier.testTag(FluidNotifyPageTags.Health)) {
+    openFailedItem(opener, labels)
     item(key = "intro") { FluidSectionFootnote(labels.healthIntro, modifier = Modifier.padding(bottom = 4.dp)) }
     item(key = "checks") {
       Column {
@@ -502,7 +552,7 @@ fun FluidNotificationHealthPage(
             HealthRow(check, labels, onFix = {
               when {
                 check.fix == FluidNotifyFix.AppNotifications -> permission.request { center.refresh() }
-                check.fix != null -> center.open(check.fix!!)
+                check.fix != null -> opener.open(check.fix!!)
               }
             }, modifier = if (check.fix == FluidNotifyFix.AppNotifications) Modifier.fluidPermissionSource(permission) else Modifier)
           }

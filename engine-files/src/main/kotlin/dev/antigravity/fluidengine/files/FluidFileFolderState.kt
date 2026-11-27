@@ -131,6 +131,8 @@ class FluidFileFolderState internal constructor(
     complete = false
     next = null
     loaded = emptyList()
+    // R2: tutta la cartella solo se c'è una ricerca da fare in memoria; dopo una ricerca si torna alle pagine.
+    wantsAll = needsAll()
     loadMore()
   }
 
@@ -148,13 +150,16 @@ class FluidFileFolderState internal constructor(
   fun search(query: String) {
     if (query == this.query) return
     this.query = query
+    wantsAll = needsAll()
     if (source.searches) {
       refresh()
-    } else if (query.isNotBlank()) {
-      wantsAll = true
+    } else if (wantsAll) {
       loadMore()
     }
   }
+
+  /** Per cercare in memoria serve tutta la cartella: solo con una ricerca, e solo se la sorgente non cerca da sé. */
+  private fun needsAll(): Boolean = query.isNotBlank() && !source.searches
 
   /** La lista è a [index] di [items]: se manca poco alla fine, chiede la pagina dopo. */
   fun nearEnd(index: Int) {

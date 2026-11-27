@@ -20,14 +20,15 @@ Catalogo completo delle firme: [`../api/notify.md`](../api/notify.md).
 |---|---|
 | installare il modulo (canali, gestore dei tocchi) | `FluidNotify.install(this, FluidNotifyConfig(channels = …, onEvent = …))` nell'`Application.onCreate` |
 | un canale con parole comuni | `FluidNotifyChannel("voti", "Voti nuovi", "Quando la scuola pubblica un voto", FluidNotifyImportance.Urgent, summary = { "$it nuovi voti" })` |
-| una notifica | `FluidNotify.get(context).post(FluidNotifyMessage(id, canale, titolo, testo))` |
+| una notifica | `FluidNotify.get(context).post(FluidNotifyMessage(id, canale, titolo, testo))`, da un filo qualsiasi |
+| una notifica che a telefono bloccato non si legge | `sensitive = true`: vale quando l'utente nasconde i contenuti sensibili, come «Mostra anteprime: Quando sbloccato» di iOS |
 | raccogliere più notifiche («3 nuovi voti» invece di tre sveglie) | lo stesso `thread`: suona la prima, le altre della raffica arrivano in silenzio sotto il riassunto |
 | la risposta rapida | `reply = FluidNotifyReply(hint = "Scrivi ad Alessio")`; il testo arriva in `FluidNotifyEvent.Reply` |
-| una notifica da una persona («Alessio ti ha condiviso una lista») | `person = "Alessio"` (diventa una conversazione, `MessagingStyle`) sul canale delle persone (`category = CATEGORY_MESSAGE`) |
+| una notifica da una persona («Alessio ti ha condiviso una lista») | `person = "Alessio"` (una conversazione vera di Android, con la sua scorciatoia: vedi sotto) sul canale delle persone (`category = CATEGORY_MESSAGE`) |
 | il riepilogo a orari scelti | lo accende l'utente nella pagina delle impostazioni: **di serie tutto arriva subito** |
 | un'attività lunga che continua fuori dall'app (la pillola) | `activities.mirrorOutside(FluidNotify.get(this).liveUpdates.whenOutside, MainScope())` di engine-ui, una volta; poi solo la pillola |
 | il Live Update di un servizio in primo piano (Transit) | `startForeground(id, live.foreground(update, id))`, poi `live.publish(update)` e `live.finish(id, esito)` |
-| un promemoria | `FluidReminders.get(context).schedule(id, FluidReminderTime.local(…), FluidReminderContent(…))` |
+| un promemoria | `FluidReminders.get(context).schedule(id, FluidReminderTime.local(…), FluidReminderContent(…))`, anche a ogni avvio dell'app: ciò che è già arrivato non suona di nuovo |
 | un promemoria ogni giorno | `repeat = FluidRecurrenceRule(FluidRecurrenceFrequency.Daily)` (la regola di F8.8) |
 | la pagina delle impostazioni, «Cosa succederà», «Le notifiche non arrivano?» | `FluidNotificationSettingsPage`, `FluidUpcomingRemindersPage`, `FluidNotificationHealthPage` di engine-ui con `FluidNotify.get(context).center` |
 | chiedere il permesso delle notifiche | dal tasto che ne ha bisogno: `rememberFluidPermission(FluidPermission.Notifications, …)` (F8.11); le pagine lo fanno da sole |
@@ -80,20 +81,52 @@ L'engine aggiunge tre canali suoi: «Attività in corso» (`fluid.live`, in sile
 tacciono (`GROUP_ALERT_SUMMARY`) e il riassunto non suona mai (`GROUP_ALERT_CHILDREN`). È l'idea del «notification
 cooldown» di Android 15, per filo.
 
-**Il pallino** conta solo le notifiche da leggere dei canali col pallino: le attività in corso no (`badgeCount()`).
+Se l'utente ha già tolto tutto il filo, la notifica dopo suona di nuovo anche dentro i 2 minuti: la raffica si decide al
+turno della porta del ritmo, guardando cosa c'è a schermo.
 
-**Le modalità di concentrazione** non si scavalcano mai: nessuna richiesta di passare sopra a Non disturbare. Le persone
-usano `CATEGORY_MESSAGE` e `MessagingStyle`, così le conversazioni prioritarie dell'utente passano da sole.
+**Il pallino** conta solo le notifiche da leggere dei canali col pallino, messaggi e promemoria: i riassunti e le attività
+in corso no (`badgeCount()`).
+
+**Le modalità di concentrazione** non si scavalcano mai: nessuna richiesta di passare sopra a Non disturbare.
+
+**Le conversazioni** (R2, la scelta di Alessio del 26/11/2026). Una notifica con `person` è una conversazione vera di
+Android: `MessagingStyle`, `CATEGORY_MESSAGE`, la `Person` con la sua chiave (`setKey`) e una **scorciatoia dinamica di
+lunga vita** per quella persona (`setLongLived`, `setShortcutId`), pubblicata prima della notifica
+(developer.android.com, «People and conversations», fiducia alta). Così sta nella sezione «Conversazioni» della tendina e
+l'utente la può rendere **prioritaria**, anche per Non disturbare: è lui a sceglierlo, l'engine non scavalca niente.
+**Le persone compaiono anche nel menu dell'icona dell'app** (la pressione lunga sull'icona), e per questo le scorciatoie
+restano pulite:
+- al più `getMaxShortcutCountPerActivity` in tutto; a tetto pieno esce la conversazione usata meno di recente, **mai una
+  scorciatoia dell'app** (se il menu è pieno di quelle, la notifica resta un messaggio senza conversazione);
+- una conversazione senza più notifiche a schermo (letta e tolta dall'app con `cancel`/`cancelThread`, o tolta
+  dall'utente) esce dal menu, e così le conversazioni di un processo di prima all'avvio. Esce la scorciatoia dinamica
+  (`removeDynamicShortcuts`): la copia che Android tiene per la conversazione resta, e con lei la scelta «prioritaria»
+  dell'utente per il messaggio dopo (da vedere sul telefono);
+- la persona si riconosce dal nome (`person`, senza maiuscole e spazi ai lati).
+
+**A telefono bloccato.** Una notifica con `sensitive = true` è `VISIBILITY_PRIVATE` con una versione pubblica (il nome del
+canale): Android la mostra quando l'utente ha scelto di nascondere i contenuti sensibili. **I riassunti** (del filo e del
+riepilogo) non ripetono un messaggio sensibile: la sua riga è il nome del canale, e il riassunto ha la sua versione
+pubblica senza contenuto. **Le attività vive** sono anch'esse private, con una versione pubblica senza dettagli:
+«Attività in corso», la barra e il cronometro; niente titolo, riga e tasti (il nome di un file, una destinazione, la
+risposta dell'assistente). Chi mostra tutti i contenuti vede tutto, come per ogni notifica di Android (R2).
 
 **I tasti e la risposta** portano una chiave, non una funzione (una notifica sopravvive al processo): il tocco arriva al
 gestore `onEvent` come `FluidNotifyEvent.Action`, `Reply`, `ReminderAction`, `Unfollowed`, `LiveDismissed`, sul thread
 principale. Un tasto che apre l'app (`opensApp = true`) porta l'evento nell'`Intent`: l'attività chiama
-`FluidNotify.get(this).handleIntent(intent)` da `onCreate` e `onNewIntent`. Dopo una risposta rapida la notifica se ne va.
+`FluidNotify.get(this).handleIntent(intent)` da `onCreate` e `onNewIntent`. Dopo una risposta rapida, o un tasto di un
+promemoria, la notifica se ne va. Un tocco che fa ripartire il processo prima che l'app chiami `install` (l'install in
+un'attività, come nella galleria) non si perde: l'evento aspetta e arriva al gestore all'`install`.
+
+**L'indirizzo** (`open`) si apre nell'app se una sua attività lo apre; un `http`/`https` che l'app non apre va al browser;
+un altro indirizzo apre l'app.
 
 **Il riepilogo** (`center.setDigest`, `center.setChannelInDigest`) è **spento di serie**. Acceso, le notifiche non urgenti
 dei canali scelti aspettano gli orari (di serie 8:00 e 18:00, come il Riepilogo programmato di iOS) e arrivano raccolte,
 con un riassunto che suona una volta. Un canale `Urgent`, o una notifica con `urgent = true`, arriva sempre subito.
-Spegnerlo consegna subito ciò che aspettava.
+Spegnerlo consegna subito ciò che aspettava. Dalla coda esce solo ciò che è stato pubblicato, una notifica alla volta:
+con le notifiche (o il canale) spente all'ora del riepilogo le attese restano per quello dopo, e un processo che muore a
+metà non perde le altre. In coda ne aspettano al più 50, le più recenti; `cancelThread` toglie anche quelle del filo.
 
 ## Le attività fuori dall'app (Live Update)
 
@@ -134,7 +167,11 @@ cambio di stato (la riga, la pausa, le tappe) passa subito. Meno dell'1% non cam
 
 **La fine** (`finish`): la notifica dell'esito («Video pronto», «Non riuscito: rete assente») non è più in corso né
 promossa, si chiude al tocco e resta **4 ore**, come una Live Activity finita sulla schermata di blocco. `FluidLiveOutcome.Silent`
-la toglie.
+la toglie. L'esito non ascolta chi lo toglie, e ogni attività (anche una nuova con lo stesso `id`) ha il suo numero nei
+tasti e nel `deleteIntent`: un tocco su una notifica di un'attività finita non comanda quella nuova (R2).
+
+**Il permesso che torna.** Un'attività pubblicata con le notifiche spente compare da sola quando tornano (la pagina si
+rilegge, `center.refresh()`, o l'app torna in primo piano), senza aspettare che l'app ripubblichi.
 
 **Dentro e fuori.** `liveUpdates` è il modo **diretto** (la notifica si vede sempre: un servizio in primo piano).
 `liveUpdates.whenOutside` è lo **specchio della pillola**: la notifica si vede solo quando l'app non è in primo piano
@@ -170,31 +207,50 @@ fun trip(s: NavState) = FluidLiveUpdate(
 
 `FluidReminders.schedule(id, quando, contenuto)` salva il promemoria (`noBackupFilesDir/fluid_notify.json`), sceglie
 l'allarme e lo rimette dopo riavvio, aggiornamento dell'app, cambio d'ora e di fuso e cambio del permesso degli allarmi
-esatti (il ricevitore `FluidNotifyRestoreReceiver`, acceso solo finché c'è un promemoria).
+esatti (il ricevitore `FluidNotifyRestoreReceiver`, acceso solo finché c'è un promemoria). Si può chiamare a ogni avvio
+dell'app con gli stessi promemoria (ciò che è già arrivato non arriva di nuovo) e da un filo qualsiasi.
+
+**Le notifiche spente** (R2, la scelta di Alessio del 26/11/2026). Un promemoria che scade con le notifiche o il suo
+canale spenti è **perso**: il registro lo segna «non mostrato» (`FluidReminderDelivery.shown` falso, «Le notifiche erano
+spente»; in «Cosa succederà» il segno «Non mostrato»), e quando le notifiche tornano non arriva niente di vecchio. Una
+ripetizione suona di nuovo alla sua occorrenza dopo. `FluidNotifyEvent.ReminderDelivered` arriva solo per un promemoria
+mostrato.
+
+**Dopo un riavvio, al primo sblocco.** La memoria sta nello spazio dell'app che Android apre solo al primo sblocco, e il
+ricevitore del ripristino non è `directBootAware`: un promemoria (anche una sveglia, `alarm = true`) che cade fra
+l'accensione e il primo sblocco arriva allo sblocco, segnato in ritardo. Non è la sveglia del telefono.
 
 | quando | cosa usa |
 |---|---|
 | allarme esatto concesso (sempre prima di Android 12) | `setExactAndAllowWhileIdle`: al minuto anche a telefono fermo |
 | senza | `setWindow` di 10 minuti (Android 12 e oltre allargano a 10 minuti le finestre più strette) |
 | `alarm = true` e allarme esatto | `setAlarmClock`: la sveglia che il sistema non sposta mai, con l'icona nella barra |
+| il permesso tolto fra il controllo e la richiesta | la finestra di 10 minuti (Android lancerebbe `SecurityException`) |
 
 **L'ora.** `FluidReminderTime.local(…)` è un'ora dell'orologio: resta alle 8:00 anche cambiando fuso o con l'ora legale
 (nell'ora che manca va avanti, come `ZonedDateTime.of`), come `UNCalendarNotificationTrigger`. `FluidReminderTime.at(…)`
 è un istante. Una ripetizione conta sempre i giorni sull'orologio.
 
 **Il registro.** Ogni promemoria arrivato si segna con l'ora prevista e quella vera, e il perché del ritardo oltre un
-minuto: «Il telefono era spento o appena riavviato», «Senza l'allarme esatto Android può spostarlo di qualche minuto», «Il
-sistema l'ha ritardato per risparmiare batteria». Gli ultimi 50 sono in `center.deliveries`. Un promemoria scaduto mentre
+minuto, dal più preciso: «Era già passato quando l'app l'ha messo in programma», «Il telefono
+era spento o appena riavviato» (anche se l'app parte prima dell'annuncio del riavvio: il telefono acceso dopo l'ora del
+promemoria), «Senza l'allarme esatto Android può spostarlo di qualche minuto», «Il sistema l'ha ritardato per risparmiare
+batteria». Gli ultimi 50 sono in `center.deliveries`. Un promemoria scaduto mentre
 il telefono era spento arriva subito, segnato in ritardo; di una ripetizione persa per giorni arriva solo la più recente.
 
 ## «Le notifiche non arrivano?»
 
-`center.health` controlla, prima ciò che non va: le notifiche dell'app, l'app **messa a dormire** (One UI «App in
-sospensione»: il secchio di standby «raro» o «limitato», o le restrizioni in sottofondo), ogni canale spento, il permesso
-degli allarmi esatti (se ci sono promemoria), Non disturbare, i Live Update. Ogni riga porta nel punto giusto
+`center.health` controlla, prima ciò che non va: la **memoria** (solo quando qualcosa non va: una scrittura fallita, col
+disco pieno, o un file rovinato, copiato in `fluid_notify.json.bak`), le notifiche dell'app, l'app **messa a dormire** (One
+UI «App in sospensione»: il secchio di standby «raro» o «limitato», o le restrizioni in sottofondo), ogni canale spento
+(anche «Promemoria», «Attività in corso» e, col riepilogo acceso, «Riepilogo»), il permesso degli allarmi esatti (se ci
+sono promemoria), Non disturbare, i Live Update. Ogni riga porta nel punto giusto
 (`center.open(fix)`): la pagina del canale, «Sveglie e promemoria», la pagina dell'app con «Batteria» (su One UI «Senza
 restrizioni»), i Live Update dell'app, Non disturbare; se una pagina non c'è, quella delle notifiche dell'app o la pagina
-dell'app.
+dell'app. Un tocco che non apre nessuna pagina (`open` falso) lo dice la pagina stessa, con la strada a mano.
+
+**La memoria** (`fluid_notify.json`) si scrive su un filo suo subito dopo ogni cambio, in un file nuovo rinominato in un
+colpo solo; la copia in memoria resta la verità del processo anche se il disco rifiuta.
 
 ## I numeri
 
@@ -208,6 +264,7 @@ dell'app.
 | finestra senza allarme esatto | 10 min | developer.android.com, «Schedule alarms» (fiducia alta) |
 | ritardo che si segna | 1 min | a occhio, 25/11/2026 |
 | orari del riepilogo | 8:00 e 18:00 | iOS, Riepilogo programmato (fiducia alta) |
+| notifiche in attesa del riepilogo | al più 50 | AOSP, `MAX_PACKAGE_NOTIFICATIONS = 50` (fiducia media-alta, letto a memoria) |
 | gettone intero | < 7 caratteri | developer.android.com, «Live Updates» (fiducia alta) |
 
 ## Cosa è verificato dai test
@@ -228,3 +285,12 @@ dell'app.
   sincronizzazione e per chi non ha scelto, «Smetti di seguire», l'esito non più promosso.
 - **Galleria** (`F8p19NotifyUiTest`): pillola → notifica → pillola con la pillola vera, le pagine con TalkBack e «Riduci
   movimento», tre voti dalla scena.
+- **R2** (`FluidNotifyR2Test`, `FluidNotifyR2PureTest`, `F8p19NotifyR2UiTest`, `FluidActivityOutsideKindTest`): un difetto
+  della review `muse-f8-prime` per prova, ognuna caduta sul codice di prima: il promemoria con le notifiche spente (perso
+  e segnato «non mostrato»), le conversazioni (la scorciatoia, il tetto, l'uscita dal menu), i
+  riassunti sensibili, i promemoria rimessi, la scrittura fallita e il file rovinato, il riepilogo con le notifiche spente e
+  col processo morto a metà, `schedule` da un filo di sottofondo, le attività private, il pallino, i motivi del ritardo, il
+  canale sparito o non dichiarato, il permesso esatto tolto in corsa, la coda del riepilogo, il filo scartato, i controlli,
+  il permesso che torna, il tasto del promemoria, l'indirizzo esterno, la risposta prima dell'install, l'install tardivo,
+  l'esito e i tasti di un'attività finita, le tappe e la pausa, la pillola «Offline», gli orari del riepilogo, le
+  impostazioni che non si aprono. Non provati al PC: il Direct Boot e la schermata di blocco vera (si vedono sul telefono).

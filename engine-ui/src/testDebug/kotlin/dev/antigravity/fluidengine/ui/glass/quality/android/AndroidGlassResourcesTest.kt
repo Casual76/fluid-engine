@@ -159,7 +159,13 @@ class AndroidGlassResourcesTest {
       motion(1)
       assertSame(healthy, ReflectionHelpers.getField<GlassReading>(resources, "reading"))
       frames.scrolling(false)
-      assertEquals(GlassOptics.Protected, resources.decision(window).optics)
+      // F7.26, review R2 (difetto 1): la discesa era della memoria, non dei fotogrammi. Con la lettura sana la prima
+      // posa risale di un livello senza chiedere trenta secondi di moto (qui ne sono passati dodici); fino a F7.25 il
+      // vetro restava Protetto, la riga a 12 MiB e il prefetch fermo.
+      assertEquals(GlassOptics.Reduced, resources.decision(window).optics)
+      assertEquals(dev.antigravity.fluidengine.ui.glass.quality.GlassMemoryProfile.Full,
+        resources.decision(window).memoryProfile)
+      assertTrue(resources.prefetchAllowed.value)
       motion(1501)
       // Il dito resta fermo prima del rilascio e la memoria torna sotto soglia.
       memory.lowMemory = true
@@ -469,8 +475,16 @@ class AndroidGlassResourcesTest {
   }
 }
 
-/** Solo l'heap Java del dispositivo di prova: le condizioni lowMemory/availMem vengono da ActivityManager. */
+/**
+ * Solo l'heap Java del dispositivo di prova: le condizioni lowMemory/availMem vengono da ActivityManager. F7.26: poi le
+ * condizioni della variante (i flag e il profilo simulato), così una sola classe d'ombra serve a tutte le prove del
+ * pacchetto (Robolectric ne tiene una sola per l'oggetto, per tutto il sandbox).
+ */
 @Implements(value = GlassVariantSignals::class, isInAndroidSdk = false)
 internal class RecoveryTestHeap {
-  @Implementation protected fun conditions(real: GlassConditions): GlassConditions = real.copy(heapFraction = 0.2)
+  @Implementation protected fun conditions(real: GlassConditions): GlassConditions =
+    org.robolectric.shadow.api.Shadow.directlyOn(
+      GlassVariantSignals, GlassVariantSignals::class.java, "conditions",
+      org.robolectric.util.ReflectionHelpers.ClassParameter.from(GlassConditions::class.java, real.copy(heapFraction = 0.2)),
+    )
 }

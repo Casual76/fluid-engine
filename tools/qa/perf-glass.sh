@@ -47,7 +47,7 @@ ACTIVITY="dev.antigravity.fluidengine.sample.GalleryActivity"
 TRACE_DIR="/data/misc/perfetto-traces"
 
 # Gli scenari fissi della pagina «Misure» (sample/.../measure/MeasureScenario.kt), nell'ordine del piano.
-ALL_SCENARIOS="scorrimento-foto,scorrimento-testo,menu-tasto,menu-gruppo,contestuale,barra-contesto,capsula-premuta,foglio-sale,foglio-trascinato,otto-lastre,push-pop,zoom-card,f1b-c,f1b-f,f1b-h,selezione,campo-composer,tastiera-contesto"
+ALL_SCENARIOS="scorrimento-foto,scorrimento-testo,menu-tasto,menu-gruppo,menu-gruppo-barra,contestuale,barra-contesto,capsula-premuta,foglio-sale,foglio-trascinato,otto-lastre,push-pop,zoom-card,f1b-c,f1b-f,f1b-h,selezione,campo-composer,tastiera-contesto"
 
 SERIAL="${ANDROID_SERIAL:-}"
 OUT=""
@@ -102,6 +102,9 @@ fi
 
 mkdir -p "$OUT/corse"
 OUT_ABS="$(cd "$OUT" && pwd)"
+# Da Git Bash su Windows `pwd` da' `/c/...`, e con MSYS_NO_PATHCONV adb.exe non sa scriverci (`adb pull` falliva in silenzio
+# e la traccia, tolta poi dal dispositivo, andava persa: F7.27). Il percorso misto `C:/...` va bene a tutti e due.
+command -v cygpath > /dev/null 2>&1 && OUT_ABS="$(cygpath -m "$OUT_ABS")"
 LOG="$OUT_ABS/perf-glass.log"
 
 say() { echo "$(date +%H:%M:%S) $*" | tee -a "$LOG"; }
@@ -110,19 +113,23 @@ adb() { "$ADB" -s "$SERIAL" "$@"; }
 sh_dev() { "$ADB" -s "$SERIAL" shell "$@" | tr -d '\r'; }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Gli APK: etichetta=percorso[,gesti=file][,pacchetto=nome]
+# Gli APK: etichetta=percorso[,gesti=file][,pacchetto=nome][,tune=manopola=valore;manopola=valore]
+# `tune=` (F7.27): le manopole di `gallery.tune` per questo braccio, passate come sono (piu' manopole separate da `;`,
+# perche' la virgola separa le opzioni dell'APK; il `+` resta, come in `f727=barra+striscia`). Piu' bracci possono usare
+# lo stesso APK con manopole diverse: si installa una volta sola (si confronta il file, non l'etichetta).
 # ---------------------------------------------------------------------------------------------------------------------
-LABELS=(); PATHS=(); PACKAGES=(); DRIVERS=(); SCRIPTS=()
+LABELS=(); PATHS=(); PACKAGES=(); DRIVERS=(); SCRIPTS=(); TUNES=()
 for spec in "${APK_SPECS[@]}"; do
   label="${spec%%=*}"; rest="${spec#*=}"
   path="${rest%%,*}"; options=""
   [ "$rest" != "$path" ] && options="${rest#*,}"
-  driver=misure; script=""; package=""
+  driver=misure; script=""; package=""; tune=""
   IFS=',' read -r -a opts <<< "$options"
   for opt in "${opts[@]:-}"; do
     case "$opt" in
       gesti=*) driver=gesti; script="${opt#gesti=}" ;;
       pacchetto=*) package="${opt#pacchetto=}" ;;
+      tune=*) tune="${opt#tune=}" ;;
       "") ;;
       *) echo "opzione dell'APK sconosciuta: $opt" >&2; exit 1 ;;
     esac
@@ -135,7 +142,7 @@ for spec in "${APK_SPECS[@]}"; do
     esac
   fi
   if [ "$driver" = gesti ] && [ ! -f "$script" ]; then echo "copioni mancanti: $script" >&2; exit 1; fi
-  LABELS+=("$label"); PATHS+=("$path"); PACKAGES+=("$package"); DRIVERS+=("$driver"); SCRIPTS+=("$script")
+  LABELS+=("$label"); PATHS+=("$path"); PACKAGES+=("$package"); DRIVERS+=("$driver"); SCRIPTS+=("$script"); TUNES+=("$tune")
 done
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -199,15 +206,15 @@ cool_down() {
 # ---------------------------------------------------------------------------------------------------------------------
 # Installazione e riscaldamento
 # ---------------------------------------------------------------------------------------------------------------------
-declare -A INSTALLED=()   # pacchetto -> etichetta dell'APK installato adesso
+declare -A INSTALLED=()   # pacchetto -> file dell'APK installato adesso
 install_apk() {
   local i="$1" package="${PACKAGES[$1]}"
-  if [ "${INSTALLED[$package]:-}" = "${LABELS[$i]}" ]; then return 0; fi
+  if [ "${INSTALLED[$package]:-}" = "${PATHS[$i]}" ]; then return 0; fi
   say "install -r ${LABELS[$i]} (${PATHS[$i]})"
   if ! adb install -r -t -d "${PATHS[$i]}" >> "$LOG" 2>&1; then
     say "installazione fallita: ${PATHS[$i]}"; finish 4
   fi
-  INSTALLED[$package]="${LABELS[$i]}"
+  INSTALLED[$package]="${PATHS[$i]}"
   # Una corsa di riscaldamento scartata dopo ogni installazione (come nella chiusura di F2): il primo avvio paga la
   # verifica del codice e la prima compilazione degli shader, e non e' una misura.
   local first="${SCENARIO_LIST[0]}"
@@ -262,7 +269,7 @@ trace_stop() {
     [ -z "$(sh_dev "if [ -d /proc/$TRACE_PID ]; then echo vivo; fi")" ] && break
     sleep 0.2
   done
-  adb pull "$TRACE_REMOTE" "$dir/trace.pftrace" > /dev/null 2>&1
+  adb pull "$TRACE_REMOTE" "$dir/trace.pftrace" > /dev/null 2>&1 || say "traccia non scaricata: $TRACE_REMOTE"
   sh_dev rm -f "$TRACE_REMOTE" > /dev/null
   TRACE_PID=""; TRACE_REMOTE=""
 }
@@ -298,8 +305,10 @@ stop_background() {
 # quiete non sporca nessun fotogramma misurato). Se PRONTO dice `sondaggi=no` (le prove di F1B) nessun dump nel mezzo:
 # solo quello finale, come le prove di allora.
 drive_measure() {
-  local dir="$1" package="$2" scenario="$3" log="$1/log.txt" extras=()
+  local dir="$1" package="$2" scenario="$3" log="$1/log.txt" extras=() tune="${4:-}"
   [ -n "$CYCLES" ] && extras=(--es measure.cycles "$CYCLES")
+  # Fra apici: la shell del dispositivo rilegge la riga di adb, e un `;` la spezzerebbe.
+  [ -n "$tune" ] && extras+=(--es gallery.tune "'$tune'")
   sh_dev am start -S -W -n "$package/$ACTIVITY" --es gallery.page measure --es measure.scenario "$scenario" \
     --es gallery.theme "$GALLERY_THEME" "${extras[@]}" > "$dir/apertura.txt"
   local deadline=$(( $(date +%s) + RUN_TIMEOUT )) seen=0 n=0 ready=0 probes=1
@@ -381,6 +390,7 @@ run_once() {  # run_once giro indice-apk scenario nome
   {
     echo "corsa=$name"; echo "giro=$round"; echo "apk=${LABELS[$i]}"; echo "file_apk=${PATHS[$i]}"
     echo "pacchetto=$package"; echo "pilota=${DRIVERS[$i]}"; echo "scenario=$scenario"; echo "tema=$THEME"
+    echo "tune=${TUNES[$i]}"
     echo "inizio=$(date '+%Y-%m-%d %H:%M:%S')"
   } > "$dir/meta.txt"
   if ! cool_down "$dir"; then
@@ -407,7 +417,7 @@ run_once() {  # run_once giro indice-apk scenario nome
 
   local code=0
   if [ "${DRIVERS[$i]}" = misure ]; then
-    drive_measure "$dir" "$package" "$scenario"; code=$?
+    drive_measure "$dir" "$package" "$scenario" "${TUNES[$i]}"; code=$?
   else
     drive_gestures "$dir" "$package" "$scenario" "${SCRIPTS[$i]}"; code=$?
   fi
@@ -476,7 +486,7 @@ STATE_BEFORE="$(device_state)"
   echo "seriale $SERIAL"; echo "modello $(sh_dev getprop ro.product.model)"; echo "giri $ROUNDS"; echo "tema $THEME"
   echo "scenari $SCENARIOS"; echo "pelle_max $SKIN_MAX"; echo "pelle_dopo_max $SKIN_AFTER_MAX"; echo "perfetto $PERFETTO"
   for i in "${!LABELS[@]}"; do
-    echo "apk ${LABELS[$i]} ${PATHS[$i]} ${PACKAGES[$i]} ${DRIVERS[$i]} $(sha256sum "${PATHS[$i]}" | cut -c1-16)"
+    echo "apk ${LABELS[$i]} ${PATHS[$i]} ${PACKAGES[$i]} ${DRIVERS[$i]} $(sha256sum "${PATHS[$i]}" | cut -c1-16) tune=${TUNES[$i]:--}"
   done
   printf '%s\n' "$STATE_BEFORE" | sed 's/^/stato_inizio /'
 } > "$OUT_ABS/sessione.txt"

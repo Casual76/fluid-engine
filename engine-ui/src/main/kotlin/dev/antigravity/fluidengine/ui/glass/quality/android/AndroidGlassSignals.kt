@@ -13,6 +13,8 @@ import dev.antigravity.fluidengine.ui.glass.field.GlassFieldHealth
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import dev.antigravity.fluidengine.ui.glass.quality.GlassConditions
 import dev.antigravity.fluidengine.ui.glass.quality.GlassDeviceCapacity
+import dev.antigravity.fluidengine.ui.glass.quality.GlassGpuClass
+import dev.antigravity.fluidengine.ui.glass.quality.GlassGpuTable
 import dev.antigravity.fluidengine.ui.glass.quality.GlassOptics
 import dev.antigravity.fluidengine.ui.glass.quality.GlassThermal
 import java.io.File
@@ -22,6 +24,8 @@ internal class AndroidGlassSignals(private val app: Context) {
   private val manager = app.getSystemService(ActivityManager::class.java)
   val power: PowerManager? = app.getSystemService(PowerManager::class.java)
   val previousExit = if (Build.VERSION.SDK_INT >= 30) previousExit() else null
+  /** F7.26: il SoC e la classe della sua GPU, letti una volta per processo. Le letture dopo riusano questi. */
+  val soc: GlassSoc = GlassSoc.read()
 
   fun read(thermalStatus: Int? = null): GlassReading {
     val memory = platformValue { manager?.let { am -> ActivityManager.MemoryInfo().also(am::getMemoryInfo) } }
@@ -32,6 +36,8 @@ internal class AndroidGlassSignals(private val app: Context) {
       heapClassMiB = platformValue { manager?.memoryClass } ?: 0,
       lowRamDevice = platformValue { manager?.isLowRamDevice },
       mediaPerformanceClass = if (Build.VERSION.SDK_INT >= 31) Build.VERSION.MEDIA_PERFORMANCE_CLASS else 0,
+      recognizedGpuDriver = soc.gpu == GlassGpuClass.High,
+      gpu = soc.gpu,
     ))
     val conditions = GlassConditions(
       availableBytes = memory?.availMem ?: -1,
@@ -60,8 +66,8 @@ internal class AndroidGlassSignals(private val app: Context) {
         }
       }
     }
-    // L'engine non espone un'identità GPU/driver già acquisita. La classe multimediale e un
-    // verdetto shader restano indizi indipendenti; il moto misurato può autorizzare il recupero.
+    // F7.26: la GPU riconosciuta viene dal nome del SoC ([soc]). La classe multimediale e un verdetto shader restano
+    // indizi indipendenti; il moto misurato può autorizzare il recupero, e i ritardi la discesa.
     return GlassReading(capacity, GlassVariantSignals.conditions(conditions), ceiling)
   }
 
@@ -111,6 +117,35 @@ internal class AndroidGlassSignals(private val app: Context) {
 }
 
 internal data class GlassReading(val capacity: GlassDeviceCapacity, val conditions: GlassConditions, val ceiling: GlassOptics?)
+
+/**
+ * F7.26 · Il nome del SoC e la classe della sua GPU ([GlassGpuTable]). Si legge una volta per processo, nel costruttore
+ * di [AndroidGlassSignals]: sono quattro campi statici di `Build` che Android ha già letto dalle proprietà di sistema
+ * quando ha caricato la classe, quindi nessuna chiamata al sistema, nessun file e nessun contesto grafico, su qualunque
+ * thread. [readNs] è quanto è costata la lettura con la classificazione, per la riga `glassBudgetStart`.
+ */
+internal class GlassSoc(
+  val manufacturer: String?,
+  val model: String?,
+  val board: String?,
+  val hardware: String?,
+  val gpu: GlassGpuClass,
+  val readNs: Long,
+) {
+  override fun toString() = "soc=${manufacturer ?: "-"}/${model ?: "-"} board=$board hardware=$hardware gpu=$gpu socReadNs=$readNs"
+
+  companion object {
+    fun read(): GlassSoc {
+      val start = System.nanoTime()
+      val manufacturer = if (Build.VERSION.SDK_INT >= 31) Build.SOC_MANUFACTURER else null
+      val model = if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else null
+      val board: String? = Build.BOARD
+      val hardware: String? = Build.HARDWARE
+      val gpu = GlassGpuTable.classify(manufacturer, model, board, hardware)
+      return GlassSoc(manufacturer, model, board, hardware, gpu, System.nanoTime() - start)
+    }
+  }
+}
 
 private inline fun <T> platformValue(read: () -> T): T? = try { read() } catch (_: RuntimeException) { null }
 

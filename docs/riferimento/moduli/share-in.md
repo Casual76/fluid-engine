@@ -44,7 +44,17 @@ Catalogo delle firme: [`../api/share-in.md`](../api/share-in.md) (generato). Il 
 
 **Mai letti** (`Unsupported(UnsafeUri)`): un `file://` e un Uri servito dall'app stessa. Il secondo è il modo in cui
 un'app cattiva fa copiare a un'altra app i suoi file privati; se l'app ha un'autorità sua che può ricevere davvero, la
-dichiara in `trustedAuthorities`.
+dichiara in `trustedAuthorities`. «Servito dall'app stessa» lo dice il `PackageManager` (`resolveContentProvider`),
+quindi vale anche per un provider dell'app con un'autorità che non comincia col nome del pacchetto; il prefisso del
+pacchetto resta come ripiego (R2).
+
+**Fra tanti.** In un `SEND_MULTIPLE` con file buoni e Uri insicuri, i buoni arrivano e gli insicuri **restano nella
+lista**, mai aperti né chiesti al loro provider: la copia li rifiuta con `UnsafeUri` e la riga di stato li nomina («Non
+arrivati: segreto.jpg (non sicuro)»), invece di farli sparire (R2). Tutti insicuri: `Unsupported(UnsafeUri)` come prima.
+
+**Un tipo sbagliato.** Un intent che mette in `EXTRA_STREAM` un oggetto che non è un Uri (prima di Android 13 le letture
+non controllano il tipo, e nemmeno quelle nuove gli elementi di una lista non ancora letta da un Parcel) non fa cadere
+l'attività: si tengono solo gli Uri (R2).
 
 ## La copia
 
@@ -54,12 +64,19 @@ dichiara in `trustedAuthorities`.
   (`TooLarge`, senza nemmeno aprire il file);
 - **durante** conta i byte: un file che dice di pesare poco, o non lo dice, e supera il tetto si ferma lì e la copia a
   metà si cancella; lo stesso per il totale;
-- un file che non si legge (il permesso scaduto, l'app che non risponde) diventa `Unreadable`, e gli altri continuano;
+- un file che non si legge (il permesso scaduto, l'app che non risponde, un provider guasto che lancia
+  un'eccezione qualsiasi: `IllegalStateException`, `NullPointerException`, …) diventa `Unreadable`, e gli altri
+  continuano (R2: prima un'eccezione «strana» faceva cadere tutta la ricezione);
+- un Uri insicuro non si apre mai, anche se arriva da `copy` chiamata a mano: `UnsafeUri`;
 - l'avanzamento arriva al più ogni 256 KB e alla fine di ogni file.
 
 Il permesso di lettura vale finché l'attività che ha ricevuto vive: per questo la copia parte appena lo stato si compone
-(`rememberFluidShareInState`), non al «Salva». `FluidShareInFiles.clean(context)` toglie gli arrivi vecchi che l'app non
-ha spostato.
+(`rememberFluidShareInState`), non al «Salva». La cartella dell'arrivo si salva con lo stato: dopo una rotazione l'arrivo
+si ricopia **nella stessa cartella**, con gli stessi nomi, e non restano copie orfane (R2).
+
+**La pulizia è dell'app.** L'engine non cancella mai da solo gli arrivi: `FluidShareInFiles.clean(context)` (fuori dal
+thread principale, di serie quelli più vecchi di un giorno) va chiamata dall'app, per esempio all'avvio con
+`FluidShareFiles.clean`. Senza, le copie restano nella cache finché Android non la svuota.
 
 ## Il foglio: `FluidShareInSheet`
 
@@ -67,7 +84,9 @@ In cima «Annulla», il titolo (il nome dell'app) e «Salva», come la Share Ext
 col dominio, i file con il loro stato), la riga di stato («Copio 2 di 3…», «Non arrivati: video.mp4 (troppo grande)»),
 la barra dell'avanzamento, e le destinazioni (la prima, o quella della scorciatoia). «Salva» chiama `onSave` (il
 salvataggio dell'app, sospeso): «Salvo…», la spunta, poi `onClose`. Un errore lascia il foglio aperto con «Non si è
-salvato».
+salvato». **Mentre salva, niente chiude il foglio**: «Annulla» è spento, il velo e il dito non lo chiudono (il foglio
+torna su), perché l'attività che si chiude cancellerebbe il salvataggio a metà senza dirlo (R2). La destinazione scelta
+si salva per chiave e resta dopo una rotazione.
 
 - **Vetro fermo.** Il foglio vive nella finestra trasparente di un'attività sopra un'altra app: lì il vetro non può
   piegare ciò che sta sotto, perché l'altra app non si cattura. Il foglio è il materiale del modale dell'engine sopra il
@@ -119,5 +138,9 @@ col nome e il peso, copiato fuori dal thread principale con l'avanzamento; tanti
 (`SecurityException`) che non ferma gli altri; testo selezionato, link col titolo, testo, «apri con»; i motivi del rifiuto
 (azione sconosciuta, vuoto, `file://`, Uri dell'app stessa salvo fidato); il file dichiarato enorme mai aperto e quello
 bugiardo fermato al tetto senza resti; tipi e numero dalla politica; il foglio col dito vero (la destinazione e «Salva»,
-i file arrivati al salvataggio, lo stato per TalkBack, il trascinamento che lo chiude) e «Riduci movimento». Le regole
-pure (tipi, link, nomi) sulla JVM in `engine-share-in/src/test`.
+i file arrivati al salvataggio, lo stato per TalkBack, il trascinamento che lo chiude) e «Riduci movimento». Dopo la
+review R2: un provider che lancia `IllegalStateException` perde solo il suo file; un `file://` fra tre arrivi resta nella
+lista come `UnsafeUri` e non si apre; un oggetto che non è un Uri in `EXTRA_STREAM` non fa cadere niente; un provider
+dell'app con un'autorità senza il nome del pacchetto è dell'app; durante il salvataggio né «Annulla» né il dito chiudono
+il foglio; dopo una rotazione (`StateRestorationTester`) la destinazione resta e la copia non apre una cartella nuova.
+Le regole pure (tipi, link, nomi) sulla JVM in `engine-share-in/src/test`.

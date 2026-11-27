@@ -101,6 +101,23 @@ class FluidMapUiTest {
     compose.waitForIdle()
   }
 
+  /**
+   * Aspetta i segnaposto, al piu' [timeoutMs] di tempo **vero**: i grappoli si calcolano in sottofondo
+   * (`Dispatchers.Default`), e col PC carico arrivano dopo l'attesa a tempo finto di [settle] (F8.26d: una corsa con il PC
+   * pieno di build non trovava il Duomo prima del tocco).
+   */
+  private fun awaitMarkers(timeoutMs: Long = 10_000) {
+    val markers = SemanticsMatcher("un segnaposto") {
+      it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("fluid-map:segnaposto:") == true
+    }
+    val deadline = System.currentTimeMillis() + timeoutMs
+    while (System.currentTimeMillis() < deadline) {
+      if (compose.onAllNodes(markers, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) return
+      settle(48)
+      Thread.sleep(20)
+    }
+  }
+
   private fun markerCenter(id: String): Offset {
     val b = compose.onNodeWithTag(FluidMapTags.marker(id), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
     return Offset((b.left + b.right) / 2f, b.bottom)
@@ -111,6 +128,7 @@ class FluidMapUiTest {
     // Fra la Signoria e il Duomo: tutti e due sullo schermo.
     val state = FluidMapState(FluidMapCamera(FluidGeoPoint(43.7713, 11.2559), 15.6))
     show { FluidMap(state, Modifier.fillMaxSize(), markers = markers) }
+    awaitMarkers()
     val before = markerCenter("duomo")
     val camera = state.camera
     compose.onNodeWithTag(FluidMapTags.Map).performTouchInput {
@@ -136,6 +154,7 @@ class FluidMapUiTest {
   fun `due dita pizzicano attorno al punto fra le dita e il doppio tocco avvicina di un passo`() {
     val state = FluidMapState(FluidMapCamera(signoria, 14.0))
     show { FluidMap(state, Modifier.fillMaxSize(), markers = markers) }
+    awaitMarkers()
     compose.onNodeWithTag(FluidMapTags.Map).performTouchInput {
       pinch(center - Offset(100f, 0f), center - Offset(200f, 0f), center + Offset(100f, 0f), center + Offset(200f, 0f), 300)
     }
@@ -192,6 +211,7 @@ class FluidMapUiTest {
   fun `col movimento ridotto la bussola e il tocco su un grappolo saltano invece di volare`() {
     val state = FluidMapState(FluidMapCamera(signoria, 15.0, bearing = 120.0))
     show(reduced = true) { FluidMap(state, Modifier.fillMaxSize(), markers = markers) }
+    awaitMarkers()
     compose.onNodeWithTag(FluidMapTags.Compass).performClick()
     settle(32)
     assertEquals(0.0, abs(state.camera.bearing) % 360.0, 1e-6)
@@ -215,6 +235,7 @@ class FluidMapUiTest {
   fun `i segnaposto vicini sono un grappolo col numero, che toccato avvicina finche' si dividono`() {
     val state = FluidMapState(FluidMapCamera(signoria, 11.0))
     show { FluidMap(state, Modifier.fillMaxSize(), markers = markers) }
+    awaitMarkers()
     val tag = clusterTag()
     assertEquals("3 luoghi", description(tag))
     compose.onNodeWithTag(tag, useUnmergedTree = true).performClick()
@@ -237,6 +258,7 @@ class FluidMapUiTest {
         selected.value = it.id
       })
     }
+    awaitMarkers()
     compose.onNodeWithTag(FluidMapTags.marker("duomo"), useUnmergedTree = true).performClick()
     settle(400)
     assertEquals("duomo", picked?.id)
@@ -278,6 +300,7 @@ class FluidMapUiTest {
   fun `TalkBack ha le azioni della mappa, e Ingrandisci avvicina`() {
     val state = FluidMapState(FluidMapCamera(signoria, 13.0))
     show { FluidMap(state, Modifier.fillMaxSize(), markers = markers) }
+    awaitMarkers()
     val node = compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions)).fetchSemanticsNode()
     val actions = node.config[SemanticsActions.CustomActions].map { it.label }
     assertEquals(listOf("Ingrandisci", "Riduci", "Mostra tutti i luoghi"), actions)

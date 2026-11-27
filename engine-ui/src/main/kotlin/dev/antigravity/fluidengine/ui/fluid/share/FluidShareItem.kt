@@ -39,6 +39,9 @@ import java.util.Locale
  * @param localFiles i file dell'app fuori dalla cartella dell'engine, ancora da copiare: li riempie [file] con un [File],
  *   li svuota [FluidShareFiles.stage]. Il foglio li copia da se' fuori dal thread principale, con l'attesa nell'anteprima,
  *   un tetto e un messaggio se non partono; chi usa [FluidShareIntents] senza il foglio chiama prima `stage`.
+ * @param sensitive vero per un contenuto delicato (un codice, una password, un dato di salute): «Copia» segna gli
+ *   appunti come delicati (`ClipDescription.EXTRA_IS_SENSITIVE`, Android 13 e oltre; prima non c'e' niente da segnare), e
+ *   Android non ne mostra il testo nell'anteprima della copia ne' nei suggerimenti della tastiera. Di serie falso (R2).
  */
 @Immutable
 data class FluidShareItem(
@@ -53,12 +56,17 @@ data class FluidShareItem(
   val print: FluidPdfDocument? = null,
   val detail: String? = null,
   val localFiles: List<File> = emptyList(),
+  val sensitive: Boolean = false,
 ) {
   /** Vero se si mandano dei file. */
   val hasFiles: Boolean get() = uris.isNotEmpty() || localFiles.isNotEmpty()
 
-  /** Vero se qualche file va ancora copiato nella cartella dell'engine prima di partire ([FluidShareFiles.stage]). */
-  val needsCopy: Boolean get() = localFiles.isNotEmpty()
+  /**
+   * Vero se qualche file va ancora copiato nella cartella dell'engine prima di partire ([FluidShareFiles.stage]): i
+   * [localFiles], e un Uri `file://` messo in [uris] (R2: Android vieta di mandarlo a un'altra app, e `startActivity`
+   * lancerebbe `FileUriExposedException`; la copia lo fa diventare un `content://`).
+   */
+  val needsCopy: Boolean get() = localFiles.isNotEmpty() || uris.any(::fluidIsFileUri)
 
   /** Quanti file si mandano. */
   val fileCount: Int get() = uris.size + localFiles.size
@@ -97,7 +105,9 @@ data class FluidShareItem(
      */
     fun file(context: Context, file: File, mimeType: String, preview: ImageBitmap? = null, title: String = file.name): FluidShareItem {
       val size = file.length().takeIf { it > 0 }
-      val uri = if (FluidShareFiles.isShareable(context, file)) runCatching { FluidShareFiles.uriFor(context, file) }.getOrNull() else null
+      // R2 · Un'uscita che non c'e' piu' (la cache svuotata da Android) resta da controllare come un file da copiare:
+      // il foglio dice perche' non parte invece di mandare un Uri morto.
+      val uri = if (FluidShareFiles.isShareable(context, file) && file.isFile) runCatching { FluidShareFiles.uriFor(context, file) }.getOrNull() else null
       return if (uri != null) {
         file(uri, file.name, mimeType, size, preview, title)
       } else {
@@ -121,6 +131,9 @@ data class FluidShareItem(
       FluidShareItem(title = title, mimeType = mimeType, uris = uris, sizeBytes = sizeBytes, preview = preview)
   }
 }
+
+/** Vero per un Uri `file://`: fra app non parte mai, va copiato prima. */
+internal fun fluidIsFileUri(uri: Uri): Boolean = "file".equals(uri.scheme, ignoreCase = true)
 
 /** Vero se [text] e' un solo indirizzo web (niente spazi, schema http o https). */
 internal fun fluidLooksLikeLink(text: String): Boolean {

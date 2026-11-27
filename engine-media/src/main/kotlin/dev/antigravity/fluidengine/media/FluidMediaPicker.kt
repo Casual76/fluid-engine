@@ -248,7 +248,7 @@ fun FluidMediaPicker(
     }
   }
   val confirm: () -> Unit = {
-    scope.launch { state.deliver()?.let { result(it) } }
+    scope.launch { state.deliverSelection()?.let { result(it) } }
   }
   val pickOne: (FluidMediaItem) -> Unit = { item ->
     scope.launch { state.deliver(listOf(item))?.let { result(it) } }
@@ -556,7 +556,27 @@ private fun PickerGrid(
     ) { item, _ ->
       PickerCell(env, feed, item, cellPx, locale)
     }
-    if (feed.finished && feed.items.isEmpty()) {
+    if (feed.failed && feed.items.isEmpty()) {
+      // R1: una sorgente che non risponde (il NAS spento, una scadenza) non e' una libreria vuota: lo si dice, con «Riprova».
+      PickerMessage(
+        icon = { FluidIcon(FluidIcons.Warning, null, size = 44.dp) },
+        title = env.labels.unavailableTitle(feed.source.label),
+        detail = env.labels.unavailableDetail,
+        modifier = Modifier.align(Alignment.Center).padding(horizontal = 32.dp),
+      ) {
+        FluidButton(text = env.labels.retry, onClick = { feed.retry() }, style = FluidButtonStyle.Plain)
+      }
+    } else if (feed.failed) {
+      // A meta' lista: un avviso in fondo con «Riprova», invece di una lista che sembra finita li'.
+      FluidFloatingCapsule(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = bottom), backdrop = backdrop) {
+        Text(
+          env.labels.unavailableTitle(feed.source.label),
+          style = MaterialTheme.typography.bodyMedium,
+          modifier = Modifier.padding(start = 6.dp),
+        )
+        FluidButton(text = env.labels.retry, onClick = { feed.retry() }, style = FluidButtonStyle.Plain)
+      }
+    } else if (feed.finished && feed.items.isEmpty()) {
       PickerMessage(
         icon = { FluidIcon(FluidIcons.PhotoLibrary, null, size = 44.dp) },
         title = if (feed.query.text != null) env.labels.noResults else env.labels.empty,

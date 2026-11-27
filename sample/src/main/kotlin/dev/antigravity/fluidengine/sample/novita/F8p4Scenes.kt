@@ -418,7 +418,10 @@ internal object F8p4Dates {
   fun medium(date: LocalDate, locale: Locale): String = FluidFormat.date(date, FormatStyle.MEDIUM, locale)
 }
 
-/** Una cella di foto: niente alloca disegnando (la tinta della scelta e' un velo letto dal layer). */
+/**
+ * Una cella di foto: niente alloca disegnando. La tinta della scelta e' l'alfa di un layer che c'e' solo sulle foto
+ * scelte (F7.29: prima ogni cella che entrava scorrendo creava il suo layer, anche ad alfa piena).
+ */
 @Composable
 private fun F8p4PhotoCell(photo: F8p4Photo, images: List<BitmapPainter>, selected: Boolean) {
   if (photo.image < images.size) {
@@ -427,12 +430,17 @@ private fun F8p4PhotoCell(photo: F8p4Photo, images: List<BitmapPainter>, selecte
       contentDescription = null,
       contentScale = ContentScale.Crop,
       alignment = photo.bias,
-      modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (selected) 0.72f else 1f },
+      modifier = Modifier.fillMaxSize().then(if (selected) SelectedPhotoTint else Modifier),
     )
   } else {
-    Box(Modifier.fillMaxSize().background(photo.color).graphicsLayer { alpha = if (selected) 0.72f else 1f })
+    // Il layer che stava qui veniva dopo lo sfondo e non conteneva niente: la tinta non arrivava al colore (F7.29 lo
+    // toglie senza cambiare i pixel; il difetto della tinta e' scritto nel rapporto F7.29).
+    Box(Modifier.fillMaxSize().background(photo.color))
   }
 }
+
+/** L'alfa della foto o del file scelti: 72%, come prima. */
+private val SelectedPhotoTint = Modifier.graphicsLayer { alpha = 0.72f }
 
 // --- La griglia di file ----------------------------------------------------------------------------------------------
 
@@ -500,7 +508,8 @@ private fun FileGridScene(onBack: () -> Unit) {
         },
         modifier = Modifier.fillMaxSize().testTag(F8p4Tags.Grid),
       ) { (file, viewer), selected ->
-        Column(Modifier.fillMaxSize().graphicsLayer { alpha = if (selected) 0.72f else 1f }) {
+        // F7.29: il layer della tinta solo sui file scelti (prima ogni cella che entrava ne creava uno ad alfa piena).
+        Column(Modifier.fillMaxSize().then(if (selected) SelectedPhotoTint else Modifier)) {
           Box(
             Modifier
               .fillMaxWidth()

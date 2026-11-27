@@ -118,4 +118,24 @@ class FluidGlassQualityTest {
     ceiling = 1f
     assertEquals(1f, quality.level, 0.0001f)
   }
+  // F7.26 · Review R2, difetto 3: la velocità orizzontale conta come quella verticale.
+  @Test
+  fun unoScorrimentoOrizzontaleVeloceAbbassaIlMaterialeComeQuelloVerticale() {
+    val quality = FluidGlassQuality()
+    quality.onScrollDelta(0f, FluidGlassQuality.MinQualityVelocity * 4f)
+    assertTrue(quality.scrolling)
+    assertEquals(FluidGlassQuality.ScrollingFloor, quality.level, 0.0001f)
+    // Una componente non finita vale ferma, l'altra decide.
+    val mixed = FluidGlassQuality()
+    mixed.onScrollDelta(Float.NaN, FluidGlassQuality.MinQualityVelocity * 4f)
+    assertEquals(FluidGlassQuality.ScrollingFloor, mixed.level, 0.0001f)
+  }
+
+  @Test
+  fun unLancioOrizzontaleAbbassaIlMaterialeGiaAllaPartenza() {
+    val quality = FluidGlassQuality()
+    val connection = fluidGlassQualityScrollConnection(quality)
+    kotlinx.coroutines.runBlocking { connection.onPreFling(androidx.compose.ui.unit.Velocity(14_000f, 0f)) }
+    assertEquals(FluidGlassQuality.ScrollingFloor, quality.level, 0.0001f)
+  }
 }

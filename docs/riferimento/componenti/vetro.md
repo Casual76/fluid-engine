@@ -388,14 +388,23 @@ valori sRGB a 8 bit), la varianza, il colore medio, la copertura (una lettura ch
 consegna) e la **trama**: l'energia dei gradienti fra pixel vicini, che separa il testo da un fondo piatto meglio della
 varianza (0 sotto 0,01, 1 sopra 0,06 della sua radice). Legge con un **lettore per finestra** (un `ImageReader`, un
 `HardwareRenderer` suo e un filo di lavoro), partendo dopo il disegno della finestra, e una richiesta che serve più vetri
-costa come una. **Quando chiede (F7.22).** `syncAndDraw` aspetta che il RenderThread finisca ciò che sta facendo: chiesto
-subito dopo il disegno aspettava tutto il fotogramma della finestra (sul Tab S9, nel PDF di 3000 pagine, 3–6 ms di mediana
-e fino a 9 ms di filo principale fermo, 8–12 volte al secondo). Ora la richiesta aspetta il *commit* della finestra
-(`ViewTreeObserver.registerFrameCommitCallback`), quando il RenderThread è libero, e parte solo se la finestra non ha
-cambiato niente da allora (`isDirty`) e non ha disegnato un fotogramma più nuovo, così il lettore non le ruba il danno
-(il rischio di S1-bis); se no si riprova al fotogramma dopo, e dopo tre tentativi si chiede come prima. In Robolectric, o
-se un commit non arriva entro 50 ms, il lettore chiede come prima. La sonda sta solo sulle **lastre radice**; un vetro dentro un altro
-vetro non misura, e prende il lato da chi lo contiene.
+costa come una. **Quando chiede (F7.22, F7.25).** `syncAndDraw` aspetta che il RenderThread finisca ciò che sta facendo:
+chiesto subito dopo il disegno aspettava tutto il fotogramma della finestra (sul Tab S9, nel PDF di 3000 pagine, 3–6 ms di
+mediana e fino a 9 ms di filo principale fermo, 8–12 volte al secondo). Dalla F7.25 si legge solo col RenderThread libero, e
+lo dice un *ping*: una `syncAndDraw` vuota (un `HardwareRenderer` senza superficie e senza nodi, su un filo suo) accodata
+dietro il fotogramma della finestra. Ping tornato e nessun disegno nuovo della finestra: si legge fra due fotogrammi. Ping
+tornato prima che la finestra disegni il fotogramma dopo: si legge al pre-disegno, e la radice si invalida, così il disegno di
+quel fotogramma ha il danno intero e il lettore non ruba niente alla finestra (il rischio di S1-bis). Ping non ancora tornato:
+si salta il fotogramma e il vetro tiene la lettura di prima, quattro fotogrammi senza nessuna attesa, poi al più 1 ms di
+attesa del ping al pre-disegno, una volta sola per lettura (F7.25c: ripetuta a ogni fotogramma, sul Tab S9 col RenderThread
+carico scadeva 5 volte su 6), e dopo **250 ms** si legge comunque. Il tetto è un tempo, non un numero di fotogrammi
+(30 a 120 Hz, 15 a 60 Hz): è la scelta di Alessio del 26 novembre 2026 (F7.25d). Col tetto a 125 ms, sul Tab S9 nello
+scorrimento più pesante del PDF una lettura su tre ci arrivava e fermava il filo principale 4–13 ms; 250 ms servono a
+leggere al tetto più di rado, e in cambio il vetro può girare chiaro/scuro fino a un quarto di secondo dopo il contenuto,
+più tardi dei 100–133 ms di Apple. Le sezioni di traccia `Glass.sonda libera`, `pre-disegno`, `attesa` e `al tetto` dicono da che strada
+parte una lettura, il contatore `Glass.sonda fotogrammi saltati` quanto ha aspettato; in Robolectric (niente RenderThread)
+si legge come prima, subito dopo il disegno (`Glass.sonda come prima`). La sonda sta solo sulle **lastre radice**; un vetro
+dentro un altro vetro non misura, e prende il lato da chi lo contiene.
 
 **Quando legge.** Niente eventi, niente letture. Gli eventi sono tre: una **revisione** della sorgente (il layer che il vetro
 campiona si è registrato di nuovo, ed è l'unico modo di sapere che sotto un vetro fermo lo sfondo è cambiato), un cambio di
@@ -636,8 +645,9 @@ se la sonda può esistere.
 - **Memoria del lettore:** un lettore per finestra con **64 caselle** in una griglia 8×8, un'immagine da 512×512 px (1 MiB
   RGBA) per immagine, al più tre: **3 MiB per finestra**. Oltre le 64 sonde entrano prima i vetri più grandi e più vicini al
   centro; chi non entra non misura e tiene il lato del tema (chi viene spinto fuori da uno più importante tiene l'ultimo lato
-  misurato). La pagina più carica della galleria («Icone») ne usa 33. `FluidGlassProbeDiagnostics.peakSlots` e
-  `totalSlotsRefused` lo dicono.
+  misurato), e dalla F7.25b riprova al primo evento dopo un'attesa che cresce (240 ms, raddoppiata fino a 2 s): una casella
+  che si libera si riprende. La pagina più carica della galleria («Icone») ne usa 33. `FluidGlassProbeDiagnostics.peakSlots`
+  e `totalSlotsRefused` lo dicono.
 - **Il resto:** la prima misura non si anima; i valori animati (luminanza, trama, colore) arrivano in 300 ms con una
   catena di animazioni che riparte solo se la lettura cambia di più di un centesimo (di due per trama e colore).
 
@@ -1684,7 +1694,15 @@ processo (F7.9, F7.12) prima di esistere. Il tetto è della **fascia del disposi
 | Media | RAM ≤ 6 GiB, oppure heap ≤ 256 MiB | Ridotto (64 MiB) | 24 MiB | Galaxy A52s (6 GB), molti telefoni da 8 GB con heap 256 MiB |
 | Alta | il resto | Pieno (128 MiB) | 48 MiB | Tab S9 (8 GB, heap 512 MiB), telefoni da 12 GB |
 
-Il totale non supera mai un quarto dell'heap (`FluidMemoryLimits.forHeap`). Abbassano la riga a Protetto solo la
+Il totale non supera mai un quarto dell'heap (`FluidMemoryLimits.forHeap`). **Che cosa il tetto non conta** (review R2,
+F7.26): la sorgente a schermo intero di `glassBackdropSource`, quando qualcuno la campiona, è un layer fuori schermo
+grande quanto la pagina che al renderer costa **da uno a due** buffer di quella misura (misurati sul Tab S9 con una
+sorgente sola: 19,4 MiB a 1080 × 2340, cioè due; 15,6 MiB a 1600 × 2560, cioè uno; F7.26d e F7.26e). La seconda copia,
+quando c'è, sta nella cache di Skia del renderer, non nell'engine: la pagina privata dei lettori di una sorgente su
+richiesta è una registrazione (`Auto`) e non ne aggiunge. Fuori dal tetto stanno anche i materiali esportati, le maschere
+d'ombra e le catture piccole (sotto 262.144 pixel e 1 MiB di stima). Sono un costo fisso della schermata: il tetto
+governa quanto il vetro aggiunge sopra, non la memoria grafica intera del vetro (su un telefono Protetto la sorgente da
+sola pesa quanto i 12 MiB del vetro, o di più). Abbassano la riga a Protetto solo la
 pressione vera (lowMemory, memoria disponibile sotto la soglia, heap all'85%), la termica severa e, per la sessione,
 un'uscita precedente per memoria. **Non** la abbassano un rifiuto visibile, i fotogrammi in ritardo, il risparmio
 energetico o l'avvio Ridotto per la classe multimediale assente: quelle chiedono catture più piccole (la scala del
@@ -1715,6 +1733,65 @@ popover della capsula della data (19,8 MB) non entrava mai. Quando il tetto è s
   disegno (`requestRedraw`). Un ingresso degli effetti a cornice ferma resta com'era: un fotogramma, e la catena nel
   pre-draw, senza ridisegnare il vetro. La regola per chi tocca il nodo è in [regole.md](../regole.md), «Un nodo di
   layout che disegna si ridisegna da uno stato letto nel disegno».
+
+**F7.26. La risalita dopo un segnale** (review R2). La politica distingue le due discese. Quella dei **fotogrammi** (tre
+ritardi di fila, due finestre cattive) risale come sempre: alla posa, dopo trenta secondi di moto e tre finestre buone.
+**Di chi è un ritardo** (F7.26e): un fotogramma in ritardo vota contro il vetro quando il lavoro dell'app (la CPU coi
+comandi, o la GPU se è più lunga) supera la scadenza di Android, ma **mai una scadenza più lunga di tre periodi** del
+pannello (`AttributionPeriods`, la coda di tre buffer). Col carico vero della GPU, sul Tab S9, la scadenza si allungava
+fino a 58 ms dietro i fotogrammi lenti e 30 ms di GPU a fotogramma restavano «non attribuiti»: nessuna discesa. Sui
+fotogrammi veri dello scorrimento sano la regola non cambia niente (al più tre ritardi dell'app per finestra da 120,
+come prima, e una finestra cattiva ne vuole quattro); la prova `GlassFrameVotesTest` li rigioca.
+Quella dei **segnali** (pressione di memoria, heap, termica, risparmio, un rifiuto del registro, una lettura che manca)
+risale alla **prima posa** con la lettura sana, un livello alla volta e cinque secondi dopo l'ultimo cambio, senza
+chiedere altro moto; con la finestra in fondo, o senza finestra, subito alla lettura (non c'è niente da vedere). Uno
+schermo fermo non cambia sotto gli occhi: aspetta la posa. Il prefetch e la riga dei tetti tornano insieme al livello.
+Una GPU di punta ha il Pieno dal suo tetto dei fotogrammi fin dall'avvio: il suo avvio Ridotto (verdetti degli shader
+non ancora dati) è prudenza da segnale e si toglie alla prima posa sana (fra Ridotto e Pieno, a riposo, la cattura è la
+stessa).
+
+**F7.26. La qualità di scorrimento** (review R2): la velocità è la più grande fra quella verticale e quella orizzontale
+(un pager lanciato sotto una barra abbassa il materiale come una lista), e a fine lancio il materiale risale con la
+stessa rampa della pagina che rallenta (il 12 % della distanza per fotogramma, 40 fotogrammi dal pavimento al pieno),
+anche quando il dito ferma un lancio veloce; prima tornava pieno in un fotogramma.
+
+**F7.26. La classe della GPU, dal nome del SoC.** La fascia della memoria non dice quanto regge la GPU: il Galaxy S22
+(8 GB, heap 512 MiB, Exynos 2200 che scalda e rallenta) ha la stessa riga del Tab S9. Il registro legge una volta per
+processo `Build.SOC_MANUFACTURER` e `Build.SOC_MODEL` (da Android 12; prima, o se dicono `unknown`, `Build.BOARD` e
+`Build.HARDWARE`): campi statici che Android ha già letto, quindi nessuna chiamata al sistema, nessun file, nessun
+contesto EGL. Una tabella di prefissi e cifre (`GlassGpuTable`, interna) dà quattro classi:
+
+| Classe | SoC | Vetro d'avvio | Pagine dei documenti nella memoria grafica |
+|---|---|---|---|
+| Alta | Snapdragon da SM8550 in poi (Tab S9, S25), Exynos 2400 e 2500, Dimensity 9300 e dopo | come prima: Ridotto (Pieno solo con la classe multimediale e i verdetti degli shader già dati) | spente (accese se il vetro scende a Protetto) |
+| Media | Snapdragon 8 Gen 1, 8+ Gen 1, 888, le «s»; Exynos 2200, 2100, 990; Dimensity 9000 e 9200; Tensor | Ridotto | accese |
+| Bassa | Snapdragon 7, 6, 4 (il 778G dell'A52s), Exynos 1xxx e 8xx, il resto dei MediaTek | **Protetto**, Ridotto alla prima posa sana (F7.26e) | accese |
+| Sconosciuta | nessun nome, o un nome che la tabella non conosce | Ridotto | accese finché il vetro non arriva a Pieno coi fotogrammi misurati |
+
+La classe non tocca la riga della memoria (quella protegge dalla memoria che manca) ed è solo la prima ipotesi: un
+dispositivo che scatta scende comunque (le finestre dei fotogrammi), e una GPU sconosciuta che regge risale alla posa
+dopo trenta secondi buoni. Una GPU bassa (F7.26e) sale a Ridotto alla **prima posa sana**, come dopo un segnale, e da lì
+in su solo coi fotogrammi: sul Tab S9 a 120 Hz i trenta secondi buoni non arrivavano mai (il tempo attivo non passava
+1,9 s, e le finestre avevano 30–100 fotogrammi sopra l'80 % del periodo contro i 6 ammessi). Se poi i fotogrammi vanno
+male scende, e per quella finestra resta giù. Il tetto è una costante sola, `LowGpuSignalCeiling`: a `Protected` torna
+il comportamento di prima. `glassBudgetStart` scrive il SoC letto, la classe e quanto è costata la lettura
+(`socReadNs`).
+
+**Il telefono debole simulato** (F7.26, solo debug e bench, niente proprietà di sistema): l'extra
+`fluid.glass.device` della prima Activity applica un profilo prima del suo contenuto, quindi prima della prima cattura.
+`adb shell am start -n <pacchetto>/<attività> --es fluid.glass.device a52s,load=160@20-50,thermal=severe@70-90`.
+Profili: `a52s` (6 GB, heap 256, 778G), `a52s8`, `s22`, `tabs9`, `s25`, `4gb`, `go`, `ignoto`, `vero` (nessun cambio,
+solo le righe); voci `ram=`, `heap=`, `lowram=`, `soc=`, `gpu=`, `mpc=`; a tempo, in secondi dall'avvio, `thermal=…@da-a`,
+`load=<iterazioni>@da-a` (uno shader invisibile sopra la finestra che la GPU paga davvero, così si scende per i
+ritardi misurati) e `late@da-a` (ritardi finti); `fonte=piatta` toglie la texture fuori schermo della sorgente a schermo
+intero, per misurare la memoria che risparmia contro il lavoro che costa ai vetri (sul Tab S9 in formato telefono: 19 MiB
+in meno, fotogrammi uguali). Le righe sono nel tag `FluidF7Sim`: il profilo applicato, ogni cambio di livello col motivo,
+la memoria (Java, nativa, vetro e processo coi picchi) ogni mezzo secondo nei primi 20 s, e da F7.26d ogni sorgente a
+schermo intero quando cambia (campionata o no, misura, fonte) e **i voti dei fotogrammi**: una riga `voti` ogni 120
+fotogrammi in moto e a ogni posa (quanti hanno votato; gli altri per motivo: non attribuiti, incompleti con `gpu<0`,
+`lavoro>totale` e gli altri, persi, scartati come vecchi, doppi, dal futuro o a finestra ferma; quanti senza tempo della
+GPU, a zero, più lunghi del totale o della CPU; i massimi, la scadenza e lo stato delle finestre). `voti=ogni` nel
+profilo aggiunge una riga per fotogramma.
 
 Per la prova sul dispositivo, `log.tag.FluidGlassFrame=VERBOSE`: `glassBudgetStart` (RAM, `memoryClass`, disponibile,
 fascia, riga e ottica all'avvio), `glassBudgetLimits` (ogni cambio di riga), `glassBudgetDenied` (con l'uscita, il
@@ -1794,7 +1871,14 @@ colonna sono in `bilanci/LEGGIMI.txt`.
   sorgente che cambia arriva al vetro al fotogramma dopo;
 - **in moto stabile** zero layer, bitmap e programmi nuovi per fotogramma (le ombre di Robolectric che contano le
   fabbriche, in `sample/src/testDebug/java/…/bilanci/`), e il banco ripetibile delle allocazioni: il vetro sul percorso
-  caldo meno la stessa scena senza vetro, rosso solo se l'incremento si ripete nelle tre ripetizioni;
+  caldo meno la stessa scena senza vetro, rosso solo se l'incremento si ripete nelle tre ripetizioni. Una lista o una
+  griglia che scorre crea i layer di ciò che entra in vista, una riga alla volta e solo ogni tanto: la colonna `fab` del
+  moto (il massimo per fotogramma) dice quanti layer ha una riga che entra, e **fabbriche in almeno metà dei
+  fotogrammi stabili** (e almeno tre) sono rosse anche sotto il tetto (F7.29: una fabbrica a ogni fotogramma). Compose dà un layer a ogni
+  elemento di una lista pigra e uno a ogni `graphicsLayer`, `clip`, `clipToBounds()` e `Image` della cella: in una cella
+  che entra scorrendo un rettangolo si ritaglia nel disegno, e un layer che serve solo a un'animazione c'è solo mentre
+  l'animazione corre (`FluidAsyncImage`, `FluidPreviewGrid`, F7.29). Le note della prova dicono di chi è ogni layer nato
+  (il modificatore e la catena del nodo);
 - **la completezza**, sopra.
 
 **Se una guardia diventa rossa.** Il messaggio dice elemento, fase, colonna, misura e tetto, e la riga misurata intera.

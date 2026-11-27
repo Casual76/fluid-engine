@@ -15,12 +15,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -166,6 +170,10 @@ class FluidPermissionState internal constructor(
   val permission: FluidPermission,
   private val memory: FluidFirstUseMemory,
   private val scope: CoroutineScope,
+  // R2: la spiegazione aperta e le risposte senza dialogo sopravvivono alla rotazione e al processo ucciso.
+  promptState: MutableState<PermissionPrompt?> = mutableStateOf(null),
+  unansweredState: MutableIntState = mutableIntStateOf(0),
+  actionDueState: MutableState<Boolean> = mutableStateOf(false),
 ) {
   /** Lo stato di adesso: si aggiorna dopo il dialogo e, da solo, al ritorno dalle impostazioni. */
   var status: FluidPermissionStatus by mutableStateOf(FluidPermissionStatus.NeverAsked)
@@ -177,10 +185,30 @@ class FluidPermissionState internal constructor(
 
   internal val namespace = FluidGlassNamespace()
   internal val source = FluidTransitionSource(FluidPermissionSourceId, namespace)
-  internal var prompt: PermissionPrompt? by mutableStateOf(null)
+  internal var prompt: PermissionPrompt? by promptState
   internal var explained = false
   internal var asked = false
+
+  /**
+   * Le risposte di fila senza permesso e senza spiegazione di Android (R2): la prima può essere il dialogo chiuso senza
+   * scegliere; la seconda è un no vero, anche se Android non ha mostrato niente (negato per sempre prima dell'engine, o un
+   * permesso che il manifest non dichiara).
+   */
+  private var unanswered by unansweredState
   private var pending: (() -> Unit)? = null
+
+  /**
+   * Un tocco aspetta il sì (la spiegazione o il dialogo di Android sono aperti). Sopravvive alla ricreazione, l'azione
+   * no: dopo una ricreazione, al sì parte [grantedAction], quella dell'albero di adesso (R2, scelta B di Alessio).
+   */
+  private var actionDue by actionDueState
+
+  /** `onGranted` di [rememberFluidPermission], riletto a ogni composizione: sempre quello dell'albero di adesso. */
+  internal var grantedAction: (() -> Unit)? = null
+
+  /** Un tocco in lavorazione (la memoria si legge) o il dialogo di Android aperto: un altro tocco non fa niente (R2). */
+  private var requesting = false
+  private var awaitingSystem = false
   internal var launch: ((Array<String>) -> Unit)? = null
   internal var settings: (() -> Unit)? = null
   internal var check: (() -> Triple<Boolean, Boolean, Boolean>)? = null
@@ -189,37 +217,54 @@ class FluidPermissionState internal constructor(
   internal var onResult: (FluidPermissionStatus) -> Unit = {}
 
   /**
-   * Il tocco del tasto: se il permesso c'è (anche in parte) [onGranted] parte subito; altrimenti la prima volta nasce la
-   * spiegazione dal tasto, poi il dialogo di Android, e se l'utente consente [onGranted] parte da solo. Da negato si
-   * chiede direttamente; da negato per sempre la spiegazione offre «Apri Impostazioni».
+   * Il tocco del tasto: se il permesso c'è (anche in parte) l'azione parte subito; altrimenti la prima volta nasce la
+   * spiegazione dal tasto, poi il dialogo di Android, e se l'utente consente l'azione parte da sola. Da negato si chiede
+   * direttamente; da negato per sempre la spiegazione offre «Apri Impostazioni».
+   *
+   * L'azione è [onGranted], se c'è; altrimenti quella data a [rememberFluidPermission] (`onGranted`), che è anche
+   * l'unica che parte se l'Activity si ricrea mentre la spiegazione o il dialogo di Android sono sopra (una rotazione,
+   * il processo ucciso): [onGranted] è una funzione dell'albero di prima, e non parte più. Per un'azione che deve
+   * partire comunque dopo il sì: `request()` senza argomenti e l'azione in `rememberFluidPermission(onGranted = …)`.
+   *
+   * Un tocco mentre la spiegazione o il dialogo di Android sono già aperti non fa niente: conta il primo, con la sua
+   * azione.
    */
-  fun request(onGranted: () -> Unit = {}) {
+  fun request(onGranted: () -> Unit = NoAction) {
+    if (requesting || awaitingSystem || prompt != null) return
+    requesting = true
     scope.launch {
-      ensureLoaded()
-      refresh()
-      when (fluidPermissionStep(status, explained, hasExplanation, requestable)) {
-        FluidPermissionStep.Proceed -> onGranted()
-        FluidPermissionStep.Explain -> {
-          pending = onGranted
-          explained = true
-          memory.write(FluidFirstUseKeys.permissionExplained(permission.id), "1")
-          prompt = PermissionPrompt.Explain
+      try {
+        ensureLoaded()
+        refresh()
+        when (fluidPermissionStep(status, explained, hasExplanation, requestable)) {
+          FluidPermissionStep.Proceed -> if (onGranted !== NoAction) onGranted() else grantedAction?.invoke()
+          FluidPermissionStep.Explain -> {
+            pending = onGranted.takeUnless { it === NoAction }
+            actionDue = true
+            explained = true
+            memory.writeSafely(FluidFirstUseKeys.permissionExplained(permission.id), "1")
+            prompt = PermissionPrompt.Explain
+          }
+          FluidPermissionStep.AskSystem -> {
+            pending = onGranted.takeUnless { it === NoAction }
+            actionDue = true
+            askSystem()
+          }
+          FluidPermissionStep.OpenSettings -> {
+            pending = null
+            actionDue = false
+            prompt = PermissionPrompt.Settings
+          }
         }
-        FluidPermissionStep.AskSystem -> {
-          pending = onGranted
-          askSystem()
-        }
-        FluidPermissionStep.OpenSettings -> {
-          pending = null
-          prompt = PermissionPrompt.Settings
-        }
+      } finally {
+        requesting = false
       }
     }
   }
 
   /** Concesso in parte (le foto «solo alcune»): mostra di nuovo la scelta di Android per aggiungerne altre. */
   fun requestMore() {
-    if (status == FluidPermissionStatus.Partial) askSystem()
+    if (status == FluidPermissionStatus.Partial && !awaitingSystem) askSystem()
   }
 
   /** Apre le impostazioni giuste dell'app (quelle delle notifiche, per le notifiche). Al ritorno lo stato si rilegge. */
@@ -242,6 +287,7 @@ class FluidPermissionState internal constructor(
   internal fun dismissPrompt() {
     prompt = null
     pending = null
+    actionDue = false
   }
 
   private fun askSystem() {
@@ -250,28 +296,55 @@ class FluidPermissionState internal constructor(
       prompt = PermissionPrompt.Settings
       return
     }
-    launch?.invoke(permissions)
+    val start = launch ?: return
+    awaitingSystem = true
+    start(permissions)
   }
 
-  internal fun onSystemResult() {
+  /**
+   * La risposta del dialogo di Android: [results] è la mappa del contratto, vuota se la richiesta è stata interrotta
+   * (l'Activity ricreata, un'altra richiesta in corso), che non è una risposta.
+   */
+  internal fun onSystemResult(results: Map<String, Boolean>) {
+    awaitingSystem = false
     val (granted, partial, rationale) = check?.invoke() ?: return
     val previous = status
-    val next = fluidPermissionAfterRequest(previous, granted, partial, rationale)
+    if (results.isEmpty()) {
+      pending = null
+      actionDue = false
+      refresh()
+      onResult(status)
+      return
+    }
+    var next = fluidPermissionAfterRequest(previous, granted, partial, rationale)
+    // Né permesso né spiegazione dopo «mai chiesto»: il dialogo chiuso senza scegliere, oppure Android che dice no senza
+    // mostrare niente. La seconda volta di fila è un no vero: negato per sempre, e la strada delle impostazioni subito,
+    // perché il tocco non ha mostrato niente.
+    val silentNo = next == FluidPermissionStatus.NeverAsked && ++unanswered >= 2
+    if (next != FluidPermissionStatus.NeverAsked) unanswered = 0
+    if (silentNo) next = FluidPermissionStatus.DeniedForever
     status = next
     if (next != FluidPermissionStatus.NeverAsked && !asked) {
       asked = true
-      scope.launch { memory.write(FluidFirstUseKeys.permissionAsked(permission.id), "1") }
+      scope.launch { memory.writeSafely(FluidFirstUseKeys.permissionAsked(permission.id), "1") }
     }
     val action = pending
+    val due = actionDue
     pending = null
-    if (next == FluidPermissionStatus.Granted || next == FluidPermissionStatus.Partial) action?.invoke()
+    actionDue = false
+    // L'azione del tocco se è ancora di questo albero; dopo una ricreazione quella di `rememberFluidPermission`.
+    if ((next == FluidPermissionStatus.Granted || next == FluidPermissionStatus.Partial) && due) {
+      if (action != null) action() else grantedAction?.invoke()
+    }
+    if (silentNo) prompt = PermissionPrompt.Settings
     onResult(next)
   }
 
   internal suspend fun ensureLoaded() {
     if (isLoaded) return
-    asked = memory.read(FluidFirstUseKeys.permissionAsked(permission.id)) == "1"
-    explained = memory.read(FluidFirstUseKeys.permissionExplained(permission.id)) == "1"
+    // Una memoria che non risponde vale «non lo so»: mai chiesto e mai spiegato (R2).
+    asked = memory.readSafely(FluidFirstUseKeys.permissionAsked(permission.id)).getOrNull() == "1"
+    explained = memory.readSafely(FluidFirstUseKeys.permissionExplained(permission.id)).getOrNull() == "1"
     isLoaded = true
     refresh()
   }
@@ -281,13 +354,23 @@ class FluidPermissionState internal constructor(
  * Un permesso chiesto nel punto giusto (F8.11): dal tasto che ne ha bisogno.
  *
  * ```kotlin
- * val mic = rememberFluidPermission(FluidPermission.Microphone, reason = "Serve per dettare la nota mentre tieni premuto.")
- * FluidButton("Detta", onClick = { mic.request { startDictation() } }, modifier = Modifier.fluidPermissionSource(mic))
+ * val mic = rememberFluidPermission(
+ *   FluidPermission.Microphone,
+ *   reason = "Serve per dettare la nota mentre tieni premuto.",
+ *   onGranted = { startDictation() },
+ * )
+ * FluidButton("Detta", onClick = { mic.request() }, modifier = Modifier.fluidPermissionSource(mic))
  * ```
+ *
+ * L'azione in `onGranted` parte anche dopo una rotazione con il dialogo di Android sopra; `mic.request { … }` va bene
+ * per un'azione che dopo una ricreazione può non partire.
  *
  * **La macchina a stati** ([FluidPermissionStatus]): mai chiesto, concesso, concesso in parte (le foto «solo alcune» di
  * Android 14), negato, negato per sempre. Android non distingue «mai chiesto» da «negato per sempre»: l'engine lo ricorda
- * nella memoria della prima volta ([LocalFluidFirstUseMemory], `EngineFirstUseStore` di `engine-storage`).
+ * nella memoria della prima volta ([LocalFluidFirstUseMemory], `EngineFirstUseStore` di `engine-storage`). Un dialogo che
+ * torna senza permesso e senza spiegazione la prima volta conta come chiuso senza scegliere; la seconda volta di fila è
+ * un no (Android non mostra più niente: negato per sempre prima dell'engine, o un permesso assente dal manifest), e la
+ * spiegazione con «Apri Impostazioni» compare subito. La spiegazione aperta resiste alla rotazione e al processo ucciso.
  *
  * **La spiegazione** nasce dal tasto (l'avviso con la sorgente, che prende il posto del tasto e ci rientra) col perché
  * dell'app ([reason]), «Continua» porta al dialogo di Android e «Non ora» chiude. Si mostra **una volta**: dopo, anche dopo
@@ -300,6 +383,10 @@ class FluidPermissionState internal constructor(
  *   ([FluidFirstUseLabels.permissionTitle] col [FluidPermission.name]).
  * @param explain falso per non mostrare mai la spiegazione (il tasto dice già tutto): il primo tocco chiede subito.
  * @param onResult ogni risposta al dialogo di Android, con lo stato nuovo.
+ * @param onGranted l'azione del tasto quando il permesso c'è (R2, scelta B di Alessio): parte al tocco se il permesso
+ *   c'è già e dopo il sì, **anche se nel frattempo l'Activity si è ricreata** (una rotazione, il processo ucciso con la
+ *   spiegazione o il dialogo di Android sopra), perché è sempre quella dell'albero di adesso. Un'azione data a
+ *   [FluidPermissionState.request] vince su questa nello stesso albero; null, di serie: solo quella di `request`.
  */
 @Composable
 fun rememberFluidPermission(
@@ -309,18 +396,25 @@ fun rememberFluidPermission(
   explain: Boolean = true,
   memory: FluidFirstUseMemory = LocalFluidFirstUseMemory.current,
   onResult: (FluidPermissionStatus) -> Unit = {},
+  onGranted: (() -> Unit)? = null,
 ): FluidPermissionState {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
-  val state = remember(permission, memory) { FluidPermissionState(permission, memory, scope) }
+  val savedPrompt = rememberSaveable(permission.id) { mutableStateOf<PermissionPrompt?>(null) }
+  val savedUnanswered = rememberSaveable(permission.id) { mutableIntStateOf(0) }
+  val savedActionDue = rememberSaveable(permission.id) { mutableStateOf(false) }
+  val state = remember(permission, memory) {
+    FluidPermissionState(permission, memory, scope, savedPrompt, savedUnanswered, savedActionDue)
+  }
   val latestResult by rememberUpdatedState(onResult)
-  val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-    state.onSystemResult()
+  val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+    state.onSystemResult(results)
   }
   state.launch = { launcher.launch(it) }
   state.requestable = permission.requestable()
   state.hasExplanation = explain
   state.onResult = { latestResult(it) }
+  state.grantedAction = onGranted
   state.check = {
     val activity = context.findActivity()
     val rationale = activity != null && permission.permissions().any { activity.shouldShowRequestPermissionRationale(it) }
@@ -393,3 +487,6 @@ fun Modifier.fluidPermissionSource(
 ): Modifier = fluidTransitionSource(FluidPermissionSourceId, state.namespace, shape)
 
 private const val FluidPermissionSourceId = "fluid-permission"
+
+/** L'azione di serie di [FluidPermissionState.request]: nessuna, e allora vale `onGranted` di [rememberFluidPermission]. */
+private val NoAction: () -> Unit = {}

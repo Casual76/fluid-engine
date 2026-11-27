@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalDensity
 import java.io.File
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -84,9 +85,13 @@ class FluidImageEditorState internal constructor(
 
   internal var image: EditorImage? by mutableStateOf<EditorImage?>(null)
 
-  /** Perche' la foto non si e' aperta, o null. */
+  /** Perche' la foto non si e' aperta, o null. L'editor mostra «Riprova» ([FluidImageEditorStrings.retry]). */
   var loadError: Throwable? by mutableStateOf<Throwable?>(null)
     internal set
+
+  /** Quante volte si e' chiesta l'apertura: «Riprova» la richiede ([retryLoad]). */
+  internal var loadAttempt: Int by mutableIntStateOf(0)
+    private set
 
   /** Vero quando la foto e' pronta (l'anteprima e' caricata). */
   val isReady: Boolean get() = image != null
@@ -235,9 +240,19 @@ class FluidImageEditorState internal constructor(
           img.definitionBitmap
         }
       }
+    } catch (e: CancellationException) {
+      // R1: l'editor che esce mentre la foto si legge non e' un errore di apertura.
+      throw e
     } catch (e: Exception) {
       loadError = e
     }
+  }
+
+  /** «Riprova» dopo un errore di apertura (il permesso tornato, il file arrivato): l'apertura riparte. */
+  internal fun retryLoad() {
+    if (loadError == null) return
+    loadError = null
+    loadAttempt++
   }
 
   internal fun restoreUi(mode: String?, selected: String?) {
@@ -266,15 +281,18 @@ fun rememberFluidImageEditorState(
   val density = LocalDensity.current.density
   val screen = max(config.screenWidthDp, config.screenHeightDp) * density
   val maxSide = if (previewMaxSide > 0) previewMaxSide else screen.roundToInt().coerceIn(1024, 2560)
-  var saved by rememberSaveable(source.uri?.toString()) { mutableStateOf(initial.encode()) }
-  var savedMode by rememberSaveable(source.uri?.toString()) { mutableStateOf(FluidEditorMode.Adjust.id) }
-  var savedSelected by rememberSaveable(source.uri?.toString()) { mutableStateOf(FluidAdjustment.Exposure.id) }
+  // R1: la chiave e' la sorgente intera (l'indirizzo, o la bitmap stessa): prima era il solo indirizzo, null per ogni
+  // bitmap, e una seconda bitmap nello stesso posto si apriva con la ricetta della prima. Alla ricreazione il valore
+  // salvato torna comunque (le chiavi non si salvano).
+  var saved by rememberSaveable(source) { mutableStateOf(initial.encode()) }
+  var savedMode by rememberSaveable(source) { mutableStateOf(FluidEditorMode.Adjust.id) }
+  var savedSelected by rememberSaveable(source) { mutableStateOf(FluidAdjustment.Exposure.id) }
   val state = remember(source) {
     FluidImageEditorState(source, initial, FluidImageEdit.decode(saved) ?: initial, context).also {
       it.restoreUi(savedMode, savedSelected)
     }
   }
-  LaunchedEffect(state) { state.load(maxSide) }
+  LaunchedEffect(state, state.loadAttempt) { state.load(maxSide) }
   // Quello che sopravvive alla ricreazione si scrive a ogni passo, non a ogni fotogramma.
   LaunchedEffect(state) {
     androidx.compose.runtime.snapshotFlow { Triple(if (state.interacting) null else state.edit, state.mode.id, state.selected?.id) }

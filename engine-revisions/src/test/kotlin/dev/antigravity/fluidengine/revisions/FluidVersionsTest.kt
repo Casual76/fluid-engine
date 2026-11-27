@@ -69,4 +69,54 @@ class FluidVersionsTest {
     assertFalse(FluidVersionDecision(listOf("a"), listOf("a", "b")).keepsAll)
     assertTrue(FluidVersionDecision(listOf("a", "b"), listOf("a", "b")).keepsAll)
   }
+
+  /**
+   * R2, il minore di F8.21: tre versioni, una oltre il tetto. La versione attuale non è più confrontata con tutte: è
+   * l'inizio del testo senza segni, come dice [FluidVersionExcerpt.compared]; quella confrontata tiene i suoi.
+   */
+  @Test fun `tre versioni e una oltre il tetto - l'attuale e' l'inizio senza segni`() {
+    val start = (1..80).joinToString(" ") { "parola$it" }
+    val mine = FluidVersion("a", "A", 0, "$start fine uno.", current = true)
+    val near = FluidVersion("b", "B", 0, "$start fine due.")
+    val far = FluidVersion("c", "C", 0, (1..80).joinToString(" ") { "altro$it" })
+    val excerpts = fluidVersionExcerpts(listOf(mine, near, far), maxChars = 120, maxEdits = 10)
+    val a = excerpts.getValue("a")
+    assertFalse(a.compared)
+    assertTrue("l'attuale non porta i segni delle altre: ${a.changed}", a.changed.isEmpty())
+    assertTrue("e' l'inizio del testo", a.text.startsWith("parola1 ") && !a.clippedStart)
+    assertTrue(excerpts.getValue("b").compared)
+    assertTrue(excerpts.getValue("b").changed.isNotEmpty())
+    assertFalse(excerpts.getValue("c").compared)
+  }
+
+  /**
+   * R2 #47: due testi enormi con molti passaggi diversi. La traduzione dei tratti in caratteri era quadratica (per ogni
+   * tratto ripartiva dall'inizio del testo): con 800 000 pezzi e 2 000 tratti erano più di un miliardo e mezzo di passi.
+   * Ora gli scarti si contano una volta sola: la stessa preparazione sta sotto il secondo anche su un PC carico.
+   */
+  @Test fun `due testi enormi con molti tratti diversi si preparano in tempo lineare`() {
+    val words = 400_000
+    val changes = 2_000
+    val step = words / changes
+    val base = StringBuilder()
+    val other = StringBuilder()
+    for (i in 0 until words) {
+      if (i > 0) { base.append(' '); other.append(' ') }
+      base.append("w").append(i)
+      other.append(if (i % step == step / 2) "x$i" else "w$i")
+    }
+    val versions = listOf(
+      FluidVersion("a", "A", 0, base.toString(), current = true),
+      FluidVersion("b", "B", 0, other.toString()),
+    )
+    // Il primo giro scalda il JIT, il secondo si misura.
+    fluidVersionExcerpts(versions, maxEdits = 2 * changes + 10)
+    val started = System.nanoTime()
+    val excerpts = fluidVersionExcerpts(versions, maxEdits = 2 * changes + 10)
+    val ms = (System.nanoTime() - started) / 1_000_000
+    println("R2 #47: $words parole, $changes tratti, $ms ms")
+    assertTrue(excerpts.getValue("b").compared)
+    assertEquals("x${step / 2}", excerpts.getValue("b").let { it.text.substring(it.changed.first()) })
+    assertTrue("preparazione in $ms ms", ms < 1_200)
+  }
 }

@@ -608,4 +608,6 @@ allinea due liste e risponde un `FluidDiff` (per ogni pezzo il suo corrispondent
 **null oltre `maxEdits`** (di serie `FluidTextDiff.DefaultMaxEdits`, mille): il costo cresce con il numero di modifiche, e chi
 chiama ripiega (la sincronizzazione chiede la scelta, il foglio delle versioni mostra due estratti). L'inizio e la fine comuni
 non costano niente. Sta qui perche' lo usano due moduli che non si conoscono: `engine-sync` per fondere un testo lungo,
-`engine-revisions` per segnare i passaggi diversi. Per testi lunghi si chiama fuori dal thread principale.
+`engine-revisions` per segnare i passaggi diversi. Per testi lunghi si chiama fuori dal thread principale. Il tetto limita il
+conto di Myers (circa 4 MB al peggio), non i pezzi: per due testi di qualche megabyte pezzi, mappa e corrispondenze sono
+decine di megabyte (R2), da poter dare o da tagliare prima.

@@ -23,6 +23,8 @@ Catalogo delle firme: [`../api/audio.md`](../api/audio.md).
 |---|---|
 | registrare un memo col microfono del telefono | `val recorder = FluidAudioRecorder(context)`, poi `recorder.start(File(…, "memo.m4a"))` |
 | pausa, ripresa, fine, scarta | `recorder.pause()`, `resume()`, `stop()` (sospende: torna la `FluidRecording`), `discard()` |
+| non aspettare il microfono sul thread principale | i comandi da un altro thread, in fila: `scope.launch(comandi) { recorder.start(file) }` con `val comandi = Dispatchers.Default.limitedParallelism(1)` |
+| una lezione lunga da non perdere se l'app muore | il WAV (`FluidRecordingQuality.Lossless`): si ascolta fino all'ultimo secondo |
 | l'interfaccia di Memo Vocali | `FluidVoiceRecorder(phase, onRecord, onPause, onResume, onDone, recorder.envelope, recorder::elapsedMillis)` (engine-ui) |
 | sapere dov'è | `recorder.status` (`FluidRecorderStatus`: `Idle`, `Recording`, `Paused(interrupted)`, `Finished`, `Failed`) |
 | l'avviso «troppo forte» | `recorder.clipping` (vero per un secondo dopo un campione tagliato) |
@@ -52,6 +54,21 @@ quello del file in pausa e alla fine.
 se un'altra app se lo riprende (una chiamata, un video) o se Android zittisce il microfono (da Android 10,
 `isClientSilenced`), va **in pausa** con `interrupted = true`. Un microfono perso a metà o preso da un'altra app fa lo stesso:
 il file scritto fin lì resta, e si può riprendere o finire.
+
+**Se qualcosa si rompe** (R1, 26 novembre 2026). Un errore vero (il file che non si scrive, il codificatore che si ferma)
+dà `Failed`, e il file scritto fin lì resta finché l'app decide: `stop()` lo chiude e lo consegna; `discard()`, `reset()` o
+un nuovo `start()` lo buttano (scelta di Alessio del 26 novembre 2026: un file a metà che nessuno ha chiesto non resta sul
+disco). La cattura comincia solo dopo che lo stato dice `Recording`: un
+microfono perso o un file che non si scrive già al primo blocco danno `Paused` o `Failed`, mai un `Recording` fermo. Se l'apertura dell'AAC fallisce a metà (il contenitore su una
+destinazione non scrivibile, il codificatore che rifiuta il formato) il codificatore e il contenitore già nati si liberano
+subito; se la chiusura fallisce (`MediaMuxer.stop()` sull'indice finale, un disco pieno) si liberano lo stesso e `stop()`
+torna null con `Failed`, invece di lanciare.
+
+**Se il processo muore registrando** (il sistema chiude l'app, un crash altrove, la batteria). Il **WAV** resta sul disco e
+si ascolta fino all'ultimo secondo: le due misure dell'intestazione si riscrivono ogni secondo di audio (senza `fsync`, che
+sul thread della cattura potrebbe fermarlo oltre il mezzo secondo di riserva del microfono: un telefono che si spegne di
+colpo può perdere gli ultimi secondi non ancora sul disco). L'**AAC** resta sul disco ma non si apre: il contenitore MP4
+scrive il suo indice solo alla fine. All'app resta decidere cosa fare dei file rimasti a metà al prossimo avvio.
 
 **La fine.** `stop()` chiude il file (il WAV riscrive le misure nell'intestazione; l'AAC svuota il codificatore e chiude il
 contenitore), toglie i silenzi se `trimSilence` (`FluidAudioSilence.trimBounds`: la soglia segue il rumore della stanza, e
@@ -90,6 +107,11 @@ engine-ui: il titolo, la qualità di adesso a destra, e al tocco un pop-up di ve
   all'avvio. Senza, `start()` è falso e lo stato è `Failed(Unavailable)`.
 - **`stop()` sospende**: chiamala da una coroutine (`scope.launch { recorder.stop() }`); i comandi e lo stato sono sicuri
   da qualunque thread.
+- **I comandi non tornano tutti subito** (R1): `start()` e `resume()` aspettano che il microfono si apra (qualche decina di
+  millisecondi, di più su alcuni telefoni), `pause()` e `discard()` la lettura in corso (al più 20 ms). Dal thread
+  principale è un'attesa breve al tocco; chi non la vuole li chiama da un altro thread, **in fila**
+  (`Dispatchers.Default.limitedParallelism(1)`: due comandi in parallelo arriverebbero in un ordine qualunque), e legge
+  l'esito da `status`.
 - **La cattura di `engine-ai`** (`SpeechCapture`) resta dov'è per ora: quella decide da sola quando fermarsi e scrive un WAV
   breve per un riconoscitore. Scelta di Alessio del 25 novembre 2026: in F9 PampAI passa dal microfono di questo modulo, e
   la trascrizione resta in due modi (una frase breve col riconoscimento del telefono, una lunga con l'IA, se c'è).
@@ -102,7 +124,10 @@ engine-ui: il titolo, la qualità di adesso a destra, e al tocco un pop-up di ve
 tempo vero) la registrazione con pausa e ripresa scrive **un file solo** con l'intestazione giusta e tutti i campioni; in
 pausa il microfono è spento e il tempo è fermo; un'interruzione va in pausa e si riprende; un microfono che non parte è
 `Failed(Busy)`; un microfono perso a metà lascia il file e la pausa; il taglio dei silenzi lascia 0,6 s di voce più 300 ms per
-lato, con l'onda tagliata insieme; il WAV stereo si legge in un'onda mescolata. Nella galleria
+lato, con l'onda tagliata insieme; il WAV stereo si legge in un'onda mescolata; un WAV che si sta registrando dice sul disco
+quanto audio contiene, al più un secondo indietro; dopo una cattura fallita `reset()` e `start()` buttano il file a metà, e `stop()` lo
+consegna chiuso (R1). `FluidAacWriterTest.kt` (Robolectric, col codificatore e il contenitore contati): un contenitore che non si apre libera
+il codificatore; uno che non si chiude libera tutti e due, e `stop()` torna null con `Failed` (R1). Nella galleria
 (`sample/src/testDebug/.../F8p13AudioUiTest.kt`) il registratore vero dietro il pannello, coi tocchi veri. Sul tablet: un
 memo vero, registrato e riascoltato.
 

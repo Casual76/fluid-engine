@@ -57,7 +57,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `var loading: Boolean by mutableStateOf(true)` — Vero finché la prima lettura non è finita.
   - `suspend fun reload()` — Rilegge i permessi persistenti e i nomi delle cartelle (fuori dal thread principale).
   - `suspend fun add(treeUri: Uri): FluidFileSource?` — Prende il permesso persistente di lettura sull'albero [treeUri] (il risultato del selettore) e lo aggiunge. Restituisce la sorgente, o null se il permesso non si può prendere (il selettore non l'ha concesso).
-  - `suspend fun remove(source: FluidFileSource)` — Toglie la cartella: restituisce il permesso persistente. I file restano dove sono.
+  - `suspend fun remove(source: FluidFileSource)` — Toglie la cartella dalle posizioni. Se il permesso l'ha preso lo sfoglia-file ([add]) e nessuno ci scrive, lo restituisce; altrimenti (la usa un'altra funzione dell'app) la nasconde soltanto. I file restano dove sono.
   - `fun owns(source: FluidFileSource): Boolean` — Vero se [source] è una cartella concessa (si può togliere).
   - `companion object`
     - `val PhoneHint: Uri` — Dove apre il selettore: la memoria interna del telefono (il documento `primary:`). È un suggerimento: l'utente può scegliere un'altra posizione o un'altra app dal menu del selettore.

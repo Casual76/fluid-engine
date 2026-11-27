@@ -344,7 +344,7 @@ class GlassBalanceGuardsTest {
 
   // ---- 6. Le fabbriche in moto stabile ----------------------------------------------------------------------------------
 
-  private enum class Factory { None, Bitmap, Layer, Program, Filter }
+  private enum class Factory { None, Bitmap, Layer, Program, Filter, LayerEverySixth }
 
   private fun factoryScene(make: Factory): GlassBalanceMeter {
     val meter = harness.meter("fabbrica $make")
@@ -358,6 +358,8 @@ class GlassBalanceGuardsTest {
           Factory.Layer -> graphics.releaseGraphicsLayer(graphics.createGraphicsLayer())
           Factory.Program -> android.graphics.RuntimeShader("half4 main(float2 p) { return half4(1); }")
           Factory.Filter -> RenderEffect.createOffsetEffect(tick.intValue.toFloat(), 0f)
+          // Una riga che entra in vista ogni sei fotogrammi, coi suoi layer nuovi (F7.29).
+          Factory.LayerEverySixth -> if (tick.intValue % 6 == 0) graphics.releaseGraphicsLayer(graphics.createGraphicsLayer())
         }
         drawRect(Color.Red)
       })
@@ -385,5 +387,24 @@ class GlassBalanceGuardsTest {
       val column = if (make == Factory.Filter) "fx" else "fab"
       assertTrue("la mutazione $make deve cadere su $column: $problems", problems.any { "$column 1" in it })
     }
+  }
+
+  /**
+   * F7.29 · La riga che entra e la fabbrica a ogni fotogramma. Il tetto `fab` del moto è il massimo per fotogramma: una
+   * lista che scorre lo raggiunge quando entra una riga, ogni tanto, e la stessa colonna non distingue un layer che nasce
+   * a ogni fotogramma. La scena col layer ogni sei fotogrammi passa sotto il tetto 1; quella col layer a ogni fotogramma
+   * misura anche lei 1, quindi il tetto non la ferma: cade sulla guardia dei fotogrammi stabili (fabbriche in almeno metà).
+   */
+  @Test
+  fun unaRigaCheEntraPassaEUnLayerAOgniFotogrammaCadeAncheSottoIlTetto() {
+    val one = GlassBalanceRegistry.parse(
+      "prova.bilancio",
+      "scena moto - - - - - - 1 0 - - F7.29 GlassBalanceGuardsTest | una riga che entra: un layer nuovo, ogni tanto",
+    )
+    val rows = factoryScene(Factory.LayerEverySixth)
+    assertEquals("un layer ogni sei fotogrammi: verde", emptyList<String>(), rows.compare(one, "scena"))
+    val every = factoryScene(Factory.Layer).compare(one, "scena")
+    assertTrue("un layer a ogni fotogramma deve cadere anche sotto il tetto: $every", every.any { "fotogrammi stabili: layer, bitmap o programmi nuovi" in it })
+    assertTrue("e non sul tetto, che lo lascerebbe passare: $every", every.none { "fab 1 (tetto" in it })
   }
 }

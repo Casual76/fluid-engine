@@ -51,17 +51,32 @@ internal interface FluidAudioWriter {
 }
 
 /**
- * Il WAV scritto mentre si registra: l'intestazione di 44 byte con le misure a zero, i campioni in coda, e le due misure
- * scritte a [finish]. Un buffer di byte riusato: nessuna allocazione per blocco.
+ * Il WAV scritto mentre si registra: l'intestazione di 44 byte, i campioni in coda, e le due misure dell'intestazione
+ * (quanto è lungo il RIFF, quanti byte di dati) riscritte **ogni secondo di audio** e a [finish]. R1 (26 novembre 2026):
+ * se il processo muore registrando (il sistema lo chiude, un crash altrove), il file sul disco si ascolta fino all'ultimo
+ * secondo. Senza `fsync`, che sul thread della cattura potrebbe fermarlo oltre la riserva del microfono: i byte scritti
+ * stanno già nel sistema e sopravvivono al processo; un telefono che si spegne di colpo può perdere gli ultimi secondi
+ * che il sistema non aveva ancora portato sul disco. Un buffer di byte riusato: nessuna allocazione per blocco.
  */
 internal class FluidWavWriter(private val file: File, private val sampleRate: Int) : FluidAudioWriter {
   private val out = RandomAccessFile(file, "rw")
   private var bytes = ByteArray(0)
   private var dataBytes = 0L
 
+  /** I byte di dati che l'intestazione sul disco dice adesso. */
+  private var headerBytes = 0L
+  private val sizes: ByteBuffer = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN)
+
   init {
-    out.setLength(0L)
-    out.write(wavHeader(0, sampleRate))
+    try {
+      out.setLength(0L)
+      out.write(wavHeader(0, sampleRate))
+    } catch (error: Throwable) {
+      // R1: un disco pieno all'apertura non lascia il file aperto.
+      runCatching { out.close() }
+      file.delete()
+      throw error
+    }
   }
 
   override fun write(samples: ShortArray, count: Int) {
@@ -74,6 +89,22 @@ internal class FluidWavWriter(private val file: File, private val sampleRate: In
     }
     out.write(bytes, 0, count * 2)
     dataBytes += count * 2
+    if (dataBytes - headerBytes >= sampleRate * 2L) writeSizes()
+  }
+
+  /** Le due misure dell'intestazione al loro posto, senza spostare il punto in cui si scrive. */
+  private fun writeSizes() {
+    val data = dataBytes.coerceAtMost(Int.MAX_VALUE.toLong() - 36).toInt()
+    val channel = out.channel
+    sizes.clear()
+    sizes.putInt(36 + data)
+    sizes.flip()
+    channel.write(sizes, 4L)
+    sizes.clear()
+    sizes.putInt(data)
+    sizes.flip()
+    channel.write(sizes, 40L)
+    headerBytes = dataBytes
   }
 
   override fun finish() {
@@ -111,18 +142,24 @@ internal fun wavHeader(dataSize: Int, sampleRate: Int, channels: Int = 1): ByteA
  * L'AAC in M4A scritto mentre si registra: il codificatore di Android in modo sincrono sul thread della cattura, e il
  * contenitore MP4 di `MediaMuxer`. I tempi dei pacchetti vengono dal conto dei campioni scritti, quindi una pausa non
  * lascia buchi nel file.
+ *
+ * L'indice del contenitore MP4 si scrive solo a [finish]: se il processo muore registrando, il file M4A resta sul disco
+ * ma non si apre (per una lezione lunga da non perdere c'è il WAV, che si salva ogni secondo).
  */
 internal class FluidAacWriter(
   private val file: File,
   private val sampleRate: Int,
   bitRate: Int,
 ) : FluidAudioWriter {
-  private val codec: MediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
-  private val muxer = MediaMuxer(file.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+  private val codec: MediaCodec
+  private val muxer: MediaMuxer
   private val info = MediaCodec.BufferInfo()
   private var track = -1
   private var muxing = false
   private var samples = 0L
+
+  /** Vero quando codificatore e contenitore sono già liberati ([finish], anche fallito): [abandon] non li rilibera. */
+  private var released = false
 
   init {
     val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, 1).apply {
@@ -130,8 +167,27 @@ internal class FluidAacWriter(
       setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
       setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, InputBytes)
     }
-    codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-    codec.start()
+    // R1 (26 novembre 2026): se una fase dell'apertura fallisce (il contenitore che non si apre su una destinazione non
+    // scrivibile, il codificatore che rifiuta il formato), quel che è già nato si libera subito, invece di restare aperto
+    // fino al garbage collector.
+    val encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
+    val container = try {
+      MediaMuxer(file.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+    } catch (error: Throwable) {
+      runCatching { encoder.release() }
+      throw error
+    }
+    try {
+      encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+      encoder.start()
+    } catch (error: Throwable) {
+      runCatching { encoder.release() }
+      runCatching { container.release() }
+      file.delete()
+      throw error
+    }
+    codec = encoder
+    muxer = container
   }
 
   override fun write(samples: ShortArray, count: Int) {
@@ -156,29 +212,39 @@ internal class FluidAacWriter(
   }
 
   override fun finish() {
-    // Il segnale di fine, poi tutto quello che il codificatore ha ancora dentro.
-    var index = codec.dequeueInputBuffer(TimeoutUs)
-    var tries = 0
-    while (index < 0 && tries++ < 50) {
-      drain(endOfStream = false)
-      index = codec.dequeueInputBuffer(TimeoutUs)
+    try {
+      // Il segnale di fine, poi tutto quello che il codificatore ha ancora dentro.
+      var index = codec.dequeueInputBuffer(TimeoutUs)
+      var tries = 0
+      while (index < 0 && tries++ < 50) {
+        drain(endOfStream = false)
+        index = codec.dequeueInputBuffer(TimeoutUs)
+      }
+      if (index >= 0) codec.queueInputBuffer(index, 0, 0, samples * 1_000_000L / sampleRate, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+      drain(endOfStream = true)
+    } finally {
+      // R1: il codificatore e il contenitore si liberano anche quando la chiusura fallisce (l'indice finale su un disco
+      // pieno: `MediaMuxer.stop()` lancia `IllegalStateException`). L'errore arriva al registratore, che lo dice.
+      runCatching { codec.stop() }
+      runCatching { codec.release() }
+      try {
+        if (muxing) muxer.stop()
+      } finally {
+        runCatching { muxer.release() }
+        released = true
+      }
     }
-    if (index >= 0) codec.queueInputBuffer(index, 0, 0, samples * 1_000_000L / sampleRate, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-    drain(endOfStream = true)
-    runCatching { codec.stop() }
-    codec.release()
-    if (muxing) {
-      muxer.stop()
-    }
-    muxer.release()
     if (!muxing) throw IOException("il codificatore AAC non ha prodotto niente")
   }
 
   override fun abandon() {
-    runCatching { codec.stop() }
-    runCatching { codec.release() }
-    runCatching { if (muxing) muxer.stop() }
-    runCatching { muxer.release() }
+    if (!released) {
+      runCatching { codec.stop() }
+      runCatching { codec.release() }
+      runCatching { if (muxing) muxer.stop() }
+      runCatching { muxer.release() }
+      released = true
+    }
     file.delete()
   }
 

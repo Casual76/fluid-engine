@@ -98,6 +98,8 @@ fun FluidNavHost(
  * Apre [initialAddress] prima che il motore delle pagine osservi la prima pila. Al ripristino
  * prevale la pila salvata da Navigation, anche se l'utente era già tornato al genitore.
  * I nuovi intent si consegnano ad [FluidAddressNavigation.open] con lo stesso controller.
+ * Un [initialAddress] nullo alla prima composizione e pronto dopo si apre quando arriva: conta il
+ * primo non nullo.
  */
 @Composable
 fun <P : Any> FluidNavHost(
@@ -192,10 +194,12 @@ private fun FluidNavHostContent(
   val navigator = navController.navigatorProvider.pageNavigatorOrNull() ?: return
   val queue = rememberFluidModalAddressQueue(navController, navigator, addresses)
   if (addresses != null) {
+    // Si consuma il primo indirizzo non nullo (R2): un'app che lo legge una composizione dopo (dall'intent, in un
+    // effetto) lo vede aperto lo stesso. Dopo, un valore nuovo non riapre niente: i link dopo passano da `open`.
     val consumed = rememberSaveable(navController) { mutableStateOf(false) }
-    if (!consumed.value) {
+    if (!consumed.value && initialAddress != null) {
       consumed.value = true
-      if (initialAddress != null) addresses.open(navController, initialAddress, queue)
+      addresses.open(navController, initialAddress, queue)
     }
   }
 

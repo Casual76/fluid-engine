@@ -81,10 +81,12 @@ object FluidShareIn {
    * `Dispatchers.IO`. Dalla [policy] prende solo le autorita' fidate dell'app stessa; i limiti li applica [copy].
    */
   suspend fun read(context: Context, intent: Intent?, policy: FluidShareInPolicy = FluidShareInPolicy()): FluidIncoming = withContext(Dispatchers.IO) {
-    val shape = fluidIncomingShape(intent, context.packageName, policy.trustedAuthorities)
+    val unsafe = fluidUnsafeUri(context, policy)
+    val shape = fluidIncomingShape(intent, context.packageName, policy.trustedAuthorities, unsafe)
     if (shape !is FluidIncoming.Files) return@withContext shape
     val resolver = context.contentResolver
-    FluidIncoming.Files(shape.files.map { describe(resolver, it, intent?.type) }, shape.text, shape.viewed)
+    // Un Uri insicuro fra quelli buoni resta nella lista per dire che non e' arrivato, ma non si chiede niente a nessuno.
+    FluidIncoming.Files(shape.files.map { if (unsafe(it.uri)) it else describe(resolver, it, intent?.type) }, shape.text, shape.viewed)
   }
 
   /** Il tipo, il nome e il peso di [file] chiesti all'app che lo offre; quello che non dice resta nullo. */
@@ -110,7 +112,12 @@ object FluidShareIn {
  * La forma di [intent] senza chiedere niente a nessuno: l'azione, gli extra e il `ClipData`. [ownPackage] serve a
  * rifiutare gli Uri dell'app stessa.
  */
-internal fun fluidIncomingShape(intent: Intent?, ownPackage: String, trusted: Set<String> = emptySet()): FluidIncoming {
+internal fun fluidIncomingShape(
+  intent: Intent?,
+  ownPackage: String,
+  trusted: Set<String> = emptySet(),
+  unsafe: (Uri) -> Boolean = { it.scheme?.lowercase(Locale.ROOT) != "content" || fluidIsOwnUri(it, ownPackage, trusted) },
+): FluidIncoming {
   if (intent == null || intent.action !in FluidShareIn.Actions) {
     return FluidIncoming.Unsupported(FluidShareInProblem.NotAShare, intent?.action.orEmpty())
   }
@@ -126,7 +133,7 @@ internal fun fluidIncomingShape(intent: Intent?, ownPackage: String, trusted: Se
       val data = intent.data ?: return FluidIncoming.Unsupported(FluidShareInProblem.Empty)
       when (data.scheme?.lowercase(Locale.ROOT)) {
         "http", "https" -> FluidIncoming.Link(data.toString(), null)
-        "content" -> if (fluidIsOwnUri(data, ownPackage, trusted)) FluidIncoming.Unsupported(FluidShareInProblem.UnsafeUri)
+        "content" -> if (unsafe(data)) FluidIncoming.Unsupported(FluidShareInProblem.UnsafeUri)
         else FluidIncoming.Files(listOf(FluidIncomingFile(data, type, null, null)), viewed = true)
         else -> FluidIncoming.Unsupported(FluidShareInProblem.UnsafeUri, data.scheme.orEmpty())
       }
@@ -137,9 +144,14 @@ internal fun fluidIncomingShape(intent: Intent?, ownPackage: String, trusted: Se
       val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)?.takeIf { it.isNotBlank() }
       when {
         uris.isNotEmpty() -> {
-          val unsafe = uris.filter { it.scheme?.lowercase(Locale.ROOT) != "content" || fluidIsOwnUri(it, ownPackage, trusted) }
-          if (unsafe.size == uris.size) FluidIncoming.Unsupported(FluidShareInProblem.UnsafeUri, unsafe.first().scheme.orEmpty())
-          else FluidIncoming.Files((uris - unsafe.toSet()).map { FluidIncomingFile(it, type?.takeIf { t -> '*' !in t }, null, null) }, text)
+          val refused = uris.filter(unsafe)
+          // R2 · Tutti insicuri: niente da tenere. Alcuni: restano nella lista, e la copia li rifiuta col motivo
+          // (`UnsafeUri`), cosi' la persona legge quali non sono arrivati invece di vederli sparire.
+          if (refused.size == uris.size) FluidIncoming.Unsupported(FluidShareInProblem.UnsafeUri, refused.first().scheme.orEmpty())
+          else FluidIncoming.Files(uris.map { uri ->
+            if (uri in refused) FluidIncomingFile(uri, null, uri.lastPathSegment, null)
+            else FluidIncomingFile(uri, type?.takeIf { t -> '*' !in t }, null, null)
+          }, text)
         }
         text != null -> fluidLinkOf(text)?.let { FluidIncoming.Link(it, subject) } ?: FluidIncoming.Text(text, subject)
         else -> FluidIncoming.Unsupported(FluidShareInProblem.Empty)
@@ -151,16 +163,24 @@ internal fun fluidIncomingShape(intent: Intent?, ownPackage: String, trusted: Se
 /** Gli Uri di `EXTRA_STREAM` (uno o una lista) e del `ClipData`, senza doppioni, nell'ordine. */
 internal fun fluidStreamUris(intent: Intent): List<Uri> {
   val out = LinkedHashSet<Uri>()
+  // R2 · Un intent di un'altra app puo' mettere in EXTRA_STREAM un oggetto che non e' un Uri: prima di Android 13 le
+  // letture non controllano il tipo, e nemmeno quelle nuove controllano gli elementi di una lista non ancora letta da un
+  // Parcel. Si leggono come oggetti qualsiasi e si tengono solo gli Uri: un tipo sbagliato non fa cadere la ricezione.
   if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
-    val list = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
-    else @Suppress("DEPRECATION") intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
-    list?.let(out::addAll)
+    // `List<*>`: gli elementi si guardano come oggetti qualsiasi, senza il cast che lancerebbe.
+    val list: List<*>? = runCatching {
+      if (Build.VERSION.SDK_INT >= 33) intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.os.Parcelable::class.java)
+      else @Suppress("DEPRECATION") intent.getParcelableArrayListExtra<android.os.Parcelable>(Intent.EXTRA_STREAM)
+    }.getOrNull()
+    list?.forEach { item -> (item as? Uri)?.let(out::add) }
   } else {
-    val one = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-    else @Suppress("DEPRECATION") intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-    one?.let(out::add)
+    val one: Any? = runCatching {
+      if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, android.os.Parcelable::class.java)
+      else @Suppress("DEPRECATION") intent.getParcelableExtra<android.os.Parcelable>(Intent.EXTRA_STREAM)
+    }.getOrNull()
+    (one as? Uri)?.let(out::add)
   }
-  intent.clipData?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let(out::add) }
+  runCatching { intent.clipData?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let(out::add) } }
   return out.toList()
 }
 
@@ -184,4 +204,29 @@ internal fun fluidIsOwnUri(uri: Uri, ownPackage: String, trusted: Set<String> = 
   if (trusted.any { it.lowercase(Locale.ROOT) == authority }) return false
   val own = ownPackage.lowercase(Locale.ROOT)
   return authority == own || authority.startsWith("$own.")
+}
+
+/**
+ * Gli Uri che non si leggono mai, per questa app: non `content://`, o serviti da lei e non dichiarati fidati. «Serviti da
+ * lei» lo dice il `PackageManager` (R2: un provider dell'app con un'autorita' che non comincia col nome del pacchetto non
+ * era riconosciuto), col prefisso del pacchetto come ripiego.
+ */
+internal fun fluidUnsafeUri(context: Context, policy: FluidShareInPolicy): (Uri) -> Boolean {
+  val own = context.packageName
+  val trusted = policy.trustedAuthorities.map { it.lowercase(Locale.ROOT) }.toSet()
+  val pm = context.packageManager
+  return { uri ->
+    val authority = uri.authority?.lowercase(Locale.ROOT)
+    when {
+      uri.scheme?.lowercase(Locale.ROOT) != "content" -> true
+      authority == null -> true
+      authority in trusted -> false
+      fluidIsOwnUri(uri, own, policy.trustedAuthorities) -> true
+      else -> runCatching {
+        // Un'autorita' puo' portare piu' nomi separati da «;»: il PackageManager la cerca per nome.
+        @Suppress("DEPRECATION")
+        pm.resolveContentProvider(uri.authority!!, 0)?.packageName == own
+      }.getOrDefault(false)
+    }
+  }
 }

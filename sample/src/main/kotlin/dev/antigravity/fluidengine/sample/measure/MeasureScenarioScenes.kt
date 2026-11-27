@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import dev.antigravity.fluidengine.sample.catalog.GroupMenuStage
+import dev.antigravity.fluidengine.sample.catalog.GroupMenuStageActionId
 import dev.antigravity.fluidengine.sample.material.MaterialTarget
 import dev.antigravity.fluidengine.sample.material.trackBounds
 import dev.antigravity.fluidengine.sample.playground.PlaygroundStage
@@ -117,6 +119,7 @@ internal fun ScenarioScene(scenario: MeasureScenario, actions: ScenarioActions, 
     MeasureScenario.ScrollText -> ScrollScene(photos = false, actions, bottomInset)
     MeasureScenario.MenuButton -> MenuButtonScene(actions)
     MeasureScenario.MenuGroup -> MenuGroupScene(actions, bottomInset)
+    MeasureScenario.MenuGroupBar -> MenuGroupBarScene(actions, bottomInset)
     MeasureScenario.ContextMenu -> ContextScene(actions, bottomInset, holdFloorMillis = 600L)
     MeasureScenario.BarContext -> BarContextScene(actions, bottomInset)
     MeasureScenario.CapsulePress -> CapsuleScene(actions, bottomInset)
@@ -319,6 +322,50 @@ private fun MenuGroupScene(actions: ScenarioActions, bottomInset: Dp) {
   }
   LaunchedEffect(actions) {
     while (source.resolve() == null) delay(50)
+    actions.ready = true
+  }
+}
+
+/**
+ * F7.27: il palco «Il gruppo che diventa menu» della galleria ([GroupMenuStage], la schermata annidata con la barra in
+ * basso e due gruppi) dentro una pagina con righe di vetro sopra e sotto, come nella pagina «Menù liquidi». Il dito tocca
+ * «Menu del gruppo», l'ultimo tasto della capsula del primo gruppo, dove la barra dice che sta; la chiusura passa
+ * dall'host dei modali. La sorgente si cerca dentro la pagina, dove la barra annidata la registra.
+ */
+@Composable
+private fun MenuGroupBarScene(actions: ScenarioActions, bottomInset: Dp) {
+  val finger = rememberScenarioFinger()
+  val host = LocalFluidGlassModalHostState.current
+  val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  val sources = remember { arrayOfNulls<FluidTransitionSource>(1) }
+  FluidScreen(
+    title = "Menù",
+    subtitle = "F7.27 · il gruppo in basso",
+    extraBottomPadding = bottomInset,
+  ) {
+    item(key = "rows") { PlainRows("Riga", 2) }
+    item(key = "stage") {
+      sources[0] = rememberFluidToolbarTransitionSource(GroupMenuStageActionId)
+      GroupMenuStage(pick = {})
+    }
+    item(key = "rows-after") { PlainRows("Voce", 6) }
+  }
+  actions.on("apre") {
+    val bounds = sources[0]?.resolve()?.bounds
+    if (bounds == null) {
+      actions.failure = "tasto del gruppo non trovato"
+    } else {
+      val half = bounds.height / 2f
+      val x = if (rtl) bounds.left + half else bounds.right - half
+      actions.note = "tocco=${x.toInt()},${bounds.center.y.toInt()}"
+      finger.tap(Offset(x, bounds.center.y))
+    }
+  }
+  actions.on("chiude") {
+    if (host == null) actions.failure = "manca l'host dei modali" else host.dismissTop()
+  }
+  LaunchedEffect(actions) {
+    while (sources[0]?.resolve() == null) delay(50)
     actions.ready = true
   }
 }

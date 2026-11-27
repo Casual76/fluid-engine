@@ -33,7 +33,8 @@ import org.robolectric.util.ReflectionHelpers
  *
  * [install] accende la diagnostica del vetro e il log `FluidGlassFrame` (salvando e ripristinando i valori di prima),
  * i contatori delle fabbriche, e sostituisce i soli programmi a otto pezzi che lo Skia di Robolectric rifiuta («program
- * is too large»), come `GlassNodeCountTest`: la ricetta, gli uniform e le misure restano quelle di produzione.
+ * is too large»), come `GlassNodeCountTest`: la ricetta, gli uniform e le misure restano quelle di produzione. Poi
+ * (F7.29) compila tutti i programmi condivisi dell'engine, perché la misura non dipenda dalle prove di prima.
  */
 internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, ComponentActivity>) {
 
@@ -55,6 +56,7 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
     val previousObserver = GlassCostLevers.onCapture
     GlassCostLevers.onCapture = { _, finish -> finishes.add(IntSize(finish.width.toInt(), finish.height.toInt())) }
     val substitutes = substituteLargePrograms()
+    compileSharedPrograms()
     // La sonda dello sfondo legge come sul dispositivo (una lettura, poi riposa): il lettore vero di Robolectric non
     // consegna mai l'immagine, e la sonda ritenterebbe a vuoto, un lavoro che sul tablet non c'è.
     val previousReader = FluidGlassProbeDiagnostics.readerForTesting
@@ -201,6 +203,26 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
       }
     }
     return substitutes
+  }
+
+  /**
+   * F7.29 · I programmi AGSL dell'engine stanno in una cache del processo (`SharedRuntimeShaders`): il primo vetro che
+   * ne usa uno lo compila, chi viene dopo lo ritrova. Senza questo passo l'entrata di una scena contava i programmi che
+   * nessuna prova prima di lei, nella stessa JVM, aveva già compilato, e la misura dipendeva dall'ordine delle classi
+   * (Gradle fa girare prima le classi cadute l'ultima volta, e apre una JVM nuova ogni 80 classi): `menu-tasto` 17 o 18
+   * (il bagliore del tasto, `Glow`), `scorrimento-testo` 45 o 47 (il corpo e la luce del materiale `Liquid`), 26–27/11.
+   * Qui si compilano tutti prima della prima misura, fuori dai contatori: ogni scena si misura a processo caldo, come
+   * sul dispositivo dopo il riscaldamento (`GlassWarmUp`, spento in queste prove), e un programma che un componente crea
+   * per conto suo, fuori dalla cache, conta ancora. Restano nella cache come li lascerebbe una scena: sono i programmi
+   * veri, senza sostituti.
+   */
+  private fun compileSharedPrograms() {
+    val cache = ReflectionHelpers.getStaticField<MutableMap<String, RuntimeShader>>(SharedRuntimeShaders::class.java, "shaders")
+    for (source in GlassShaderSources.all) {
+      if (cache.containsKey(source.text)) continue
+      // Un programma che lo Skia di Robolectric rifiuta non entra nella cache: la scena che lo usa fa come prima.
+      runCatching { SharedRuntimeShaders.obtain(source.text) }
+    }
   }
 
   companion object {

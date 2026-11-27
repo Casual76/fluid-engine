@@ -38,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -53,7 +54,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -278,6 +278,9 @@ fun <T, K : Any> FluidPreviewGrid(
 ) {
   require(columns.isNotEmpty()) { "FluidPreviewGrid: servono delle colonne" }
   val density = state.density.coerceIn(0, columns.size - 1)
+  // Una densita' salvata che le colonne di oggi non hanno (un ripristino dopo un aggiornamento dell'app, un valore
+  // scritto dall'app): la si corregge anche nello stato, perche' chi lo legge e le azioni di TalkBack contano da li' (R2).
+  if (density != state.density) SideEffect { if (state.density !in columns.indices) state.density = density }
   val count = columns[density]
   val withHeaders = header != null
   val entries = remember(sections, withHeaders) {
@@ -287,6 +290,21 @@ fun <T, K : Any> FluidPreviewGrid(
         section.items.forEachIndexed { i, item -> add(PreviewEntry(section, item, i)) }
       }
     }
+  }
+  // R2: la stessa foto in due gruppi (lo stesso [itemKey]) darebbe la stessa chiave alla griglia pigra, che cade («Key
+  // was already used»). La prima volta la chiave resta quella dell'app; nei gruppi dopo prende anche quella del gruppo.
+  // Qui solo le chiavi ripetute, col gruppo in cui compaiono per prime: di solito nessuna.
+  val repeatedKeys = remember(sections) {
+    val first = HashMap<Any, Any>()
+    val repeated = HashMap<Any, Any>()
+    for (section in sections) {
+      for (item in section.items) {
+        val key = itemKey(item)
+        val owner = first.getOrPut(key) { section.key }
+        if (owner != section.key) repeated[key] = owner
+      }
+    }
+    repeated
   }
   val currentEntries by rememberUpdatedState(entries)
   val currentItemKey by rememberUpdatedState(itemKey)
@@ -518,7 +536,11 @@ fun <T, K : Any> FluidPreviewGrid(
         }
         items(
           count = section.items.size,
-          key = { i -> currentItemKey(section.items[i]) },
+          key = { i ->
+            val key = currentItemKey(section.items[i])
+            val owner = if (repeatedKeys.isEmpty()) null else repeatedKeys[key]
+            if (owner == null || owner == section.key) key else "fluid-preview-cell:${section.key}:$key"
+          },
           contentType = { CellContentType },
           span = { GridItemSpan(1) },
         ) { i ->
@@ -536,7 +558,8 @@ fun <T, K : Any> FluidPreviewGrid(
             Modifier
               .fillMaxWidth()
               .aspectRatio(cellAspectRatio)
-              .clipToBounds()
+              // F7.29: il ritaglio nel disegno, non un layer: ogni cella che entra scorrendo ne creava uno in più.
+              .then(FluidClipToBoundsInDraw)
               .then(
                 if (longPress == null) {
                   Modifier.clickable(

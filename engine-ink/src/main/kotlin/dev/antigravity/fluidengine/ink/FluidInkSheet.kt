@@ -23,6 +23,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryBudget
+import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -31,6 +34,7 @@ import java.io.Closeable
 import java.io.IOException
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * Cosa sta sotto i tratti: un foglio bianco, una foto, le pagine di un PDF. Da' le pagine nelle coordinate del foglio
@@ -108,11 +112,22 @@ internal abstract class InkPdfPages(val sizes: List<Size>) : Closeable {
   private val lock = Mutex()
 
   /** La pagina disegnata, con la larghezza in pixel con cui e' stata chiesta. */
-  class Rendered(val image: ImageBitmap, val widthPx: Int)
+  class Rendered(val image: ImageBitmap, val widthPx: Int) {
+    /** La sua parte nel tetto dei visori ([memory]), restituita quando la pagina esce da [ready]. */
+    internal var credit: Closeable? = null
+  }
 
-  /** Le pagine pronte: si leggono nel disegno, e ridisegnano il foglio quando arrivano. */
+  /** Le pagine pronte: si leggono nel disegno, e ridisegnano il foglio quando arrivano. Si tolgono con [release]. */
   val ready = mutableStateMapOf<Int, Rendered>()
   @Volatile protected var closed = false
+
+  /**
+   * R1 · **Il tetto delle pagine pronte**: quello dei visori, la categoria `VIEWER` del registro del processo
+   * (`FluidGlassResources.budget`, lo stesso del PDF di engine-viewer: 48 MiB nel profilo Pieno, 24 nel Ridotto, 14 nel
+   * Protetto, piu' bassi con un heap piccolo). Prima non c'era: sul Tab S9 a zoom 1,6 sei pagine A4 larghe 4096 px
+   * facevano 384 MiB. Null: nessun tetto (un processo senza il registro, le prove che non lo vogliono).
+   */
+  internal var memory: FluidMemoryBudget? = runCatching { FluidGlassResources.current().budget }.getOrNull()
 
   /** Disegna la pagina [index] in [bitmap] (gia' bianca), scalata alla sua misura. */
   protected abstract fun draw(index: Int, bitmap: Bitmap)
@@ -131,21 +146,102 @@ internal abstract class InkPdfPages(val sizes: List<Size>) : Closeable {
     }
   }
 
-  /** Come [render], ma mette la pagina fra quelle pronte. */
-  suspend fun prepare(index: Int, widthPx: Int) {
-    val current = ready[index]
-    if (current != null && current.widthPx >= widthPx) return
-    val bitmap = render(index, widthPx) ?: return
-    ready[index] = Rendered(bitmap.asImageBitmap(), bitmap.width)
+  /**
+   * Come [render], ma mette la pagina fra quelle pronte, **dentro il tetto** ([memory]): se la pagina larga [widthPx] non
+   * entra, prima escono le pronte che non stanno in [keep] (se dato: le pagine di adesso), poi si prova alla larghezza
+   * piu' grande che entra nel posto libero (o a meta'), fino a [MinPagePixels], come fa il visore. Una pagina gia' pronta
+   * larga almeno cosi' resta com'e'.
+   */
+  suspend fun prepare(index: Int, widthPx: Int, keep: Collection<Int>? = null) {
+    if (index !in sizes.indices) return
+    var width = widthPx.coerceIn(MinPagePixels, MaxPagePixels)
+    var evicted = false
+    while (true) {
+      val current = ready[index]
+      if (current != null && current.widthPx >= width) return
+      val budget = memory
+      val reservation = budget?.tryReserve(FluidMemoryCategory.VIEWER, pageBytes(index, width))
+      if (budget == null || reservation != null) {
+        val bitmap = try {
+          render(index, width)
+        } catch (e: Throwable) {
+          reservation?.close()
+          throw e
+        }
+        if (bitmap == null) {
+          reservation?.close()
+          return
+        }
+        val credit = reservation?.confirm(bitmap.byteCount.toLong())
+        if (reservation == null || credit != null) {
+          install(index, Rendered(bitmap.asImageBitmap(), bitmap.width).also { it.credit = credit })
+          return
+        }
+        reservation.close()
+        bitmap.recycle()
+      } else if (!evicted && keep != null) {
+        evicted = true
+        val spare = ready.keys.filter { it != index && it !in keep }
+        if (spare.isNotEmpty()) {
+          spare.forEach { release(it) }
+          continue
+        }
+      }
+      if (width <= MinPagePixels) return
+      // La larghezza piu' grande che entra in cio' che resta del tetto; se non c'e' posto nemmeno cosi', meta'.
+      val fit = budget?.let { fitWidth(index, width, it) } ?: 0
+      width = if (fit in MinPagePixels until width) fit else max(MinPagePixels, width / 2)
+    }
+  }
+
+  /** La larghezza piu' grande (sotto [width]) a cui la pagina [index] entra nel posto libero del tetto, o 0. */
+  private fun fitWidth(index: Int, width: Int, budget: FluidMemoryBudget): Int {
+    val group = budget.usage(FluidMemoryCategory.VIEWER)
+    val process = budget.usage()
+    val free = minOf(group.limitBytes - group.usedBytes, process.limitBytes - process.usedBytes)
+    if (free <= 0L) return 0
+    var w = (width * sqrt(free.toDouble() / pageBytes(index, width))).toInt().coerceAtMost(width - 1)
+    while (w > 0 && pageBytes(index, w) > free) w = (w * 0.97).toInt()
+    return w
+  }
+
+  /** Toglie la pagina [index] da quelle pronte e ne restituisce la parte nel tetto. */
+  fun release(index: Int) {
+    ready.remove(index)?.credit?.close()
+  }
+
+  /** I byte della pagina [index] disegnata larga [widthPx], con le stesse misure di [render]. */
+  private fun pageBytes(index: Int, widthPx: Int): Long {
+    val s = sizes[index]
+    val w = widthPx.coerceIn(16, MaxPagePixels)
+    val h = (w * s.height / s.width).roundToInt().coerceIn(16, MaxPagePixels)
+    return w.toLong() * h * 4L
+  }
+
+  private fun install(index: Int, page: Rendered) {
+    if (closed) {
+      page.credit?.close()
+      return
+    }
+    // La pagina di prima (piu' sfocata) esce: la sua parte torna subito, i pixel col prossimo disegno.
+    ready.put(index, page)?.credit?.close()
   }
 
   override fun close() {
     closed = true
+    ready.values.forEach { it.credit?.close() }
+    ready.clear()
   }
 
   companion object {
     /** Il lato piu' lungo di una pagina disegnata per la vista: 4096 px (il tetto delle texture dei telefoni deboli). */
     const val MaxPagePixels = 4096
+
+    /**
+     * La larghezza piu' piccola a cui una pagina scende quando il tetto e' pieno: 256 px, una miniatura che si legge
+     * ancora come pagina (a occhio, 26 novembre 2026; le miniature del visore sono a 192).
+     */
+    const val MinPagePixels = 256
   }
 }
 
@@ -219,7 +315,8 @@ fun rememberFluidInkPdfSheet(uri: Uri): FluidInkSheetLoad {
     value = try {
       val pages = withContext(Dispatchers.IO) {
         val fd = context.contentResolver.openFileDescriptor(uri, "r") ?: throw IOException("PDF illeggibile: $uri")
-        InkPdfRendererPages.open(fd)
+        // Il registro del processo (R1): lo stesso tetto dei visori, anche se nessuno l'ha ancora aperto.
+        InkPdfRendererPages.open(fd).also { it.memory = FluidGlassResources.get(context).budget }
       }
       FluidInkSheetLoad.Ready(FluidInkSheet.pdf(pages, uri))
     } catch (e: Exception) {

@@ -171,7 +171,12 @@ non per il passaggio.
 - **`onDone` non salva.** Dà la ricetta: il file lo scrive l'app con `state.export(…)` (in una coroutine). Così l'app
   sceglie dove (accanto all'originale, la cache per un allegato, il MediaStore).
 - **Un indirizzo di un'altra app** (MyCloud Gallery) si legge finché il permesso vale: `export` rilegge il file, quindi
-  un'app che tiene l'editor aperto a lungo ne fa prima una copia.
+  un'app che tiene l'editor aperto a lungo ne fa prima una copia. Una foto che non si apre (il permesso scaduto, il file
+  che non c'è ancora) mostra «Impossibile aprire la foto» con **«Riprova»** (`FluidImageEditorStrings.retry`, R1), che
+  la riapre senza uscire.
+- **La ricetta salvata è della sorgente** (R1): `rememberFluidImageEditorState` la tiene per l'indirizzo o per la bitmap
+  data (la stessa bitmap: lo stesso oggetto). Una bitmap nuova nello stesso posto si apre com'è; alla rotazione la
+  ricetta torna anche per una bitmap.
 - **Le misure di `FluidCropGeometry` sono della foto orientata**: i metodi vogliono le misure della **sorgente dritta**
   (`sw`, `sh`, già girata come dice l'EXIF), e girano da soli quando ci sono rotazioni di 90°.
 - **HDR**: una foto Ultra HDR esce SDR (vedi sopra).
@@ -190,7 +195,9 @@ non per il passaggio.
 - `sample`: `F8p15EditorUiTest` col dito vero (il righello e un passo per gesto, la ruota col tic e TalkBack, «Auto»,
   l'originale tenendo premuto, le maniglie che non escono, il pizzico, lo spostamento e la rotazione a due dita, specchio,
   rotazione, raddrizza, proporzioni, «Reimposta», «Fine» e «Annulla» con la conferma, i pixel della rotazione col movimento
-  ridotto e la foto che cambia mentre il dito è giù).
+  ridotto e la foto che cambia mentre il dito è giù); `R1cEditorTest` (una seconda bitmap che non eredita la ricetta, la
+  foto che non si apre e «Riprova»), e in `engine-editor` `FluidImageEditorLoadTest` (un'apertura annullata non è un
+  errore).
 - In galleria: «Elementi nuovi» › F8.15, scene `modifica-foto`, `modifica-subito`, `foto-profilo-tonda`, `visore-modifica`,
   `confronto-tendina` (`sample/…/novita/F8p15Scenes.kt`).
 

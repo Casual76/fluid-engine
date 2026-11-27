@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -64,6 +65,7 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModel
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassMaterialAccessibility
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.BackdropEffectScope
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassDrawnLayerBlock
 import dev.antigravity.fluidengine.ui.glass.backdrop.drawBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.blur
 import dev.antigravity.fluidengine.ui.glass.backdrop.effects.lens
@@ -271,7 +273,16 @@ internal val NeverReducedMotion: () -> Boolean = { false }
  *
  * Nel `layerBlock` e non in un `graphicsLayer` antenato: il renderer inverte quella trasformazione
  * quando campiona, quindi la lente ha in mano la pista che c'e' davvero dietro. La traslazione
- * lungo la pista la mette chi chiama, in un `graphicsLayer` *prima* di questo modificatore.
+ * lungo la pista la mette chi chiama *prima* di questo modificatore: `glassDrawOffset` (F7.31), nel disegno, dove il
+ * gesto sta sul controllo intero (il cursore, lo scrubber, l'interruttore); un `graphicsLayer` dove il bersaglio del
+ * tocco deve seguire la goccia (il segmentato, la barra laterale, lo scorrimento rapido).
+ *
+ * F7.31: la scala e lo squash del `layerBlock` si applicano **nel disegno** ([drawn], di serie), in uno strato fermo:
+ * una scala che cambia in uno strato e' per Compose un cambio di layout, e con l'accessibilita' accesa la pagina si
+ * ricontrollava ogni 100 ms finche' la goccia cresceva o si stirava sotto il dito. Il disegno e il campione sono gli
+ * stessi al bit (`glass/backdrop/GlassDrawPlacement.kt`). Restano in uno strato la goccia con un [place] (il menù: la
+ * sua alfa e' dello strato) e chi chiede `drawn = false` (la riga sollevata di `FluidReorderable`, che porta il suo
+ * contenuto dentro la goccia: il tocco e la semantica di quel contenuto seguono la scala).
  *
  * E' la forma generale: la pressione puo' non venire da una molla di trascinamento (la lente
  * dell'indice di sezione ha la sua) e la faccia puo' non essere bianca (una goccia in una lastra sta
@@ -291,6 +302,12 @@ internal val NeverReducedMotion: () -> Boolean = { false }
  * @param shadowFade quanta ombra scura la goccia perde a pressione piena (F6.3): uno per i pomelli che salgono nel
  *   vetro, sotto la cui lente Apple non ha un'ombra ma un alone colorato ([glassDropGlow]); zero, di serie, per le
  *   altre gocce, che restano com'erano al bit.
+ * @param drawn vero (di serie) se la scala e lo squash si applicano nel disegno e non in uno strato (F7.31). Con un
+ *   [place] solo se c'è anche [alpha] (F7.31b): un [place] che scrive l'alfa resta in uno strato.
+ * @param alpha la presenza della goccia (F7.31b, la goccia del menù), in uno strato suo **dentro** la trasformazione: il
+ *   posto e la crescita vanno nel disegno, l'alfa resta proprietà di uno strato che sta dove sta la goccia. Uno strato con
+ *   l'alfa sotto 1 si isola nel suo spazio, cioè quello della goccia prima della trasformazione, come lo strato unico di
+ *   prima: niente si taglia e i pixel sono gli stessi. Senza [drawn] l'alfa va nel `layerBlock`, com'era.
  */
 @Composable
 internal fun Modifier.glassDrop(
@@ -305,15 +322,20 @@ internal fun Modifier.glassDrop(
   squashVertical: Boolean = false,
   place: (GraphicsLayerScope.() -> Unit)? = null,
   shadowFade: Float = 0f,
+  drawn: Boolean = true,
+  alpha: (() -> Float)? = null,
 ): Modifier {
   // Letto ad ogni fotogramma, ma tenuto in uno stato: una lambda nuova a ogni ricomposizione del
   // chiamante cambierebbe l'identita' del `layerBlock`, e un modificatore che non e' uguale a se
   // stesso si invalida a ogni ricomposizione.
   val currentReducedMotion by rememberUpdatedState(reducedMotion)
+  // F7.31: nel disegno, salvo un posto che porta con sé l'alfa nello strato (F7.31b: il posto e l'alfa separati).
+  val inDraw = drawn && (place == null || alpha != null)
   val layerBlock: GraphicsLayerScope.() -> Unit =
-    remember(motion, squashDivisor, squashSigned, squashVertical, place) {
+    remember(motion, squashDivisor, squashSigned, squashVertical, place, alpha, inDraw) {
       {
         place?.invoke(this)
+        if (!inDraw && alpha != null) this.alpha = alpha()
         scaleX = motion.scaleX()
         scaleY = motion.scaleY()
         val squash = glassDropSquash(motion.velocity(), squashDivisor, squashSigned, currentReducedMotion())
@@ -328,6 +350,15 @@ internal fun Modifier.glassDrop(
         glassDropLayerProbe?.invoke(motion.progress(), scaleX, scaleY)
       }
     }
+  // F7.31: lo stesso blocco, applicato nel disegno (vedi sopra). Un posto che scrive l'alfa resta di uno strato: un'alfa
+  // sotto 1 isola lo strato, e uno strato isolato taglierebbe il disegno spostato ai suoi bordi. F7.31b: con [alpha] a
+  // parte l'alfa ha uno strato suo dentro la trasformazione ([presence]), e il posto va nel disegno come la crescita.
+  val placedBlock: GraphicsLayerScope.() -> Unit = remember(layerBlock, inDraw) {
+    if (inDraw) GlassDrawnLayerBlock(layerBlock, mirrorInLayer = DropProbeActive) else layerBlock
+  }
+  val presence: Modifier = remember(alpha, inDraw) {
+    if (alpha != null && inDraw) Modifier.graphicsLayer { this.alpha = alpha() } else Modifier
+  }
   // Piena a riposo e sparita sotto il dito: e' questa faccia che la lente sostituisce. Per i pomelli e'
   // il bianco, voluto e non del tema (una pillola chiara anche sul tema scuro); per una goccia in una
   // lastra e' quella del tema. Col bianco opaco il conto e' quello di prima, bit per bit: `1 * (1 - p)`,
@@ -340,9 +371,9 @@ internal fun Modifier.glassDrop(
   // vetro di prima, una forma che il campo sa rendere), altrimenti la ricetta di Kyant, intera.
   val model = rememberFluidGlassModel(shape, GlassFalloff.Uniform, GlassDropOptics)
   if (model == FluidGlassModel.Liquid) {
-    return glassDropLiquid(backdrop, motion, shape, layerBlock, onDrawSurface, shadowFade)
+    return glassDropLiquid(backdrop, motion, shape, placedBlock, onDrawSurface, shadowFade, presence)
   }
-  return glassDropKyant(backdrop, motion, lensSize, shape, layerBlock, onDrawSurface, shadowFade)
+  return glassDropKyant(backdrop, motion, lensSize, shape, placedBlock, onDrawSurface, shadowFade, presence)
 }
 
 /**
@@ -351,6 +382,12 @@ internal fun Modifier.glassDrop(
  */
 @Volatile
 internal var glassDropLayerProbe: ((progress: Float, scaleX: Float, scaleY: Float) -> Unit)? = null
+
+/**
+ * F7.31: con la sonda accesa lo strato fermo della goccia rifà il suo blocco come lo strato di prima (vedi
+ * `GlassDrawnLayerBlock`), così la sonda legge ogni posa anche dove la finestra non si disegna (Robolectric).
+ */
+private val DropProbeActive: () -> Boolean = { glassDropLayerProbe != null }
 
 /** La forza dell'ombra scura a una pressione: `1 − fade · p`, tenuta fra 0 e 1. */
 internal fun glassDropShadowAmount(fade: Float, progress: Float): Float =
@@ -373,6 +410,7 @@ private fun Modifier.glassDropLiquid(
   layerBlock: GraphicsLayerScope.() -> Unit,
   onDrawSurface: DrawScope.() -> Unit,
   shadowFade: Float,
+  presence: Modifier = Modifier,
 ): Modifier {
   val darkSide = GlassDefaults.isDarkSurface()
   val quality = LocalFluidGlassQuality.current
@@ -446,7 +484,8 @@ private fun Modifier.glassDropLiquid(
     // Con un `layerBlock` la cattura resta a risoluzione piena, come in ogni `glassSurface` `Liquid`.
     backdropScale = 1f,
     onDrawLight = onDrawLight,
-    underlay = shadow,
+    // F7.31b: lo strato della presenza (se c'è) per primo, dentro la trasformazione e attorno a tutto il resto.
+    underlay = presence.then(shadow),
   )
 }
 
@@ -511,6 +550,7 @@ private fun Modifier.glassDropKyant(
   layerBlock: GraphicsLayerScope.() -> Unit,
   onDrawSurface: DrawScope.() -> Unit,
   shadowFade: Float,
+  presence: Modifier = Modifier,
 ): Modifier {
   val shapeBlock = remember(shape) { { shape } }
 
@@ -556,6 +596,8 @@ private fun Modifier.glassDropKyant(
     innerShadow = innerShadow,
     layerBlock = layerBlock,
     onDrawSurface = onDrawSurface,
+    // F7.31b: lo strato della presenza (se c'è), dentro la trasformazione e attorno alle ombre e al vetro.
+    underlay = presence,
   )
 }
 
@@ -574,6 +616,7 @@ internal fun Modifier.glassDrop(
   squashSigned: Boolean = false,
   reducedMotion: () -> Boolean = NeverReducedMotion,
   shape: Shape = FluidCapsuleShape,
+  drawn: Boolean = true,
 ): Modifier = glassDrop(
   backdrop = backdrop,
   motion = rememberDropMotion(drag),
@@ -583,6 +626,7 @@ internal fun Modifier.glassDrop(
   squashSigned = squashSigned,
   reducedMotion = reducedMotion,
   shape = shape,
+  drawn = drawn,
 )
 
 // ---------------------------------------------------------------------------------------------

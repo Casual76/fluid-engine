@@ -1605,6 +1605,13 @@ internal class FluidMenuJourney {
      * con un'ancora.
      */
     appleBirth: Boolean = false,
+    /**
+     * F7.30: dare subito all'ancora la fase delle sue facce ([attachAnchorPhase]). Falso col menu tenuto pronto, che la da'
+     * nella misura: la' la dava la nascita di prima (il corpo nasceva nella misura), dopo che la barra aveva gia' valutato i
+     * layer delle sue icone in quel fotogramma; se la fase arriva prima, le icone del gruppo seguono la nascita e il
+     * fotogramma non e' piu' quello di prima.
+     */
+    anchorPhase: Boolean = true,
   ) {
     if (anchor != null && (freshStart || this.anchor !== anchor)) {
       // Una partenza nuova: la pressione si scioglie da qui. Un `Animatable` nuovo e non uno snapTo,
@@ -1642,6 +1649,11 @@ internal class FluidMenuJourney {
     this.seed = seed
     this.liquidMenu = liquidMenu
     this.expansionOrigin = expansionOrigin
+    if (anchorPhase) attachAnchorPhase()
+  }
+
+  /** La fase delle facce dell'ancora di questo viaggio: la leggono la barra e l'host, in disegno. */
+  fun attachAnchorPhase() {
     anchor?.groupProgress = progressBlockForGroup
     anchor?.groupFacesAbove = groupFacesAboveBlock
   }

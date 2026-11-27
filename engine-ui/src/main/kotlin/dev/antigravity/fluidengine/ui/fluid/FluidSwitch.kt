@@ -52,7 +52,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
@@ -69,6 +68,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassDrawOffset
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
@@ -516,13 +516,17 @@ internal fun FluidSwitchControl(
 
     Box(
       Modifier
-        .graphicsLayer {
+        // Nel disegno (F7.31), non nella traslazione di uno strato: per Compose una traslazione che cambia e' un cambio
+        // di layout, e con l'accessibilita' accesa la pagina si ricontrollava ogni 100 ms mentre il pomello correva. Il
+        // vetro campiona dove si vede; il tocco, il fuoco e TalkBack sono dell'interruttore intero, non del pomello.
+        .glassDrawOffset {
           val padding = ThumbInset.toPx()
-          translationX = if (isLtr) {
+          val x = if (isLtr) {
             lerp(padding, padding + dragWidth, dragAnimation.value)
           } else {
             lerp(-padding, -(padding + dragWidth), dragAnimation.value)
           }
+          Offset(x, 0f)
         }
         .then(
           if (isRenderEffectSupported()) {

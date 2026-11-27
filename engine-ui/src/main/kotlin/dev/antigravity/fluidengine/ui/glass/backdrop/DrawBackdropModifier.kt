@@ -78,11 +78,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 // Fluid Engine addition (F1A, voce 18): lo scope degli effetti dice se la superficie sta su un vetro.
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -182,13 +183,8 @@ fun Modifier.drawPlainBackdrop(
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
-        .then(
-            if (layerBlock != null) {
-                Modifier.graphicsLayer(layerBlock)
-            } else {
-                Modifier
-            }
-        )
+        // F7.31: con un `GlassDrawnLayerBlock` (la goccia) lo strato resta fermo e la trasformazione sta nel disegno.
+        .then(glassLayerOf(layerBlock))
         .then(
             DrawBackdropElement(
                 backdrop = backdrop,
@@ -329,13 +325,8 @@ fun Modifier.drawBackdrop(
 ): Modifier {
     val shapeProvider = ShapeProvider(shape)
     return this
-        .then(
-            if (layerBlock != null) {
-                Modifier.graphicsLayer(layerBlock)
-            } else {
-                Modifier
-            }
-        )
+        // F7.31: con un `GlassDrawnLayerBlock` (la goccia) lo strato resta fermo e la trasformazione sta nel disegno.
+        .then(glassLayerOf(layerBlock))
         .then(underlay)
         .then(
             if (innerShadow != null) {
@@ -516,6 +507,8 @@ private class DrawBackdropElement(
         node.shapeProvider = shapeProvider
         node.effects = effects
         node.layerBlock = layerBlock
+        // F7.31: gli antenati spostati nel disegno si cercano di nuovo al prossimo campione.
+        node.invalidatePlacement()
         if (node.exportedBackdrop != exportedBackdrop) {
             node.unbindExport()
             node.exportedBackdrop = exportedBackdrop
@@ -723,6 +716,30 @@ internal const val MaxBackdropTextureDimension = 4096f
 internal const val MinBackdropScale = 0.05f
 
 /**
+ * F7.26f · Il tetto della cattura del gradino più basso, ammessa fuori dal registro come le catture piccole, e con lo
+ * stesso tetto (1 MiB di stima, `LargeCapturePixels` × 4): alla scala minima ([MinBackdropScale]) un pannello da
+ * 1080 × 600 pesa una decina di KB; una superficie di Fluid-physics su un palco grande quanto la finestra del Tab S9, con
+ * l'uscita a un ottavo ([MinFloorOutputScale]), circa 600 KB.
+ */
+internal const val FloorCaptureBytes = 1024L * 1024
+
+/**
+ * F7.26f · Il bordo del gradino più basso: la sagoma netta a piena risoluzione e un filo chiaro da un pixel dello schermo,
+ * sobrio, senza luce né riflesso (come il bordo del glassmorphism; il filo dello shader, sull'uscita ridotta, non si vedeva).
+ */
+internal object GlassFloorEdge {
+    val Rim = androidx.compose.ui.graphics.drawscope.Stroke(width = 1f)
+    val RimColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.35f)
+}
+
+/**
+ * F7.26f · Fin dove scende l'uscita di un campione separato al gradino più basso. La sagoma di Fluid-physics la disegna
+ * lo shader sulla griglia d'uscita: sotto un ottavo diventa una macchia (sul Tab S9, col tetto a 128 KiB, l'uscita del menu
+ * scendeva a un sedicesimo e il bordo non c'era più).
+ */
+internal const val MinFloorOutputScale = 0.125f
+
+/**
  * F7.18: la sfocatura minima del campione separato (viaggio, finitura nativa di Fluid-physics), in sigma e in pixel del
  * campione, sotto la quale la sfocatura di un pannello smerigliato non nasconde più la risoluzione ridotta. Il campione
  * scende fin lì prima che scenda l'uscita ([frostedSampleFloor]).
@@ -851,6 +868,7 @@ private class DrawBackdropNode(
             override val fallbackBody = GlassBodyFallback()
             override val optics get() = renderState.optics
             override val inMotion get() = glassMoving()
+            override val glassmorphism get() = floor
 
             override val shape: Shape get() = shapeProvider.innerShape
 
@@ -926,6 +944,12 @@ private class DrawBackdropNode(
     }
 
     private var layoutCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())
+
+    /**
+     * F7.31: dove questa superficie e' disegnata rispetto al suo layout (la goccia che cresce nel disegno, la maniglia
+     * spostata nel disegno). Letta nel disegno, prima di ogni campione: il vetro campiona dove si vede.
+     */
+    private val placement = GlassSamplePlacement()
 
     private var padding by mutableFloatStateOf(0f)
 
@@ -1109,7 +1133,8 @@ private class DrawBackdropNode(
             sources.fill(null)
         }
 
-        fun read(backdrop: Backdrop, reader: LayoutCoordinates?) {
+        /** [origin]: dove sta davvero l'angolo di chi campiona, nel suo spazio (F7.31, [GlassSamplePlacement]). */
+        fun read(backdrop: Backdrop, reader: LayoutCoordinates?, origin: Offset = Offset.Zero) {
             valid = false
             val layers = backdrop.layerSources
             if (layers.isEmpty() || reader == null || !reader.isAttached) return
@@ -1122,7 +1147,7 @@ private class DrawBackdropNode(
                 val at = source.layerCoordinates ?: return
                 if (!at.isAttached) return
                 sources[i] = source
-                offsets[i] = try { at.localPositionOf(reader).packedValue } catch (_: Exception) { return }
+                offsets[i] = try { at.localPositionOf(reader, origin).packedValue } catch (_: Exception) { return }
             }
             valid = true
         }
@@ -1187,6 +1212,57 @@ private class DrawBackdropNode(
     private var pending: FluidMemoryBudget.Reservation? = null
     private var nextBytes = 0L
     private var budgetDenied = false
+
+    /**
+     * F7.26f · **Il gradino più basso.** Il registro ha negato anche la cattura minima ([MinBackdropScale]) e non c'è una
+     * cattura da rigiocare: invece del pieno di F7.18 il vetro si disegna da una cattura minuscola ammessa fuori dal
+     * registro (al più [FloorCaptureBytes], come le catture piccole), con la sola sfocatura e la tinta
+     * ([GlassRenderQuality.glassmorphism]) e senza luce. La negazione resta (`budgetDenied`, la politica la vede) e la
+     * riprova del credito ([awaitBudget]) continua: appena il credito c'è, il vetro torna quello di prima. Il pieno resta
+     * solo dove Android non sa sfocare (sotto Android 12) e per una cattura minima più grande del tetto qui sotto.
+     */
+    private var floor = false
+
+    private fun leaveFloor() {
+        if (!floor) return
+        floor = false
+        surfaceDirty = true
+        effectsUpdates.invalidate()
+        // F7.26g (review R3, D6 e D7): la cattura del gradino si butta. Rigiocata col vetro pieno sarebbe una cattura
+        // minuscola con la lente sopra, ferma sul contenuto e sulla misura di allora (dove il pannello è cresciuto la pagina
+        // si vedeva nitida), e una cattura senza byte nel registro: la prossima si prenota da capo, e se viene negata a ogni
+        // scala si rientra nel gradino, perché non c'è più niente da rigiocare.
+        if (isAttached) discardRecording()
+        // Si riparte dalla scala piena: il giro del disegno scende da sé fino alla scala che il credito ammette, in un
+        // passo solo, invece di risalire dalla scala minuscola del gradino più basso.
+        budgetScale = 1f
+        outputBudget = 1f
+        GlassFrameDiagnostics.event("glassFloorLeave", this) { "size=$budgetExtent moving=${glassMoving()}" }
+        // F7.26g: nelle build di prova col profilo simulato, la riga del ritorno (in release la chiamata non c'è).
+        dev.antigravity.fluidengine.ui.glass.quality.android.GlassVariantSignals.note {
+            "vetro fuori dal gradino più basso ${System.identityHashCode(this)}"
+        }
+    }
+
+    /**
+     * F7.26h · Un vetro **in moto** che cambia misura nel gradino più basso ci resta: la cattura della misura vecchia si
+     * butta (come in [leaveFloor], D6) e la prossima si fa fuori dal registro alla misura nuova, senza chiedere il credito.
+     * Così dal gradino si esce solo da fermi anche quando il vetro cambia misura (il foglio trascinato, la sua molla): a
+     * metà gesto, col credito tornato, la nuova richiesta veniva accettata e il foglio cambiava vetro sotto il dito (la
+     * finestra del Tab S9 del 27 novembre). L'attesa del credito resta: a gesto finito la riprova ([awaitBudget]) esce.
+     */
+    private fun refreshFloor() {
+        val waiting = waitForBytes
+        if (isAttached) discardRecording()
+        surfaceDirty = true
+        effectsUpdates.invalidate()
+        if (waiting > 0L && isAttached) {
+            waitForBytes = waiting
+            MainHandler.postDelayed(awaitBudget, retryDelayMillis())
+        }
+        GlassFrameDiagnostics.event("glassFloorResize", this) { "size=$budgetExtent" }
+    }
+
     private var budgetScale = 1f
     /** F7.18: il tetto della scala d'uscita quando c'è un campione separato. Vedi [MinTravelOutputScale]. */
     private var outputBudget = 1f
@@ -1282,7 +1358,9 @@ private class DrawBackdropNode(
             GlassFrameDiagnostics.event("glassBudgetRetry", this@DrawBackdropNode) {
                 "required=$required available=$available waiting=$waitForBytes moving=${glassMoving()} front=$front"
             }
-            if (available >= required && (waitForBytes > 0L || !glassMoving())) {
+            // F7.26g (review R3, D7): dal gradino più basso si esce da fermi, alla posa, come ogni cambio del vetro.
+            if (available >= required && (waitForBytes > 0L || !glassMoving()) && !(floor && glassMoving())) {
+                leaveFloor()
                 if (waitForBytes == 0L) {
                     budgetScale = 1f
                     outputBudget = 1f
@@ -1392,7 +1470,8 @@ private class DrawBackdropNode(
         nextBytes = try {
             val output = fluidSurfaceBytes(width, height, bytesPerPixel, if (filtered) 2 else 1, stride)
             val estimate = Math.addExact(output, travel?.sampleBytes(record, bytesPerPixel) ?: 0L)
-            if (estimate < LargeCapturePixels.toLong() * 4 && !budgetDenied &&
+            if (floor && estimate <= FloorCaptureBytes) 0L
+            else if (estimate < LargeCapturePixels.toLong() * 4 && !budgetDenied &&
                 !large(record.width / effectiveScale, record.height / effectiveScale)) 0L else estimate
         } catch (_: ArithmeticException) {
             Long.MAX_VALUE
@@ -1402,6 +1481,8 @@ private class DrawBackdropNode(
             return CaptureAdmission.Ready
         }
         if (nextBytes == 0L) return CaptureAdmission.Ready
+        // F7.26f: al gradino più basso il registro non si chiede: una cattura oltre [FloorCaptureBytes] scende di scala.
+        if (floor) return CaptureAdmission.Denied
         if (waitForBytes > 0L && nextBytes >= waitForBytes) {
             GlassFrameDiagnostics.event("glassWaitBytes", this) { "bytes=$nextBytes waiting=$waitForBytes denied=$budgetDenied front=$front" }
             return CaptureAdmission.Denied
@@ -1458,7 +1539,8 @@ private class DrawBackdropNode(
         if (sampled && effectiveScale == recordedScale &&
             (record.width.toLong() * record.height < recordedSize.width.toLong() * recordedSize.height ||
                 residentFiltered && effectScope.renderEffect == null)) forgetRejectedUpgrade()
-        if (waitForBytes > 0L) {
+        // F7.26f: la cattura del gradino più basso non chiude l'attesa del credito né la negazione.
+        if (waitForBytes > 0L && !floor) {
             MainHandler.removeCallbacks(awaitBudget)
             waitForBytes = 0L
         }
@@ -1472,7 +1554,7 @@ private class DrawBackdropNode(
             residentBytes = nextBytes
             residentSize = record
         }
-        if (budgetDenied) {
+        if (budgetDenied && !floor) {
             budgetDenied = false
             resources.visibleCaptureDenied(window, false)
             MainHandler.removeCallbacks(awaitBudget)
@@ -1573,7 +1655,7 @@ private class DrawBackdropNode(
             if (recordedRegion != null) drawContext.size = originalExtent
             try {
                 with(sampledBackdrop) {
-                    drawBackdrop(density = effectScope, coordinates = layoutCoordinates, layerBlock = layerBlock)
+                    drawBackdrop(density = effectScope, coordinates = layoutCoordinates, layerBlock = placement.blockFor(layerBlock))
                 }
             } finally {
                 if (recordedRegion != null) drawContext.size = extent
@@ -1617,7 +1699,9 @@ private class DrawBackdropNode(
                 reader == null || borrowedSources[i].sourceFor(reader) !== borrowedShells[i]
             }
             if (lostLoan) sampled = false
-            currentOffsets.read(sampledBackdrop, layoutCoordinates)
+            // F7.31: l'origine del campione di questo fotogramma (zero per un vetro che sta dove dice il suo layout).
+            val origin = placement.update(this@DrawBackdropNode, this, size, layerBlock, layoutCoordinates)
+            currentOffsets.read(sampledBackdrop, layoutCoordinates, origin)
             val sameSources = currentOffsets.sameSources(recordedSourceOffsets)
 
             // Re-record only when this capture can no longer be the right one. A `RenderNode`
@@ -1785,6 +1869,9 @@ private class DrawBackdropNode(
      * corpo su un ingresso pieno (la trasparenza ridotta della ricetta, `GlassBodyFallback`), oppure, dove il corpo non
      * c'è, il pieno del materiale ([BackdropEffectScopeImpl.deniedFill]) dentro la sagoma. Un'attesa breve della lettura
      * ([CaptureAdmission.AwaitReading], un fotogramma) resta com'era.
+     *
+     * F7.26f: il pieno arriva qui solo dove Android non sa sfocare (sotto Android 12) o quando anche la cattura del gradino
+     * più basso supera [FloorCaptureBytes]; altrimenti la negazione porta al glassmorphism ([floor]).
      */
     private fun DrawScope.drawWithoutCapture() {
         val body = effectScope.fallbackBody
@@ -1804,20 +1891,47 @@ private class DrawBackdropNode(
         if (!replay) drawWithoutCapture()
         val layer = if (replay) graphicsLayer else null
         if (layer != null) {
-            val padding = padding
-            // Not named `scale`: that shadows the DrawScope transform of the same name, which is
-            // what un-scales the draw below.
-            val contentScale = effectiveScale
-            val origin = recordedRegion?.topLeft ?: IntOffset.Zero
-            layer.topLeft = IntOffset(origin.x - padding.toInt(), origin.y - padding.toInt())
-            // `topLeft` is in the layer's own (scaled) coordinates, so the un-scale has to wrap the
-            // placement as well as the draw.
-            if (contentScale != 1f) {
-                scale(1f / contentScale, pivot = Offset.Zero) { drawLayer(layer) }
+            // F7.26f: al gradino più basso la cattura ridotta sta dentro la sagoma vera ritagliata a piena risoluzione, con
+            // un filo chiaro da un pixel sopra ([GlassFloorEdge]). Una sagoma che scolpisce lo shader (in moto) resta com'è.
+            val edge = if (floor) floorEdge() else null
+            if (edge != null) {
+                clipPath(edge) { drawCapturedLayer(layer) }
+                drawPath(edge, GlassFloorEdge.RimColor, style = GlassFloorEdge.Rim)
             } else {
-                drawLayer(layer)
+                drawCapturedLayer(layer)
             }
         }
+    }
+
+    private fun DrawScope.drawCapturedLayer(layer: GraphicsLayer) {
+        val padding = padding
+        // Not named `scale`: that shadows the DrawScope transform of the same name, which is
+        // what un-scales the draw below.
+        val contentScale = effectiveScale
+        val origin = recordedRegion?.topLeft ?: IntOffset.Zero
+        layer.topLeft = IntOffset(origin.x - padding.toInt(), origin.y - padding.toInt())
+        // `topLeft` is in the layer's own (scaled) coordinates, so the un-scale has to wrap the
+        // placement as well as the draw.
+        if (contentScale != 1f) {
+            scale(1f / contentScale, pivot = Offset.Zero) { drawLayer(layer) }
+        } else {
+            drawLayer(layer)
+        }
+    }
+
+    private val floorEdgePath = androidx.compose.ui.graphics.Path()
+
+    /**
+     * F7.26f: la sagoma vera del vetro alla misura del nodo; null se la scolpisce lo shader ([GlassUnclippedShape]). Si
+     * rilegge a ogni disegno del gradino più basso: la sagoma di Fluid-physics cambia dentro un palco della stessa misura
+     * (un popover che cresce), e una sagoma tenuta per misura lasciava fuori dal ritaglio la parte nuova.
+     */
+    private fun DrawScope.floorEdge(): androidx.compose.ui.graphics.Path? {
+        val shape = shapeProvider.innerShape
+        if (shape === dev.antigravity.fluidengine.ui.glass.field.GlassUnclippedShape) return null
+        floorEdgePath.reset()
+        floorEdgePath.addOutline(shape.createOutline(size, layoutDirection, this))
+        return floorEdgePath
     }
 
     /**
@@ -1906,6 +2020,8 @@ private class DrawBackdropNode(
             if (size != budgetExtent) forgetRejectedUpgrade()
             budgetTarget = target
             budgetExtent = size
+            // F7.26h: in moto si resta nel gradino più basso, alla misura nuova; da fermi si esce e si ritenta (D6).
+            if (floor && glassMoving()) refreshFloor() else leaveFloor()
             budgetScale = 1f
             outputBudget = 1f
             desiredBytes = 0L
@@ -1968,6 +2084,13 @@ private class DrawBackdropNode(
                 budgetScale = (attempted * 0.5f).coerceAtLeast(MinBackdropScale)
                 continue
             }
+            // F7.26f: al gradino più basso scende anche l'uscita del campione separato (Fluid-physics, il viaggio), a metà
+            // per volta fino a [MinFloorOutputScale], finché la cattura non sta in [FloorCaptureBytes]. Sul Tab S9 il menu
+            // del tasto teneva l'uscita a un quarto (`MinTravelOutputScale`) e restava pieno.
+            if (admission == CaptureAdmission.Denied && floor && travel != null && effectiveScale > MinFloorOutputScale * target) {
+                outputBudget = (effectiveScale * 0.5f).coerceAtLeast(MinFloorOutputScale * target)
+                continue
+            }
             if (admission == CaptureAdmission.Denied && residentBytes > 0L && !glassMoving() &&
                 sampledBackdrop.isReadyToSample()) {
                 // La vecchia cattura può occupare da sola tutta la nuova quota. Alla posa
@@ -1977,9 +2100,26 @@ private class DrawBackdropNode(
                 outputBudget = 1f
                 continue
             }
-            if (admission == CaptureAdmission.Denied && (waitForBytes == 0L || nextBytes < waitForBytes)) {
+            if (admission == CaptureAdmission.Denied && !floor && (waitForBytes == 0L || nextBytes < waitForBytes)) {
                 if (waitForBytes == 0L) MainHandler.postDelayed(awaitBudget, retryDelayMillis())
                 waitForBytes = nextBytes
+            }
+            // F7.26f: negata anche la cattura minima e niente da rigiocare. Dove Android sa sfocare, il gradino più basso
+            // (la cattura minuscola fuori dal registro, sfocata e tinta) al posto del pieno.
+            if (admission == CaptureAdmission.Denied && !floor && !sampled && isRenderEffectSupported()) {
+                floor = true
+                surfaceDirty = true
+                effectsUpdates.invalidate()
+                // Si riparte dalla scala piena e si scende solo finché la cattura sta in [FloorCaptureBytes]: alla scala
+                // minima i vetri grandi (una tab bar, il velo di un menu) ingranditi si vedevano a quadretti, non sfocati.
+                budgetScale = 1f
+                outputBudget = 1f
+                GlassFrameDiagnostics.event("glassFloor", this@DrawBackdropNode) { "scale=$effectiveScale bytes=$nextBytes" }
+                dev.antigravity.fluidengine.ui.glass.quality.android.GlassVariantSignals.note {
+                    "vetro al gradino più basso ${System.identityHashCode(this@DrawBackdropNode)} scala=$effectiveScale " +
+                        "misura=${size.width.toInt()}x${size.height.toInt()}"
+                }
+                continue
             }
             replay = sampled
             effectiveScale = if (sampled) recordedScale else previous
@@ -1992,7 +2132,9 @@ private class DrawBackdropNode(
         onDrawSurface?.invoke(this)
         // Fluid Engine addition (F1A.6): la luce, sopra il materiale e sotto il contenuto. Non entra
         // nell'export qui sotto: vedi `drawBackdrop(onDrawLight)`.
-        val light = onDrawLight
+        // F7.26f: il gradino più basso non ha luce.
+        val light = if (floor) null else onDrawLight
+        if (floor) bindMotionLight(null)
         if (light is GlassLightDraw) {
             val environment = currentValueOf(LocalGlassLightEnvironment)?.takeIf {
                 (renderState.optics == GlassOptics.Full || !glassMoving()) &&
@@ -2075,6 +2217,11 @@ private class DrawBackdropNode(
 
     fun invalidateDrawCache() {
         observeEffects()
+    }
+
+    /** F7.31: vedi [placement]. */
+    fun invalidatePlacement() {
+        placement.invalidate()
     }
 
     private fun observeEffects() {
@@ -2214,6 +2361,7 @@ private class DrawBackdropNode(
         recordedSize = IntSize.Zero
         recordedSourceOffsets.clear()
         currentOffsets.clear()
+        placement.invalidate()
 
         bindExport()
         registerReads()
@@ -2256,6 +2404,7 @@ private class DrawBackdropNode(
         recordedSize = IntSize.Zero
         recordedSourceOffsets.clear()
         currentOffsets.clear()
+        placement.invalidate()
     }
 
     override fun onDetach() {
@@ -2273,6 +2422,7 @@ private class DrawBackdropNode(
         borrowedShells.clear()
         recordedSourceOffsets.clear()
         currentOffsets.clear()
+        placement.clear()
         sampled = false
         val graphicsContext = requireGraphicsContext()
         graphicsLayer?.let { layer ->

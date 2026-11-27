@@ -48,6 +48,8 @@ import dev.antigravity.fluidengine.ui.fluid.rememberRecordedGraphicsLayer
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRecordedByDrawBackdropNode
+import dev.antigravity.fluidengine.ui.glass.backdrop.placedInner
+import dev.antigravity.fluidengine.ui.glass.backdrop.placedOrigin
 import dev.antigravity.fluidengine.ui.glass.backdrop.internal.InverseLayerScope
 import java.lang.ref.WeakReference
 
@@ -264,16 +266,21 @@ class LayerBackdrop internal constructor(
         val coordinates = coordinates ?: return
         val source = sourceFor(coordinates) ?: return
         val layerCoordinates = source.ownCoordinates ?: return
+        // Fluid Engine addition (F7.31): un vetro disegnato lontano dal suo layout (una maniglia spostata nel disegno)
+        // dice dove sta davvero il suo angolo, nel suo spazio: il punto da cui parte `localPositionOf`. Zero per tutti gli
+        // altri, cioè il conto di prima.
+        val inverse = layerBlock.placedInner()
+        val origin = layerBlock.placedOrigin()
         withTransform({
-            if (layerBlock != null) {
-                with(obtainInverseLayerScope()) { inverseTransform(density, layerBlock) }
+            if (inverse != null) {
+                with(obtainInverseLayerScope()) { inverseTransform(density, inverse) }
             }
             val offset =
                 try {
-                    layerCoordinates.localPositionOf(coordinates)
+                    layerCoordinates.localPositionOf(coordinates, origin)
                 } catch (_: Exception) {
                     // TODO: outer transformations lead to wrong position calculation
-                    coordinates.positionInWindow() - layerCoordinates.positionInWindow()
+                    coordinates.localToWindow(origin) - layerCoordinates.positionInWindow()
                 }
             translate(-offset.x, -offset.y)
         }) {

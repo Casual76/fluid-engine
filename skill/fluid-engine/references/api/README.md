@@ -16,7 +16,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [Menu, pop-up, fogli, avvisi, notifiche](menu-modali.md) | 18 | 122 |
 | [Prima volta: benvenuto e novità, permessi, sfondi vivi, primo fotogramma](prima-volta.md) | 5 | 69 |
 | [Pressione, gesto e movimento](movimento.md) | 8 | 210 |
-| [Vetro](vetro.md) | 33 | 264 |
+| [Vetro](vetro.md) | 33 | 265 |
 | [Aspetto, aggiornamento in-app, parole, licenze](impostazioni.md) | 8 | 107 |
 | [Tema, forma, tipo](tema.md) | 11 | 149 |
 | [Icone (FluidIcons)](icone.md) | 5 | 217 |

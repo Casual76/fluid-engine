@@ -180,6 +180,28 @@ internal class FluidSettledSemanticsNode(
 }
 
 /**
+ * F7.31 · La posizione di un nodo che c'è solo per TalkBack e segue un valore (le due maniglie di `FluidRangeSlider`):
+ * **ferma finché un dito muove un valore**, come la sua semantica ([fluidSettledSemantics]), e al posto nuovo quando il
+ * gesto finisce. Un nodo che si sposta a ogni fotogramma è un layout che cambia, e con l'accessibilità accesa la pagina si
+ * ricontrollava ogni 100 ms per tutto il gesto. Da leggere nel blocco di posa (`Modifier.offset { }`): mentre il dito muove
+ * il valore il blocco non legge [live] (e non si rifà a ogni passo), e la fine del gesto (`FluidFingerDrive.idleGeneration`,
+ * uno stato) lo risveglia.
+ */
+internal class FluidSettledPosition {
+  private var value = 0
+  private var known = false
+
+  fun read(live: () -> Int): Int {
+    FluidFingerDrive.idleGeneration
+    if (!known || !FluidFingerDrive.holding) {
+      value = live()
+      known = true
+    }
+    return value
+  }
+}
+
+/**
  * Cosa conta per TalkBack in una semantica: i valori, non le azioni (lambde nuove a ogni lettura). Le azioni su misura
  * contano per l'etichetta.
  */

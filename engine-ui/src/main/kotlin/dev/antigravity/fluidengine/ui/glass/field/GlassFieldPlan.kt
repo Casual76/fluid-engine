@@ -15,6 +15,7 @@ package dev.antigravity.fluidengine.ui.glass.field
 
 import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
@@ -279,6 +280,19 @@ internal fun glassFieldRenders(shape: Shape): Boolean =
     shape is ContinuousCornerShape
 
 /**
+ * F7.26h · Il raggio di un angolo nello spazio della cattura: quello di `toPx` alla taglia e alla densità date, e per un
+ * angolo **in pixel** quello dello schermo per [capture], la scala della cattura. In pixel vuol dire che il raggio non
+ * cambia né con la taglia né con la densità (un dp cambia con la densità, una percentuale con la taglia); zero non conta.
+ * A [capture] 1 è `toPx`, senza un conto in più.
+ */
+private fun CornerSize.capturePx(size: Size, density: Density, capture: Float): Float {
+  val px = toPx(size, density)
+  if (capture == 1f || px == 0f) return px
+  val other = toPx(Size(size.width * 2f, size.height * 2f), Density(density.density * 2f, density.fontScale))
+  return if (other == px) px * capture else px
+}
+
+/**
  * [glassSlabGeometry] letta da una `Shape`: la regola **forma → piano** come la chiede chi disegna.
  *
  *  - `RectangleShape`: raggi zero;
@@ -292,7 +306,13 @@ internal fun glassFieldRenders(shape: Shape): Boolean =
  *
  * @param size la taglia della lastra, nell'unità di [density]: i raggi escono in quei pixel.
  * @param maxSidePx il lato lungo in **pixel dello schermo** (uguale a `size.maxDimension` se [size] non è
- *   quella rimpicciolita di una cattura): decide i «piccoli».
+ *   quella rimpicciolita di una cattura): decide i «piccoli», e dà la scala della cattura agli angoli in pixel.
+ *
+ * F7.26h · **Gli angoli in pixel scendono con la cattura.** Un angolo in dp scende con [density], uno in percentuale
+ * con [size]; un angolo in pixel (`CornerSize(px)`, il foglio di vetro) no, e alla taglia rimpicciolita di una cattura
+ * restava quello dello schermo: al gradino più basso del Tab S9 (un ottavo) il raggio del foglio arrivava a mezzo lato
+ * corto e il corpo era una capsula, un ovale dentro il rettangolo ritagliato. Qui un angolo in pixel prende la scala
+ * della cattura (`size.maxDimension / maxSidePx`). A scala piena il fattore è 1 e non si tocca niente, al bit.
  */
 internal fun glassSlabGeometry(
   shape: Shape,
@@ -305,10 +325,11 @@ internal fun glassSlabGeometry(
   if (shape !is CornerBasedShape) {
     return glassSlabGeometry(size.width, size.height, 0f, 0f, 0f, 0f, 0f, continuous = false, small = false, out = out)
   }
-  val topStart = shape.topStart.toPx(size, density)
-  val topEnd = shape.topEnd.toPx(size, density)
-  val bottomEnd = shape.bottomEnd.toPx(size, density)
-  val bottomStart = shape.bottomStart.toPx(size, density)
+  val capture = if (maxSidePx > 0f && size.maxDimension > 0f) size.maxDimension / maxSidePx else 1f
+  val topStart = shape.topStart.capturePx(size, density, capture)
+  val topEnd = shape.topEnd.capturePx(size, density, capture)
+  val bottomEnd = shape.bottomEnd.capturePx(size, density, capture)
+  val bottomStart = shape.bottomStart.capturePx(size, density, capture)
   // Una forma «assoluta» non si specchia con la direzione di lettura, come nella lente di oggi.
   val rtl = layoutDirection == LayoutDirection.Rtl && shape !is AbsoluteRoundedCornerShape
   val continuous = shape as? ContinuousCornerShape

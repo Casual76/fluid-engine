@@ -70,6 +70,12 @@ import org.robolectric.shadows.ShadowLog
 import org.robolectric.util.ReflectionHelpers
 
 /**
+ * F7.26f · **Il gradino più basso è il glassmorphism** (la scelta di Alessio): con la cattura negata a ogni scala, dove
+ * Android sa sfocare il popover si disegna da una cattura minuscola fuori dal registro, sfocata e tinta, e non più pieno.
+ * La pagina sotto resta illeggibile (la prima prova, la soglia di F8.8b) ma il pannello la lascia vedere sfocata: sopra
+ * due campi di colore il lato rosso e quello blu restano diversi (la seconda prova). Fino a F7.26e il pannello era pieno
+ * e i due lati uguali.
+ *
  * F7.18 · Mai trasparente: un popover nato da una sorgente, sopra righe di testo nero su bianco, con **tutto** il credito
  * del vetro già occupato, così che ogni cattura del pannello venga negata. Prima di F7.18 il pannello senza cattura era
  * la tinta sopra il niente, e la pagina sotto si leggeva parola per parola (il Tab S9, 24 novembre 2026). Ora il
@@ -151,7 +157,36 @@ class F7p18DeniedGlassPixelsTest {
 
   private var open by mutableStateOf(false)
 
-  @Test fun `con la cattura negata il popover e' un pannello pieno e la pagina sotto non si legge`() {
+  /** La media dei tre canali nel ritaglio. */
+  private fun mean(image: Bitmap, area: Rect): FloatArray {
+    val sum = FloatArray(3)
+    var n = 0
+    for (y in max(0, area.top.toInt())..min(image.height - 1, area.bottom.toInt())) {
+      for (x in max(0, area.left.toInt())..min(image.width - 1, area.right.toInt())) {
+        val pixel = image.getPixel(x, y)
+        sum[0] += android.graphics.Color.red(pixel).toFloat()
+        sum[1] += android.graphics.Color.green(pixel).toFloat()
+        sum[2] += android.graphics.Color.blue(pixel).toFloat()
+        n++
+      }
+    }
+    return FloatArray(3) { sum[it] / n }
+  }
+
+  @Test fun `con la cattura negata il popover e' glassmorphism e la pagina sotto non si legge`() = denied(colored = false)
+
+  @Test fun `con la cattura negata il popover lascia vedere la pagina sfocata`() = denied(colored = true)
+
+  /**
+   * F7.26g (review R3, D6): il popover cresce mentre sta nel gradino più basso. Fino a F7.26f usciva dal gradino, la misura
+   * nuova veniva negata e si rigiocava la cattura minuscola della misura vecchia: dove il pannello era cresciuto la pagina
+   * si vedeva nitida.
+   */
+  @Test fun `con la cattura negata il popover che cresce resta glassmorphism`() = denied(colored = false, grow = true)
+
+  private var tall by mutableStateOf(false)
+
+  private fun denied(colored: Boolean, grow: Boolean = false) {
     compose.setContent {
       view = LocalView.current
       FluidTheme(settings = remember { EngineSettings() }) {
@@ -162,7 +197,12 @@ class F7p18DeniedGlassPixelsTest {
         CompositionLocalProvider(LocalFluidGlassModalHostState provides host) {
           Box(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().glassBackdropSource(page).background(Color.White)) {
-              Column(Modifier.padding(top = 180.dp, start = 12.dp)) {
+              // F7.26f: due campi di colore sotto il popover, per vedere se il pannello lascia passare la pagina.
+              if (colored) androidx.compose.foundation.layout.Row(Modifier.padding(top = 60.dp).fillMaxSize()) {
+                Box(Modifier.weight(1f).fillMaxSize().background(Color(0xFFE53935)))
+                Box(Modifier.weight(1f).fillMaxSize().background(Color(0xFF1E5BE5)))
+              }
+              if (!colored) Column(Modifier.padding(top = 180.dp, start = 12.dp)) {
                 repeat(30) {
                   BasicText(
                     "Scadenza 2026-11-25, vacanze 21/12 – 6/1, spegnimento 45 min",
@@ -188,7 +228,7 @@ class F7p18DeniedGlassPixelsTest {
                 compactAdaptation = FluidCompactAdaptation.Popover,
                 mode = FluidPresentationMode.Parallel,
               ) {
-                Box(Modifier.size(320.dp, 300.dp).testTag("contenuto"))
+                Box(Modifier.size(320.dp, if (tall) 520.dp else 300.dp).testTag("contenuto"))
               }
             }
             FluidGlassModalHost(state = host, backdrop = page)
@@ -214,9 +254,30 @@ class F7p18DeniedGlassPixelsTest {
       val area = content.fetchSemanticsNode().boundsInRoot.let { Rect(it.left + 24f, it.top + 24f, it.right - 24f, it.bottom - 24f) }
       // Robolectric disegna la finestra solo alla PixelCopy: al primo disegno il nodo aspetta la lettura della memoria
       // (un fotogramma senza cattura, com'era), al secondo chiede il credito e se lo vede negare.
-      capture("negato-primo-disegno")
+      capture("negato-primo-disegno${if (colored) "-colori" else ""}")
       advance(160)
-      val under = spread(capture("negato-aperto"), area)
+      var opened = capture("negato-aperto${if (colored) "-colori" else ""}")
+      var under = spread(opened, area)
+      if (grow) {
+        // Il pannello cresce di 220 dp: si guarda la parte nuova, sotto quella di prima.
+        val floorsBefore = ShadowLog.getLogsForTag("FluidGlassFrame").drop(cursor).count { " kind=glassFloor " in it.msg }
+        val growCursor = ShadowLog.getLogsForTag("FluidGlassFrame").size
+        tall = true
+        advance(600)
+        capture("negato-cresciuto-primo-disegno")
+        advance(160)
+        opened = capture("negato-cresciuto")
+        val grown = content.fetchSemanticsNode().boundsInRoot
+        val lower = Rect(grown.left + 24f, area.bottom + 24f, grown.right - 24f, grown.bottom - 24f)
+        under = spread(opened, lower)
+        val floorsAfter = ShadowLog.getLogsForTag("FluidGlassFrame").drop(cursor).count { " kind=glassFloor " in it.msg }
+        println("F7p18 cresciuto: parte nuova $lower, escursione ${"%.1f".format(under)}, gradino più basso $floorsBefore -> $floorsAfter")
+        ShadowLog.getLogsForTag("FluidGlassFrame").drop(growCursor)
+          .filter { " kind=draw " !in it.msg }.take(40).forEach { println("F7p18CRESCE | " + it.msg.take(300)) }
+        // Un palco di Fluid-physics resta della stessa misura e cambia solo la sagoma: il gradino non si lascia, si rilegge la
+        // sagoma. Un nodo che cambia misura esce e rientra (D6). In tutti e due i casi la parte nuova va sfocata, qui sotto.
+        assertTrue("dopo la crescita il gradino più basso non c'è più", floorsAfter >= floorsBefore && floorsAfter > 0)
+      }
       val all = ShadowLog.getLogsForTag("FluidGlassFrame")
       val logs = all.drop(cursor)
       val kinds = logs.groupingBy { Regex("""kind=(\w+)""").find(it.msg)?.groupValues?.get(1) ?: "?" }.eachCount()
@@ -226,13 +287,26 @@ class F7p18DeniedGlassPixelsTest {
       val denied = logs.count { " kind=glassBudgetDenied " in it.msg }
       val filled = logs.count { " kind=glassDeniedFill " in it.msg || " kind=glassSolid " in it.msg }
       val captured = logs.count { " kind=capture " in it.msg }
-      println("F7p18 negato: pagina nuda ${"%.1f".format(bare)}, sotto il pannello ${"%.1f".format(under)}, " +
-        "rifiuti $denied, pieni $filled, catture $captured, ritaglio $area, ${resources.usageLine()}")
-      assertTrue("la pagina non ha testo da coprire: $bare", bare > 150f)
+      val floors = logs.count { " kind=glassFloor " in it.msg }
+      val width = area.right - area.left
+      val left = mean(opened, Rect(area.left, area.top, area.left + width * 0.3f, area.bottom))
+      val right = mean(opened, Rect(area.right - width * 0.3f, area.top, area.right, area.bottom))
+      val sides = (0..2).maxOf { kotlin.math.abs(left[it] - right[it]) }
+      println("F7p18 negato${if (colored) " sui colori" else ""}: pagina nuda ${"%.1f".format(bare)}, sotto il pannello " +
+        "${"%.1f".format(under)}, lati ${left.joinToString("/") { "%.0f".format(it) }} contro " +
+        "${right.joinToString("/") { "%.0f".format(it) }} (scarto ${"%.0f".format(sides)}), rifiuti $denied, pieni $filled, " +
+        "gradino più basso $floors, catture $captured, ritaglio $area, ${resources.usageLine()}")
       assertTrue("il tetto non ha negato niente: la prova non prova il ripiego", denied > 0)
-      assertEquals("con tutto il credito occupato non deve entrare nessuna cattura", 0, captured)
-      assertTrue("il ripiego pieno non si è disegnato", filled > 0)
-      assertTrue("sotto il popover senza cattura il testo della pagina si legge: escursione $under", under < SPREAD_LIMIT)
+      // F7.26f: dove Android sa sfocare, niente pieno: la cattura minuscola fuori dal registro, sfocata e tinta.
+      assertTrue("il gradino più basso non è partito", floors > 0)
+      assertTrue("il gradino più basso non ha catturato", captured > 0)
+      assertEquals("niente pieno dove Android sa sfocare", 0, filled)
+      if (colored) {
+        assertTrue("il pannello non lascia vedere la pagina: i due lati sono uguali (scarto $sides)", sides > 40f)
+      } else {
+        assertTrue("la pagina non ha testo da coprire: $bare", bare > 150f)
+        assertTrue("sotto il popover al gradino più basso il testo della pagina si legge: escursione $under", under < SPREAD_LIMIT)
+      }
     } finally {
       held?.close()
       resources.refresh()

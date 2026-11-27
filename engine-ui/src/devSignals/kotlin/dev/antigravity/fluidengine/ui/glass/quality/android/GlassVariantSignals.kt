@@ -46,6 +46,12 @@ internal object GlassVariantSignals {
    */
   val flatSource: Boolean get() = simulation?.flatSource == true
 
+  /**
+   * F7.26g: il registro del vetro esaurito a comando (`pieno@da-a` del profilo simulato). Lo legge il registro a ogni
+   * lettura, anche ai confini delle fasi, e tiene occupato tutto il credito del vetro finché la fase dura.
+   */
+  fun exhaustNow(): Boolean = simulation?.exhaustNow() == true
+
   /** F7.26: le righe dei livelli e della memoria si scrivono solo col profilo simulato acceso. */
   val noting: Boolean get() = simulation != null
 

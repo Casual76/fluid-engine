@@ -1261,6 +1261,7 @@ internal fun FluidPageChromeContent(
   }
   val tint = barTint ?: GlassDefaults.barTint()
   val scrollEdge = fluidChromeScrollEdge()
+  val shade = if (backdrop != null && scrollEdge) key(backdrop) { rememberFluidScrollEdgeShade(backdrop) } else NoScrollEdgeShade
   Box(
     modifier = modifier
       .fillMaxWidth()
@@ -1274,16 +1275,28 @@ internal fun FluidPageChromeContent(
         tint = tint,
         intensity = FullBarIntensity,
         exports = barGlass,
-        shade = if (scrollEdge) rememberFluidScrollEdgeShade(backdrop) else NoScrollEdgeShade,
+        shade = shade,
       )
     }
-    CompositionLocalProvider(LocalGlassBackdrop provides controlBackdrop, LocalFluidCanvasBackdrop provides null) {
+    CompositionLocalProvider(
+      LocalGlassBackdrop provides controlBackdrop,
+      LocalFluidCanvasBackdrop provides null,
+      // F7.33: il titolo, il sottotitolo e i tasti seguono il lato della striscia, come nella barra di una `FluidScreen` e
+      // in quella dell'host. Fuori da un host (il visore nella galleria, `FluidFileViewer` da solo) il titolo restava
+      // dell'inchiostro del tema: sopra la carta bianca di una foto, in tema scuro, bianco su 166 (2,4:1, R1-B sul Tab S9).
+      LocalContentColor provides fluidScrollEdgeInk(LocalContentColor.current, shade),
+      LocalFluidScrollEdgeShade provides shade,
+      LocalGlassSharedHost provides shade.shared,
+    ) {
+    GlassInkContent(shade.ink, LocalContentColor.current) {
       val controls = remember { FluidTopBarControls() }
       FluidTopBarRow(onTapTitle = null, minimumTopInset = minimumTopInset) {
         val showsTitle = toolbar == null || (toolbar.titleMode != FluidToolbarTitleMode.None && !toolbar.hasPrincipal)
         if (showsTitle) {
           val subtitle = toolbar?.subtitle?.takeIf { toolbar.viewerLayout }
-          Box(Modifier.fillMaxSize()) {
+          // Svanisce e risale con l'inchiostro della barra quando la barra cambia lato (come in `FluidScreen`); senza la
+          // striscia (il vetro di prima) non c'è niente da far svanire, e niente layer.
+          Box(Modifier.fillMaxSize().then(if (shade === NoScrollEdgeShade) Modifier else Modifier.graphicsLayer { alpha = shade.fade() })) {
             Box(Modifier.fillMaxSize().padding(bottom = if (subtitle == null) 0.dp else FluidToolbarDefaults.SubtitleLift)) {
               FluidTopBarTitle(
                 title = title,
@@ -1335,6 +1348,7 @@ internal fun FluidPageChromeContent(
           }
         }
       }
+    }
     }
   }
 }

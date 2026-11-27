@@ -180,6 +180,7 @@ stato che i disegni hanno letto, osservato da un `SnapshotStateObserver`), e la 
   (il materiale nuovo le tiene nello stato della superficie, che si ricrea solo quando cambiano ruolo, ottica, forma, lato del tema, densità o la qualità che la guida).
 - `frozen` e `heldWhileMoving` sono lambda **fuori dall'`equals`** apposta: un chiamante che le ricostruisce a ogni ricomposizione renderebbe l'elemento diverso ogni volta e annullerebbe il cancello che alimentano.
 - Un `layerBlock` viene applicato con `graphicsLayer(layerBlock)` e invertito **solo per scala e rotazione Z** quando si campiona (la posizione si ricava dalle coordinate): una traslazione nel blocco non va sul fondale.
+  Dalla F7.31 un blocco interno `GlassDrawnLayerBlock` (la goccia) si applica **nel disegno**, in uno strato fermo, e il nodo sa dove è disegnato (`GlassSamplePlacement`): vedi [vetro.md](vetro.md), «Un vetro che si muove nel disegno».
 
 **Non usarlo quando.** Quasi sempre: `glassSurface` (ottica dal ruolo, tinta, regola della taglia, contrasto, qualità). `drawBackdrop` diretto è per una ricetta che non è una lastra (la goccia: sezione sotto).
 
@@ -277,6 +278,10 @@ dispersione, `Highlight.Ambient` ÷ 1,5 con alfa `p`, ombra interna `4 dp × p`,
 −0,25 sull'altro, tetto 0,2, spento con le animazioni ridotte; l'interruttore tiene `/50` con segno; la pillola della tab bar il segno con `/10`). Non prende l'ottica di un ruolo: `GlassRole.Interactive` non è la goccia. Una goccia
 **in una lastra** ha la faccia del tema (`GlassDropFaces`: bianca sul chiaro, 0xFF636366 sullo scuro: un bianco pieno su una pista scura è un faro e l'etichetta `onSurface` non si leggerebbe). La trasformazione sta nel
 `layerBlock` e **non** in un `graphicsLayer` antenato: il renderer la inverte quando campiona, quindi la lente ha in mano la pista che c'è davvero.
+Dalla F7.31 quel `layerBlock` si applica **nel disegno** (`GlassDrawnLayerBlock`, uno strato fermo e la matrice nel suo elenco di disegno), e la corsa la mette chi chiama con `glassDrawOffset`:
+una scala o una traslazione che cambia in uno strato è per Compose un cambio di layout, e con l'accessibilità accesa la pagina si ricontrollava ogni 100 ms. La goccia dei menù (F7.31b) passa il
+posto in `place` e la presenza in `alpha`: posto e crescita nel disegno, l'alfa in uno strato suo dentro la trasformazione (nello spazio della goccia, come lo strato unico di prima: niente si taglia).
+Restano in uno strato un `place` che scrive l'alfa senza `alpha` a parte e chi passa `drawn = false` (la riga sollevata di `FluidReorderable`, che porta il suo contenuto dentro la goccia).
 
 ## Il vetro su vetro, sotto il cofano (`GlassNesting.kt`, nostro)
 
@@ -319,6 +324,9 @@ il diff con una versione nuova a monte, che è l'unico modo di aggiornare (si ri
 15. **`drawBackdrop` guadagna `onDrawLight` e `underlay`** (4.0): la luce del materiale nuovo fuori dal materiale pubblicato, e un posto per la sua ombra dentro il `layerBlock`.
 16. **Il nodo si conta, e il livello di API si può simulare in debug** (4.0): `DrawBackdropNode` tiene il suo censimento per `FluidGlassDiagnostics` (nodo, cattura, posa, materiale,
     e la superficie con il suo materiale); `isRenderEffectSupported()` e `isRuntimeShaderSupported()` chiedono `glassApiLevel()`.
+17. **Un vetro può essere disegnato lontano dal suo layout** (4.0, F7.31; voce 24 di `LICENSES/AndroidLiquidGlass.md`): in `drawBackdrop` lo strato del `layerBlock` passa da
+    `glassLayerOf`, `DrawBackdropNode` calcola l'origine del campione (`GlassSamplePlacement`) e la passa al fondale dentro il `layerBlock` (`GlassPlacedLayerBlock`), e
+    `LayerBackdrop.drawBackdrop` parte da quel punto in `localPositionOf`. Nessuna firma pubblica cambia.
 
 ## Licenza e attribuzione
 

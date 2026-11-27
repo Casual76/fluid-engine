@@ -273,6 +273,8 @@ internal fun rememberFluidMenuDropState(selection: FluidMenuSelection, count: In
  * @param interactive il pannello prende il dito e i clic delle voci. Falso mentre il menu si chiude (S4i): un menu che si posa
  *   sul suo tasto (`FluidMenuPlacement.OverAnchor`) lo copriva fino alla fine dell'uscita, e il tocco sul tasto per riaprirlo
  *   finiva sul pannello che se ne andava.
+ * @param parked il menu e' parcheggiato fra due aperture (F7.30, `FluidMenuReadiness`): la goccia, che e' vetro, non si
+ *   compone, e rinasce fresca all'apertura dopo. Le voci restano.
  */
 @Composable
 internal fun FluidGlassMenuPanel(
@@ -293,6 +295,7 @@ internal fun FluidGlassMenuPanel(
   levelBlurDp: (() -> Float)? = null,
   outgoing: FluidMenuOutgoingLevel? = null,
   interactive: Boolean = true,
+  parked: Boolean = false,
 ) {
   val density = LocalDensity.current
   val coordinates = remember { FluidMenuCoordinates() }
@@ -317,7 +320,8 @@ internal fun FluidGlassMenuPanel(
     }
   }
   // Lo strato che porta le voci alla lente, dentro la finestra (S4g-bis, b): un layer esplicito, l'effetto che prima stava sul nodo.
-  val inkLens = rememberGraphicsLayer()
+  // F7.30: parcheggiato il pannello non disegna, e lo strato non c'e' (nessun layer vivo a riposo); rinasce all'apertura.
+  val inkLens = if (parked) null else rememberGraphicsLayer()
 
   Box(
     modifier = modifier
@@ -342,7 +346,7 @@ internal fun FluidGlassMenuPanel(
       // Col vetro dell'ancora la sagoma ritaglia ogni figlio per conto suo, e le voci nello shader della lente (S4g, NO 1).
       .then(if (anchored || travelClip == null) Modifier else Modifier.fluidMenuTravelClip(travelClip)),
   ) {
-    if (pageBackdrop != null && cells.size > 0) {
+    if (pageBackdrop != null && cells.size > 0 && !parked) {
       Box(if (anchored) Modifier.matchParentSize().drawWithContent { drawInMenuSilhouette(lens!!, travelClip) } else Modifier.matchParentSize()) {
         FluidMenuDrop(
           state = drop,
@@ -447,12 +451,16 @@ internal fun FluidGlassMenuPanel(
           } else {
             fluidMenuLevelBlurEffect(levelBlurDp, this.density)
           }
-          inkLens.alpha = contentAlpha().coerceIn(0f, 1f)
-          inkLens.renderEffect = effect
-          inkLens.translationX = shift.x
-          inkLens.translationY = shift.y
+          val lensLayer = inkLens ?: run {
+            drawContent()
+            return@drawWithContent
+          }
+          lensLayer.alpha = contentAlpha().coerceIn(0f, 1f)
+          lensLayer.renderEffect = effect
+          lensLayer.translationX = shift.x
+          lensLayer.translationY = shift.y
           // Le celle hanno il loro layer: qui si registra solo quello, e le righe non si ridisegnano a ogni fotogramma.
-          inkLens.record { this@drawWithContent.drawContent() }
+          lensLayer.record { this@drawWithContent.drawContent() }
           // Il limite della lente (S4g-ter): senza, lo shader della lente, che puo' colorare anche il trasparente, faceva allocare
           // a Skia un intermedio grande quanto la finestra divisa per la scala delle voci (2048×3072 a 0,19), e sul Tab S9 il
           // driver ci metteva fino a ~1 s alla prima apertura del gruppo. Il limite e' lo strato delle voci, intero e spostato
@@ -460,9 +468,9 @@ internal fun FluidGlassMenuPanel(
           val limit = bounds
           if (limit != null) {
             FluidMenuInkProbe.onBounds?.invoke(FluidMenuInkReport(limit, size, map.scale))
-            clipRect(limit.left, limit.top, limit.right, limit.bottom) { drawLayer(inkLens) }
+            clipRect(limit.left, limit.top, limit.right, limit.bottom) { drawLayer(lensLayer) }
           } else {
-            drawLayer(inkLens)
+            drawLayer(lensLayer)
           }
         },
     ) {
@@ -476,7 +484,8 @@ internal fun FluidGlassMenuPanel(
             drawMenuSeparators(cells, { drop.weight(it) }, separator, band, insetPx, tileInsetPx, hairlinePx)
           },
       ) {
-        FluidMenuCells(cells, plain = plain, tileLabels = tileLabels, weight = { drop.weight(it) }, onPick = onPick, interactive = interactive)
+        FluidMenuCells(cells, plain = plain, tileLabels = tileLabels, weight = { drop.weight(it) }, onPick = onPick, interactive = interactive,
+          hidden = parked)
       }
     }
   }
@@ -585,6 +594,8 @@ private fun FluidMenuCells(
   weight: (Int) -> Float,
   onPick: (Int) -> Unit,
   interactive: Boolean = true,
+  /** F7.30: il menu è parcheggiato (`FluidMenuReadiness`): le celle non dicono niente, nemmeno nell'albero non unito. */
+  hidden: Boolean = false,
 ) {
   val density = LocalDensity.current
   for (index in 0 until cells.size) {
@@ -598,6 +609,7 @@ private fun FluidMenuCells(
         onClick = { onPick(index) },
         modifier = Modifier.fluidMenuTileCell(cells, index),
         interactive = interactive,
+        hidden = hidden,
       )
     } else {
       FluidGlassMenuRow(
@@ -613,6 +625,7 @@ private fun FluidMenuCells(
         submenu = !plain && entry.opensSubmenu,
         header = entry.kind == FluidMenuCellKind.Header,
         interactive = interactive,
+        hidden = hidden,
       )
     }
   }
@@ -783,8 +796,11 @@ private fun FluidGlassMenuRow(
   submenu: Boolean = false,
   header: Boolean = false,
   interactive: Boolean = true,
+  hidden: Boolean = false,
 ) {
   val base = if (action.destructive && !header) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+  // F7.30: parcheggiato, il testo resta misurato ma senza semantica (vedi `FluidMenuCells`).
+  val mute = if (hidden) Modifier.clearAndSetSemantics { } else Modifier
   val tone = if (action.enabled || header) base else base.copy(alpha = base.alpha * 0.38f)
   Row(
     modifier = modifier
@@ -797,7 +813,7 @@ private fun FluidGlassMenuRow(
         role = Role.Button,
         onClick = onClick,
       ))
-      .semantics { if (action.selected && !header) selected = true }
+      .semantics { if (action.selected && !header && !hidden) selected = true }
       .drawWithContent {
         // La voce sotto la goccia si fa avanti di un 5%, dal bordo d'attacco: e' la goccia che la
         // solleva. Solo in disegno — niente layer, niente ricomposizione mentre il dito scorre. Non
@@ -826,18 +842,19 @@ private fun FluidGlassMenuRow(
         color = tone,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.weight(1f),
+        modifier = Modifier.weight(1f).then(mute),
       )
     } else {
       // Il sottotitolo e' un'informazione in piu', non una seconda voce: piu' piccolo e meno contrastato.
       Column(modifier = Modifier.weight(1f)) {
-        Text(text = action.label, style = labelStyle, color = tone, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text = action.label, style = labelStyle, color = tone, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = mute)
         Text(
           text = subtitle,
           style = MaterialTheme.typography.bodyMedium,
           color = tone.copy(alpha = tone.alpha * FluidMenuSubtitleAlpha),
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
+          modifier = mute,
         )
       }
     }
@@ -877,6 +894,7 @@ private fun FluidGlassMenuTile(
   onClick: () -> Unit,
   modifier: Modifier,
   interactive: Boolean = true,
+  hidden: Boolean = false,
 ) {
   val action = entry.action
   val base = if (action.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
@@ -891,9 +909,9 @@ private fun FluidGlassMenuTile(
         onClick = onClick,
       ))
       .semantics {
-        // L'etichetta che non si vede si legge lo stesso; quella che si vede la legge gia' il suo testo.
-        if (!labeled && action.icon != null) contentDescription = action.label
-        if (action.selected) selected = true
+        // L'etichetta che non si vede si legge lo stesso; quella che si vede la legge gia' il suo testo. Parcheggiata niente.
+        if (!hidden && !labeled && action.icon != null) contentDescription = action.label
+        if (!hidden && action.selected) selected = true
       }
       .drawWithContent {
         // La tessera sotto la goccia si fa avanti dal centro, come un pulsante dell'avviso.
@@ -921,7 +939,8 @@ private fun FluidGlassMenuTile(
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
-        modifier = if (icon != null) Modifier.padding(top = FluidMenuTileGap) else Modifier,
+        modifier = (if (icon != null) Modifier.padding(top = FluidMenuTileGap) else Modifier)
+          .then(if (hidden) Modifier.clearAndSetSemantics { } else Modifier),
       )
     }
   }
@@ -973,7 +992,9 @@ internal fun FluidMenuDrop(
   }
   // Il posto: la capsula sta posata al centro del pannello (vedi `layoutCell`); la si porta sul centro della
   // cella sotto il dito, e da li' dove la sagoma di adesso porta il contenuto — la stessa mappa delle voci,
-  // attorno allo stesso centro. E la presenza, per l'opacita' del contenuto.
+  // attorno allo stesso centro. F7.31b: il posto va nel disegno con la crescita, e la presenza (l'opacita' del
+  // contenuto) in uno strato suo dentro la trasformazione: mentre il dito scorre fra le voci la goccia non sposta
+  // uno strato, e con l'accessibilita' accesa la pagina non si ricontrolla ogni 100 ms.
   val place: GraphicsLayerScope.() -> Unit = remember(state, selection) {
     {
       val g = selection.geometry
@@ -986,9 +1007,9 @@ internal fun FluidMenuDrop(
       }
       translationX = fromCenter.x + map.translation.x
       translationY = fromCenter.y + map.translation.y
-      alpha = (state.presence.value * contentAlpha()).coerceIn(0f, 1f)
     }
   }
+  val presence: () -> Float = remember(state) { { (state.presence.value * contentAlpha()).coerceIn(0f, 1f) } }
 
   Box(
     modifier = Modifier
@@ -1008,6 +1029,7 @@ internal fun FluidMenuDrop(
         shape = FluidCapsuleShape,
         squashVertical = vertical,
         place = place,
+        alpha = presence,
       ),
   )
 }

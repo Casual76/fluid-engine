@@ -100,8 +100,8 @@ internal data class GlassAdaptiveTarget(
 internal class GlassAdaptiveFilter(
   initialDark: Boolean,
   private val timeConstantMillis: Float = GlassAdaptiveTimeConstantMillis,
-  private val darkBelow: Float = GlassAdaptiveDarkBelow,
-  private val lightAbove: Float = GlassAdaptiveLightAbove,
+  internal val darkBelow: Float = GlassAdaptiveDarkBelow,
+  internal val lightAbove: Float = GlassAdaptiveLightAbove,
   private val minDwellMillis: Long = GlassAdaptiveMinDwellMillis,
 ) {
   init {

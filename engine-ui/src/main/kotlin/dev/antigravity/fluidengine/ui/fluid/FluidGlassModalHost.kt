@@ -263,6 +263,16 @@ internal class FluidGlassModalEntry(val atRoot: Boolean = true) {
   val selection = FluidMenuSelection()
 
   /**
+   * F7.30 · Il menu di questa voce va composto anche senza azioni: un dito e' sceso sull'ancora di un menu `Expand` che non
+   * si era mai aperto ([FluidMenuReadiness]). L'host compone allora il layer dei menu parcheggiato (vedi `FluidMenuLayer`),
+   * e la prima apertura trova la sua struttura gia' fatta. Lo scrive il filo principale, dal dito.
+   */
+  var menuReady by mutableStateOf(false)
+
+  /** Quello che il ponte del dito chiama alla pressione ([FluidMenuHandOff.onPress]): una lambda sola per voce. */
+  val readyOnPress: () -> Unit = { if (!menuReady) menuReady = true }
+
+  /**
    * Il ponte del dito di chi ha aperto il menu (l'ancora o la riga): il layer lo scollega al congedo, cosi'
    * un dito ancora giu' dopo un back non tiene ferma la lista attorno.
    */
@@ -393,7 +403,11 @@ private fun FluidGlassModalLayer(
   // Tre famiglie, un host (3.0, fase 7): l'avviso, i menu (contestuale ed Expand con azioni: il
   // pannello unico, il viaggio unico, la goccia) e i pannelli di contenuto di sempre.
   val alert = entry.alert
-  val hasActions = fluidModalShowsActions(entry.presentation, entry.actions.isNotEmpty())
+  // F7.30: un menu `Expand` si prepara alla prima pressione della sua ancora, prima di avere le azioni (le da' l'apertura).
+  val hasActions = fluidModalShowsActions(entry.presentation, entry.actions.isNotEmpty() || entry.menuReady)
+  if (alert == null && entry.presentation == FluidGlassModalPresentation.Expand) {
+    SideEffect { entry.menuHandOff?.onPress = if (FluidMenuReadiness.enabled) entry.readyOnPress else null }
+  }
   val sourceJourney = rememberFluidModalSourceJourney(
     entry, enabled = !hasActions && !fluidModalSlidesUp(entry.presentation) &&
       entry.presentation != FluidGlassModalPresentation.ContextMenu,

@@ -4,7 +4,8 @@
  * Alessio sceglie i tempi del giro, l'attesa del filtro e le sue due soglie dalle riprese del tablet, non dalle tavole del
  * banco. Per riprendere le varianti servono manopole che la galleria passa con `gallery.tune`, come quelle del profilo:
  *
- * - `fliptime` = `swift` (di serie dalla G1, scelta 1 di S3) | `ios26` | `slow`: i tempi del giro ([GlassFlipTimings]);
+ * - `fliptime` = `ios26` (di serie dalla F7.33b, D3 di Alessio) | `swift` (di serie dalla G1 alla F7.33b) | `slow`: i
+ *   tempi del giro ([GlassFlipTimings]);
  * - `flipwait` = millisecondi, 20..2000 (di serie 200): la costante di tempo della media del filtro, cioè quanto il
  *   filtro aspetta prima di decidere ([GlassAdaptiveTimeConstantMillis]);
  * - `flipon` / `flipoff` = 0..1 (di serie 0,45 e 0,62): le due soglie del filtro, verso lo scuro e di ritorno al chiaro

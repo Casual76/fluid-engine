@@ -146,7 +146,8 @@ trasforma, poi le notifiche. **Un host che non c'è non è un errore**: è la ca
 
 `FluidGlassModalHost` non compone niente finché non ha voci registrate: una voce si registra anche da chiusa (in un
 `DisposableEffect` del portale), e una voce chiusa e finita di uscire non disegna nulla e costa una animazione di un
-float.
+float. Un **menu** dell'host (contestuale o `Expand`) dalla 4.0 (F7.30) resta invece composto fra un'apertura e l'altra,
+parcheggiato e senza vetro: vedi «Il menu tenuto pronto» in [menu-liquidi.md](menu-liquidi.md).
 
 ### Il fuoco, il back, la semantica
 

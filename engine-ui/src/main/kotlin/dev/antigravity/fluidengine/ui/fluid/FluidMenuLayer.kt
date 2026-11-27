@@ -46,6 +46,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -188,8 +192,14 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     }
   }
   journey.retarget(if (entry.visible) 1f else 0f, onContour = bornLiquid)
+  // F7.30 · Il menu tenuto pronto ([FluidMenuReadiness]): letto una volta per layer, perche' un layer non cambi strada a meta'.
+  // Il menu preparato alla pressione e mai aperto non ha niente da congedare.
+  val keepsReady = remember { FluidMenuReadiness.enabled }
+  val everOpened = remember { booleanArrayOf(false) }
+  if (entry.visible) everOpened[0] = true
 
   LaunchedEffect(entry.visible, reducedMotion) {
+    if (keepsReady && !entry.visible && !everOpened[0]) return@LaunchedEffect
     // Il velo, la nascita e il congedo sull'orologio costante dei menu (S4f, NO 1): i primi fotogrammi di un menu, a 30 Hz e
     // i piu' cari, non fanno correre la nascita di nascosto. Lo stesso istante per tutti, e per la goccia (1/30 s al piu').
     withContext(fluidSteadyFrames(coroutineContext)) {
@@ -213,18 +223,31 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     }
   }
 
-  if (!entry.visible && exitFinished) {
+  // Preparato alla pressione e mai aperto: parcheggiato, e l'ancora non si tocca (nessuna uscita da finire).
+  val neverOpened = keepsReady && !everOpened[0]
+  val exited = !entry.visible && (exitFinished || neverOpened)
+  if (exited) {
     // La riga e il tasto tornano alla pagina qui, e non un fotogramma prima: fino ad ora c'era la
     // sagoma che li stava riportando a casa.
-    SideEffect {
+    if (!neverOpened) SideEffect {
       entry.lifted = false
       lastAnchor?.consume(false)
     }
-    return
+    if (!keepsReady) return
   }
 
   val groupAtHome = fromGroup && !entry.visible && journey.settledClosed && physics.liquid.quiet
   if (groupAtHome && lastAnchor?.hidden == true) SideEffect { lastAnchor?.consume(false) }
+  // F7.30: il corpo (tutto tranne il velo) si parcheggia quando il gruppo e' a casa o l'uscita e' finita; il velo quando
+  // l'uscita e' finita. Una generazione per ogni ritorno dal parcheggio: le parti che devono nascere ogni volta la seguono.
+  val bodyParked = keepsReady && (exited || groupAtHome)
+  val generation = remember { intArrayOf(0, 0) }
+  if (bodyParked) {
+    generation[1] = 1
+  } else if (generation[1] == 1 && entry.visible) {
+    generation[1] = 0
+    generation[0]++
+  }
   FluidMenuLayerContent(
     entry = entry,
     backdrop = backdrop,
@@ -249,7 +272,61 @@ internal fun FluidMenuLayer(entry: FluidGlassModalEntry, backdrop: GlassBackdrop
     withLens = liquidMenu,
     birth = if (bornLiquid) birth else null,
     groupAtHome = groupAtHome,
+    parking = if (keepsReady) FluidMenuParkingState(body = bodyParked, scrim = exited, generation = generation[0]) else null,
   )
+}
+
+/**
+ * F7.30 · Il menu tenuto pronto. Fino a F7.29 il contenuto di un menu nasceva nel fotogramma della sua apertura e moriva a
+ * uscita finita: a ogni apertura, anche la decima, si componevano da capo 467 funzioni, 21 nodi e 25 layer (al PC, il menu
+ * del gruppo in basso), e sul Tab S9 quel fotogramma lavorava 27–34 ms sul filo principale (F7.27). Ora il contenuto resta
+ * composto fra un'apertura e l'altra, **parcheggiato**: misurato ma non posato (niente disegno, niente tocchi), fuori
+ * dall'albero di TalkBack e dal giro del fuoco, e **senza vetro ne' layer**: le superfici di vetro (finestra, velo, goccia,
+ * anteprima del contestuale), i due materiali e lo strato della lente non si compongono finche' il menu e' parcheggiato, e
+ * rinascono freschi a ogni apertura, come prima. Un
+ * menu `Expand` che non si e' mai aperto si prepara alla prima pressione della sua ancora
+ * ([FluidGlassModalEntry.menuReady]).
+ *
+ * Il menu si vede e si muove come prima: le parti che dipendono dall'istante della nascita (il vetro con la sua sonda e il
+ * suo lato, gli indietro) nascono a ogni apertura. Restano le celle, il testo misurato, la struttura e il pannello.
+ *
+ * L'unico punto da cambiare: [enabled]. Spento, il menu nasce e muore con ogni apertura, come fino a F7.29 (le prove al bit
+ * di F7.30 confrontano le due strade). Lo legge ogni layer quando nasce.
+ */
+internal object FluidMenuReadiness {
+  @Volatile var enabled: Boolean = true
+}
+
+/** Che cosa del menu e' parcheggiato adesso ([FluidMenuReadiness]) e quante volte e' tornato dal parcheggio. */
+@Immutable
+internal data class FluidMenuParkingState(val body: Boolean, val scrim: Boolean, val generation: Int)
+
+/**
+ * Dove il corpo di un menu aspetta parcheggiato ([FluidMenuReadiness]): lo misura sempre (la sottocomposizione del pannello
+ * gira nella misura, e il testo resta misurato), lo posa solo quando non e' parcheggiato. Parcheggiato non ha semantica e
+ * il fuoco non ci entra; il gruppo del fuoco resta sempre, cambia solo la proprieta'. [afterMeasure] gira dopo la misura
+ * del corpo, quando non e' parcheggiato.
+ */
+@Composable
+private fun FluidMenuParking(parked: Boolean, afterMeasure: () -> Unit, content: @Composable () -> Unit) {
+  val parkedNow by androidx.compose.runtime.rememberUpdatedState(parked)
+  Layout(
+    content = content,
+    modifier = Modifier
+      .fillMaxSize()
+      .then(if (parked) Modifier.clearAndSetSemantics { } else Modifier)
+      .focusProperties { onEnter = { if (parkedNow) cancelFocusChange() } }
+      .focusGroup(),
+  ) { measurables, constraints ->
+    val loose = constraints.copy(minWidth = 0, minHeight = 0)
+    val placeables = measurables.map { it.measure(loose) }
+    // Dopo il corpo, nella misura: dove la nascita di prima dava all'ancora la fase delle sue facce (vedi
+    // `FluidMenuJourney.prepare(anchorPhase)`).
+    if (!parked) afterMeasure()
+    layout(constraints.maxWidth, constraints.maxHeight) {
+      if (!parked) placeables.forEach { it.placeRelative(0, 0) }
+    }
+  }
 }
 
 @Composable
@@ -271,17 +348,27 @@ private fun FluidMenuLayerContent(
   /** La nascita del contestuale col vetro liquido, o null: il viaggio dei menu di sempre. */
   birth: FluidContextBirth? = null,
   groupAtHome: Boolean,
+  /** F7.30: il parcheggio del menu tenuto pronto ([FluidMenuReadiness]), o null: il contenuto nasce e muore con l'apertura. */
+  parking: FluidMenuParkingState? = null,
 ) {
   val density = LocalDensity.current
   val haptics = LocalFluidHaptics.current
   val touchSlop = LocalViewConfiguration.current.touchSlop
   val metrics = rememberFluidMenuPanelMetrics()
   val selection = entry.selection
-  val previewPhysics = remember { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
+  val bodyParked = parking?.body == true
+  // La sagoma della card sollevata nasce con ogni apertura, come quando il contenuto nasceva con lei (F7.30).
+  val previewPhysics = remember(parking?.generation) { FluidPhysicsState(FluidForm.circle(Offset(1f, 1f), 1f)) }
   physics.density = density.density
   // F5A.3: le voci lette una volta per composizione (il contenuto vivo di `FluidMenuActions` si rilegge qui, e una
   // voce che lascia il menu aperto si aggiorna), l'ordine e la taglia dichiarati, e i livelli del sottomenu.
-  val list = fluidMenuSnapshot(actions)
+  // F7.30: parcheggiato, il contenuto vivo si legge senza seguirlo: un menu chiuso non si ricompone a ogni cambio delle
+  // sue voci (all'apertura si rilegge, seguito, come prima).
+  val list = if (bodyParked) {
+    androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { fluidMenuSnapshot(actions) }
+  } else {
+    fluidMenuSnapshot(actions)
+  }
   val order = fluidMenuOrderOf(actions)
   val elementSize = fluidMenuElementSizeOf(actions)
   val levels = remember { FluidMenuLevels() }
@@ -330,30 +417,37 @@ private fun FluidMenuLayerContent(
   // pannello con la molla del menu. Lo scrim resta dov'e' al congedo: la dissolvenza parte da li'.
   var backProgress by remember { mutableFloatStateOf(0f) }
   LaunchedEffect(entry.visible) { if (entry.visible) backProgress = 0f }
-  PredictiveBackHandler(enabled = entry.visible) { events ->
-    try {
-      events.collect { event ->
-        val p = event.progress.coerceIn(0f, 1f)
-        backProgress = p
-        if (!reducedMotion) journey.backPull.snapTo(p)
-      }
-      entry.onDismissRequest()
-    } catch (_: CancellationException) {
-      scope.launch {
-        launch { journey.backPull.animateTo(0f, FluidMotion.dropOpen()) }
-        androidx.compose.animation.core.animate(backProgress, 0f, animationSpec = FluidMotion.dropOpen()) { v, _ -> backProgress = v }
+  // F7.30: i due indietro si registrano di nuovo a ogni ritorno dal parcheggio. Il distributore chiama per primo l'ultimo
+  // registrato: un menu tenuto pronto da prima deve stare davanti a cio' che la pagina ha registrato dopo, come quando
+  // nasceva all'apertura.
+  key(parking?.generation) {
+    PredictiveBackHandler(enabled = entry.visible) { events ->
+      try {
+        events.collect { event ->
+          val p = event.progress.coerceIn(0f, 1f)
+          backProgress = p
+          if (!reducedMotion) journey.backPull.snapTo(p)
+        }
+        entry.onDismissRequest()
+      } catch (_: CancellationException) {
+        scope.launch {
+          launch { journey.backPull.animateTo(0f, FluidMotion.dropOpen()) }
+          androidx.compose.animation.core.animate(backProgress, 0f, animationSpec = FluidMotion.dropOpen()) { v, _ -> backProgress = v }
+        }
       }
     }
-  }
-  // Il back dentro un sottomenu torna al menu di prima (F5A.3); al primo livello resta quello predittivo, che congeda.
-  // Composto dopo il predittivo, e quindi davanti a lui finche' un sottomenu e' aperto.
-  BackHandler(enabled = entry.visible && levels.openParent >= 0) {
-    if (!levels.swapping) levels.change(-1, targetPanel[0], scope, reducedMotion)
+    // Il back dentro un sottomenu torna al menu di prima (F5A.3); al primo livello resta quello predittivo, che congeda.
+    // Composto dopo il predittivo, e quindi davanti a lui finche' un sottomenu e' aperto.
+    BackHandler(enabled = entry.visible && levels.openParent >= 0) {
+      if (!levels.swapping) levels.change(-1, targetPanel[0], scope, reducedMotion)
+    }
   }
 
-  val scrimGlass = rememberGlassBackdrop()
-  val paneGlass = rememberGlassBackdrop()
   val noBackdrop = rememberEmptyGlassBackdrop()
+  // F7.30: i materiali del velo e del pannello sono layer. Parcheggiati non si compongono (il materiale vuoto ne tiene il
+  // posto): nessun layer vivo a riposo, con dentro l'ultima apertura, e alla prossima rinascono vuoti, come prima.
+  val scrimGlass = if (parking?.scrim == true) noBackdrop else rememberGlassBackdrop()
+  val paneGlass = if (bodyParked) noBackdrop else rememberGlassBackdrop()
   val dark = GlassDefaults.isDarkSurface()
   val panelTint = GlassDefaults.panelTint()
   // F5A.4: il contestuale ha uno scrim suo, piu' scuro di quello dei menu dal tasto (scelta di Alessio: la
@@ -372,10 +466,23 @@ private fun FluidMenuLayerContent(
   val liquidMenu = withLens
   val pointOfLight = LocalFluidMenuPointOfLight.current
 
+  // F7.30: parcheggiato, il menu lascia il fuoco che aveva, come quando usciva dalla composizione.
+  val hadFocus = remember { booleanArrayOf(false) }
+  if (bodyParked) {
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    SideEffect {
+      if (hadFocus[0]) {
+        hadFocus[0] = false
+        focusManager.clearFocus(force = true)
+      }
+    }
+  }
+
   Box(
     modifier = Modifier
       .fillMaxSize()
       .semantics { isTraversalGroup = true }
+      .then(if (parking != null) Modifier.onFocusChanged { hadFocus[0] = it.hasFocus } else Modifier)
       .focusGroup(),
   ) {
     FluidGlassModalScrim(
@@ -386,8 +493,15 @@ private fun FluidMenuLayerContent(
       onDismiss = entry.onDismissRequest,
       look = scrimLook,
       menu = true,
+      parked = parking?.scrim == true,
     )
-    if (groupAtHome) return@Box // solo il velo finisce la propria dissolvenza dopo la consegna
+    if (groupAtHome && parking == null) return@Box // solo il velo finisce la propria dissolvenza dopo la consegna
+    // F7.30: col menu tenuto pronto il corpo legge l'apertura da qui, non dallo stato della voce. Cosi' all'apertura il corpo
+    // si ricompone nella misura (il suo contenuto cambia), come quando nasceva nella misura, e non prima, nella composizione:
+    // il vetro che rinasce dentro di lui fa partire i suoi effetti allo stesso punto del fotogramma di prima.
+    val visibleOutside = entry.visible
+    val openedOutside = entry.openedAt
+    FluidMenuBodyHost(parking, afterMeasure = { if (entry.visible) journey.attachAnchorPhase() }) {
     Box(
       modifier = Modifier
         .size(1.dp)
@@ -407,7 +521,9 @@ private fun FluidMenuLayerContent(
       // ricomposizioni); in uscita non si tocca niente: il viaggio torna dove era partito. Un'apertura nuova riparte
       // dal primo livello (F5A.3), anche se il menu di prima si era chiuso dentro un sottomenu.
       val prepared = remember { intArrayOf(-1) }
-      val fresh = entry.visible && prepared[0] != entry.openedAt
+      val visible = if (parking == null) entry.visible else visibleOutside
+      val openedAt = if (parking == null) entry.openedAt else openedOutside
+      val fresh = visible && prepared[0] != openedAt
       if (fresh) levels.reset()
       // Le celle del primo livello nell'ordine scritto: l'altezza non dipende dal capovolgimento, quindi il pannello si
       // risolve con queste e l'ordine si sceglie dopo, sapendo da che parte si apre.
@@ -473,8 +589,8 @@ private fun FluidMenuLayerContent(
       // Dove il dito ha tenuto premuto, fermato all'apertura: la goccia del contestuale nasce li' sotto
       // e il menu ci torna. Seguire il dito mentre scorre sulle voci sposterebbe la partenza in volo.
       val touch = remember { floatArrayOf(Float.NaN) }
-      if (entry.visible) {
-        prepared[0] = entry.openedAt
+      if (visible) {
+        prepared[0] = openedAt
         if (fresh) touch[0] = entry.menuHandOff?.takeIf { it.pointerDown }?.lastRoot?.x ?: Float.NaN
         journey.prepare(
           anchor = anchor,
@@ -500,6 +616,8 @@ private fun FluidMenuLayerContent(
           liquidMenu = liquidMenu,
           // Il menu dal tasto e dal gruppo nasce come quelli di Apple (B1 a e la graffetta B1 b): sessione contestuale.
           appleBirth = liquidMenu && anchor != null,
+          // F7.30: col menu tenuto pronto la fase dell'ancora la da' la misura del parcheggio (`FluidMenuBodyHost`).
+          anchorPhase = parking == null,
         )
         journey.backPullMinPx = FluidMenuBackPullMinFarDp * densityValue
         // Mentre il vetro passa da un livello all'altro (F5A.3) lo guida il cambio di livello, da dove stava al
@@ -538,7 +656,10 @@ private fun FluidMenuLayerContent(
         levels.driving = false
       }
 
-      if (anchor == null && customPreview != null && previewBounds != null) {
+      // F7.30: la card sollevata e' vetro: parcheggiata non si compone, e rinasce con l'apertura.
+      if (bodyParked) {
+        // niente
+      } else if (anchor == null && customPreview != null && previewBounds != null) {
         FluidCustomLiftedPreview(
           source = previewBounds, recording = preview, custom = customPreview, shape = lift.previewShape,
           viewport = viewport, margins = previewMargins,
@@ -573,9 +694,13 @@ private fun FluidMenuLayerContent(
         birth != null -> ({ fade() * birth.presence(journey) })
         else -> ({ fade() * fluidMenuDropPresence(progress()) })
       }
-      // F2.3b: il menu possiede le sue voci e scurisce in continuo (un grande, `Modal`); le voci lo seguono.
-      val menuInk = rememberGlassInk()
+      // F2.3b: il menu possiede le sue voci e scurisce in continuo (un grande, `Modal`); le voci lo seguono. F7.30: nasce con
+      // ogni apertura, come la superficie che lo lega.
+      val menuInk = key(parking?.generation) { rememberGlassInk() }
       FluidMenuReturnSurface(journey.controlledReturn) {
+        // F7.30: parcheggiata la finestra non e' vetro (niente nodo, niente sonda, niente materiale pubblicato): rinasce
+        // fresca all'apertura, col lato e l'inchiostro del tasto di adesso.
+        if (bodyParked) return@FluidMenuReturnSurface Modifier.fillMaxSize()
         Modifier
           .fillMaxSize()
           .menuDrawMarker("surface")
@@ -609,7 +734,8 @@ private fun FluidMenuLayerContent(
           } else Modifier)
       }
 
-      if (anchor != null && anchor.groupBounds == null) {
+      // F7.30: la faccia del tasto ha il suo testo («Ordina»): parcheggiata non si compone, e rinasce con l'apertura.
+      if (!bodyParked && anchor != null && anchor.groupBounds == null) {
         val rest = anchor.restBounds
         Box(
           modifier = Modifier
@@ -641,7 +767,8 @@ private fun FluidMenuLayerContent(
         panel.left.roundToInt() - panel.left,
         panel.top.roundToInt() - panel.top,
       )
-      val lens = if (liquidMenu) FluidMenuLens(journey, physics, panelInLayout) else null
+      // F7.30: un contenitore senza stato, ricordato: una lente nuova a ogni composizione ricomponeva tutto il pannello.
+      val lens = if (liquidMenu) remember(journey, physics, panelInLayout) { FluidMenuLens(journey, physics, panelInLayout) } else null
       // L'opacita' del contenuto prima del cambio di livello: il viaggio (o la lente) e l'inchiostro.
       val baseAlpha: () -> Float = {
         // Nella nascita del contestuale le voci entrano nella goccia quando in B1 (b): a 67 ms la goccia e' solo lente. Nella
@@ -676,7 +803,8 @@ private fun FluidMenuLayerContent(
       }
       // Solo nei test (S4c, NO 2): il menu fotogramma per fotogramma, letto come lo disegna il pannello. Null altrove.
       val probe = FluidMenuLayerProbe.onFrame
-      if (probe != null) {
+      // Parcheggiato il menu non ha fotogrammi da dire, e un giro di fotogrammi senza fine terrebbe l'app occupata (F7.30).
+      if (probe != null && !bodyParked) {
         LaunchedEffect(probe, entry) {
           while (true) {
             withFrameNanos { now ->
@@ -734,7 +862,7 @@ private fun FluidMenuLayerContent(
         )
       }
       FluidGlassMenuPanel(
-        actions = shownStructure.entries.map { it.action },
+        actions = remember(shownStructure) { shownStructure.entries.map { it.action } },
         selection = selection,
         layout = null,
         panelMaterial = if (backdrop != null) paneGlass else null,
@@ -764,7 +892,8 @@ private fun FluidMenuLayerContent(
             width = with(density) { panel.width.toDp() },
             height = with(density) { panel.height.toDp() },
           ),
-        paneTitle = paneTitle ?: LocalFluidLabels.current.actions,
+        // Parcheggiato il pannello non ha titolo: un menu chiuso non si annuncia, nemmeno nell'albero non unito (F7.30).
+        paneTitle = if (bodyParked) null else paneTitle ?: LocalFluidLabels.current.actions,
         lens = lens,
         travelClip = travelClipNow,
         structure = shownStructure,
@@ -772,11 +901,26 @@ private fun FluidMenuLayerContent(
         levelBlurDp = { if (levels.swapping) fluidMenuLevelEnterBlur(levels.swap.value) * FluidMenuLevelPeakBlurDp else 0f },
         outgoing = outgoing,
         // In chiusura il pannello non prende il dito: un tocco sul tasto lo riapre (S4i).
-        interactive = entry.visible,
+        interactive = visible,
+        parked = bodyParked,
       )
       }
     }
+    }
   }
+}
+
+/**
+ * Il corpo del menu (tutto tranne il velo) com'era, o nel suo parcheggio ([FluidMenuParking]) quando il menu e' tenuto
+ * pronto ([FluidMenuReadiness]). La strada non cambia per la vita di un layer.
+ */
+@Composable
+private inline fun FluidMenuBodyHost(
+  parking: FluidMenuParkingState?,
+  noinline afterMeasure: () -> Unit,
+  crossinline content: @Composable () -> Unit,
+) {
+  if (parking == null) content() else FluidMenuParking(parking.body, afterMeasure) { content() }
 }
 
 /**

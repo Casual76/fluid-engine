@@ -143,6 +143,9 @@ import dev.antigravity.fluidengine.ui.glass.field.glassLiquidLargeVeilGain
 import dev.antigravity.fluidengine.ui.glass.field.glassProbe
 import dev.antigravity.fluidengine.ui.glass.field.glassProbeAvailable
 import dev.antigravity.fluidengine.ui.glass.field.glassTravelShadowReachDp
+import dev.antigravity.fluidengine.ui.glass.field.GlassAdaptiveFilter
+import dev.antigravity.fluidengine.ui.glass.field.GlassBackdropStats
+import dev.antigravity.fluidengine.ui.glass.field.GlassProbeGroupReading
 import dev.antigravity.fluidengine.ui.glass.field.rememberGlassProbeState
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -424,6 +427,10 @@ fun FluidGlassContainer(
   val ink = rememberGlassInk(large)
   if (probes) ink.bind(adaptive, darkSide) else ink.unbind()
   state.adaptive = if (probes) adaptive else null
+  // F7.33c (D7): il gruppo legge la lettura prima del filtro; a cavallo di un confine vince il tema.
+  val groupReading = remember(state, adaptive) { FluidGlassGroupReading(state, adaptive) }
+  groupReading.darkTheme = darkSide
+  probe.group = if (probes) groupReading else null
   val shared = remember(adaptive) { GlassSharedHost { adaptive.inkAlpha() } }
   val backdrop = currentGlassBackdrop()
 
@@ -2006,6 +2013,158 @@ internal fun fluidGlassContainerLarge(declared: Boolean?, shortSideDp: Float): B
   declared ?: (glassLiquidLargeVeilGain(shortSideDp) >= 0.5f)
 
 /**
+ * F7.33b · **La coerenza del gruppo** (D1, scelta di Alessio del 27/11/2026: «se in una barra tutti i tasti piccoli sono
+ * chiari, anche uno più grande deve esserlo, sennò non è consistente»). I vetri di un contenitore prendono una decisione
+ * sola, e il contenitore scurisce in continuo (il comportamento dei grandi, che non girano: WWDC25 219, «Bigger
+ * elements, like menus or sidebars […] don't flip») **solo se ogni suo pezzo è un grande** ([pieceLarge]: dichiarato o
+ * dalla taglia, [fluidGlassContainerLarge]). Un gruppo con anche un piccolo (una barra con una capsula larga o un
+ * pannello accanto ai tasti) gira tutto insieme, come i piccoli. Pura. Fino alla F7.33b decideva il grappolo più
+ * grande: un pannello grande nel gruppo faceva scurire in continuo anche i tasti accanto.
+ */
+internal fun fluidGlassGroupLarge(clusters: List<GlassPlaneCluster>, pieceLarge: (GlassPlanePiece) -> Boolean): Boolean =
+  clusters.isNotEmpty() && clusters.all { cluster -> cluster.pieces.all(pieceLarge) }
+
+/**
+ * F7.33b · Il grappolo sotto cui il contenitore legge lo sfondo: il più grande fra quelli che hanno almeno un piccolo
+ * (i grandi del gruppo «si basano sui piccoli per scegliere lo stato», D1), o il più grande di tutti in un gruppo di soli
+ * grandi, come prima. Null senza grappoli. Pura.
+ */
+internal fun fluidGlassGroupDecider(
+  clusters: List<GlassPlaneCluster>,
+  pieceLarge: (GlassPlanePiece) -> Boolean,
+): GlassPlaneCluster? {
+  fun area(cluster: GlassPlaneCluster) = cluster.bounds.width * cluster.bounds.height
+  return clusters.filter { cluster -> cluster.pieces.any { !pieceLarge(it) } }.maxByOrNull(::area)
+    ?: clusters.maxByOrNull(::area)
+}
+
+/** F7.33c · I grappoli che decidono il lato: quelli con almeno un piccolo, o tutti in un gruppo di soli grandi. Pura. */
+internal fun fluidGlassGroupDeciders(
+  clusters: List<GlassPlaneCluster>,
+  pieceLarge: (GlassPlanePiece) -> Boolean,
+): List<GlassPlaneCluster> =
+  clusters.filter { cluster -> cluster.pieces.any { !pieceLarge(it) } }.ifEmpty { clusters }
+
+/** F7.33c · Il riquadro che racchiude [clusters], dove legge la sonda del contenitore; null senza grappoli. Pura. */
+internal fun fluidGlassGroupArea(clusters: List<GlassPlaneCluster>): Rect? {
+  if (clusters.isEmpty()) return null
+  var area = clusters.first().bounds
+  for (cluster in clusters) {
+    val b = cluster.bounds
+    area = Rect(minOf(area.left, b.left), minOf(area.top, b.top), maxOf(area.right, b.right), maxOf(area.bottom, b.bottom))
+  }
+  return area
+}
+
+/**
+ * F7.33c · Che lato ha sotto ogni grappolo di un gruppo e se il gruppo sta **a cavallo** di un confine (D7, scelta di
+ * Alessio del 27/11/2026: «ci sta una priorità per il tema impostato, sennò il gruppo»).
+ *
+ * [cells] è la miniatura della sonda ([GlassBackdropStats.cells], [side] × [side] celle) della parte [area] (pixel del
+ * contenitore); [clusters] i riquadri dei grappoli, negli stessi pixel. Ogni grappolo ha la luma media delle celle che
+ * copre, e il suo lato con **le stesse due soglie del filtro** ([darkBelow], [lightAbove]): sotto la prima scuro, sopra la
+ * seconda chiaro, in mezzo il lato che aveva ([previous], null se non ne aveva uno). Il gruppo è a cavallo quando almeno
+ * un grappolo è scuro e almeno uno è chiaro. Pura.
+ */
+internal fun fluidGlassGroupSides(
+  cells: FloatArray,
+  side: Int,
+  area: Rect,
+  clusters: List<Rect>,
+  previous: List<Boolean?>,
+  darkBelow: Float,
+  lightAbove: Float,
+): FluidGlassGroupSides {
+  val means = FloatArray(clusters.size)
+  val sides = ArrayList<Boolean?>(clusters.size)
+  var weighted = 0.0
+  var weights = 0.0
+  for ((index, rect) in clusters.withIndex()) {
+    val col0 = (((rect.left - area.left) / area.width) * side).toInt().coerceIn(0, side - 1)
+    val col1 = ((((rect.right - area.left) / area.width) * side).let { kotlin.math.ceil(it) }.toInt() - 1).coerceIn(col0, side - 1)
+    val row0 = (((rect.top - area.top) / area.height) * side).toInt().coerceIn(0, side - 1)
+    val row1 = ((((rect.bottom - area.top) / area.height) * side).let { kotlin.math.ceil(it) }.toInt() - 1).coerceIn(row0, side - 1)
+    var sum = 0.0
+    var count = 0
+    for (row in row0..row1) for (col in col0..col1) {
+      sum += cells[row * side + col]
+      count++
+    }
+    val mean = if (count > 0) (sum / count).toFloat() else Float.NaN
+    means[index] = mean
+    val before = previous.getOrNull(index)
+    sides += when {
+      !mean.isFinite() -> before
+      mean < darkBelow -> true
+      mean > lightAbove -> false
+      else -> before
+    }
+    if (mean.isFinite()) {
+      val weight = (rect.width * rect.height).toDouble().coerceAtLeast(1.0)
+      weighted += mean * weight
+      weights += weight
+    }
+  }
+  val straddles = sides.any { it == true } && sides.any { it == false }
+  return FluidGlassGroupSides(sides, straddles, if (weights > 0.0) (weighted / weights).toFloat() else Float.NaN)
+}
+
+/** Vedi [fluidGlassGroupSides]: il lato di ogni grappolo, se il gruppo è a cavallo, la luma media sotto i grappoli. */
+internal class FluidGlassGroupSides(val sides: List<Boolean?>, val straddles: Boolean, val luminance: Float)
+
+/**
+ * F7.33c · La lettura del gruppo di un contenitore, prima del filtro della sonda ([GlassProbeGroupReading]).
+ *
+ * - **Sfondo uniforme sotto il gruppo:** decide il gruppo (F7.33b, D1). Il filtro riceve la luma media sotto i grappoli
+ *   che decidono, non quella dei vuoti fra un grappolo e l'altro.
+ * - **Gruppo a cavallo di un confine** (un grappolo sopra il chiaro e uno sopra lo scuro, con le soglie del filtro e la
+ *   sua isteresi, [fluidGlassGroupSides]): **vince il tema impostato** (D7). Il filtro riceve il capo del lato del tema
+ *   (0 sul tema scuro, 1 sul chiaro) e ci va coi suoi tempi (la media di 200 ms, la permanenza di 1 s): una riga che passa
+ *   piano da un lato all'altro gira una volta sola. Sul tema scuro il vetro prende anche il soffitto del velo dei grandi
+ *   ([GlassAdaptiveState.groupHoldsSide]): sopra il bianco è una pillola scura con la scritta chiara, non il grigio
+ *   lattiginoso di un piccolo scuro sopra il chiaro. Sul tema chiaro basta il pavimento del velo chiaro, che guarda già la
+ *   parte scura dello sfondo.
+ *
+ * Con un grappolo solo, o senza le celle (il lettore finto uniforme delle prove), il filtro riceve la media di sempre.
+ */
+internal class FluidGlassGroupReading(
+  private val state: FluidGlassContainerState,
+  private val adaptive: GlassAdaptiveState,
+) : GlassProbeGroupReading {
+  /** Il lato del tema del contenitore. Scritto in composizione. */
+  var darkTheme: Boolean = false
+
+  private var previous: List<Boolean?> = emptyList()
+
+  override fun value(stats: GlassBackdropStats, filter: GlassAdaptiveFilter): Float {
+    val cells = stats.cells?.values
+    val clusters = state.groupClusters
+    val area = state.probeRegion()
+    if (cells == null || clusters.size < 2 || area == null || area.width <= 0f || area.height <= 0f) {
+      previous = emptyList()
+      straddle(false)
+      return Float.NaN
+    }
+    val side = kotlin.math.sqrt(cells.size.toFloat()).toInt()
+    if (side * side != cells.size) return Float.NaN
+    val sides = fluidGlassGroupSides(
+      cells, side, area, clusters, previous.takeIf { it.size == clusters.size }.orEmpty(), filter.darkBelow, filter.lightAbove,
+    )
+    previous = sides.sides
+    straddle(sides.straddles)
+    return when {
+      sides.straddles -> if (darkTheme) 0f else 1f
+      else -> sides.luminance
+    }
+  }
+
+  private fun straddle(on: Boolean) {
+    val holds = on && darkTheme
+    if (adaptive.groupHoldsSide != holds) adaptive.groupHoldsSide = holds
+  }
+}
+
+/**
  * Un pezzo del contenitore: un `fluidGlass`, un `fluidGlassPanel` o un `glassControlSurface`. È la chiave del registro, e porta ciò che il
  * piano non sa (come si disegna) e ciò che il layout gli dice (dove sta, i raggi concentrici).
  */
@@ -2471,8 +2630,15 @@ internal class FluidGlassContainerState {
   /** Se due vetri distinti di un grappolo restano fusi anche a riposo: solo la distanza «larga» della tavola di F3.3. */
   private var restFused = PhysicsPlaneFusionDefault.restFused
 
-  /** Il riquadro sotto cui legge la sonda unica: il grappolo più grande, nel contenitore. */
+  /**
+   * Il riquadro sotto cui legge la sonda unica, nel contenitore: dalla F7.33c quello che racchiude i grappoli che
+   * decidono ([fluidGlassGroupArea]); fino a F7.33b il grappolo più grande.
+   */
   private var probeRect by mutableStateOf<Rect?>(null)
+
+  /** F7.33c · I grappoli che decidono il lato (quelli con un piccolo, o tutti), nel contenitore. Dal principale. */
+  internal var groupClusters: List<Rect> = emptyList()
+    private set
 
   /** Ciò che rifrangono i pezzi del grappolo più grande: è lì che la sonda unica legge. Letto in composizione. */
   var probeBackdrop: GlassBackdropState? by mutableStateOf(null)
@@ -2905,15 +3071,21 @@ internal class FluidGlassContainerState {
         drawnTints[piece.key] = if (split == null) field.look.tint else split.looks[split.slabTints[slab]].tint
       }
     }
-    val biggest = state.clusters.maxByOrNull { it.bounds.width * it.bounds.height }
-    probeRect = biggest?.bounds
-    probeBackdrop = biggest?.let { looks[it.pieces.first().key]?.backdrop }
     // Un pannello dice da sé se è un grande (F3.2e: la card e il dock scuriscono, la capsula larga del composer gira);
     // gli altri pezzi lo lasciano alla taglia, come prima.
-    large = biggest != null && fluidGlassContainerLarge(
-      declared = biggest.pieces.firstNotNullOfOrNull { looks[it.key]?.large },
-      shortSideDp = with(density) { biggest.pieces.maxOf { it.bounds.minDimension }.toDp().value },
+    fun pieceLarge(piece: GlassPlanePiece): Boolean = fluidGlassContainerLarge(
+      declared = looks[piece.key]?.large,
+      shortSideDp = with(density) { piece.bounds.minDimension.toDp().value },
     )
+    // F7.33b, la coerenza del gruppo (D1): il contenitore decide una volta per tutti i suoi pezzi, e un gruppo con anche
+    // un solo piccolo gira come i piccoli, i grandi compresi. F7.33c (D7): la sonda legge sotto tutti i grappoli dei
+    // piccoli insieme, e il gruppo sa che lato ha sotto ognuno ([FluidGlassGroupReading]).
+    val decider = fluidGlassGroupDecider(state.clusters, ::pieceLarge)
+    val deciders = fluidGlassGroupDeciders(state.clusters, ::pieceLarge)
+    groupClusters = deciders.map { it.bounds }
+    probeRect = fluidGlassGroupArea(deciders)
+    probeBackdrop = decider?.let { looks[it.pieces.first().key]?.backdrop }
+    large = decider != null && fluidGlassGroupLarge(state.clusters, ::pieceLarge)
     FluidGlassContainerDiagnostics.onRest(
       state.clusters.flatMap { cluster ->
         cluster.pieces.map {

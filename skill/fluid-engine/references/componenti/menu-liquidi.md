@@ -822,11 +822,42 @@ f0561–f0571). Lo stesso ritaglio vale nel pannello, nella lente (`FluidMenuLen
 
 ### Costi
 
-A riposo niente: l'host del tasto che si trasforma è un nodo vuoto che tiene le misure, quello dei modali non compone voci chiuse,
-l'ancora del contestuale non registra nulla senza un dito. In viaggio: una superficie di Fluid-physics (contorno di 48 punti integrati a
+A riposo niente da disegnare: l'host del tasto che si trasforma è un nodo vuoto che tiene le misure, quello dei modali tiene i
+menu già aperti parcheggiati e senza vetro (sotto), l'ancora del contestuale non registra nulla senza un dito. In viaggio: una superficie di Fluid-physics (contorno di 48 punti integrati a
 1/240 s) più la goccia; col campo, sul solo layer delle voci, una sfocatura e la lente (una lettura della texture),
 finché il menu non è a fuoco. Lo scrim è la superficie più grande del sistema: la sua forza è un alpha sul pannello finito, mai
 l'`intensity` del materiale (vedi [menu-modali.md](menu-modali.md)).
+
+### Il menu tenuto pronto (F7.30)
+
+Fino a F7.29 il contenuto di un menu dell'host (`FluidMenuLayer`) nasceva nel fotogramma dell'apertura e moriva a uscita
+finita: a ogni apertura, anche a caldo, quel fotogramma componeva da capo struttura, voci, testo e vetro (al PC 467 funzioni,
+21 nodi e 25 layer per il menu del gruppo in basso; sul Tab S9 27–34 ms del filo principale, F7.27). Ora:
+
+- **dopo la prima apertura il contenuto resta composto, parcheggiato** (`FluidMenuParking`): misurato ma non posato, quindi
+  niente disegno e niente tocchi, fuori dall'albero di TalkBack (`clearAndSetSemantics`) e dal giro del fuoco (il gruppo
+  annulla l'ingresso; il fuoco che il menu aveva si lascia quando si parcheggia, come quando usciva dalla composizione);
+- **parcheggiato non ha vetro né layer**: la finestra (`fluidPhysicsSurfaceInked`), il velo, la goccia, la card del
+  contestuale, i due materiali (del velo e del pannello) e lo strato della lente delle voci non si compongono, e
+  **rinascono freschi a ogni apertura**, col lato e l'inchiostro del tasto di adesso (la sonda, lo stato adattivo,
+  l'adozione G1 e la goccia liquida nascono con l'apertura come prima). Restano la struttura, le celle, il testo misurato
+  (il `TextMeasurer` delle larghezze resta, con la sua cache) e il pannello;
+- **gli indietro** del menu (`PredictiveBackHandler`, `BackHandler` del sottomenu) si registrano di nuovo a ogni ritorno dal
+  parcheggio, perché il distributore chiama per primo l'ultimo registrato;
+- il **contenuto vivo** di `FluidMenuActions` si legge senza seguirlo mentre il menu è parcheggiato: un menu chiuso non si
+  ricompone quando cambiano le sue voci;
+- **un menu `Expand` mai aperto si prepara alla prima pressione della sua ancora**: il relè del dito
+  (`FluidMenuHandOff.onPress`) accende `FluidGlassModalEntry.menuReady`, e l'host compone il corpo parcheggiato, senza voci
+  (le dà l'apertura) e senza vetro. Il contestuale no: una riga si preme anche per scorrere; si tiene pronto dalla prima
+  apertura;
+- il punto unico: `FluidMenuReadiness.enabled` (acceso), letto da ogni layer quando nasce. Spento, il menu nasce e muore con
+  ogni apertura come fino a F7.29 (le prove al bit di F7.30 confrontano le due strade).
+
+Il costo: i nodi del corpo (una ventina per un menu di quattro voci) restano vivi finché vive l'ancora; nessun nodo di vetro,
+nessun layer esplicito, nessuna cattura, nessun byte del vetro a riposo (le righe di posa dei bilanci e i tetti di
+`GlassNodeCountTest` non cambiano). Nella nascita a caldo non nascono più i nodi del corpo (al PC 1 invece di 21) né le
+bitmap delle icone (0 invece di 4); il resto (il vetro, la barra che cede il gruppo) nasce come prima. Prove: `F7p30MenuBirthTest`
+(quanto si compone e nasce nel fotogramma della nascita) e `F7p30MenuPosesTest` (le finestre al bit con le due strade).
 
 ## Token, costanti, Defaults
 

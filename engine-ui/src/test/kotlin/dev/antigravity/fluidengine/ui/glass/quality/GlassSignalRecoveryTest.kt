@@ -151,19 +151,16 @@ class GlassSignalRecoveryTest {
   }
 
   /**
-   * F7.26e (scelta A della soglia, dietro [LowGpuSignalCeiling]): una GPU bassa parte Protetta e alla prima posa sana sale
-   * a Ridotto senza i trenta secondi di fotogrammi, che sui pannelli a 120 Hz non arrivano mai; il Pieno va ancora
-   * guadagnato col moto. Fino a F7.26d la prima posa non cambiava niente.
+   * F7.26g ([LowGpuSignalCeiling] a Protetto, la decisione del 27 novembre): una GPU bassa parte Protetta e se lo
+   * guadagna col moto, a 120 Hz come a 60. La prima posa breve non cambia niente; trenta secondi buoni sì, un gradino.
    */
-  @Test fun unaGpuBassaPartitaProtettaSaleARidottoAllaPrimaPosa() {
+  @Test fun unaGpuBassaPartitaProtettaSeLoGuadagnaColMoto() {
     val a52s = GlassDeviceCapacity(5 * gib + 500 * mib, 256 * mib, 256, false, 0, false, GlassGpuClass.Low)
     val r = run(a52s)
     assertEquals(Protected, r.optics)
-    assertEquals(GlassQualityReason.SettledRecovery, r.gesture(1.0))
-    assertEquals(Reduced, r.optics)
-    assertNull("oltre il tetto della GPU bassa solo coi fotogrammi", r.gesture(1.0))
-    assertEquals(Reduced, r.optics)
+    assertNull("la partenza prudente non è una discesa da segnale", r.gesture(1.0))
+    assertEquals(Protected, r.optics)
     assertEquals(GlassQualityReason.SettledRecovery, r.gesture(31.0))
-    assertEquals(Full, r.optics)
+    assertEquals(Reduced, r.optics)
   }
 }

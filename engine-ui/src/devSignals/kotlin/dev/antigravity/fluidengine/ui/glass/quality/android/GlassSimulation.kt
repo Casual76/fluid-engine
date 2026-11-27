@@ -19,7 +19,8 @@ import dev.antigravity.fluidengine.ui.glass.quality.GlassThermal
  *
  * La grammatica, a voci separate da virgole: un nome di [presets] (facoltativo, per primo), poi `ram=<GiB>`,
  * `heap=<MiB>`, `lowram=0|1`, `soc=<SOC_MODEL>`, `gpu=low|mid|high|unknown`, `mpc=<classe>`,
- * `thermal=none|light|moderate|severe[@da-a]`, `load=<iterazioni>[@da-a]`, `late[@da-a]`, `fonte=piatta|texture`, `voti=ogni|finestre` (F7.26d: la riga
+ * `thermal=none|light|moderate|severe[@da-a]`, `load=<iterazioni>[@da-a]`, `late[@da-a]`, `fonte=piatta|texture`, `pieno[@da-a]` (F7.26g: il credito del vetro tutto occupato in quella
+ * fase, per vedere il gradino più basso e il suo ritorno), `voti=ogni|finestre` (F7.26d: la riga
  * dei voti per ogni fotogramma, o solo ogni 120 e alle pose, che è il solito). `@20-` vale dal secondo 20 in
  * poi, `@-30` fino al 30. Le voci a tempo si possono ripetere.
  */
@@ -39,6 +40,8 @@ internal class GlassSimulation(
   val flatSource: Boolean = false,
   /** `voti=ogni`: una riga per fotogramma nella diagnostica dei voti ([GlassFrameVotes]). */
   val everyFrame: Boolean = false,
+  /** F7.26g, `pieno@da-a`: le fasi col registro del vetro esaurito ([GlassVariantSignals.exhaustNow]). */
+  val exhaust: List<Phase<Boolean>> = emptyList(),
 ) {
   /** Una fase a tempo, in ms dall'applicazione; [toMs] `Long.MAX_VALUE` vuol dire fino alla fine. */
   class Phase<T>(val value: T, val fromMs: Long, val toMs: Long)
@@ -55,11 +58,12 @@ internal class GlassSimulation(
   fun thermalNow(): GlassThermal? = thermal.now()
   fun gpuLoadNow(): Int = gpuLoad.now() ?: 0
   fun lateNow(): Boolean = late.now() == true
+  fun exhaustNow(): Boolean = exhaust.now() == true
   val hasGpuLoad get() = gpuLoad.isNotEmpty()
 
   /** I confini delle fasi, in ms dall'applicazione: lì si rilegge la condizione e si ridisegna il carico. */
   val boundaries: List<Long>
-    get() = (thermal + gpuLoad + late).flatMap { listOf(it.fromMs, it.toMs) }
+    get() = (thermal + gpuLoad + late + exhaust).flatMap { listOf(it.fromMs, it.toMs) }
       .filter { it in 1 until Long.MAX_VALUE }.distinct().sorted()
 
   fun capacity(real: GlassDeviceCapacity): GlassDeviceCapacity {
@@ -85,7 +89,7 @@ internal class GlassSimulation(
 
   override fun toString() = "profilo=$label ram=${totalRamBytes ?: "vera"} heapMiB=${heapMiB ?: "vero"} " +
     "lowRam=${lowRam ?: "vero"} soc=${socName ?: "-"} gpu=${gpu ?: "vera"} mpc=${mediaClass ?: "vera"} " +
-    "thermal=${thermal.text()} load=${gpuLoad.text()} late=${late.text()} fonte=${if (flatSource) "piatta" else "texture"} " +
+    "thermal=${thermal.text()} load=${gpuLoad.text()} late=${late.text()} pieno=${exhaust.text()} fonte=${if (flatSource) "piatta" else "texture"} " +
     "voti=${if (everyFrame) "ogni" else "finestre"}"
 
   private fun <T> List<Phase<T>>.text() = if (isEmpty()) "-" else joinToString("+") {
@@ -136,6 +140,7 @@ internal class GlassSimulation(
       val late = ArrayList<Phase<Boolean>>()
       var flat = false
       var every = false
+      val exhaust = ArrayList<Phase<Boolean>>()
       for (token in if (base != null) tokens.drop(1) else tokens) {
         val key = token.substringBefore('=').substringBefore('@').trim().lowercase()
         val raw = if ('=' in token) token.substringAfter('=') else ""
@@ -152,6 +157,7 @@ internal class GlassSimulation(
           "load" -> load += Phase(value.toIntOrNull()?.coerceIn(0, GlassGpuLoad.MaxIterations) ?: return null,
             window.first, window.second)
           "late" -> late += Phase(true, window.first, window.second)
+          "pieno" -> exhaust += Phase(true, window.first, window.second)
           "fonte" -> flat = when (value.lowercase()) {
             "piatta" -> true
             "texture" -> false
@@ -164,7 +170,9 @@ internal class GlassSimulation(
           }
           else -> return null
         }
-        if (key != "thermal" && key != "load" && key != "late" && key != "fonte" && key != "voti") changed = true
+        if (key != "thermal" && key != "load" && key != "late" && key != "fonte" && key != "voti" && key != "pieno") {
+          changed = true
+        }
       }
       val label = when {
         base == null -> "su misura"
@@ -172,7 +180,7 @@ internal class GlassSimulation(
         else -> base.label
       }
       val gpuClass = gpu ?: soc?.let { GlassGpuTable.classify(null, it) }
-      return GlassSimulation(label, ram, heap, lowRam, gpuClass, soc, mpc, thermal, load, late, clock, flat, every)
+      return GlassSimulation(label, ram, heap, lowRam, gpuClass, soc, mpc, thermal, load, late, clock, flat, every, exhaust)
     }
 
     private fun window(text: String): Pair<Long, Long>? {

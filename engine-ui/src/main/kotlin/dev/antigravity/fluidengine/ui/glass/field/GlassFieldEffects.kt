@@ -932,6 +932,7 @@ internal class GlassTravelCapture(
   override val fallbackBody get() = (parent as? GlassBodyFallbackScope)?.fallbackBody
   override val optics get() = (parent as? GlassRenderQuality)?.optics ?: ResourceOptics.Full
   override val inMotion get() = travelling || (parent as? GlassRenderQuality)?.inMotion == true
+  override val glassmorphism get() = (parent as? GlassRenderQuality)?.glassmorphism == true
 
   var sampleScale = ordinaryScale
     private set
@@ -1086,6 +1087,27 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
     if (inputs.blurPx > 0f && inputs.mix < 1f) inputs.mix = 0f
     if (quality.optics == ResourceOptics.Protected) inputs.shadowAmbientAlpha = 0f
   }
+  if (quality?.glassmorphism == true) {
+    // F7.26f: il gradino più basso, sfocatura e tinta col filo. Niente lente, niente luce.
+    inputs.refraction = 0f
+    inputs.dome = 0f
+    inputs.dispersion = 0f
+    inputs.magnify = 0f
+    if (inputs.blurPx > 0f) inputs.mix = 0f
+    inputs.shadowAmbientAlpha = 0f
+    inputs.reflexStrength = 0f
+    inputs.glow = 0f
+    inputs.glowFill = 0f
+    // La sagoma netta la dà il ritaglio a piena risoluzione del nodo: qui il corpo si allarga di [GlassFloorInflatePx]
+    // pixel della cattura, perché alla scala ridotta il suo bordo sfumato non cada dentro il ritaglio.
+    val body = inputs.body
+    for (i in 0 until body.count) {
+      val at = i * GlassFieldGeometry.FloatsPerPiece
+      body.rects[at + 2] += GlassFloorInflatePx
+      body.rects[at + 3] += GlassFloorInflatePx
+      for (corner in 0 until 4) body.radii[at + corner] += GlassFloorInflatePx
+    }
+  }
   glassBodyProbe?.invoke(this, inputs)
   if (!isRuntimeShaderSupported()) return
   padding = inputs.paddingPx
@@ -1109,6 +1131,12 @@ internal fun BackdropEffectScope.glassBody(inputs: GlassDrawInputs, chain: Glass
   val body = shader?.let { chain.body(it, size, inputs, bodyFilms) }
   renderEffect = chain.install(body, upstream)
 }
+
+/**
+ * F7.26f · Di quanto si allarga il corpo al gradino più basso, in pixel della cattura: due pixel della cattura sono 16 dello
+ * schermo a un ottavo di scala, abbastanza perché la sfumatura del bordo resti fuori dal ritaglio a piena risoluzione.
+ */
+internal const val GlassFloorInflatePx = 2f
 
 private val FilmUniformNames = Array(GlassFieldMaxPieces) { "film$it" }
 

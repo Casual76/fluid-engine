@@ -447,6 +447,13 @@ passato a `glassBackdropSource`, una volta per fotogramma che cambia (la sonda r
 120 ms). A costo zero a riposo l'engine non può accorgersene da solo: il layer del figlio si ridisegna senza passare dal
 nodo che registra la pagina.
 
+**Lo zoom di un visore è un cambio dello sfondo** (4.0, F7.33). Il pizzico, il doppio tocco e lo spostamento di una foto o
+di un video in `FluidFileViewer` cambiano solo lo strato del file (scala e spostamento in un `graphicsLayer`): la sorgente
+del visore non si registra di nuovo. Fino a F7.33 la sonda della barra restava sulla lettura di prima dello zoom: sul Tab
+S9 (R1-B) la foto di una lettera aveva il nero del visore sopra e sotto, la barra l'aveva letto, e ingrandita la carta
+bianca stava sotto la barra mentre la barra restava scura con l'inchiostro chiaro (il titolo a 2,4:1, i tasti a 3,1:1). Ora il telaio avvisa la
+sorgente a ogni passo dello zoom, come fa lo scorrimento annidato; a zoom fermo non arriva niente.
+
 **La chrome sopra una pagina qualunque** (4.0, F2.3c). La shell dà alla tab bar, ai modali e ai menu il fondale della
 pagina davanti (`activeBackdrop`) o, se la pagina non ne dichiara uno, un `fallback`. Se la pagina davanti non è una
 `FluidScreen` e non registra quel `fallback` da sé, nessuno lo registrava: la tab bar campionava un layer vuoto, non
@@ -513,10 +520,12 @@ di serie nessuno lo legge.
 - **Il cursore dell'utente** (sotto).
 
 **Il giro dei piccoli.** Quando lo sfondo sotto un vetro piccolo passa da chiaro a scuro (o il contrario) il vetro **gira**: il
-corpo scende in 200 ms (la curva che segue il corpo del tasto di Apple, quasi tutto nella prima metà), l'inchiostro del
-contenuto svanisce nel corpo in 70 ms, passando per un fotogramma a contrasto quasi zero, e risale dall'altra parte, pieno
-a 450 ms. È il giro svelto, di serie dalla 4.0 G1 (scelta 1 di S3); i tempi di Apple a 6:52 (corpo in 300 ms, inchiostro
-pieno a 700) restano la manopola `fliptime=ios26`, e `slow` la variante più lenta. **Col movimento ridotto** (la politica
+corpo scende in 300 ms (la curva che segue il corpo del tasto di Apple, quasi tutto nei primi 200), l'inchiostro del
+contenuto svanisce nel corpo in 110 ms, passando per un fotogramma a contrasto quasi zero, e risale dall'altra parte, pieno
+a 700 ms. Sono **i tempi di Apple** a 6:52 (R4 B6: contrasto zero a 230–270 ms dalla copertura piena, inchiostro al 90%
+a 600), di serie dalla F7.33b (D3, scelta di Alessio del 27/11/2026, `GlassFlipTimings.Shipped`); fino ad allora, dalla
+4.0 G1, era di serie il giro svelto (corpo in 200 ms, inchiostro pieno a 450), che resta la manopola `fliptime=swift`,
+e `slow` la variante più lenta. **Col movimento ridotto** (la politica
 dell'app, `LocalFluidMotionPolicy`, o la scala delle animazioni di sistema a zero) corpo e inchiostro vanno al lato nuovo
 insieme, subito, senza il fotogramma trasparente; un grande va al suo lato senza inseguire. Non c'è un ritardo in più: i 130 ms di Apple fra lo scuro che copre tutto il tasto e il corpo che si muove li dà già
 il filtro (il lato è deciso 128–158 ms dopo la copertura piena). Un giro che cambia idea a metà riparte dai valori di quell'istante
@@ -531,7 +540,11 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
 - **Girano** come i piccoli (corpo e inchiostro, la legge del giro sopra): `FluidGlassIconButton`, `FluidGlassButton` (non
   quello `selected`, che è una pellicola d'accento), `FluidFloatingCapsule`, la **tab bar flottante** (`FluidFloatingTabBar`,
   e quindi `FluidTabBar` e `FluidFoldingTabBar`: icone, etichette, la barra piegata, il tondo della ricerca accanto), il
-  campo di ricerca flottante, il chip di vetro, `FluidGlassMenuButton` e il tasto di `FluidMorphMenuButton`. La pillola della
+  campo di ricerca flottante, il chip di vetro, `FluidGlassMenuButton` e il tasto di `FluidMorphMenuButton`. Dalla F7.33
+  anche **il menu della selezione di «Leggi testo»** (Copia, Seleziona tutto, Condividi: una capsula alta come una barra,
+  un piccolo per Apple) e **il titolo della barra in alto fuori da un host** (`FluidPageChrome`, il visore da solo o nella
+  galleria): segue la striscia come quello di una `FluidScreen` e quello dell'host, e i tasti sulla striscia prendono il
+  lato da lei. Sul Tab S9, in tema scuro sopra la carta bianca, il menu stava a 1,7:1 e il titolo a 2,4:1. La pillola della
   tab bar è vetro annidato e prende il lato della barra. L'accento della scheda scelta resta accento sui due lati: dentro il
   vetro girato il contenuto ha lo schema del lato con lo stesso accento, e il puck lo porta a 3:1 sulla pellicola.
 - **Scuriscono in continuo**, e il contenuto li segue (ruoli `Modal` e `Content`, più la barra laterale che lo dice da sé):
@@ -558,6 +571,24 @@ doveva aiutare. Il patto lo danno i componenti dell'engine che possiedono il pro
   (#FF6961) a 4,5:1 (`GlassLiquidMenuDarkCeiling`, luma 0,20): la loro pellicola non ci arriva e si fa piena, a 53 su 255,
   con «Elimina» a 4,3:1 e il testo chiaro a 11:1. Sulla pagina scura del tema non cambia niente.
 - **Girano insieme**, con una sonda sola, i vetri di un `FluidGlassContainer` e il loro contenuto: è il patto dell'inchiostro delle app (4.0, anche con un pezzo solo), in [piano-flottante.md](piano-flottante.md).
+  **La coerenza del gruppo** (F7.33b, D1 di Alessio del 27/11/2026: «se in una barra tutti i tasti piccoli sono chiari,
+  anche uno più grande deve esserlo»): un contenitore scurisce in continuo come i grandi solo se **ogni** suo pezzo è un
+  grande; con anche un solo piccolo (una barra con una capsula larga, un pannello accanto ai tasti) gira tutto insieme,
+  i grandi compresi, e la sonda legge sotto i grappoli dei piccoli (i grandi «si basano sui piccoli per scegliere lo
+  stato»). Fino a F7.33 decideva il grappolo più grande, e un pannello grande nel gruppo faceva scurire anche i tasti
+  accanto.
+  **Un gruppo a cavallo di un confine** (F7.33c, D7 di Alessio del 27/11/2026: «ci sta una priorità per il tema
+  impostato, sennò il gruppo»): la sonda del contenitore legge sotto tutti i grappoli dei piccoli insieme, e dalle celle
+  della sua miniatura sa che lato ha sotto ognuno, con le stesse soglie del filtro (0,45 e 0,62) e la sua isteresi (fra le
+  due un grappolo tiene il lato che aveva). Se i lati sono d'accordo decide il gruppo, sulla luma media sotto i grappoli
+  (non sotto i vuoti fra l'uno e l'altro). Se un grappolo sta sul chiaro e un altro sullo scuro **vince il tema
+  impostato**: in tema scuro tutto il gruppo resta scuro, e il pezzo sopra il bianco è una pillola scura con la scritta
+  chiara (il soffitto del velo dei grandi); in tema chiaro tutto il gruppo resta chiaro, e il pezzo sopra il nero prende il
+  pavimento del velo chiaro, che ora guarda la parte scura di tutto lo sfondo del gruppo. Il filtro riceve il capo del lato
+  del tema e ci va coi suoi tempi (la media di 200 ms, la permanenza di 1 s): una riga sotto cui il confine passa piano
+  gira una volta sola, quando tutti i grappoli sono passati dall'altra parte. Con un grappolo solo niente cambia. Menu, fogli e pop-up staccati non sono di un gruppo: non girano, come Apple. Per questo anche la riga
+  di «Leggi testo» (azione rapida, «Testo», «Copia tutto» e il tasto di Testo attivo) è un contenitore solo: sopra la
+  carta e il tavolo scuro della foto di una lettera i comandi non girano più ognuno per conto suo.
   Così girano, **da soli sulla pagina**, i pezzi piccoli di `engine-ai-ui` (F3.2b): `FluidGlassRoundButton`,
   `FluidStopPill`, `FluidChipPill` e la capsula di `FluidListeningHint` si fanno un contenitore con un pezzo solo, e
   l'icona o la scritta sono l'inchiostro del lato. Dalla F3.2e anche **i pannelli** di `engine-ai-ui`, ognuno un
@@ -884,7 +915,7 @@ aprire la schermata da guardare.
   (`GlassShadowMaskRing`, stesso rapporto di cadute, non misurata), che vanno a F3.3; la cucitura verticale di un fotogramma
   del collo e i viaggi interrotti o invertiti, non ripresi sul tablet. **Aperti sull'adattività**: i numeri del filtro, i tempi
   del giro e la profondità del vetro dei grandi e dei piccoli girati sono **scelte di Alessio, fatte sulle riprese di S3**
-  e di serie dalla 4.0 G1: il giro svelto (`swift`) con l'attesa di 200 ms, le soglie 0,45 e 0,62, il velo scuro dei
+  e di serie dalla 4.0 G1: il giro svelto (`swift`; dalla F7.33b i tempi di Apple, `ios26`) con l'attesa di 200 ms, le soglie 0,45 e 0,62, il velo scuro dei
   piccoli a 0,39 (il tasto girato sul nero a ≈43 invece di 55; cambia con lui il vetro scuro dei piccoli sul tema scuro).
   **La profondità dei grandi** (`darklargealpha`): 0,89 (come Apple, 48 sul nero pieno) portava il testo secondario
   del foglio scuro a 5,60:1 sulla pagina scura e 5,44:1 sul fondo del tablet, sotto il vincolo di 6:1, e schiariva anche
@@ -1721,10 +1752,38 @@ popover della capsula della data (19,8 MB) non entrava mai. Quando il tetto è s
 - **scende anche l'uscita**: col campione separato (il viaggio, la finitura di Fluid-physics) prima scende il campione,
   fino alla sfocatura minima uguale a vista (sigma 2,5 px del campione: un quarto di lato per i pannelli flottanti,
   misura su due fotogrammi del tablet), poi l'uscita a metà per volta fino a un quarto, poi di nuovo il campione;
-- **mai trasparente**: una cattura negata non lascia mai vetro limpido sopra un testo leggibile. Il corpo `Liquid` si
-  disegna su un ingresso pieno, la trasparenza ridotta della ricetta (il velo neutro opaco, verso il nero sul lato
-  scuro, o la pellicola piena di una tinta fissa); il vetro di prima disegna nella sagoma il pieno della sua tinta
-  (`GlassTint.fallback`, quello sotto API 31);
+- **mai trasparente**: una cattura negata non lascia mai vetro limpido sopra un testo leggibile;
+- **il gradino più basso è il glassmorphism** (F7.26f, la scelta di Alessio): quando il registro nega anche la cattura
+  minima (il 5 % del lato) e non c'è una cattura vecchia da rigiocare, da Android 12 in su il vetro si disegna da una
+  cattura minuscola ammessa fuori dal registro (al più 1 MiB di stima, `FloorCaptureBytes`, lo stesso tetto delle
+  catture piccole: un pannello da 1080 × 600 ne pesa una decina di KB; una superficie di Fluid-physics col palco grande
+  quanto la finestra scende con l'uscita fino a un ottavo, `MinFloorOutputScale`, perché la sagoma la disegna lo shader
+  sull'uscita), con la sola sfocatura e la tinta: niente rifrazione, cupola, dispersione, riflesso, bagliore, ombra
+  ambientale né luce (`GlassRenderQuality.glassmorphism`, letto dal corpo e dalla lente del vetro di prima). Entrando nel
+  gradino più basso il nodo riparte dalla scala piena e scende solo finché la cattura sta nel tetto (alla scala minima i
+  vetri grandi ingranditi si vedevano a quadretti); la **sagoma è netta**: la cattura ridotta si disegna dentro la sagoma
+  vera ritagliata a piena risoluzione, col corpo allargato di due pixel della cattura (`GlassFloorInflatePx`) perché la
+  sua sfumatura resti fuori dal ritaglio, e sopra un **filo chiaro da un pixel** dello schermo (bianco al 35 %,
+  `GlassFloorEdge`), sobrio come il bordo del glassmorphism. Il testo sotto resta illeggibile, ma il pannello lascia
+  vedere la pagina sfocata. Per provarlo sul dispositivo, nelle build di prova: `pieno@da-a` nel profilo simulato
+  (`fluid.glass.device`) tiene occupato tutto il credito del vetro in quella fase e lo restituisce alla fine; le righe
+  `FluidF7Sim` dicono quando un vetro entra ed esce dal gradino più basso. La negazione resta
+  (la politica la vede) e la riprova del credito continua: appena il credito c'è, il vetro torna quello di prima, ma
+  **da fermo** (F7.26g–h): la riprova aspetta la fine del gesto, e un vetro che cambia misura mentre si muove resta nel
+  gradino alla misura nuova, senza chiedere il registro; da fermo esce e ritenta. Il foglio di vetro trascinato dal dito,
+  e la molla che lo porta al detent, contano come uno scorrimento (`ObserveGlassMotion`). **Gli angoli in pixel** di una
+  sagoma (`CornerSize(px)`, quelli del foglio) scendono con la cattura come quelli in dp (F7.26h): fino a F7.26g, alla
+  cattura a un ottavo del gradino più basso, il raggio del foglio restava quello dello schermo, arrivava a mezzo lato
+  corto, e il corpo era un ovale tinto dentro il rettangolo ritagliato. Il
+  pieno di F7.18 resta solo **sotto Android 12**, dove Android non sa sfocare, e per una cattura minima oltre 1 MiB:
+  il corpo `Liquid` su un ingresso pieno (la trasparenza ridotta della ricetta), il vetro di prima col pieno della sua
+  tinta (`GlassTint.fallback`). Le prove: `F7p18DeniedGlassPixelsTest` (testo illeggibile; sopra un campo rosso e uno
+  blu i due lati del pannello restano diversi), `GlassNodeCountTest` (nessuna texture grande, nessun byte del
+  registro), `F7p26hSheetFloorTest` (gli angoli del foglio al gradino più basso; il foglio trascinato col credito che
+  torna a metà gesto esce dal gradino solo a gesto finito) e `GlassCaptureCornersTest` (un angolo in pixel alla scala della
+  cattura come lo stesso in dp; a scala piena niente cambia, al bit). Gli altri punti in cui il vetro non si disegna non sono un vetro tolto: i vetri coperti da una pagina piena
+  smettono di leggere (non si vedono), e una superficie di Fluid-physics senza un fondale da campionare è al tier `Lite`
+  perché non c'è niente da sfocare;
 - **il pannello davanti non aspetta la lettura** (F8.20b): prima di una cattura grande il nodo vuole una lettura della
   memoria di meno di un secondo, e se è più vecchia la chiede e per un fotogramma disegna senza cattura. Un pannello
   davanti, in quel fotogramma, è vetro limpido sopra la pagina leggibile (`F8p20GlassPixelsTest` col tetto pieno: 106 su
@@ -1772,16 +1831,19 @@ contesto EGL. Una tabella di prefissi e cifre (`GlassGpuTable`, interna) dà qua
 |---|---|---|---|
 | Alta | Snapdragon da SM8550 in poi (Tab S9, S25), Exynos 2400 e 2500, Dimensity 9300 e dopo | come prima: Ridotto (Pieno solo con la classe multimediale e i verdetti degli shader già dati) | spente (accese se il vetro scende a Protetto) |
 | Media | Snapdragon 8 Gen 1, 8+ Gen 1, 888, le «s»; Exynos 2200, 2100, 990; Dimensity 9000 e 9200; Tensor | Ridotto | accese |
-| Bassa | Snapdragon 7, 6, 4 (il 778G dell'A52s), Exynos 1xxx e 8xx, il resto dei MediaTek | **Protetto**, Ridotto alla prima posa sana (F7.26e) | accese |
+| Bassa | Snapdragon 7, 6, 4 (il 778G dell'A52s), Exynos 1xxx e 8xx, il resto dei MediaTek | **Protetto**, risale coi fotogrammi | accese |
 | Sconosciuta | nessun nome, o un nome che la tabella non conosce | Ridotto | accese finché il vetro non arriva a Pieno coi fotogrammi misurati |
 
 La classe non tocca la riga della memoria (quella protegge dalla memoria che manca) ed è solo la prima ipotesi: un
 dispositivo che scatta scende comunque (le finestre dei fotogrammi), e una GPU sconosciuta che regge risale alla posa
-dopo trenta secondi buoni. Una GPU bassa (F7.26e) sale a Ridotto alla **prima posa sana**, come dopo un segnale, e da lì
-in su solo coi fotogrammi: sul Tab S9 a 120 Hz i trenta secondi buoni non arrivavano mai (il tempo attivo non passava
-1,9 s, e le finestre avevano 30–100 fotogrammi sopra l'80 % del periodo contro i 6 ammessi). Se poi i fotogrammi vanno
-male scende, e per quella finestra resta giù. Il tetto è una costante sola, `LowGpuSignalCeiling`: a `Protected` torna
-il comportamento di prima. `glassBudgetStart` scrive il SoC letto, la classe e quanto è costata la lettura
+dopo trenta secondi buoni; una GPU bassa parte Protetta e risale allo stesso modo, solo coi fotogrammi
+(`LowGpuSignalCeiling` a `Protected`). In F7.26e la GPU bassa saliva a Ridotto alla prima posa coi soli segnali, perché a
+120 Hz la risalita coi fotogrammi non arrivava mai; F7.26g ha corretto la regola delle finestre sopra i 60 Hz (qui sotto)
+e la salita coi segnali non serve più. **Sopra i 60 Hz** (F7.26g, review R3) una finestra buona si misura su due periodi:
+un fotogramma è «lento» se il lavoro dell'app supera due periodi (16,7 ms a 120 Hz), e la finestra ammette fino a due
+ritardi dell'app su 120 (una cattiva ne vuole quattro). A ogni frequenza un fotogramma non attribuito si salta: non vota
+e non azzera più i trenta secondi. Sui fotogrammi veri del Tab S9 sano la risalita arriva appena maturano i trenta
+secondi; col carico vero della GPU no (`GlassFrameVotesTest`). `glassBudgetStart` scrive il SoC letto, la classe e quanto è costata la lettura
 (`socReadNs`).
 
 **Il telefono debole simulato** (F7.26, solo debug e bench, niente proprietà di sistema): l'extra
@@ -1842,6 +1904,52 @@ lo registra su `adb logcat -s FluidGlassDiag` una riga ogni volta che i numeri c
 Il consiglio storico («non animare `intensity` su una superficie grande: il raggio decide il padding e il padding invalida la cattura») resta vero, nel vetro di prima, dove la lente non copre la sfocatura (API 31–32, ottiche scritte a mano
 con più sfocatura che altezza); con le ottiche di serie e la lente accesa il padding resta zero a ogni intensità. Nel materiale nuovo `intensity` non tocca il raggio, quindi il margine della cattura resta fermo a ogni intensità.
 **Contare nel materiale nuovo.** Oltre alle catture, `FluidGlassDiagnostics` conta le superfici per materiale, i nodi e i layer vivi, e dice a che punto è il riscaldamento: sezione «Due materiali», «La diagnostica».
+
+### Un vetro che si muove nel disegno (F7.31)
+
+Un vetro che corre a ogni fotogramma (il pomello di un cursore, la maniglia dello scrubber mentre il lettore suona, il
+pomello del «prima e dopo») **non si sposta con il layout né con la traslazione di uno strato**, e una goccia che cresce
+sotto il dito non cresce con la scala di uno strato. Per Compose una traslazione o una scala che cambia in uno strato è un
+cambio di layout (`NodeCoordinator.updateLayerParameters` → `Owner.onLayoutChange`, come un `Modifier.offset` o un
+`Modifier.layout` che cambiano): con un servizio di accessibilità acceso (TalkBack, «Collegamento a Windows», sempre acceso
+sul Tab S9 di Alessio) la pagina intera si ricontrolla ogni 100 ms finché qualcosa si muove (`checkForSemanticsChanges`,
+1,3–4,4 ms sul thread dell'interfaccia del Tab S9). Alfa, forma e ritaglio di uno strato non contano: solo le proprietà di
+posizione (traslazione, scala, rotazione, perno).
+
+Gli aiuti interni dell'engine (`glass/backdrop/GlassDrawPlacement.kt`):
+- **`Modifier.glassDrawOffset { Offset }`** al posto di `graphicsLayer { translationX = … }`: uno strato fermo, e lo
+  spostamento nel suo elenco di disegno. La lambda si legge nel disegno: un suo cambio ridisegna lo strato e il vetro che c'è
+  dentro, senza layout. Lo usano le maniglie di `FluidSlider`, `FluidRangeSlider`, `FluidScrubber`, `FluidSwitch` e il pomello
+  di `FluidBeforeAfter`.
+- **`GlassDrawnLayerBlock`**: il `layerBlock` della goccia applicato nel disegno. `glassDrop` lo usa di serie (`drawn = true`):
+  la scala e lo stiramento di ogni goccia (pomelli, pillola, segmentato, barra laterale, indice, scorrimento rapido) non sono
+  più proprietà di uno strato. **La goccia dei menù** (F7.31b, scelta di Alessio) ha il posto fra le voci e la crescita nel
+  disegno e la presenza in uno strato suo **dentro** la trasformazione (`glassDrop(place, alpha)`): uno strato con l'alfa
+  sotto 1 si isola nel suo spazio, e quello di quello strato è lo spazio della goccia prima della trasformazione, come lo
+  strato unico di prima. Niente si taglia e i pixel sono gli stessi; il menù ha uno strato in più per goccia. Un `place` che
+  scrive l'alfa senza `alpha` a parte resta in uno strato; resta in uno strato anche `drawn = false` (la riga sollevata di
+  `FluidReorderable`, che ha dentro il suo contenuto col suo tocco).
+- **Il campione resta giusto, al bit.** Il nodo del vetro cerca fra gli antenati gli spostamenti nel disegno e ha la sua
+  trasformazione nel disegno; ne fa l'origine del campione (`GlassSamplePlacement`) con le stesse operazioni che Compose
+  faceva sulle matrici degli strati (`resetToPivotedTransform`, `Matrix.map`, la somma di una traslazione), e la passa al
+  fondale: `LayerBackdrop` parte da lì in `localPositionOf`. Lo stesso per la sonda dello sfondo (`GlassProbe`). Se fra lo
+  spostamento e il vetro c'è uno strato che scala (lo zoom del visore sul «prima e dopo») lo spostamento si porta nello spazio
+  del vetro con `localPositionOf`: giusto, ma non con le stesse operazioni. Il disegno è quello di prima al bit: la matrice si
+  costruisce come la costruisce il renderer per uno strato (`setTranslate`, `preRotate`, `preScale` attorno al perno) e si
+  applica come lui (una traslazione sola con `translate`, il resto con `concat`), nello stesso punto della pila degli strati
+  (`F7p31GlassPlacementTest`, `F7p31HandlePixelsTest`).
+- **Il contratto.** `glassDrawOffset` sta su una maniglia: qualcosa che **non contiene** la sorgente che il suo vetro campiona
+  (uno spostamento attorno a sorgente e vetro insieme sarebbe contato due volte). Il tocco, il fuoco, la semantica e le misure
+  restano al posto del layout: si usa dove il gesto e TalkBack stanno sul controllo intero, non dove la maniglia stessa è il
+  bersaglio del tocco (il segmentato, la barra laterale e lo scorrimento rapido tengono la corsa in uno strato, perché il tocco
+  segua la goccia; la loro crescita è nel disegno). Un vetro che in un `FluidGlassContainer` è un pezzo disegnato dal
+  contenitore (`fluidGlass`) resta nel layout: il contenitore legge la geometria dal layout.
+- **Un nodo che c'è solo per TalkBack e segue un valore** (le due maniglie di `FluidRangeSlider`) si sposta quando il dito si
+  ferma, come la sua semantica (`FluidSettledPosition`, F7.24).
+
+Come si verifica: `F7p31GlassHandlesTest` (`sample`, l'accessibilità accesa in Robolectric) conta gli eventi
+`TYPE_WINDOW_CONTENT_CHANGED` col dito giù sul cursore, sul cursore a due maniglie, sullo scrubber e sull'interruttore (zero),
+e i fotogrammi con eventi mentre il lettore suona (la semantica al secondo, non ogni 100 ms).
 
 ### Bilanci e guardie per chi aggiunge un componente (F7.28)
 
@@ -1990,6 +2098,17 @@ dell'elenco numerato di R2-F6 ora conta le misure dei segni per disegno).
   `BalanceOrderTest` (F7.32): le stesse righe con una prova di prima che lascia un timbro e col PC carico.
   F7.32d: `BalanceNotVerifiableTest` (le scene `NV` provate a montare), `pdf-finto` (il visore su 5000 pagine finte) e
   in `GlassBalanceGuardsTest` la lastra che dopo il rilascio continua a disegnare, rossa nella posa dopo il gesto.
+- Il contrasto sopra il chiaro (F7.33): `F7p33LightContentTest` (sample, Robolectric, vetro vero e lettore della sonda
+  finto) misura nei pixel ogni scritta e ogni simbolo del visore e del menu di «Leggi testo» contro il fondo vero, sopra
+  una foto bianca e una pagina bianca nei due temi (4,5:1 le scritte, 3:1 i simboli), e la foto che si ingrandisce sotto
+  la barra (la sonda rilegge e la barra gira, e nei fotogrammi l'inchiostro passa di lato una volta sola).
+  `F7p33bGroupCoherenceTest` (F7.33b): la riga di «Leggi testo» sopra la carta e il tavolo scuro ha un lato solo, e un
+  gruppo con due tasti e un pannello grande, in tema scuro sopra il bianco, gira tutto (il contenitore non scurisce in
+  continuo); il lettore finto della sonda sa dove legge (`FluidGlassProbeDiagnostics.readerInWindowForTesting`, dalla
+  F7.33c cella per cella). `F7p33cStraddleTest` (F7.33c): la stessa riga a cavallo fra la carta e il tavolo resta del tema
+  nei due temi, con ogni comando a 4,5:1 (le scritte) o 3:1 (il tasto) nei pixel, e un confine che scorre in 6 s sotto
+  tre tasti fa girare il gruppo una volta sola, solo quando il bianco li copre tutti. `FluidGlassGroupSidesTest`
+  (engine-ui, JVM): i lati sotto i grappoli, l'isteresi, la media solo sotto i grappoli.
 - **Non verificato dai test**: com'è il vetro. Gli host dei test non hanno fondale; sfocatura, lente, bordo e ombra si guardano in mano (dimensione D1 di `docs/10-coerenza.md`), e le tre costanti della taglia sono da giudicare su un dispositivo. Il materiale nuovo è misurato sul banco (`tools/glassbench`) e **visto su un solo dispositivo, un Tab S9** (vedi «I limiti dichiarati oggi»).
 
 ## Dove guardare

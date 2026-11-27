@@ -425,12 +425,16 @@ fun FluidRangeSlider(
         ?: if (which == RangeStart) FluidRangeSliderDefaults.StartDescription else FluidRangeSliderDefaults.EndDescription
       val state = if (which == RangeStart) startStateDescription else endStateDescription
       val stepSize = fluidRangeAccessibilityStep(valueRange)
+      // F7.31: il nodo segue la maniglia quando il dito si ferma, come la sua semantica (vedi FluidSettledPosition).
+      val settled = remember { FluidSettledPosition() }
       Box(
         Modifier
           .offset {
-            val centre = fluidSliderThumbCentre(drag.progress, trackPx, thumbPx)
-            val x = if (isLtr) centre - nodePx / 2f else trackPx - centre - nodePx / 2f
-            IntOffset(x.roundToInt(), 0)
+            val x = settled.read {
+              val centre = fluidSliderThumbCentre(drag.progress, trackPx, thumbPx)
+              (if (isLtr) centre - nodePx / 2f else trackPx - centre - nodePx / 2f).roundToInt()
+            }
+            IntOffset(x, 0)
           }
           .size(nodeSize)
           // F7.24: il valore si dice a TalkBack quando il dito si ferma (vedi fluidSettledSemantics).

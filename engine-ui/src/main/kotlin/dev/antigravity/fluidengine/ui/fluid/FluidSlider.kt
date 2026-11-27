@@ -62,14 +62,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.setOutline
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -86,6 +93,7 @@ import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassDrawOffset
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberBackdrop
@@ -472,17 +480,19 @@ fun FluidSlider(
           .clip(FluidCapsuleShape)
           .drawBehind { drawRect(trackColor) },
       )
+      // Il riempimento dell'accento, per larghezza e non per scala (una scala schiaccerebbe anche la testa tonda, e la
+      // pista e' sottile abbastanza da far vedere la differenza), ma **nel disegno** (F7.31): un layout che cambia a ogni
+      // fotogramma del dito, con l'accessibilita' accesa, faceva ricontrollare la pagina ogni 100 ms. Lo strato e' quello
+      // che il layout faceva (vedi [drawFluidTrackFill]): stesso posto, stessa misura, stesso contorno, al bit.
+      val fillLayer = rememberGraphicsLayer()
+      val fill = remember { FluidTrackFillLayer() }
       Box(
         Modifier
-          .clip(FluidCapsuleShape)
-          .drawBehind { drawRect(accentColor) }
-          .height(TrackHeight)
-          .layout { measurable, constraints ->
-            // Per larghezza e non per scala: una scala schiaccerebbe anche la testa tonda del
-            // riempimento, e la pista e' sottile abbastanza da far vedere la differenza.
-            val placeable = measurable.measure(constraints)
-            val width = (constraints.maxWidth * dragAnimation.progress.fastCoerceIn(0f, 1f)).fastRoundToInt()
-            layout(width, placeable.height) { placeable.place(0, 0) }
+          .fillMaxSize()
+          .graphicsLayer()
+          .drawBehind {
+            val width = (size.width * dragAnimation.progress.fastCoerceIn(0f, 1f)).fastRoundToInt()
+            fill.draw(this, fillLayer, width, accentColor)
           },
       )
     }
@@ -568,12 +578,11 @@ internal fun FluidSliderThumb(
   val thumbPx = with(density) { ThumbWidth.toPx() }
   Box(
     modifier
-      .graphicsLayer {
-        // Nel layer, non nel layout: spostarla invalida un disegno e basta, e il renderer inverte
-        // questa traslazione quando campiona, quindi in ogni punto della corsa la lente ha in
-        // mano l'immagine che la pista ha davvero dietro.
-        translationX = (centre() - thumbPx / 2f) * if (isLtr) 1f else -1f
-      }
+      // Nel disegno (F7.31), non nel layout e nemmeno nella traslazione di uno strato: per Compose una traslazione che
+      // cambia e' un cambio di layout, e con l'accessibilita' accesa la pagina si ricontrollava ogni 100 ms mentre la
+      // maniglia correva. Spostarla ridisegna il suo strato e basta, e il vetro campiona dove si vede: in ogni punto
+      // della corsa la lente ha in mano l'immagine che la pista ha davvero dietro. Il tocco e' della riga, non suo.
+      .glassDrawOffset { Offset((centre() - thumbPx / 2f) * if (isLtr) 1f else -1f, 0f) }
       .then(
         if (isRenderEffectSupported()) {
           // La goccia (`glass/interaction/GlassDrop.kt`) che sale nel vetro (F6.3): bianca a riposo,
@@ -607,6 +616,57 @@ internal fun FluidSliderThumb(
       )
       .size(ThumbWidth, ThumbHeight),
   )
+}
+
+/**
+ * Il riempimento dell'accento di una pista, disegnato in uno strato suo (F7.31): lo strato che prima faceva il layout. Un
+ * `Box` con `clip(FluidCapsuleShape)` largo quanto il riempimento e posato all'inizio della pista diventava un
+ * `RenderNode` in quel punto, di quella misura, ritagliato dalla capsula a quella misura, con dentro un rettangolo pieno;
+ * qui lo stesso `RenderNode` si posa e si registra nel disegno ([GraphicsLayer.topLeft], `setOutline`, `clip`, `record`),
+ * con le stesse chiamate dello strato di un nodo. Il contorno si rifà solo quando la larghezza in pixel cambia.
+ */
+internal class FluidTrackFillLayer {
+  private var width = -1
+  private var height = -1f
+  private var direction: LayoutDirection? = null
+  private var density = 0f
+  private var outline: Outline? = null
+
+  /** Il riempimento largo [width] pixel all'inizio della pista di [scope], del colore [color]. Niente sotto un pixel. */
+  fun draw(scope: DrawScope, layer: GraphicsLayer, width: Int, color: Color) {
+    if (width <= 0) return
+    val size = scope.size
+    val direction = scope.layoutDirection
+    val current = outline
+    val o = if (current != null && width == this.width && size.height == height && direction == this.direction &&
+      scope.density == density
+    ) {
+      current
+    } else {
+      FluidCapsuleShape.createOutline(Size(width.toFloat(), size.height), direction, scope).also {
+        outline = it
+        this.width = width
+        height = size.height
+        this.direction = direction
+        density = scope.density
+        layer.setOutline(it)
+      }
+    }
+    // Dove lo posava il `Box` della pista (in alto all'inizio): da destra a sinistra, contro il bordo destro.
+    val left = if (direction == LayoutDirection.Ltr) 0 else size.width.toInt() - width
+    layer.topLeft = IntOffset(left, 0)
+    layer.clip = true
+    val recordSize = IntSize(width, size.height.toInt())
+    if (layer.size != recordSize || o !== recorded || color != recordedColor) {
+      recorded = o
+      recordedColor = color
+      with(scope) { layer.record(size = recordSize) { drawRect(color) } }
+    }
+    with(scope) { drawLayer(layer) }
+  }
+
+  private var recorded: Outline? = null
+  private var recordedColor = Color.Unspecified
 }
 
 /** Le misure dello slider che un controllo della stessa famiglia (`FluidRangeSlider`) deve condividere. */

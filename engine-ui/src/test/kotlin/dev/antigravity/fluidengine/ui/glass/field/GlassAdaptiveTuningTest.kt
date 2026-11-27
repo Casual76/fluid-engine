@@ -22,8 +22,8 @@ class GlassAdaptiveTuningTest {
   @Test
   fun withoutKnobs_theFlipAndTheFilterAreTheShippedOnes() {
     assertEquals(emptyMap<String, String>(), GlassAdaptiveTuning.apply(null))
-    // G1 (scelta 1 di S3): di serie il giro svelto.
-    assertSame(GlassFlipTimings.Swift, GlassAdaptiveTuning.flipTiming)
+    // F7.33b (D3 di Alessio): di serie i tempi di Apple (dalla G1 alla F7.33b il giro svelto).
+    assertSame(GlassFlipTimings.Ios26, GlassAdaptiveTuning.flipTiming)
     assertSame(GlassFlipTimings.Shipped, GlassAdaptiveTuning.flipTiming)
     val shipped = GlassAdaptiveKnobs.parse(emptyMap())
     assertSame(GlassAdaptiveKnobs.Shipped, shipped)

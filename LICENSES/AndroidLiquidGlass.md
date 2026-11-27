@@ -263,6 +263,20 @@ Le modifiche fatte finora:
     campione separato scende anche la scala d'uscita, dopo il campione. Marcato `Fluid Engine addition (F7.18)`; nessuna
     firma pubblica cambia; finché le catture entrano il disegno è lo stesso di prima.
 
+24. **Un vetro può essere disegnato lontano dal suo layout** (4.0.0, `DrawBackdropModifier.kt`, `LayerBackdrop.kt`,
+    F7.31). Le maniglie di vetro si spostano nel disegno (`glassDrawOffset`) e la goccia cresce nel disegno
+    (`GlassDrawnLayerBlock`), non con la traslazione e la scala di uno strato: per Compose quelle sono un cambio di
+    layout, e con l'accessibilità accesa la pagina si ricontrollava ogni 100 ms finché la maniglia si muoveva. In
+    `drawBackdrop` lo strato del `layerBlock` passa da un aiuto (`glassLayerOf`), che per un `GlassDrawnLayerBlock` mette
+    uno strato fermo con la trasformazione nel disegno; `DrawBackdropNode` calcola dove è disegnato davvero
+    (`GlassSamplePlacement`, in `GlassDrawPlacement.kt`) e lo dà al fondale dentro il `layerBlock`
+    (`GlassPlacedLayerBlock`); `LayerBackdrop.drawBackdrop` parte da quel punto in `localPositionOf`. Marcato
+    `Fluid Engine addition (F7.31)`; nessuna firma pubblica cambia; per un vetro che sta dove dice il layout l'origine è
+    zero e il conto è quello di prima, e per le maniglie il numero è lo stesso al bit (le stesse operazioni sulle
+    matrici, nello stesso ordine). In `glass/interaction/GlassDrop.kt` (la goccia, presa dai pomelli di Kyant) il
+    `layerBlock` passa nel disegno di serie (`drawn`), e la goccia dei menù porta l'alfa in uno strato suo dentro la
+    trasformazione (`alpha`, F7.31b).
+
 ## Cosa fare in pratica
 
 Tenere questo file nel repo e riportare **AndroidLiquidGlass — Apache-2.0 — Copyright 2025 Kyant**

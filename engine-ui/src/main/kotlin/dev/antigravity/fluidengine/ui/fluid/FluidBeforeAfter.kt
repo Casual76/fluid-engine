@@ -45,6 +45,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.viewer.currentFluidViewerZoom
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassDrawOffset
 import dev.antigravity.fluidengine.ui.haptics.FluidHapticEvent
 import dev.antigravity.fluidengine.ui.haptics.LocalFluidHaptics
 import kotlin.math.abs
@@ -191,15 +192,29 @@ fun FluidBeforeAfter(
         drawLine(ink, Offset(x, 0f), Offset(x, size.height), line, cap = StrokeCap.Butt)
       }
       val knob = FluidBeforeAfterLook.Knob
+      val knobAt: androidx.compose.ui.unit.Density.() -> IntOffset = {
+        val scale = zoom?.scale ?: 1f
+        val x = (widthPx * state.fraction - knob.toPx() / 2f).roundToInt()
+        // Il centro di cio' che si vede: il visore sposta il contenuto di pan, a scala `scale`.
+        val visibleCenter = heightPx / 2f - (zoom?.panY ?: 0f) / scale
+        IntOffset(x, (visibleCenter - knob.toPx() / 2f).roundToInt())
+      }
+      // F7.31: il pomello si sposta nel disegno, non nel layout. Un layout che cambia a ogni fotogramma del dito, con
+      // l'accessibilita' accesa, faceva ricontrollare la pagina ogni 100 ms (R1-C); il tocco e TalkBack sono della linea.
+      // In un contenitore di vetro il pomello e' un pezzo che il contenitore disegna dove dice il layout: li' resta.
+      val inContainer = currentFluidGlassContainer(FluidCapsuleShape) != null
       Box(
         Modifier
-          .offset {
-            val scale = zoom?.scale ?: 1f
-            val x = (widthPx * state.fraction - knob.toPx() / 2f).roundToInt()
-            // Il centro di cio' che si vede: il visore sposta il contenuto di pan, a scala `scale`.
-            val visibleCenter = heightPx / 2f - (zoom?.panY ?: 0f) / scale
-            IntOffset(x, (visibleCenter - knob.toPx() / 2f).roundToInt())
-          }
+          .then(
+            if (inContainer) {
+              Modifier.offset { knobAt() }
+            } else {
+              Modifier.glassDrawOffset {
+                val at = knobAt()
+                Offset(at.x.toFloat(), at.y.toFloat())
+              }
+            },
+          )
           .size(knob)
           .graphicsLayer {
             val scale = zoom?.scale ?: 1f

@@ -39,6 +39,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -105,6 +106,7 @@ import dev.antigravity.fluidengine.ui.glass.backdrop.glassFrameMarker
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberLayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.field.glassOpaquePanel
+import dev.antigravity.fluidengine.ui.glass.quality.android.ObserveGlassMotion
 import dev.antigravity.fluidengine.ui.page.displayCornerRadii
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.Job
@@ -491,6 +493,11 @@ private fun FluidSheetPane(
   val sheetFill = if (backdrop == null) rememberGlassOpaquePanel() else null
   val sink = remember { FluidSheetSink() }
   val motion = remember { FluidSheetMotion() }
+  // F7.26h: il foglio sotto il dito, e la molla che lo porta al detent, sono moto come uno scorrimento: il vetro rimanda
+  // alla posa i suoi cambi, e dal gradino più basso esce a gesto finito. Un booleano derivato: niente ricomposizioni per
+  // fotogramma.
+  val sheetMoving by remember(motion) { derivedStateOf { motion.drag != 0f || motion.job != null } }
+  ObserveGlassMotion(sheetMoving)
   val scene = if (backdrop != null && motion.detentedLook && isRenderEffectSupported()) {
     rememberSheetScene(backdrop)
   } else null

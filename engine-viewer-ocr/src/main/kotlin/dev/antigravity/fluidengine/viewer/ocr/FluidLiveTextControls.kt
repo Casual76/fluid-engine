@@ -25,8 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -41,6 +42,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidDetectedText
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
+import dev.antigravity.fluidengine.ui.fluid.GlassBackdropState
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassSheet
@@ -96,7 +99,6 @@ fun FluidLiveTextControls(
  */
 @Composable
 private fun LiveTextRow(state: FluidLiveTextState, strings: FluidLiveTextStrings, modifier: Modifier) {
-  val context = LocalContext.current
   // L'azione rapida di Testo attivo (WWDC22 10026): il primo numero, mail o link trovato, da toccare.
   val quick = if (state.active) androidx.compose.runtime.remember(state.text) { state.text?.let(::quickAction) } else null
   val probeBackdrop = rememberEmptyGlassBackdrop()
@@ -104,8 +106,11 @@ private fun LiveTextRow(state: FluidLiveTextState, strings: FluidLiveTextStrings
     val gap = LiveTextRowGap.roundToPx()
     val max = if (constraints.hasBoundedWidth) constraints.maxWidth else Constraints.Infinity
     val loose = Constraints(maxWidth = max, maxHeight = constraints.maxHeight)
-    val toggle = subcompose(LiveTextSlot.Toggle) { LiveTextToggle(state, strings) }.map { it.measure(loose) }
-    var used = toggle.sumOf { it.width }
+    // Le misure su tasti di prova mai posati, fuori dal contenitore della riga: non sono suoi pezzi.
+    val toggleProbe = subcompose(LiveTextSlot.ToggleProbe) {
+      LiveTextToggle(state, strings, Modifier.clearAndSetSemantics {}, probeBackdrop)
+    }.map { it.measure(loose) }
+    var used = toggleProbe.sumOf { it.width }
     var withText = false
     var withCopy = false
     if (state.active) {
@@ -119,35 +124,66 @@ private fun LiveTextRow(state: FluidLiveTextState, strings: FluidLiveTextStrings
       val room = if (quick != null) gap + QuickRoom.roundToPx() else 0
       if (used.toLong() + gap + copyWidth + room <= max) { withCopy = true; used += gap + copyWidth }
     }
-    var quickButton: List<Placeable> = emptyList()
-    if (quick != null) {
-      val remaining = (max.toLong() - used - gap).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-      if (remaining >= QuickMinWidth.roundToPx()) {
-        quickButton = subcompose(LiveTextSlot.Quick) {
-          FluidGlassButton(quick.label, {
-            runCatching { context.startActivity(quick.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
-          }, modifier = Modifier.testTag(FluidLiveTextTags.QuickAction), maxLines = 1)
-        }.map { it.measure(loose.copy(maxWidth = remaining)) }
+    val remaining = if (quick == null) 0 else (max.toLong() - used - gap).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    val withQuick = quick != null && remaining >= QuickMinWidth.roundToPx()
+    // F7.33b, la coerenza del gruppo (D1): i comandi sono un contenitore solo, con una sonda e una decisione. Da soli,
+    // sopra la carta e il tavolo scuro della foto di una lettera l'azione rapida girava al chiaro e il tasto restava scuro.
+    // Distanza di fusione zero: i comandi restano quattro vetri, una cattura ciascuno, come prima; cambia solo la decisione.
+    val row = subcompose(LiveTextSlot.Row) {
+      FluidGlassContainer(spacing = 0.dp) {
+        LiveTextRowContent(
+          state, strings, quick?.takeIf { withQuick }, remaining, withText, withCopy, gap,
+          fillWidth = withQuick && constraints.hasBoundedWidth,
+        )
       }
+    }.map { it.measure(loose) }
+    val width = row.maxOfOrNull { it.width } ?: 0
+    val height = row.maxOfOrNull { it.height } ?: 0
+    layout(width.coerceIn(constraints.minWidth, constraints.maxWidth), height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+      for (p in row) p.placeRelative(0, 0)
     }
-    val right = ArrayList<Placeable>(3)
-    if (withText) right += subcompose(LiveTextSlot.ShowText) {
-      FluidGlassButton(strings.showText, { state.sheet = true }, modifier = Modifier.testTag(FluidLiveTextTags.ShowText), maxLines = 1)
-    }.map { it.measure(loose) }
-    if (withCopy) right += subcompose(LiveTextSlot.CopyAll) {
+  }
+}
+
+/**
+ * I comandi della riga, gia' scelti da [LiveTextRow]: l'azione rapida [quick] (larga al piu' [quickMax] px) a sinistra,
+ * «Testo», «Copia tutto» e il tasto a destra. [fillWidth]: con l'azione rapida la riga e' larga quanto riceve.
+ */
+@Composable
+private fun LiveTextRowContent(
+  state: FluidLiveTextState, strings: FluidLiveTextStrings, quick: LiveTextQuickAction?, quickMax: Int,
+  withText: Boolean, withCopy: Boolean, gap: Int, fillWidth: Boolean,
+) {
+  val context = LocalContext.current
+  Layout(content = {
+    if (quick != null) {
+      FluidGlassButton(quick.label, {
+        runCatching { context.startActivity(quick.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+      }, modifier = Modifier.layoutId(LiveTextSlot.Quick).testTag(FluidLiveTextTags.QuickAction), maxLines = 1)
+    }
+    if (withText) {
+      FluidGlassButton(strings.showText, { state.sheet = true },
+        modifier = Modifier.layoutId(LiveTextSlot.ShowText).testTag(FluidLiveTextTags.ShowText), maxLines = 1)
+    }
+    if (withCopy) {
       FluidGlassButton(strings.copyAll, { state.text?.let { copy(context, it.text) } },
-        modifier = Modifier.testTag(FluidLiveTextTags.CopyAll), maxLines = 1)
-    }.map { it.measure(loose) }
-    right += toggle
+        modifier = Modifier.layoutId(LiveTextSlot.CopyAll).testTag(FluidLiveTextTags.CopyAll), maxLines = 1)
+    }
+    LiveTextToggle(state, strings, Modifier.layoutId(LiveTextSlot.Toggle))
+  }) { measurables, constraints ->
+    val loose = Constraints(maxWidth = constraints.maxWidth, maxHeight = constraints.maxHeight)
+    val quickButton = measurables.filter { it.layoutId == LiveTextSlot.Quick }
+      .map { it.measure(loose.copy(maxWidth = quickMax.coerceIn(0, constraints.maxWidth))) }
+    val right = measurables.filter { it.layoutId != LiveTextSlot.Quick }.map { it.measure(loose) }
     val all = quickButton + right
     val height = all.maxOf { it.height }
     val rightWidth = right.sumOf { it.width } + gap * (right.size - 1)
     val quickWidth = quickButton.sumOf { it.width }
     // Come VisionKit (WWDC22 10026, `riferimenti/wwdc22-livetext-tasto-attivo.png`): l'azione rapida nell'angolo in
-    // basso a sinistra, il tasto in quello a destra. Senza larghezza data, la riga è stretta quanto i comandi.
+    // basso a sinistra, il tasto in quello a destra. Senza larghezza data, la riga e' stretta quanto i comandi.
     val natural = rightWidth + if (quickButton.isEmpty()) 0 else quickWidth + gap
-    val width = if (quickButton.isNotEmpty() && constraints.hasBoundedWidth) constraints.maxWidth else natural
-    layout(width.coerceIn(constraints.minWidth, constraints.maxWidth), height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+    val width = if (fillWidth) constraints.maxWidth else natural
+    layout(width, height) {
       for (p in quickButton) p.placeRelative(0, (height - p.height) / 2)
       var x = width - rightWidth
       for (p in right) {
@@ -160,14 +196,24 @@ private fun LiveTextRow(state: FluidLiveTextState, strings: FluidLiveTextStrings
 
 /** Il tasto di Testo attivo: un interruttore di vetro con l'icona dello scanner. */
 @Composable
-private fun LiveTextToggle(state: FluidLiveTextState, strings: FluidLiveTextStrings) {
+private fun LiveTextToggle(
+  state: FluidLiveTextState, strings: FluidLiveTextStrings, modifier: Modifier = Modifier,
+  probeBackdrop: GlassBackdropState? = null,
+) {
+  // Il tasto di prova (solo per la misura, [probeBackdrop]) non ha tag ne' semantica: TalkBack e le prove trovano il vero.
+  if (probeBackdrop != null) {
+    FluidGlassIconButton(onClick = {}, selected = state.active, modifier = modifier, backdrop = probeBackdrop) {
+      FluidIcon(FluidIcons.DocumentScanner, null)
+    }
+    return
+  }
   FluidGlassIconButton(
     onClick = {
       state.active = !state.active
       if (!state.active) { state.selection = null; state.query = "" }
     },
     selected = state.active,
-    modifier = Modifier.testTag(FluidLiveTextTags.Button).semantics {
+    modifier = modifier.testTag(FluidLiveTextTags.Button).semantics {
       contentDescription = strings.liveText
       stateDescription = if (state.active) strings.on else strings.off
       role = Role.Switch
@@ -180,6 +226,8 @@ private fun LiveTextToggle(state: FluidLiveTextState, strings: FluidLiveTextStri
 /** I posti della riga (le chiavi di `subcompose`). */
 private object LiveTextSlot {
   const val Toggle = "toggle"
+  const val ToggleProbe = "toggle-probe"
+  const val Row = "row"
   const val Probes = "probes"
   const val Quick = "quick"
   const val ShowText = "show-text"

@@ -104,6 +104,12 @@ class GlassSimulationTest {
     assertTrue(checkNotNull(GlassSimulation.parse("a52s,fonte=piatta", tick)).flatSource)
     assertEquals("a52s", checkNotNull(GlassSimulation.parse("a52s,fonte=piatta", tick)).label)
     assertFalse(checkNotNull(GlassSimulation.parse("a52s,fonte=texture", tick)).flatSource)
+    // F7.26g: il registro del vetro esaurito a tempo, per il gradino più basso e il suo ritorno; non cambia il nome.
+    val full = checkNotNull(GlassSimulation.parse("vero,pieno@0-12", tick))
+    assertEquals("vero", full.label)
+    assertTrue(full.exhaustNow())
+    assertEquals(listOf(12_000L), full.boundaries)
+    assertFalse(checkNotNull(GlassSimulation.parse("vero", tick)).exhaustNow())
     // F7.26d: la diagnostica dei voti per fotogramma, solo se chiesta; non cambia il nome del profilo.
     assertFalse(checkNotNull(GlassSimulation.parse("a52s", tick)).everyFrame)
     assertTrue(checkNotNull(GlassSimulation.parse("a52s,voti=ogni", tick)).everyFrame)

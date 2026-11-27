@@ -389,7 +389,7 @@ class GlassNodeCountTest {
     }
   }
 
-  @Test fun senzaCreditoIlCorpoDisegnaLaSagomaSenzaUnaGrandeTexture() {
+  @Test fun senzaCreditoIlVetroESfocatoSenzaUnaGrandeTexture() {
     ShadowLog.setLoggable("FluidF7Hot", Log.VERBOSE)
     FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
     val resources = FluidGlassResources.get(compose.activity)
@@ -415,13 +415,73 @@ class GlassNodeCountTest {
       compose.waitForIdle()
       drawHardwareFrame()
       val records = ShadowLog.getLogsForTag(FrameTag).drop(cursor)
-      assertTrue(records.any { " kind=glassSolid " in it.msg })
-      assertTrue(records.none { " kind=capture " in it.msg })
+      // F7.26f: senza credito il gradino più basso è il glassmorphism, non il pieno: una cattura minuscola fuori dal
+      // registro (al più 1 MiB di stima, come le catture piccole), sfocata e tinta. Niente byte del registro.
+      assertTrue(records.any { " kind=glassFloor " in it.msg })
+      assertTrue(records.none { " kind=glassSolid " in it.msg || " kind=glassDeniedFill " in it.msg })
+      val captures = records.filter { " kind=capture " in it.msg }
+      assertTrue("il gradino più basso non ha catturato", captures.isNotEmpty())
+      for (record in captures) {
+        val size = checkNotNull(Regex(""" size=(\d+) x (\d+) """).find(record.msg)) { record.msg }
+        val bytes = size.groupValues[1].toLong() * size.groupValues[2].toLong() * 4 * 2
+        assertTrue("una cattura grande senza credito: ${record.msg.take(200)}", bytes <= 1024L * 1024)
+      }
       assertEquals(before.residentBytes, budget.usage(category).residentBytes)
       compose.onNodeWithText("42").assertExists()
     } finally {
       all.close()
       ShadowLog.setLoggable("FluidF7Hot", Log.INFO)
+      resources.refresh()
+    }
+  }
+
+  /**
+   * F7.26g (review R3, D6): un vetro che cambia misura mentre sta nel gradino più basso ci rientra con la misura nuova.
+   * Fino a F7.26f usciva dal gradino, la misura nuova era negata a ogni scala e si rigiocava la cattura minuscola della
+   * misura vecchia, col vetro pieno sopra: nessuna cattura nuova, nessun rientro.
+   */
+  @Test fun unVetroCheCresceNelGradinoPiuBassoCiRientraConLaMisuraNuova() {
+    FluidGlassDiagnostics.forceShaderVerdictsForTesting(accept = true)
+    val resources = FluidGlassResources.get(compose.activity)
+    resources.refresh()
+    val budget = resources.budget
+    val category = FluidMemoryCategory.GLASS
+    val before = budget.usage(category)
+    val all = checkNotNull(budget.tryReserve(category, before.limitBytes - before.usedBytes))
+    val tall = mutableStateOf(false)
+    val cursor = ShadowLog.getLogsForTag(FrameTag).size
+    try {
+      compose.setContent {
+        FluidTheme(settings = remember { EngineSettings() }) {
+          val backdrop = rememberGlassBackdrop()
+          Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().glassBackdropSource(backdrop).background(Color.Blue))
+            Box(Modifier.size(640.dp, if (tall.value) 820.dp else 512.dp).glassSurface(
+              state = backdrop, tint = GlassDefaults.floatingTint(), shape = FluidCapsuleShape,
+              role = GlassRole.Content, optics = GlassDefaults.optics(GlassRole.Content),
+            )) { Text("42") }
+          }
+        }
+      }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      val first = ShadowLog.getLogsForTag(FrameTag).drop(cursor)
+      assertTrue("il gradino più basso non è partito", first.any { " kind=glassFloor " in it.msg })
+      val grow = ShadowLog.getLogsForTag(FrameTag).size
+      compose.runOnIdle { tall.value = true }
+      compose.waitForIdle()
+      drawHardwareFrame()
+      val after = ShadowLog.getLogsForTag(FrameTag).drop(grow)
+      val sizes = after.filter { " kind=capture " in it.msg }.mapNotNull { Regex(""" size=(\d+) x (\d+) """).find(it.msg) }
+        .map { it.groupValues[1].toInt() to it.groupValues[2].toInt() }
+      println("F726G D6 | dopo la crescita: gradino ${after.count { " kind=glassFloor " in it.msg }}, catture $sizes, " +
+        "pieni ${after.count { " kind=glassSolid " in it.msg || " kind=glassDeniedFill " in it.msg }}")
+      assertTrue("dopo la crescita il vetro non rientra nel gradino più basso", after.any { " kind=glassFloor " in it.msg })
+      assertTrue("nessuna cattura della misura nuova: $sizes", sizes.isNotEmpty())
+      assertTrue(after.none { " kind=glassSolid " in it.msg || " kind=glassDeniedFill " in it.msg })
+      assertEquals(before.residentBytes, budget.usage(category).residentBytes)
+    } finally {
+      all.close()
       resources.refresh()
     }
   }

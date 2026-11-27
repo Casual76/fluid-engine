@@ -679,8 +679,9 @@ FluidFileViewer(count = 1, content = { FluidViewerContent.Image(ratio) {
 - **TalkBack**: la maniglia è un cursore («Prima al 50%») con «aumenta», «diminuisci» e «imposta». Mentre il dito la
   trascina la sua semantica resta ferma e si aggiorna a fine gesto (`fluidSettledSemantics` di F7.24, R1): con un servizio
   di accessibilità acceso il dito non cambia la semantica a ogni passo. Un valore dato da TalkBack o dall'app arriva
-  subito. Il pomello di vetro che si sposta fa ancora ricontrollare a Compose le misure della pagina, al più ogni 100 ms,
-  come quello del cursore: si toglie solo spostando il vetro nel disegno.
+  subito. Il pomello di vetro si sposta **nel disegno** (F7.31, `glassDrawOffset`), non nel layout: prima, con
+  l'accessibilità accesa, la pagina si ricontrollava al più ogni 100 ms mentre il dito lo portava. In un contenitore di vetro
+  (`FluidGlassContainer`) resta nel layout: lì il pomello è un pezzo che il contenitore disegna dove dice il layout.
 - Ferma, non ridisegna: il taglio si legge nel disegno. Mossa dal dito non si ricompone (R1): linea, taglio e maniglia si
   leggono nel disegno e nella posa, e le capsule cambiano solo quando la tendina passa la loro soglia.
 

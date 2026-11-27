@@ -1,3 +1,5 @@
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package dev.antigravity.fluidengine.sample
 
 import androidx.compose.foundation.background
@@ -63,6 +65,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidImageViewer
 import dev.antigravity.fluidengine.ui.fluid.FluidMotion
 import dev.antigravity.fluidengine.ui.fluid.FluidScrubber
+import dev.antigravity.fluidengine.ui.fluid.FluidScrubberThumbReading
 import dev.antigravity.fluidengine.ui.fluid.FluidScrubbing
 import dev.antigravity.fluidengine.ui.fluid.FluidReorderState
 import dev.antigravity.fluidengine.ui.fluid.FluidUpdate
@@ -775,6 +778,16 @@ class MoreComponentsTest {
   /** Il valore che lo scrubber dice a TalkBack: quello che si mostra, non per forza quello che dice il lettore. */
   private fun shown() = scrubberNode().config[SemanticsProperties.ProgressBarRangeInfo].current
 
+  /**
+   * Dove sta la maniglia, col dito giu' (F7.31). La semantica dello scrubber, col dito di F7.24, aspetta la fine del gesto
+   * (come quella del cursore): mentre il dito la tiene la maniglia si legge da qui, il valore che mostra.
+   */
+  private fun thumb(): Float {
+    val reading: FluidScrubberThumbReading = scrubberNode().layoutInfo.getModifierInfo()
+      .firstNotNullOf { it.modifier as? FluidScrubberThumbReading }
+    return reading.value()
+  }
+
   private fun spoken() = scrubberNode().config[SemanticsProperties.StateDescription]
 
   private fun playerAt(value: Float) {
@@ -815,7 +828,7 @@ class MoreComponentsTest {
     assertEquals("un valore per movimento", 2, scrubbed.size)
     assertEquals(120_000f, scrubbed[0], 100f)
     assertEquals(140_000f, scrubbed[1], 100f)
-    assertEquals("la maniglia e' dove il dito dice", 140_000f, shown(), 100f)
+    assertEquals("la maniglia e' dove il dito dice", 140_000f, thumb(), 100f)
     assertTrue("niente salto prima del rilascio", seeked.isEmpty())
 
     compose.onNodeWithTag("scrubber").performTouchInput { up() }
@@ -836,7 +849,7 @@ class MoreComponentsTest {
       down(Offset(thumbX(0.5f) + 15f, trackY))
     }
     compose.waitForIdle()
-    assertEquals(100_000f, shown(), 1f)
+    assertEquals(100_000f, thumb(), 1f)
     assertTrue("afferrare non e' muovere", scrubbed.isEmpty())
 
     compose.onNodeWithTag("scrubber").performTouchInput {
@@ -846,7 +859,7 @@ class MoreComponentsTest {
       moveBy(Offset(-100f, 0f))
     }
     compose.waitForIdle()
-    assertEquals("ancora in fondo, il dito non e' ancora rientrato", 200_000f, shown(), 1f)
+    assertEquals("ancora in fondo, il dito non e' ancora rientrato", 200_000f, thumb(), 1f)
     compose.onNodeWithTag("scrubber").performTouchInput { up() }
     compose.waitForIdle()
   }
@@ -861,14 +874,14 @@ class MoreComponentsTest {
       moveBy(Offset(68f, 0f))
     }
     compose.waitForIdle()
-    assertEquals(120_000f, shown(), 100f)
+    assertEquals(120_000f, thumb(), 100f)
 
-    // Il lettore va avanti per conto suo, a battiti: la maniglia e il valore a voce non lo guardano.
+    // Il lettore va avanti per conto suo, a battiti: la maniglia non lo guarda (e il valore a voce, F7.31, aspetta la fine
+    // del gesto: si guarda dopo il rilascio).
     repeat(5) {
       playerAt(external + 1_000f)
-      assertEquals("col dito giu' comanda il dito", 120_000f, shown(), 100f)
+      assertEquals("col dito giu' comanda il dito", 120_000f, thumb(), 100f)
     }
-    assertEquals("2:00 di 3:20", spoken())
 
     compose.onNodeWithTag("scrubber").performTouchInput { up() }
     compose.waitForIdle()
@@ -952,7 +965,7 @@ class MoreComponentsTest {
     }
     compose.waitForIdle()
     assertEquals("l'estremita' suona una volta, starci no", listOf(FluidHapticEvent.Threshold), haptics.played)
-    assertEquals(200_000f, shown(), 1f)
+    assertEquals(200_000f, thumb(), 1f)
 
     compose.onNodeWithTag("scrubber").performTouchInput { up() }
     compose.waitForIdle()

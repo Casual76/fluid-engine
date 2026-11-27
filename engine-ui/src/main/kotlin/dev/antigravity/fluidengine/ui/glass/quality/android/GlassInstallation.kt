@@ -67,6 +67,21 @@ internal fun ObserveGlassScroll(list: LazyListState) {
   }
 }
 
+/**
+ * F7.26h · Lo stesso segnale di [ObserveGlassScroll] per un gesto che muove il vetro senza scorrere una lista: il foglio
+ * trascinato dal dito e la molla che lo porta al detent. Finché [moving] è vero la finestra è in moto, come durante uno
+ * scorrimento: la politica vota i fotogrammi e il vetro rimanda alla posa i suoi cambi (il gradino più basso compreso).
+ */
+@Composable
+internal fun ObserveGlassMotion(moving: Boolean) {
+  if (LocalInspectionMode.current || !moving) return
+  val view = LocalView.current
+  DisposableEffect(view) {
+    val lease = glassWindowFor(view, true)?.let { FluidGlassResources.get(view.context).scrollStarted(it) }
+    onDispose { lease?.close() }
+  }
+}
+
 internal fun glassWindowFor(view: View, activityToo: Boolean): Window? {
   var parent: View? = view
   while (parent != null) {

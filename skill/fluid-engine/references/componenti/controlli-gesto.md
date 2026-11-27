@@ -374,9 +374,11 @@ lettore), `labelMedium` a cifre tabulari in `onSurfaceVariant`, tirate su verso 
 Si ricompone solo la riga quando cambia la *stringa* (una volta al secondo per un orologio); così anche il valore a voce per
 TalkBack (R1, 26 novembre 2026): mentre si ascolta, la semantica si rifà quando cambia la scritta di `valueDescription`, non a
 ogni fotogramma del lettore. Il riempimento dell'accento si allarga **nel disegno**, non nel layout: un layout in meno a ogni
-fotogramma (R1). **Resta** che mentre si ascolta la maniglia di vetro si sposta con la traslazione del suo `graphicsLayer`
-(il renderer la inverte quando campiona), e in Compose una traslazione che cambia avvisa l'accessibilità come un layout: la
-pagina si ricontrolla ancora ogni 100 ms finché il lettore suona (R1, misurato: 33 fotogrammi con eventi su 3 s). Con tutti
+fotogramma (R1). E da F7.31 anche la **maniglia di vetro si sposta nel disegno** (`glassDrawOffset`, vedi
+[vetro.md](vetro.md), «Un vetro che si muove nel disegno»), non con la traslazione del suo `graphicsLayer`: in Compose una
+traslazione che cambia avvisa l'accessibilità come un layout, e la pagina si ricontrollava ogni 100 ms finché il lettore
+suonava (R1: 33 fotogrammi con eventi su 3 s; ora solo la semantica, una volta al secondo). Il pomello limpido dei video
+(`FluidGlass.Clear`) resta nella traslazione: è un pezzo che il contenitore di vetro disegna dove dice il layout. Con tutti
 e due nulli lo scrubber è la
 sola riga da 48 dp. `onStartLabelClick` / `onEndLabelClick` (3.0.1) rendono toccabile la scritta (il tocco sulla durata che diventa il
 tempo che manca e torna indietro): lo scrubber non sa cosa scambiare, l'app cambia il formato che passa. La scritta diventa un
@@ -387,7 +389,8 @@ pulsante per TalkBack con il suo testo; senza, resta muta (il valore è già nel
 scala (una scala schiaccerebbe la testa tonda).
 
 **Accessibilità.** Per TalkBack è uno slider, un nodo solo: `contentDescription`, `stateDescription = valueDescription(...)` (di serie «1:05
-di 3:20»), `progressBarRangeInfo` con i passi *interni* se a passi, `setProgress`; più due azioni custom, `stepBackLabel` /
+di 3:20»; da F7.31 col dito di F7.24, come il cursore: mentre il dito tiene la maniglia la semantica resta ferma e si dà a
+fine gesto, o al più una volta al secondo; un salto da tastiera o da TalkBack arriva subito), `progressBarRangeInfo` con i passi *interni* se a passi, `setProgress`; più due azioni custom, `stepBackLabel` /
 `stepForwardLabel`, che muovono di `keyStep` senza indovinare una percentuale su una registrazione di ore. Da tastiera e D-pad:
 sinistra/destra (specchiate da destra a sinistra) di `keyStep`, pagina su/giù di un decimo (o `keyStep` se più grande), Home/End;
 **su e giù non si prendono** (sono del fuoco: uno scrubber che non lascia uscire un D-pad in verticale è una trappola). `keyStep = 0`
@@ -484,6 +487,9 @@ FluidRangeSlider(
   `FluidSlider`.
 - **TalkBack**: due nodi, uno per maniglia, sopra le maniglie: ognuno con il suo nome, l'intervallo che l'altra gli
   lascia, «imposta», «Aumenta» e «Diminuisci» (le parole di `FluidLabels`): la tacca dopo, o un ventesimo dell'intervallo.
+  Da F7.31 i due nodi raggiungono la loro maniglia quando il dito si ferma (`FluidSettledPosition`), come la semantica:
+  un nodo che si sposta a ogni fotogramma è un layout che cambia, e con l'accessibilità accesa la pagina si ricontrollava
+  ogni 100 ms per tutto il gesto. Le maniglie si spostano nel disegno.
 
 **Trappole.**
 
@@ -775,10 +781,13 @@ di un righello e un `semantics { stateDescription = … }` lo fanno a ogni tacca
   da TalkBack («aumenta», «imposta») o dall'app arriva subito. La usano `FluidSlider`, `FluidRangeSlider`, `FluidScrubber`,
   `FluidWheelPicker`, `FluidRulerDial`, il numero di `FluidNumericText` e, da R1, `FluidAudioWaveform` e `FluidAudioTimeline`.
 - **Anche un layout che cambia** a ogni fotogramma sotto un nodo di semantica (una barra che si allarga con `Modifier.layout`),
-  e anche un `graphicsLayer` che cambia **traslazione** (`translationX`), fanno ricontrollare la semantica della pagina ogni
-  100 ms, anche se nessuna semantica cambia (Compose li tratta come un layout). Quel che si muove a ogni fotogramma senza
-  il dito va nel disegno, non nel layout né nella traslazione dello strato (R1: il riempimento di `FluidScrubber` è nel
-  disegno; la sua maniglia di vetro no, ed è ancora aperto).
+  e anche un `graphicsLayer` che cambia **traslazione o scala** (`translationX`, `scaleX`: le proprietà di posizione dello
+  strato), fanno ricontrollare la semantica della pagina ogni 100 ms, anche se nessuna semantica cambia (Compose li tratta
+  come un layout: `updateLayerParameters` → `onLayoutChange`). Alfa, forma e ritaglio no. Quel che si muove a ogni
+  fotogramma va nel disegno, non nel layout né nella traslazione dello strato: il riempimento di `FluidScrubber` (R1) e di
+  `FluidSlider` (F7.31, un `RenderNode` posato nel disegno, lo stesso di prima al bit), le maniglie di vetro di cursore,
+  cursore a due maniglie, scrubber, interruttore e «prima e dopo» (F7.31, `glassDrawOffset`), la crescita di ogni goccia
+  (F7.31). Vedi [vetro.md](vetro.md), «Un vetro che si muove nel disegno».
 - **Un valore che l'app fa avanzare a ogni fotogramma** (la posizione di un lettore) arriva subito anche lui, quindi rifarebbe
   la semantica a ogni fotogramma: il blocco legge uno stato derivato della **scritta** (che cambia una volta al secondo per
   un orologio) e, solo se il valore è tenuto (il dito, un salto che aspetta il lettore), del valore; il numero

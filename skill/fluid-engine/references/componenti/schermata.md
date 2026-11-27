@@ -369,8 +369,8 @@ di mezzo livello. Misurato sul tablet su una tinta unita: 34, 26, 18, 10, 5 e 2%
 riga dove finisce (residuo sotto 0,3 livelli). Sopra un **contenuto scuro**, in tema chiaro, la striscia **scurisce** invece
 di velare di bianco (come Apple, ×0,70–0,72 dietro i tasti). **Una decisione sola per tutta la barra** (4.0, F2.3c): la
 barra e' un vetro che gira come un tasto, con la sonda della striscia (legge la pagina dietro la barra) e la legge del
-giro dei tasti (di serie dalla 4.0 G1 il giro svelto: corpo in 200 ms, inchiostro che svanisce in 70 e risale pieno a
-450; le sue manopole sono quelle dei tasti). Dalla stessa lettura e nello stesso
+giro dei tasti (di serie dalla F7.33b i tempi di Apple: corpo in 300 ms, inchiostro che svanisce in 110 e risale pieno a
+700; dalla 4.0 G1 alla F7.33b il giro svelto, 200, 70 e 450; le sue manopole sono quelle dei tasti). Dalla stessa lettura e nello stesso
 istante la striscia scurisce col corpo del giro, il titolo e le azioni cambiano lato passando per il fotogramma trasparente
 (col tema del lato: un'icona in `onSurface` segue anche lei), e i tasti della barra sono **ospitati**: niente sonda loro,
 il lato e la misura dalla barra, il contenuto che svanisce con lei. Prima la striscia decideva da se' e scuriva in 800 ms,

@@ -163,6 +163,11 @@ internal fun FluidGlassModalScrim(
   onDismiss: () -> Unit,
   look: FluidScrimLook = FluidScrimLook.Modal,
   menu: Boolean = false,
+  /**
+   * F7.30: il velo di un menu tenuto pronto, a uscita finita (`FluidMenuReadiness`): una scatola vuota, senza vetro e senza
+   * tocchi, che non si disegna. Il vetro rinasce fresco all'apertura dopo.
+   */
+  parked: Boolean = false,
 ) {
   val dark = GlassDefaults.isDarkSurface()
   val tint = remember(dark, look) {
@@ -215,7 +220,9 @@ internal fun FluidGlassModalScrim(
       },
     )
 
-  if (backdrop == null) {
+  if (parked) {
+    Box(modifier = Modifier.fillMaxSize())
+  } else if (backdrop == null) {
     Box(
       modifier = base.drawWithContent {
         drawRect(tint.fallback)

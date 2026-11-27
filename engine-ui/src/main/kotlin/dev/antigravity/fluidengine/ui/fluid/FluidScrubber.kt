@@ -42,6 +42,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -89,6 +90,7 @@ import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.glassDrawOffset
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.layerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.rememberCombinedBackdrop
@@ -374,7 +376,8 @@ fun FluidScrubber(
     // Chiavi: nessuna, come lo slider. Una chiave che cambia a meta' gesto (la larghezza, se la riga si
     // ridimensiona mentre la si trascina) rimette a zero il gesto sotto il dito: quello che puo' cambiare
     // si legge dal gesto stesso, a ogni evento.
-    Modifier.pointerInput(Unit) {
+    // F7.31: il dito muove un valore, come nello slider (`FluidFingerDrive`): la semantica aspetta la fine del gesto.
+    Modifier.fluidFingerDrivesValue().pointerInput(Unit) {
       val edge = SliderEdge.toPx()
       val thumbPx = ThumbWidth.toPx()
       val grabReach = thumbPx / 2f + SliderGrabMargin.toPx()
@@ -548,6 +551,10 @@ fun FluidScrubber(
     }
   }
 
+  // F7.31, per le prove: il valore che la maniglia mostra, letto senza la semantica (che col dito giu' aspetta la fine del
+  // gesto). Non e' semantica e non disegna niente.
+  val thumbReading = remember { FluidScrubberThumbReading { FluidScrubbing.clamp(shownValue(), currentRange) } }
+
   // I testi sotto la pista: dal valore mostrato, e invalidano solo la loro riga, che cambia quando cambia
   // la stringa (una volta al secondo per un orologio) e non a ogni battito del lettore.
   val startText: State<String>? = remember(startLabel) {
@@ -596,7 +603,8 @@ fun FluidScrubber(
       // Prima di `focusable`: il gestore di tasti deve stare sopra il nodo che prende il fuoco, o il tasto
       // gli arriva dopo che il nodo l'ha lasciato passare.
       .then(keys)
-      .focusable(enabled, interactionSource),
+      .focusable(enabled, interactionSource)
+      .then(thumbReading),
   ) {
     BoxWithConstraints(
       modifier = Modifier
@@ -693,15 +701,25 @@ fun FluidScrubber(
       }
 
       // 3. La maniglia: la goccia dello slider.
+      val thumbShift: Density.() -> Float = {
+        val centre = fluidSliderThumbCentre(drawnFraction(), trackPx, thumbPx)
+        (centre - thumbPx / 2f) * if (isLtr) 1f else -1f
+      }
       Box(
         Modifier
-          .graphicsLayer {
-            // Nel layer, non nel layout: spostarla invalida un disegno e basta, e il renderer inverte
-            // questa traslazione quando campiona, quindi in ogni punto della corsa la lente ha in mano
-            // l'immagine che la pista ha davvero dietro.
-            val centre = fluidSliderThumbCentre(drawnFraction(), trackPx, thumbPx)
-            translationX = (centre - thumbPx / 2f) * if (isLtr) 1f else -1f
-          }
+          .then(
+            if (clearThumb) {
+              // Il pomello limpido dei video e' un `fluidGlass`, che in un contenitore di vetro e' un pezzo disegnato dal
+              // contenitore dove dice il layout: la sua corsa resta nella traslazione del layer.
+              Modifier.graphicsLayer { translationX = thumbShift() }
+            } else {
+              // Nel disegno (F7.31), non nel layout e nemmeno nella traslazione di uno strato: per Compose una traslazione
+              // che cambia e' un cambio di layout, e con l'accessibilita' accesa la pagina si ricontrollava ogni 100 ms
+              // finche' il lettore suonava. Il vetro campiona dove si vede: in ogni punto della corsa la lente ha in mano
+              // l'immagine che la pista ha davvero dietro. Il tocco e il fuoco sono della riga, non suoi.
+              Modifier.glassDrawOffset { Offset(thumbShift(), 0f) }
+            },
+          )
           .then(
             if (clearThumb) {
               val source = remember(thumbBackdrop, backdrop) { GlassBackdropState(thumbBackdrop, null, backdrop.blurRadius) }
@@ -887,6 +905,22 @@ object FluidScrubberDefaults {
 /**
  * Cosa sta mostrando lo scrubber, in tre tempi. Vedi [FluidScrubbing.shownValue].
  */
+/**
+ * F7.31, per le prove: il valore che la maniglia dello scrubber mostra adesso (il dito, il punto tenuto, il lettore). La
+ * semantica lo dice a TalkBack quando il gesto finisce (`fluidSettledSemantics` col dito di F7.24); le prove che guardano
+ * la maniglia col dito giu' lo leggono da qui, fra i modificatori del nodo dello scrubber
+ * (`layoutInfo.getModifierInfo()`). Un nodo vuoto: non disegna, non misura, non ha semantica.
+ */
+internal class FluidScrubberThumbReading(private val shown: () -> Float) : ModifierNodeElement<Modifier.Node>() {
+  /** Il valore che la maniglia mostra adesso. */
+  fun value(): Float = shown()
+
+  override fun create(): Modifier.Node = object : Modifier.Node() {}
+  override fun update(node: Modifier.Node) = Unit
+  override fun equals(other: Any?): Boolean = other === this
+  override fun hashCode(): Int = System.identityHashCode(this)
+}
+
 /**
  * Il contorno del riempimento della pista alla sua larghezza in pixel (R1): la capsula di [FluidCapsuleShape], rifatta
  * solo quando cambiano la larghezza, l'altezza, il verso o la densita'. Mentre si ascolta cambia ogni qualche fotogramma,

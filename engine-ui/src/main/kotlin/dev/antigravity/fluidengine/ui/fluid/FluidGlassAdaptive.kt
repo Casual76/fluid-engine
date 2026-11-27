@@ -247,25 +247,26 @@ internal data class GlassFlipTiming(
 /** Le varianti dei tempi del giro (tavola `artifacts/liquid-glass/tavole/f2/giro/`, la prima). */
 internal object GlassFlipTimings {
   /**
-   * I tempi di R4 B6 (alta), di serie fino a S3 e da allora manopola (`fliptime=ios26`): misurati sull'interfaccia vera a 6:52 e ricontati qui dalla decisione del
-   * filtro (~146 ms dopo la copertura piena): corpo in 300 ms, quasi tutto nei primi 200; l'inchiostro scuro svanisce
-   * nel corpo in 110 ms (Apple: contrasto zero a 230–270 ms dalla copertura piena) e quello chiaro è pieno a 700 ms
-   * (Apple: 90% a 600, coda fino a 830).
+   * **Di serie** dalla F7.33b (D3, scelta di Alessio del 27/11/2026: «i tempi di Apple»; di serie fino a S3, poi manopola
+   * `fliptime=ios26`). I tempi di R4 B6 (alta), misurati sull'interfaccia vera a 6:52 e ricontati qui dalla decisione del
+   * filtro (~146 ms dopo la copertura piena: le 130 ms di attesa di Apple le dà il filtro, non un ritardo in più): corpo
+   * in 300 ms, quasi tutto nei primi 200; l'inchiostro scuro svanisce nel corpo in 110 ms (Apple: contrasto zero a
+   * 230–270 ms dalla copertura piena) e quello chiaro è pieno a 700 ms (Apple: 90% a 600, coda fino a 830).
    */
   val Ios26: GlassFlipTiming =
     GlassFlipTiming(bodyDelayMillis = 0, bodyMillis = 300, inkCrossMillis = 110, inkMillis = 700)
 
   /**
-   * **Di serie** dalla 4.0 G1 (scelta 1 di S3, «il giro svelto»): corpo in 200 ms, l'inchiostro vecchio svanisce in 70,
-   * quello nuovo pieno a 450. Sul tablet, nel caso veloce (un riquadro scuro che passa sotto la tab bar in mezzo secondo)
-   * fa meno giri accavallati di [Ios26]; l'attesa del filtro resta 200 ms (con 100 ms giri e doppi giri crescono:
-   * `sessioni/f2-g1/`).
+   * Il giro svelto (`fliptime=swift`): di serie dalla 4.0 G1 (scelta 1 di S3) fino alla F7.33b. Corpo in 200 ms,
+   * l'inchiostro vecchio svanisce in 70, quello nuovo pieno a 450. Sul tablet, nel caso veloce (un riquadro scuro che
+   * passa sotto la tab bar in mezzo secondo) faceva meno giri accavallati di [Ios26]; l'attesa del filtro resta 200 ms
+   * (con 100 ms giri e doppi giri crescono: `sessioni/f2-g1/`).
    */
   val Swift: GlassFlipTiming =
     GlassFlipTiming(bodyDelayMillis = 0, bodyMillis = 200, inkCrossMillis = 70, inkMillis = 450)
 
-  /** I tempi di serie: [Swift] (G1). */
-  val Shipped: GlassFlipTiming get() = Swift
+  /** I tempi di serie: [Ios26] dalla F7.33b (prima [Swift], dalla G1). Il punto da cambiare per tornare al giro svelto. */
+  val Shipped: GlassFlipTiming get() = Ios26
 
   /**
    * Più lento (S3): corpo in 450 ms, inchiostro pieno a 1000; l'inchiostro vecchio svanisce in 160 ms, nella stessa
@@ -475,6 +476,13 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
    */
   val inkOnDark: Boolean get() = appearance.isDark
 
+  /**
+   * F7.33c · Il gruppo di un contenitore sta a cavallo di un confine sul tema scuro (D7, [FluidGlassGroupReading]): il
+   * vetro resta del tema e prende il soffitto del velo dei grandi, come chi non gira. Scritto dal principale a ogni
+   * lettura della sonda, letto in disegno.
+   */
+  var groupHoldsSide: Boolean by mutableStateOf(false)
+
   /** La parte che il contenuto ha composto per ultima ([noteComposedInk]), letta in disegno. */
   // Stato dalla 4.0 (F2.3c): chi legge [inkAlpha] in disegno (un `graphicsLayer`) deve rileggerlo quando la composizione
   // annota la parte nuova. Da campo semplice, un vetro che nasceva già sul lato opposto (la prima lettura scatta, e
@@ -510,8 +518,8 @@ internal class GlassAdaptiveState(private val timing: GlassFlipTiming = GlassFli
     }
     out.darkness = side
     // Un piccolo che non gira (il contenuto non segue l'inchiostro) tiene il lato del tema: sul lato scuro prende il
-    // soffitto del velo dei grandi (GlassRecipe).
-    out.holdsSide = !flips
+    // soffitto del velo dei grandi (GlassRecipe). F7.33c: anche un gruppo a cavallo di un confine sul tema scuro.
+    out.holdsSide = !flips || groupHoldsSide
     return out
   }
 

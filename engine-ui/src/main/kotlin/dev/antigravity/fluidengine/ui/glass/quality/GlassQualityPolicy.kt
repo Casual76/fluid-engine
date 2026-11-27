@@ -1,18 +1,16 @@
 package dev.antigravity.fluidengine.ui.glass.quality
 
 /**
- * F7.26e · **Fin dove una GPU di fascia bassa ([GlassGpuClass.Low]) sale senza la prova dei fotogrammi.** Parte
- * Protetta ([GlassQualityPolicy.decision] d'avvio) e alla prima posa con i segnali sani sale fino a qui, come una discesa
- * da segnale (R2); da lì in su solo coi fotogrammi. Se i fotogrammi poi vanno male scende, e per la vita della finestra
- * il tetto dei fotogrammi resta quello della discesa.
+ * F7.26e–g · **Fin dove una GPU di fascia bassa ([GlassGpuClass.Low]) sale senza la prova dei fotogrammi.** Parte
+ * Protetta ([GlassQualityPolicy.decision] d'avvio) e da lì sale **solo coi fotogrammi**: alla posa, dopo trenta secondi
+ * di moto e tre finestre buone, come voleva F7. È la scelta più prudente sui telefoni che non reggono.
  *
- * Perché: sul Tab S9 (finestra del 26 novembre) la risalita misurata di una GPU bassa a 120 Hz non arriva mai. Il tempo
- * attivo non supera 1,9 s dei 30 che servono (ogni fotogramma non attribuito lo azzera, circa uno a gesto) e le finestre
- * hanno 30–100 fotogrammi «lenti» contro i 6 ammessi. È la scelta A della domanda ad Alessio sulla soglia (rapporto di
- * F7.26, «La soglia della risalita della GPU bassa»). [GlassOptics.Protected] qui rimette il comportamento di prima: la
- * GPU bassa sale solo coi fotogrammi.
+ * La storia: in F7.26e valeva [GlassOptics.Reduced] (la GPU bassa saliva alla prima posa coi soli segnali), perché a
+ * 120 Hz la risalita coi fotogrammi non arrivava mai. F7.26g (review R3, D2) ha corretto la regola delle finestre sopra i
+ * 60 Hz ([GlassFrameHistory]), e la risalita coi fotogrammi adesso arriva; la scelta l'ha presa l'orchestratore, il
+ * 27 novembre. [GlassOptics.Reduced] qui rimette la salita coi segnali alla prima posa.
  */
-internal val LowGpuSignalCeiling: GlassOptics = GlassOptics.Reduced
+internal val LowGpuSignalCeiling: GlassOptics = GlassOptics.Protected
 
 /** Politica F7.10. Un solo proprietario serializza letture, frame ed eventi di finestra F7.11.
  * Il costruttore produce la prima [decision] anche prima che esista una finestra. I metodi
@@ -117,9 +115,8 @@ internal class GlassQualityPolicy(
   private fun initialOptics(): GlassOptics {
     val cold = when {
       criticalReason() != null || physicalProfile() == GlassMemoryProfile.Protected -> GlassOptics.Protected
-      // F7.26: una GPU di fascia bassa (il 778G dell'A52s, le serie A) parte Protetta anche con la memoria che basta.
-      // Dalla F7.26e sale a [LowGpuSignalCeiling] alla prima posa sana, oltre solo coi fotogrammi. Uno sconosciuto parte
-      // Ridotto, come prima.
+      // F7.26: una GPU di fascia bassa (il 778G dell'A52s, le serie A) parte Protetta anche con la memoria che basta, e
+      // risale coi fotogrammi (fino a [LowGpuSignalCeiling] anche coi soli segnali). Uno sconosciuto parte Ridotto.
       device.gpu == GlassGpuClass.Low -> GlassOptics.Protected
       physicalProfile() == GlassMemoryProfile.Full && device.recognizedGpuDriver && device.mediaPerformanceClass > 0 &&
         technicalLimit == GlassOptics.Full && canRecover -> GlassOptics.Full

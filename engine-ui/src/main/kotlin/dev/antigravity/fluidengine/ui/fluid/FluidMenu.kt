@@ -473,6 +473,13 @@ internal class FluidMenuHandOff {
   val isActive: Boolean get() = sink != null && pointerDown
 
   /**
+   * F7.30 · Chi vuole sapere che un dito e' sceso sull'ancora, prima di qualunque apertura: l'host dei modali, che compone
+   * il menu (parcheggiato, senza vetro) mentre il dito e' ancora giu', perche' la nascita non lo debba comporre tutto nel
+   * suo fotogramma. Null: nessuno.
+   */
+  var onPress: (() -> Unit)? = null
+
+  /**
    * Passa il dito corrente a [sink]. Falso se il dito non e' piu' giu' (un click lungo da tastiera o
    * da TalkBack, un dito sollevato nel frattempo): il menu si apre lo stesso, ma a tocchi.
    */
@@ -492,6 +499,7 @@ internal class FluidMenuHandOff {
     stale?.cancel()
     pointerDown = true
     lastRoot = root
+    onPress?.invoke()
   }
 
   fun moved(root: Offset) {

@@ -79,8 +79,8 @@ import org.robolectric.util.ReflectionHelpers
  * Che cosa si guarda, nell'ordine in cui succede sul telefono:
  * 1. **la decisione prima della prima cattura grande**: il registro nasce con la riga dell'A52s (64 MiB, 24 di vetro) e
  *    il vetro Protetto, e la prima cattura del pannello è già alla scala del livello; il picco all'avvio contro il tetto;
- * 2. **la risalita a riposo**: alla prima posa sana dopo i cinque secondi dall'ultimo cambio, un livello (dalla F7.26e la
- *    GPU bassa sale a Ridotto coi segnali, `LowGpuSignalCeiling`; fino a F7.26d servivano trenta secondi di fotogrammi);
+ * 2. **la risalita a riposo**: trenta secondi di moto con fotogrammi buoni e la posa, un livello alla volta (F7.26g: la
+ *    GPU bassa sale solo coi fotogrammi, `LowGpuSignalCeiling` a Protetto);
  * 3. **l'isteresi**: due ritardi sparsi in una finestra da 120, o un picco solo, non cambiano niente;
  * 4. **la discesa in moto**: tre ritardi di fila scendono di un livello a metà gesto; la cattura del gesto resta quella
  *    (nessuna nuova scala prima della posa), e la scala nuova arriva alla posa;
@@ -309,10 +309,9 @@ class F7p26WeakDeviceTest {
     }
 
     try {
-      // 2 · La risalita a riposo: la prima posa sana, un livello. F7.26e: sei secondi di moto bastano (più dei cinque
-      // che la politica aspetta dopo l'ultimo cambio, qui il profilo applicato all'avvio), non i trenta di prima.
+      // 2 · La risalita a riposo: trenta secondi buoni e la posa, un livello (F7.26g: solo coi fotogrammi).
       var cursor = logCursor()
-      gesture("risalita", 720)
+      gesture("risalita", 3_700)
       assertEquals(GlassOptics.Reduced, owner.policy.decision.optics)
       assertEquals(GlassQualityReason.SettledRecovery, owner.policy.lastReason)
       assertEquals("la riga resta quella della memoria", GlassMemoryProfile.Reduced, owner.policy.decision.memoryProfile)

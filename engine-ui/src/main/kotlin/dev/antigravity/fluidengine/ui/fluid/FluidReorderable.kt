@@ -771,6 +771,9 @@ private fun Modifier.fluidReorderableChain(
           // riga e' un pannello che si solleva, non un pomello che corre.
           reducedMotion = { true },
           shape = shape,
+          // F7.31: la scala resta in uno strato. Il contenuto della riga sta dentro la goccia, e il suo tocco e la sua
+          // semantica devono seguirla; la riga si muove solo mentre la si tiene.
+          drawn = false,
         )
       } else {
         Modifier

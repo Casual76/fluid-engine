@@ -298,10 +298,10 @@ class F8p13R1AudioTest {
     val published = FluidSettledSemanticsDiagnostics.publishes
     val count = eventsWhileListening("scrubber", session)
     val semantics = FluidSettledSemanticsDiagnostics.publishes - published
-    // La semantica dello scrubber si rifà una volta al secondo (prima a ogni fotogramma). Gli eventi restano in circa un
-    // fotogramma su sei (`count`, solo stampato): li manda la maniglia di vetro, che si sposta con la traslazione del suo
-    // `graphicsLayer`, e in Compose una traslazione che cambia avvisa l'accessibilita' come un layout. Vedi il rapporto
-    // di R1-A, domanda 6.
+    // La semantica dello scrubber si rifà una volta al secondo (prima a ogni fotogramma). Fino a F7.31 gli eventi
+    // restavano in circa un fotogramma su sei (`count`, solo stampato: 33 in 3 s): li mandava la maniglia di vetro, che si
+    // spostava con la traslazione del suo `graphicsLayer` (R1-A, domanda 6). Da F7.31 la maniglia si sposta nel disegno e
+    // restano i fotogrammi della semantica (3); la guardia e' `F7p31GlassHandlesTest`.
     assertTrue("semantiche date in 3 s d'ascolto: $semantics", semantics <= 4)
     assertEquals("0:08 di 0:58", state("scrubber"))
   }

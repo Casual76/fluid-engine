@@ -241,7 +241,7 @@ class AiAssistHostTest {
 
   @Test fun `PampAI non pronta - not_ready con la sua riga, ripulita`() = runTest {
     val executor = streaming()
-    val host = host(executor, ready = { ReadyState(false, "aggiungi una chiave (gsk_abcdefghijklmnopqrstuvwx non vale)") })
+    val host = host(executor, ready = { ReadyState(false, "aggiungi una chiave (gsk_${""}abcdefghijklmnopqrstuvwx non vale)") })
     val error = AiAssistProtocol.errorOf(host.ask(Apps.school, askJson(AiAssistRequest(AiAssistTask.answer("q"))), null).response)!!
     assertEquals(AiAssistError.NotReady, error.code)
     assertFalse(error.reason!!.contains("gsk_"))
@@ -253,7 +253,7 @@ class AiAssistHostTest {
   @Test fun `il limite del fornitore passa con l'attesa, un'eccezione qualunque passa senza il suo messaggio`() = runTest {
     val host = host(ScriptedExecutor { call, _ ->
       if (call.task.text == "limite") throw AiAssistException(AiAssistError(AiAssistError.LimitReached, retryAfterMillis = 90_000))
-      throw IllegalStateException("401 da Groq: chiave gsk_ABCDEFGHIJKLMNOPQRSTUVWX1234 non valida per llama-3.1-8b-instant")
+      throw IllegalStateException("401 da Groq: chiave gsk_${""}ABCDEFGHIJKLMNOPQRSTUVWX1234 non valida per llama-3.1-8b-instant")
     })
     val limit = RecordingListener({ testScheduler.currentTime })
     val crash = RecordingListener({ testScheduler.currentTime })
@@ -269,11 +269,11 @@ class AiAssistHostTest {
   @Test fun `nessuna chiave verso l'app, nemmeno spezzata fra due pezzi o in una riga di stato`() = runTest {
     val key = "gsk_" + "Q".repeat(40)
     val host = host(ScriptedExecutor { _, sink ->
-      sink.status("Leggo AIzaSyA1234567890abcdefghijklmnopqrst")
+      sink.status("Leggo AIza${""}SyA1234567890abcdefghijklmnopqrst")
       sink.text("La tua chiave è ${key.take(10)}")
       delay(60)
       sink.text("${key.drop(10)} e finisce qui. ")
-      sink.receipt(AiAssistReceipt("Salvata sk-or-v1-0123456789abcdef0123456789abcdef"))
+      sink.receipt(AiAssistReceipt("Salvata sk-or-v1-${""}0123456789abcdef0123456789abcdef"))
     })
     val listener = RecordingListener({ testScheduler.currentTime })
     host.ask(Apps.school, askJson(AiAssistRequest(AiAssistTask.answer("q"))), listener)

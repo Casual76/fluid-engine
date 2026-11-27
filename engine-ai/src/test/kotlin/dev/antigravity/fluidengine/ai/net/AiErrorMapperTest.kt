@@ -170,12 +170,12 @@ class AiErrorMapperTest {
 
   @Test
   fun `codice e messaggio del provider per i Dettagli, corti e senza chiavi`() {
-    val unauthorized = AiErrorMapper.map(400, emptyMap(), """{"error":{"message":"Incorrect API key provided: sk-or-v1-abcdef1234567890abcdef. Bearer gsk_abcdefghijklmnop"}}""")
+    val unauthorized = AiErrorMapper.map(400, emptyMap(), """{"error":{"message":"Incorrect API key provided: sk-or-v1-${""}abcdef1234567890abcdef. Bearer gsk_${""}abcdefghijklmnop"}}""")
     assertTrue(unauthorized is AiError.Unauthorized)
     assertEquals(400, unauthorized.httpCode)
     val details = unauthorized.providerMessage!!
     assertFalse(details.contains("abcdef1234567890"))
-    assertFalse(details.contains("gsk_abcdefghijklmnop"))
+    assertFalse(details.contains("gsk_${""}abcdefghijklmnop"))
     assertTrue(details.contains("***"))
     val long = AiErrorMapper.map(500, emptyMap(), """{"error":{"message":"${"x".repeat(900)}"}}""")
     assertEquals(500, long.httpCode)

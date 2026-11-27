@@ -286,6 +286,7 @@ fun FluidFileViewer(
                 ?: (video?.session as? FluidVideoGeometry)?.videoAspectRatio
               val pageScope = rememberViewerPage(pager, page, item.frameZoomed, presetBar)
               val zoom = pageScope.zoom
+              if (item.frameZoomed) ViewerZoomNotifiesGlass(zoom, backdrop)
               val gestures = Modifier.fillMaxSize().viewerPullForInfo(hasInfo && !infoOpen && !zoom.isZoomed, openInfo)
                 .viewerVerticalInput(hasInfo, infoOpen, { zoom.isZoomed }, openInfo)
               val input = if (item.frameZoomed) {
@@ -352,6 +353,28 @@ fun FluidFileViewer(
     }
   }
   if (front && !LocalFluidPagePreparing.current) ViewerSystemBars(chromeVisible, photo)
+}
+
+/**
+ * F7.33 · Lo zoom e lo spostamento di una foto o di un video cambiano solo il loro strato (`fluidZoomLayer`): la sorgente
+ * del vetro del visore non si registra di nuovo, e i vetri sopra (la barra, i tasti, «Leggi testo») non rileggono lo
+ * sfondo. Sul Tab S9 (R1-B) la foto della lettera aveva il nero del visore sopra e sotto; ingrandita, la carta stava
+ * sotto la barra, e la barra restava scura con l'inchiostro chiaro: il titolo a 2,4:1, i tasti a 3,1:1. Qui ogni passo
+ * dello zoom lo dice alla sorgente, come lo scorrimento di una lista ([GlassBackdropState.notifyChanged]): la sonda
+ * raccoglie gli avvisi (al più una lettura ogni 120 ms, solo col RenderThread libero) e a zoom fermo non arriva niente.
+ * Lo stato si legge in `snapshotFlow`, fuori dalla composizione: il pizzico non ricompone niente.
+ */
+@Composable
+private fun ViewerZoomNotifiesGlass(zoom: FluidZoomState, backdrop: GlassBackdropState) {
+  LaunchedEffect(zoom, backdrop) {
+    var step = 0
+    snapshotFlow {
+      zoom.scale
+      zoom.panX
+      zoom.panY
+      step++
+    }.collect { if (it > 0) backdrop.notifyChanged() }
+  }
 }
 
 internal val LocalVideoShared = staticCompositionLocalOf<Modifier?> { null }

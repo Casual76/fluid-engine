@@ -242,6 +242,25 @@ class FluidGlassResources private constructor(private val app: Application) {
   @Synchronized
   internal fun refresh(thermalStatus: Int? = null) {
     refreshReading(signals.read(thermalStatus), System.nanoTime())
+    if (GlassVariantSignals.noting) simulateExhaustion()
+  }
+
+  /** F7.26g: il credito del vetro tenuto dal profilo simulato (`pieno@da-a`), solo nelle build di prova. */
+  private var simulatedExhaustion: java.io.Closeable? = null
+
+  private fun simulateExhaustion() {
+    val want = GlassVariantSignals.exhaustNow()
+    val held = simulatedExhaustion
+    if (want && held == null) {
+      val glass = budget.usage(FluidMemoryCategory.GLASS)
+      val free = glass.limitBytes - glass.usedBytes
+      simulatedExhaustion = if (free > 0) budget.tryReserve(FluidMemoryCategory.GLASS, free)?.use { it.confirm() } else null
+      GlassVariantSignals.note { "registro esaurito: ${free / 1_048_576.0} MiB occupati ${usageLine()}" }
+    } else if (!want && held != null) {
+      held.close()
+      simulatedExhaustion = null
+      GlassVariantSignals.note { "registro restituito ${usageLine()}" }
+    }
   }
 
   /** Chiamata sotto il lock del processo dal monitor del moto. Una lettura ogni cinque secondi

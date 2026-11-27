@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidCapsuleShape
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
 import dev.antigravity.fluidengine.ui.fluid.fluidGlass
 import dev.antigravity.fluidengine.ui.fluid.fluidPressable
@@ -356,18 +357,23 @@ private fun SelectionMenu(state: FluidLiveTextState, text: FluidRecognizedText, 
   val center = (rects.minOf { it.left } + rects.maxOf { it.right }) / 2f
   val zoom = currentFluidViewerZoom()
   Layout(content = {
-    Row(Modifier.graphicsLayer {
+    // F7.33: un contenitore con un pezzo solo, come i tasti e le barre. Sopra la carta bianca in tema scuro il vetro passa
+    // al chiaro e le voci al nero (Apple, HIG «Liquid Glass color»: i vetri piccoli girano col contenuto sotto); da solo,
+    // `fluidGlass` restava del tema, e sul Tab S9 le voci bianche stavano a 1,7:1 su un grigio di 188.
+    FluidGlassContainer(Modifier.graphicsLayer {
       // La misura sullo schermo resta la stessa a ogni zoom: il menu si rimpicciolisce quanto lo zoom ingrandisce.
       val s = 1f / (zoom?.scale ?: 1f)
       scaleX = s; scaleY = s
-    }.fluidGlass(shape = FluidCapsuleShape).padding(horizontal = 4.dp).testTag(FluidLiveTextTags.Menu)) {
-      MenuItem(strings.copy, FluidLiveTextTags.MenuCopy) {
-        state.selectedText?.let { copy(context, it) }
-        state.selection = null
-      }
-      MenuItem(strings.selectAll, FluidLiveTextTags.MenuSelectAll) { state.selectAll() }
-      MenuItem(strings.share, null) {
-        state.selectedText?.let { share(context, it) }
+    }) {
+      Row(Modifier.fluidGlass(shape = FluidCapsuleShape).padding(horizontal = 4.dp).testTag(FluidLiveTextTags.Menu)) {
+        MenuItem(strings.copy, FluidLiveTextTags.MenuCopy) {
+          state.selectedText?.let { copy(context, it) }
+          state.selection = null
+        }
+        MenuItem(strings.selectAll, FluidLiveTextTags.MenuSelectAll) { state.selectAll() }
+        MenuItem(strings.share, null) {
+          state.selectedText?.let { share(context, it) }
+        }
       }
     }
   }) { measurables, constraints ->
@@ -409,6 +415,8 @@ private fun SelectionMenu(state: FluidLiveTextState, text: FluidRecognizedText, 
 private fun MenuItem(label: String, tag: String?, onClick: () -> Unit) {
   Box(Modifier.fluidPressable(onClick = onClick).then(if (tag != null) Modifier.testTag(tag) else Modifier)
     .padding(horizontal = 14.dp, vertical = 11.dp)) {
+    // Il tema del lato del vetro (F7.33): dentro il contenitore `onSurface` è quello del tema a riposo e quello dell'altro
+    // lato quando il vetro gira. Non `LocalContentColor`: dentro una foto il visore lo dà bianco anche in tema chiaro.
     Text(label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
   }
 }

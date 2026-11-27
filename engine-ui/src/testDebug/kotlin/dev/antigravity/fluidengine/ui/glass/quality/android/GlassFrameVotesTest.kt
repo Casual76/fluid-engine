@@ -133,8 +133,8 @@ class GlassFrameVotesTest {
 
   private fun lastPose() = voteLines().last { "posa-" in it }
 
-  // F7.26e: una GPU sconosciuta, perché quella bassa adesso sale a Ridotto alla prima posa anche senza fotogrammi
-  // ([dev.antigravity.fluidengine.ui.glass.quality.LowGpuSignalCeiling]); il Pieno di una sconosciuta va ancora guadagnato.
+  // F7.26e: una GPU sconosciuta, il cui Pieno va guadagnato coi fotogrammi (da F7.26g anche la GPU bassa risale solo
+  // coi fotogrammi, [dev.antigravity.fluidengine.ui.glass.quality.LowGpuSignalCeiling] a Protetto).
   @Test fun inOrarioSenzaTempoDellaGpuNonSiSale() {
     val a52s = scene("ignoto")
     try {
@@ -262,6 +262,43 @@ class GlassFrameVotesTest {
       assertEquals("nessuna discesa nello scorrimento sano", start, lowest)
     } finally {
       tablet.close()
+    }
+  }
+
+  /**
+   * F7.26g (review R3, D2): dopo una discesa da fotogrammi lo scorrimento sano del Tab S9 vero (V1, 120 Hz) risale di un
+   * gradino alla posa, quando sono maturati i trenta secondi. Fino a F7.26f a 120 Hz nessuna finestra era buona.
+   */
+  @Test fun loScorrimentoSanoDelTabS9VeroRisaleDopoUnaDiscesa() {
+    val tablet = scene("vero")
+    try {
+      val start = tablet.optics
+      // Tre ritardi veri del vetro di fila (20 ms di CPU su 8,3): la discesa a metà gesto.
+      tablet.motion(4, draw = 20_000_000L, gpu = 5_000_000L, swap = 10_000_000L)
+      val dropped = tablet.optics
+      assertTrue("la discesa da fotogrammi: $start -> $dropped", dropped < start)
+      tablet.frames.scrolling(true)
+      repeat(4) { for (frame in real("V1-vero")) tablet.replay(frame) }
+      tablet.frames.scrolling(false)
+      println("F726G | V1 sano dopo la discesa | da $dropped a ${tablet.optics} | ${lastPose()}")
+      assertTrue("lo scorrimento sano risale alla posa: $dropped -> ${tablet.optics}", tablet.optics > dropped)
+    } finally {
+      tablet.close()
+    }
+  }
+
+  /** F7.26g: col carico vero della GPU, anche dopo trenta secondi, non si risale. */
+  @Test fun colCaricoDellaGpuNonSiRisale() {
+    val s22 = scene("s22")
+    try {
+      val load = real("V3-s22-carico").filter { it.t in 12_500L..30_000L }
+      s22.frames.scrolling(true)
+      repeat(12) { for (frame in load) s22.replay(frame) }
+      s22.frames.scrolling(false)
+      println("F726G | V3 col carico, 12 volte | ${s22.optics} | ${lastPose()}")
+      assertEquals("col carico si scende e non si risale", GlassOptics.Protected, s22.optics)
+    } finally {
+      s22.close()
     }
   }
 

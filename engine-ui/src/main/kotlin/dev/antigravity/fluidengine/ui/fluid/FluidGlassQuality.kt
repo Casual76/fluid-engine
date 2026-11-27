@@ -45,6 +45,14 @@ internal interface GlassRenderQuality {
   val optics: ResourceOptics
   val inMotion: Boolean
   val limitDecorations: Boolean get() = optics != ResourceOptics.Full && inMotion
+
+  /**
+   * F7.26f · **Il gradino più basso è il glassmorphism** (la scelta di Alessio, 27 novembre 2026). Vero quando il
+   * registro ha negato anche la cattura minima e il vetro si disegna da una cattura minuscola fuori dal registro: chi
+   * costruisce la catena degli effetti lascia solo la sfocatura, la tinta e il filo, senza rifrazione, cupola,
+   * dispersione, riflesso, bagliore né ombra ambientale. «Niente vetro» resta solo dove Android non sa sfocare.
+   */
+  val glassmorphism: Boolean get() = false
 }
 
 /**

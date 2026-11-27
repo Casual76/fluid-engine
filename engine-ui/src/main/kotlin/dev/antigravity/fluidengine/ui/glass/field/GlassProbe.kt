@@ -99,6 +99,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassQuality
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassQuality
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassSamplePlacement
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerRevisionListener
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRuntimeShaderSupported
@@ -397,6 +398,13 @@ internal data class GlassBackdropStats(
   val coverage: Float,
   val darkShare: Float = Float.NaN,
   val textEnergy: Float = gradientEnergy,
+  /**
+   * F7.33c · La luma di ogni cella della miniatura, [GlassProbeStatsSide] × [GlassProbeStatsSide], per righe dall'alto:
+   * la legge un contenitore per sapere che lato ha sotto ogni suo grappolo (la coerenza del gruppo, [GlassProbeGroupReading]).
+   * Null nelle letture uniformi (il lettore finto di serie). Non conta in [sameAs]; nell'uguaglianza conta per contenuto
+   * ([GlassProbeCells]), così due letture uguali restano uguali per lo stato che le pubblica.
+   */
+  val cells: GlassProbeCells? = null,
 ) {
   /** La deviazione standard della luminanza. */
   val deviation: Float get() = sqrt(max(variance, 0f))
@@ -524,6 +532,7 @@ internal class GlassProbeStatsReducer(
       coverage = (sumA / count).toFloat(),
       darkShare = darkCells.toFloat() / count,
       textEnergy = (max(energy - edges, 0.0) / pairs).toFloat(),
+      cells = GlassProbeCells(lumas.copyOf()),
     )
   }
 }
@@ -607,10 +616,18 @@ internal class GlassProbeState(
   internal var readings: Int = 0
     private set
 
+  /**
+   * F7.33c · Chi legge la lettura per un gruppo di vetri prima del filtro (un `FluidGlassContainer`, la coerenza del
+   * gruppo): può dare al filtro un altro valore, con le stesse soglie e gli stessi tempi. Null di serie. Dal principale.
+   */
+  internal var group: GlassProbeGroupReading? = null
+
   /** Una lettura nuova a [nowMillis]. Dal filo principale, fuori dal disegno. */
   internal fun publish(nowMillis: Long, stats: GlassBackdropStats) {
     this.stats = stats
-    filter.sample(nowMillis, glassFlipValue(stats, by))
+    val value = glassFlipValue(stats, by)
+    val grouped = if (by == GlassFlipBy.Luminance) group?.value(stats, filter) ?: Float.NaN else Float.NaN
+    filter.sample(nowMillis, if (grouped.isFinite()) grouped else value)
     target = filter.target(nowMillis, stats)
     readings++
   }
@@ -624,6 +641,52 @@ internal class GlassProbeState(
 
   /** Quando richiamare [advance] se non arriva niente. */
   internal fun nextDeadlineMillis(): Long = filter.nextDeadlineMillis()
+}
+
+/**
+ * F7.33c · Le lume delle celle di una lettura ([GlassBackdropStats.cells]), uguali per contenuto: lo stato della sonda è
+ * di serie strutturale, e un array uguale solo per riferimento farebbe nuova ogni lettura di uno sfondo fermo.
+ */
+internal class GlassProbeCells(val values: FloatArray) {
+  override fun equals(other: Any?): Boolean = other is GlassProbeCells && values.contentEquals(other.values)
+  override fun hashCode(): Int = values.contentHashCode()
+  override fun toString(): String = "GlassProbeCells(${values.size})"
+}
+
+/**
+ * F7.33c · La lettura di un gruppo di vetri (un `FluidGlassContainer`): dalla lettura grezza [stats] (con le sue celle) il
+ * valore da dare al [filter] al posto della luminanza media, o NaN per la media. Dal filo principale, a ogni lettura.
+ */
+internal fun interface GlassProbeGroupReading {
+  fun value(stats: GlassBackdropStats, filter: GlassAdaptiveFilter): Float
+}
+
+/**
+ * F7.33c · Le statistiche di una miniatura finta della parte [where] (pixel della finestra): ogni cella prende il colore
+ * che [colorAt] dice per il suo riquadro. Passa dalla stessa riduzione del lettore vero ([GlassProbeStatsReducer]). Solo
+ * per il lettore finto delle prove ([FluidGlassProbeDiagnostics.readerInWindowForTesting]).
+ */
+internal fun glassProbeStatsOfRegion(
+  where: Rect,
+  colorAt: (Rect) -> Color,
+  readSide: Int = GlassProbeReadSide,
+  statsSide: Int = GlassProbeStatsSide,
+): GlassBackdropStats {
+  val rgba = ByteArray(readSide * readSide * 4)
+  val cell = readSide / statsSide
+  val w = where.width / statsSide
+  val h = where.height / statsSide
+  for (row in 0 until statsSide) for (col in 0 until statsSide) {
+    val c = colorAt(Rect(where.left + col * w, where.top + row * h, where.left + (col + 1) * w, where.top + (row + 1) * h))
+    val r = (c.red.coerceIn(0f, 1f) * 255f).toInt().toByte()
+    val g = (c.green.coerceIn(0f, 1f) * 255f).toInt().toByte()
+    val b = (c.blue.coerceIn(0f, 1f) * 255f).toInt().toByte()
+    for (y in row * cell until (row + 1) * cell) for (x in col * cell until (col + 1) * cell) {
+      val at = (y * readSide + x) * 4
+      rgba[at] = r; rgba[at + 1] = g; rgba[at + 2] = b; rgba[at + 3] = 0xFF.toByte()
+    }
+  }
+  return glassProbeStats(rgba, readSide, statsSide)
 }
 
 /** Uno stato di sonda che vive quanto la composizione. Per F2.2: il ramo `Liquid` della superficie radice. */
@@ -731,6 +794,12 @@ internal class GlassProbeNode(
   private var sources: List<LayerBackdrop> = emptyList()
   private var sourcesUnannounced = true
 
+  /**
+   * F7.31: dove il vetro è disegnato rispetto al suo layout (un pomello spostato nel disegno, `glassDrawOffset`): la sonda
+   * legge sotto il vetro che si vede. Riletto a ogni giro, nelle letture osservate: lo spostamento che cambia la sveglia.
+   */
+  private val placement = GlassSamplePlacement()
+
   /** La parte del nodo sotto cui leggere (F2.3b): vedi [glassProbe]. */
   internal var region: (() -> Rect?)? = null
 
@@ -828,6 +897,7 @@ internal class GlassProbeNode(
     unavailable = false
     readerMisses = 0
     readerRetryAt = Long.MIN_VALUE
+    placement.invalidate()
     FluidGlassProbeDiagnostics.onProbeAttached(1)
     // F7.25e: l'iscrizione e il primo segnale arrivano col primo posizionamento ([onGloballyPositioned]).
   }
@@ -843,6 +913,7 @@ internal class GlassProbeNode(
     thumbnailLayer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
     thumbnailLayer = null
     coordinates = null
+    placement.clear()
     scheduler = null
     rest = null
     view = null
@@ -905,6 +976,7 @@ internal class GlassProbeNode(
       for (layer in sources) layer.layerCoordinates
       quality?.level
       region?.invoke()
+      placement.update(this, requireDensity(), Size.Zero, null, coordinates)
     }
     if (revisionSeen) {
       revisionSeen = false
@@ -1017,12 +1089,22 @@ internal class GlassProbeNode(
   private fun startRead(now: Long, rerecord: Boolean) {
     val scheduler = scheduler ?: return
     val fake = FluidGlassProbeDiagnostics.readerForTesting
-    if (fake != null) {
+    val fakeAt = FluidGlassProbeDiagnostics.readerInWindowForTesting
+    if (fake != null || fakeAt != null) {
+      // F7.33b: il lettore finto che sa dove legge la sonda (la parte letta, in pixel della finestra). F7.33c: cella per
+      // cella, come la miniatura vera, così un contenitore vede che lato ha sotto ogni grappolo.
+      val where = if (fakeAt != null) probedWindowRect() else null
       scheduler.onReadSent(now, rerecord)
       rest?.onReadSent(now)
       FluidGlassProbeDiagnostics.onWake(if (rerecord) GlassProbeWake.ReadRerecord else GlassProbeWake.Read)
       FluidGlassProbeDiagnostics.onRequest()
-      handler.post { if (isAttached) onProbeResult(GlassProbeOutcome.Read, glassProbeUniformStats(fake())) }
+      handler.post {
+        if (isAttached) {
+          val stats = if (fakeAt != null && where != null) glassProbeStatsOfRegion(where, fakeAt)
+          else glassProbeUniformStats(fake?.invoke() ?: Color.Black)
+          onProbeResult(GlassProbeOutcome.Read, stats)
+        }
+      }
       return
     }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -1076,7 +1158,7 @@ internal class GlassProbeNode(
     val self = coordinates ?: return 0f
     if (!self.isAttached) return 0f
     val position = try {
-      self.positionInWindow()
+      self.localToWindow(placement.origin)
     } catch (_: Exception) {
       return 0f
     }
@@ -1132,8 +1214,9 @@ internal class GlassProbeNode(
     val out = FloatArray(2 + 2 * max(1, sources.size))
     out[0] = area.width
     out[1] = area.height
+    val origin = placement.origin
     if (sources.isEmpty()) {
-      val position = self.positionInWindow()
+      val position = self.localToWindow(origin)
       out[2] = position.x + area.left
       out[3] = position.y + area.top
       return out
@@ -1142,7 +1225,7 @@ internal class GlassProbeNode(
       val sourceCoordinates = layer.layerCoordinates ?: return null
       if (!sourceCoordinates.isAttached) return null
       val offset = try {
-        sourceCoordinates.localPositionOf(self)
+        sourceCoordinates.localPositionOf(self, origin)
       } catch (_: Exception) {
         return null
       }
@@ -1150,6 +1233,19 @@ internal class GlassProbeNode(
       out[3 + 2 * index] = offset.y + area.top
     }
     return out
+  }
+
+  /** F7.33b · La parte letta in pixel della finestra, per il lettore finto delle prove; null se non si sa. */
+  private fun probedWindowRect(): Rect? {
+    val self = coordinates ?: return null
+    if (!self.isAttached) return null
+    val area = probedArea(self) ?: return null
+    val position = try {
+      self.positionInWindow()
+    } catch (_: Exception) {
+      return null
+    }
+    return area.translate(position)
   }
 
   /** La parte del nodo sotto cui si legge, in pixel del nodo: [region], o tutto il nodo. Null se vuota. */
@@ -1202,7 +1298,7 @@ internal class GlassProbeNode(
       layer.record(density, LayoutDirection.Ltr, IntSize(GlassProbeReadSide, GlassProbeReadSide)) {
         scale(scaleX, scaleY, pivot = Offset.Zero) {
           translate(left = -area.left, top = -area.top) {
-            with(source) { drawBackdrop(density, self, null) }
+            with(source) { drawBackdrop(density, self, placement.blockFor(null)) }
           }
         }
       }
@@ -1967,6 +2063,15 @@ object FluidGlassProbeDiagnostics {
   var readerForTesting: (() -> Color)? = null
 
   /**
+   * F7.33b · Come [readerForTesting], ma la funzione riceve **dove** legge la sonda: la parte letta, in pixel della
+   * finestra. Serve alle prove di uno sfondo misto (la carta da una parte, il tavolo scuro dall'altra), dove ogni sonda
+   * vede il suo colore. Dalla F7.33c la funzione si chiama per ogni cella della miniatura (16 × 16 riquadri della parte
+   * letta), come se la sonda leggesse davvero. Vince su [readerForTesting]. Null di serie. Non è un'API per le app.
+   */
+  @Volatile
+  var readerInWindowForTesting: ((Rect) -> Color)? = null
+
+  /**
    * Le sonde attaccate adesso, in tutto il processo (F3.2): un nodo di sonda in scena, letto o no. Un
    * `FluidGlassContainer` ne ha **una** per tutti i suoi pezzi; ogni vetro radice fuori da un contenitore la sua.
    */
@@ -2013,6 +2118,7 @@ object FluidGlassProbeDiagnostics {
   fun resetForTesting() {
     sourceRedraws.set(0)
     readerForTesting = null
+    readerInWindowForTesting = null
     requests.set(0)
     readings.set(0)
     failures.set(0)

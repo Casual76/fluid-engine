@@ -48,6 +48,8 @@ fun BackdropEffectScope.lens(
     chromaticAberration: Boolean = false
 ) {
     if (refractionHeight <= 0f || refractionAmount <= 0f) return
+    // Fluid Engine addition (F7.26f): il gradino più basso è il glassmorphism, sfocatura e vividezza senza lente.
+    if ((this as? GlassRenderQuality)?.glassmorphism == true) return
     // Fluid Engine change: the API-level guard became the verdict of this lens's own source. On a device
     // whose compiler refuses it, the lens takes the branch it already has below API 33 — no refraction,
     // padding untouched, blur and vibrancy kept — instead of throwing from inside the draw on every glass

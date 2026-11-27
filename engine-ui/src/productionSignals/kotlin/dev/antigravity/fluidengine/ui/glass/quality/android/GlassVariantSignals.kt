@@ -14,6 +14,7 @@ internal object GlassVariantSignals {
   fun logExit(@Suppress("UNUSED_PARAMETER") cause: String) = Unit
   const val noting = false
   const val flatSource = false
+  fun exhaustNow() = false
   @Suppress("UNUSED_PARAMETER", "NOTHING_TO_INLINE")
   inline fun note(line: () -> String) = Unit
   @Suppress("UNUSED_PARAMETER")

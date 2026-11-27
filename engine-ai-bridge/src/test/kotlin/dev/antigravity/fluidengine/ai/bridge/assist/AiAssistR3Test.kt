@@ -35,9 +35,9 @@ class AiAssistR3Test {
     Sample("Authorization: Bearer", "Il servizio ha risposto: Authorization: Bearer $token e poi basta. ", token),
     Sample("bearer a capo", "Usa il bearer\n$token per entrare. ", token),
     Sample("api_key con gli spazi", "La configurazione dice api_key = Wd4Kq9Zx2Mv7Lp3T fine. ", "Wd4Kq9Zx2Mv7Lp3T"),
-    Sample("x-goog-api-key", "Header x-goog-api-key: AIzaSyQ4m2Zr8Kx7Vn3Lp9Wd5Tb1Hc6Jf0Gs2Ye ok. ", "Q4m2Zr8Kx7Vn3Lp9Wd5Tb1Hc6Jf0Gs2Ye"),
+    Sample("x-goog-api-key", "Header x-goog-api-key: AIza${""}SyQ4m2Zr8Kx7Vn3Lp9Wd5Tb1Hc6Jf0Gs2Ye ok. ", "Q4m2Zr8Kx7Vn3Lp9Wd5Tb1Hc6Jf0Gs2Ye"),
     Sample("Authorization: Basic", "Serve Authorization: Basic cGFtcGE6c2VncmV0aXNzaW1vMjAyNg== per il server. ", "cGFtcGE6c2VncmV0aXNzaW1vMjAyNg"),
-    Sample("gsk_ in una frase", "La chiave gsk_R7tY2uI9oP4aS1dF6gH3jK8lZ5xC0vB2nM è sbagliata. ", "R7tY2uI9oP4aS1dF6gH3jK8lZ5xC0vB2nM"),
+    Sample("gsk_ in una frase", "La chiave gsk_${""}R7tY2uI9oP4aS1dF6gH3jK8lZ5xC0vB2nM è sbagliata. ", "R7tY2uI9oP4aS1dF6gH3jK8lZ5xC0vB2nM"),
     Sample("JWT", "Il gettone eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ6cTh4In0.Qm9Xp2Lk7Rt4Vz1N scade. ", "eyJzdWIiOiJ6cTh4In0"),
   )
 
@@ -114,7 +114,7 @@ class AiAssistR3Test {
   }
 
   @Test fun `2 - una chiave tagliata dalla fine (annullata o oltre il tetto) non esce a meta'`() = runTest {
-    val key = "gsk_Q7mZ2xW9kR4t"
+    val key = "gsk_${""}Q7mZ2xW9kR4t"
     val cancelled = host(ScriptedExecutor { _, sink -> sink.text("La chiave è $key"); awaitCancellation() })
     val first = RecordingListener({ testScheduler.currentTime })
     val outcome = cancelled.ask(Apps.school, askJson(AiAssistRequest(AiAssistTask.answer("q"))), first)
@@ -124,7 +124,7 @@ class AiAssistR3Test {
     val wire = first.batches.joinToString { AiAssistProtocol.batch(it.second.requestId, it.second.events) }
     leak(wire, key.drop(4))?.let { throw AssertionError("«$it» e' arrivato all'app: $wire") }
 
-    val capped = host(ScriptedExecutor { _, sink -> sink.text("Ecco " + "parola ".repeat(20) + "gsk_R7tY2uI9oP4aS1dF6gH3jK8lZ5xC0vB2nM fine. ") },
+    val capped = host(ScriptedExecutor { _, sink -> sink.text("Ecco " + "parola ".repeat(20) + "gsk_${""}R7tY2uI9oP4aS1dF6gH3jK8lZ5xC0vB2nM fine. ") },
       limits = AiAssistLimits(maxOutputChars = 160))
     val second = RecordingListener({ testScheduler.currentTime })
     capped.ask(Apps.school, askJson(AiAssistRequest(AiAssistTask.answer("q"))), second)

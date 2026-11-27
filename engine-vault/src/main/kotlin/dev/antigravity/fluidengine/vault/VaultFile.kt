@@ -10,6 +10,8 @@ import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Un file cifrato di una sezione: un documento, una foto, un referto. Si scrive e si legge **a pezzi** da 64 KiB, come
@@ -21,7 +23,8 @@ import javax.crypto.spec.SecretKeySpec
  * il nonce `prefisso ‖ numero del pezzo ‖ ultimo?`. L'intestazione è nei dati associati di ogni pezzo; il nome del file
  * nella chiave, così un file rinominato a mano non si apre.
  *
- * La scrittura va in un file accanto e poi lo sostituisce: un'app che muore a metà lascia il file di prima.
+ * La scrittura va in un file accanto, sul disco, e poi lo sostituisce con un solo scambio: un'app che muore a metà, o
+ * un telefono che si spegne, lascia il file di prima.
  */
 class VaultFile internal constructor(
   private val section: VaultSection,
@@ -34,6 +37,8 @@ class VaultFile internal constructor(
     }
   }
 
+  private val mutex = Mutex()
+
   /** Dove sta il file cifrato sul disco (fuori dal backup). */
   val file: File get() = File(File(section.dir, "files"), "$name.fvs")
 
@@ -45,23 +50,29 @@ class VaultFile internal constructor(
 
   /**
    * Scrive il file a pezzi: [block] riceve un `OutputStream` che cifra mentre scrive. Il file nuovo prende il posto del
-   * vecchio solo quando [block] finisce senza errori.
+   * vecchio solo quando [block] finisce senza errori, dopo essere stato messo sul disco: anche dopo uno spegnimento brusco
+   * resta il file di prima o quello nuovo intero. Due scritture dello stesso file vanno in fila.
    */
   suspend fun write(block: (OutputStream) -> Unit) {
-    section.withKey { key ->
-      val target = file
-      target.parentFile?.mkdirs()
-      val temp = File(target.parentFile, ".${target.name}.tmp")
-      try {
-        temp.outputStream().buffered().use { raw ->
-          SegmentedOutput(raw, key, name.toByteArray(Charsets.UTF_8)).use(block)
+    // R2 · In fila: due scritture insieme si pestavano sullo stesso file accanto (contenuti mescolati, o lo scambio che
+    // non trovava più il file perché l'altra l'aveva già tolto).
+    mutex.withLock {
+      section.withKey { key ->
+        val target = file
+        target.parentFile?.mkdirs()
+        val temp = File(target.parentFile, ".${target.name}.tmp")
+        try {
+          temp.outputStream().use { stream ->
+            val buffered = stream.buffered()
+            SegmentedOutput(buffered, key, name.toByteArray(Charsets.UTF_8)).use(block)
+            buffered.flush()
+            // R2 · Sul disco prima dello scambio, come `atomicWrite` della scheda e dei valori.
+            stream.fd.sync()
+          }
+          VaultSection.moveIntoPlace(temp, target)
+        } finally {
+          temp.delete()
         }
-        java.nio.file.Files.move(
-          temp.toPath(), target.toPath(),
-          java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-        )
-      } finally {
-        temp.delete()
       }
     }
   }

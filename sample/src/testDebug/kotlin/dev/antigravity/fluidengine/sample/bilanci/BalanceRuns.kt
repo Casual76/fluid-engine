@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.material.MaterialFinger
@@ -146,11 +147,22 @@ internal object BalanceRuns {
     }
   }
 
-  fun measureNewElement(harness: BalanceHarness, scene: NewElementScene, margin: Int): GlassBalanceMeter {
+  /**
+   * [ready]: per una scena che arriva dopo un lavoro su fili veri, quando è pronta (F7.29). Il banco la aspetta
+   * nell'entrata, dopo i primi 40 fotogrammi e prima del secondo d'attesa ([BalanceHarness.awaitReady]): l'entrata conta
+   * sempre il suo arrivo, e posa, moto e uscita misurano sempre la scena intera.
+   */
+  fun measureNewElement(
+    harness: BalanceHarness,
+    scene: NewElementScene,
+    margin: Int,
+    ready: ((List<SemanticsNode>) -> Boolean)? = null,
+  ): GlassBalanceMeter {
     val meter = harness.meter(scene.id, margin)
     meter.begin("entrata")
     harness.show { ElementStage(scene) }
     repeat(40) { harness.frame(meter) }
+    if (ready != null) harness.awaitReady(meter, scene.id, ready)
     harness.idle(1_000, drawEvery = 8, meter = meter)
     meter.end()
     settle(harness, meter)

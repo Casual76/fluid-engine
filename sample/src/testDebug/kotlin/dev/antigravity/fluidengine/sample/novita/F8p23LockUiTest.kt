@@ -37,6 +37,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.Lifecycle
 import dev.antigravity.fluidengine.foundation.EngineSettings
+import dev.antigravity.fluidengine.sample.bilanci.BackgroundWork
 import dev.antigravity.fluidengine.security.FluidAppLock
 import dev.antigravity.fluidengine.security.FluidAppLockHost
 import dev.antigravity.fluidengine.security.FluidAppLockState
@@ -126,10 +127,15 @@ class F8p23LockUiTest {
   /**
    * Aspetta [condition] facendo girare il looper principale: le risposte della cassaforte (che lavora su IO) tornano lì,
    * e `waitUntil` di Compose da solo non lo fa girare.
+   *
+   * F7.32 · L'orologio di Compose avanza solo quando il lavoro in sottofondo ha finito ([BackgroundWork]: la cassaforte
+   * su IO, i 210 000 giri del PBKDF2 su Default). Prima avanzava di un fotogramma ogni 5 ms veri anche mentre il PIN si
+   * controllava, e il tempo della prova dipendeva da quanto era carico il PC.
    */
   private fun awaitMain(what: String = "", timeoutMs: Long = 10_000, condition: () -> Boolean) {
     val end = System.currentTimeMillis() + timeoutMs
     while (System.currentTimeMillis() < end) {
+      BackgroundWork.await()
       shadowOf(Looper.getMainLooper()).idle()
       if (condition()) return
       // L'orologio di Compose va avanti a mano: i `delay` degli effetti (il dialogo che parte dopo 250 ms) ne dipendono.
@@ -306,6 +312,8 @@ class F8p23LockUiTest {
     val end = System.currentTimeMillis() + 10_000
     while (lock.state.value != FluidAppLockState.Unlocked) {
       assertTrue("tempo scaduto: aperta", System.currentTimeMillis() < end)
+      // F7.32 · Il PIN si controlla in sottofondo: l'orologio aspetta che abbia finito (vedi [awaitMain]).
+      BackgroundWork.await()
       shadowOf(Looper.getMainLooper()).idle()
       compose.mainClock.advanceTimeByFrame()
       Thread.sleep(5)

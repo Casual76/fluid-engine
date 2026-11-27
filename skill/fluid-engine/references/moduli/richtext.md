@@ -67,9 +67,16 @@ Tutti passano da `FluidRichTextState` (e si annullano in un passo): `toggle(styl
   prima di uscire dall'elenco. **Agiscono sui paragrafi toccati, non sui loro figli**: aumentare o ridurre il rientro di una voce **non sposta** le voci del sotto-elenco che le sta sotto (si selezionano anche quelle per portarle
   dietro).
 - **`setLink(url, text)`** completa l'indirizzo (`esempio.it` → `https://esempio.it`) e ritorna **falso, senza cambiare niente**, se non è sicuro. Un link **si allarga se scrivi dentro**, ma **non a chi scrive in fondo** (chi
-  finisce un indirizzo e va avanti non vuole che la frase dopo sia parte del link): è la regola di ogni editor. Grassetto, corsivo e sottolineato invece si allargano anche in fondo.
+  finisce un indirizzo e va avanti non vuole che la frase dopo sia parte del link): è la regola di ogni editor. Grassetto, corsivo e sottolineato invece si allargano anche in fondo. Con `text` diverso dal testo
+  selezionato lo sostituisce **se la selezione sta in un paragrafo solo**; su più paragrafi il testo resta e diventa tutto link (sostituirlo fonderebbe i paragrafi; anche il foglio della barra, lì, non offre il campo del
+  testo). Dalla review R2 il limite è scritto nel KDoc; prima il KDoc prometteva la sostituzione.
+- **Il foglio del link** tiene testo e indirizzo che si stanno scrivendo nello stato, e con lui resiste alla rotazione e al processo ucciso. Se col foglio aperto l'app cambia il documento da codice (una
+  sincronizzazione, un ripristino) e le parole del link non sono più quelle, «Fatto» e «Togli il link» chiudono il foglio **senza cambiare niente** (prima la conferma cadeva fuori dal testo o metteva il link sulle parole
+  sbagliate, R2).
 - **Incolla** dagli appunti: l'HTML (da un browser, da Google Documenti, da un'altra mail) tiene ciò che l'editor sa mostrare; il testo con stili di un'altra app pure; il testo semplice entra col formato del punto in cui
-  si incolla; ciò che non è testo (un'immagine dalla tastiera) è ignorato. **Copia** mette negli appunti anche l'HTML della selezione: copiare e incollare dentro l'editor non perde gli stili.
+  si incolla; ciò che non è testo (un'immagine dalla tastiera) è ignorato. **Copia** mette negli appunti anche l'HTML della selezione: copiare e incollare dentro l'editor non perde gli stili. **Un incolla grande**
+  (un HTML oltre 32 768 caratteri, un testo con stili oltre 4 096) si legge **fuori dal thread principale** ed entra un istante dopo, solo se documento e cursore sono ancora quelli dell'incolla; se nel frattempo si è
+  scritto o spostato il cursore, l'incolla si perde (R2: prima una pagina web intera bloccava l'interfaccia per secondi).
   **Cosa l'incolla non conserva** (non è un difetto: l'editor non ha questi concetti): colori e caratteri, la dimensione del testo, il barrato (`<s>`, `<del>`, `line-through`), le immagini, le tabelle (le righe diventano
   paragrafi e il testo resta), le classi e gli stili che non siano grassetto, corsivo e sottolineato. I **titoli** (`<h1>`…`<h6>`, `<th>`) diventano un paragrafo in **grassetto**: il testo c'è, la gerarchia no. Si incolla
   solo dagli appunti: un testo **trascinato** cade come testo scritto, col formato del punto. **Un frammento annidato incollato porta i livelli che aveva** (assoluti, non sommati a quelli del punto in cui cade) per i suoi
@@ -91,7 +98,8 @@ Tutti passano da `FluidRichTextState` (e si annullano in un passo): `toggle(styl
 | `format` | `FluidRichTextFormat`: cosa è acceso al cursore o su **tutta** la selezione (`bold`, `italic`, `underline`, `link`, `list`, `quote`, `listLevel`, `quoteLevel`, `canIncreaseIndent`, `canDecreaseIndent`) |
 | `isFormattingBarVisible` | la barra deve stare sopra la tastiera: editor col fuoco e una selezione, o «Aa» |
 
-**Il salvataggio vero è dell'app.** Lo stato salvato da Android (`rememberSaveable`) serve a ricreare la schermata (rotazione, morte del processo: documento, selezione e «Aa», **non la cronologia**), non è una garanzia contro
+**Il salvataggio vero è dell'app.** Lo stato salvato da Android (`rememberSaveable`) serve a ricreare la schermata (rotazione, morte del processo: documento, selezione, «Aa», lo stile scelto col cursore fermo e non ancora scritto, il foglio del link aperto con ciò che vi si sta scrivendo;
+**non la cronologia**), non è una garanzia contro
 la perdita di testo, e **non salva il documento** in due casi (un `Bundle` troppo grande fa cadere l'app): oltre `FluidRichTextState.MaxSavedLength` = 50 000 caratteri, **oppure** (dalla 3.1.1) quando la dimensione serializzata, stimata per eccesso, supera **256 KB**. La stima conta il testo (2 byte per carattere), i tratti con formato, gli indirizzi dei link (2 byte per carattere, ciascuno una volta sola) e gli stili dei paragrafi: molti link lunghi pesano molto anche in poco testo, quindi un documento sotto i 50 000 caratteri può superare il secondo tetto. Sopra uno dei due tetti lo stato salvato **non porta il documento**: dopo la ricreazione della schermata `rememberFluidRichTextState` riparte da `initial`, senza errori e senza avvisi, e l'app lo riapre dalla sua bozza (per questo la bozza su disco non è facoltativa). Sotto i due tetti si ripristina tutto. Schema
 tipico: `snapshotFlow { state.revision }.debounce(…)` → `FluidRichTextHtml.write(state.document)` su disco; all'apertura `setDocument(FluidRichTextHtml.read(salvato))` + `clearHistory()` (l'apertura non si annulla). Il formato dello
 stato salvato è versionato (2 da quando gli elenchi si annidano: pila in un `Int`, profondità nei 4 bit bassi e 2 bit per contenitore); uno stato salvato senza versione, quello a un livello di prima, **si legge ancora**.
@@ -107,19 +115,25 @@ non disegna niente per un fotogramma (un intervallo fuori dal testo farebbe cade
 | **Markdown** (`FluidRichTextMarkdown`) | `**…**`, `*…*`, `<u>…</u>`, `[testo]` e l'indirizzo fra parentesi tonde, `- `, `1. `, `> `, annidamenti come CommonMark (due puntati nuovi sulla stessa riga alternano il segno, `- * `, perché `- - ` sarebbe una linea orizzontale) | più ampio (`__`, `_`, `* `, `+ `, `1)`, titoli → grassetto, link automatici, codice come testo) | note, scambio leggibile; **non** il formato di riferimento |
 | **Testo semplice** (`doc.toPlainText()`) | un paragrafo per riga, `• `/`◦ `/`▪ `/`1. `, `> `; il link seguito dall'indirizzo fra parentesi | `FluidRichTextDocument.fromPlainText` | la parte «solo testo» di una mail, un'anteprima, una notifica |
 
-- **HTML, uscita.** Il paragrafo vuoto è `<div><br></div>` (come lo scrivono i client di posta: la spaziatura è la stessa ovunque); spazi doppi, in testa e in coda diventano `&nbsp;` (l'HTML li collasserebbe), il tab `&#9;`. Un
+- **HTML, uscita.** Il paragrafo vuoto è `<div><br></div>` (come lo scrivono i client di posta: la spaziatura è la stessa ovunque); spazi doppi, in testa e in coda diventano `&nbsp;` (l'HTML li collasserebbe), il tab `&#9;`,
+  uno **spazio unificatore** del testo `&#160;` (così alla rilettura resta unificatore: `&nbsp;` torna uno spazio normale, perché è lo spazio non collassabile di tutti; il trattino facoltativo esce com'è e resta). Un
   **sotto-elenco sta dentro il `<li>` della voce sopra** (`<ul><li>a<ul><li>b</li></ul></li></ul>`), una citazione nell'altra è un `<blockquote>` dentro l'altro: come scrivono Gmail e Outlook.
 - **HTML, versione.** `FluidRichTextHtml.Version` = **2** (annidato). La 1 aveva elenchi e citazioni a un livello; **un HTML della versione 1 è anche un HTML della 2 e si legge identico**; un lettore della 1 che riceve la 2
   appiattisce gli annidamenti **senza perdere testo**. `read` legge ogni versione e ogni HTML.
 - **HTML, ingresso ostile.** Non si esegue niente e **non si carica niente** (immagini, fogli di stile, font, frame: mai, il lettore non ha nemmeno un modo per farlo). Si tengono testo, paragrafi (`p`, `div`, titoli, righe
   di tabella, `br`), elenchi e citazioni con gli annidamenti (fino a `MaxDepth`; anche `<ul>` direttamente dentro `<ul>` come li scrivono alcuni editor), grassetto/corsivo/sottolineato anche come `style="font-weight:…"` (come
   li copia Google Documenti, compreso il suo `<b style="font-weight:normal">` che **non** è grassetto) e i link con indirizzo sicuro. Sparisce il **contenuto** di `script`, `style`, `head`, `template`, `svg`, `math`, `iframe`,
-  `object`, `noscript`, `select`, `textarea`; tutto il resto (tag sconosciuti, colori, caratteri, tabelle) perde il tag e tiene il testo. Tetti contro l'HTML ostile profondo: `FluidRichTextHtml.MaxInputLength` = 4 000 000 caratteri
+  `object`, `noscript`, `select`, `textarea` (le virgolette dei suoi attributi contano: `<svg><a title="></svg>">` non lascia uscire niente); quello di `xmp` e `plaintext` è testo che un browser mostra com'è, e resta
+  testo, a righe intere (`plaintext` non si chiude: è testo fino in fondo); tutto il resto (tag sconosciuti, colori, caratteri, tabelle) perde il tag e tiene il testo. Tetti contro l'HTML ostile profondo: `FluidRichTextHtml.MaxInputLength` = 4 000 000 caratteri
   (oltre, si legge fino a lì), 256 elementi annidati, 32 attributi per tag. **Il lettore non è un parser HTML5 completo**: nei casi patologici (tag chiusi nell'ordine sbagliato, `<p>` dentro `<b>`) non ricostruisce l'albero come un
   browser, ma il risultato è sempre un documento valido con tutto il testo leggibile (i test lo provano su input ostili).
 - **Markdown: una riga = un paragrafo** (il dialetto delle app di note e dei messaggi, non CommonMark in cui due righe si fondono): un documento scritto e riletto torna identico, righe vuote comprese. I caratteri che
-  il Markdown leggerebbe come segni (`*`, `_`, `[`, `]`, `\`, `` ` ``, `<`, e in testa `#`, `>`, `-`, `+`, `1.`) escono preceduti da `\`; il sottolineato si scrive `<u>` perché Markdown non ha un segno suo. Il `_` dentro una
-  parola (`snake_case`) non è mai un segno. Gli annidamenti si leggono con rientri di 2-4 spazi o tab, e anche più segni sulla stessa riga (`- > citazione nella voce`).
+  il Markdown leggerebbe come segni (`*`, `_`, `[`, `]`, `\`, `` ` ``, `<`, e in testa `#`, `>`, `-`, `+`, `~`, `1.`) escono preceduti da `\` (dalla R2 anche `~`: un paragrafo che cominciava con `~~~` apriva un blocco
+  di codice alla rilettura e spariva); il sottolineato si scrive `<u>` perché Markdown non ha un segno suo. Il `_` dentro una
+  parola (`snake_case`) non è mai un segno. Gli annidamenti si leggono con rientri di 2-4 spazi o tab, e anche più segni sulla stessa riga (`- > citazione nella voce`). Il codice in linea toglie al più uno spazio per
+  lato, se ci sono tutti e due (CommonMark); un blocco recintato si chiude con un recinto dello stesso segno **lungo almeno quanto** quello che l'ha aperto.
+- **Quanto costano.** Scrivere (HTML, Markdown, testo semplice) e leggere costano quanto il documento, anche su un ingresso ostile: dalla R2 gli scrittori non riscorrono tutti i tratti per ogni paragrafo, e il lettore
+  del Markdown prepara in una passata le chiusure di `*`, `_`, `[`, `(` e degli accenti gravi invece di cercarle ogni volta fino in fondo alla riga. Le prove confrontano un ingresso con uno otto volte più grande.
 - **Link sicuri** (`FluidRichTextLinks`): solo `http`, `https`, `mailto`, `tel`; **compresi gli indirizzi relativi, che sono scartati** (in un HTML incollato non hanno una base). Spazi e caratteri di controllo si tolgono
   **ovunque**, anche dentro lo schema (è così che `java&#10;script:` passa i filtri ingenui); `http(s)` vogliono un host; lunghezza massima `FluidRichTextLinks.MaxLength` = 2048. Il testo del link resta sempre: si perde solo
   l'indirizzo. `FluidRichTextLinks.fromUserInput` completa ciò che scrive una persona (`nome@esempio.it` → `mailto:`, `+39 055 123` → `tel:+39055123`).
@@ -182,6 +196,8 @@ nuova, e un'app sulla 3.1.x lo riceve senza toccare niente.
 
 ## Trappole
 
+- **`toString()` del documento non porta il contenuto**: dice lunghezza, paragrafi, tratti e link, mai il testo né gli indirizzi (R2: stampato per sbaglio in un log, li portava in logcat). Per vedere il testo usa
+  `doc.text` dove serve davvero.
 - **Un `FluidTextField` non diventa ricco.** `FluidTextEdit` scrive segni Markdown in un campo semplice: è un'altra cosa, per testi che restano Markdown. Se serve anche solo l'elenco annidato, è questo modulo.
 - **Il campo non ha pozzo né bordo.** Occupa la larghezza che riceve e cresce col testo; il contenitore è dell'app. Dentro uno spazio di altezza fissa scorre da sé. Non metterlo in una `LazyColumn` come figlio con altezza fissa.
 - **`contentDescription`** è il nome del campo per TalkBack («Corpo», «Firma»): il segnaposto non basta, sparisce appena si scrive.
@@ -222,6 +238,10 @@ tasto «Aa» ha il suo nome (`FluidRichTextLabels.formatting`), la barra ha un t
   senza tastiera, e anche quando il campo è **l'ultima cosa della pagina** (la coda); la riga non sale più del necessario; una riga già sopra la barra non muove niente; senza barra la riga resta in fondo alla pagina, e uscita la barra la coda
   torna indietro.
 - `FluidRichTextEditorTest` (`sample`, Robolectric, 22): l'editor e la barra nella galleria — il testo che prende il formato scelto, una composizione alla Gboard che tiene formato e testo, Invio che continua l'elenco e il doppio Invio che ne esce, cancella a inizio voce (anche da tastiera fisica), la barra che compare con la selezione e riflette gli stili, il tasto «Aa» senza selezione, TalkBack che dice stili e **livello** in italiano e in inglese, incolla di HTML che tiene solo il supportato, copia che mette l'HTML negli appunti, Ctrl+Z, modifiche dal codice che arrivano al campo, i tasti di rientro che si spengono quando non servono, Tab e Maiusc+Tab, Invio e cancella che **risalgono un livello alla volta**, e a testo grande e da destra a sinistra (anche con l'annidamento profondo) il testo resta leggibile e il rientro parte da destra.
+- **Dalla review R2**: `FluidRichTextR2Test` (JVM, 22) prova il paragrafo che comincia con `~~~`, i recinti lunghi, gli spazi del codice, spazio unificatore e trattino facoltativo, le virgolette negli elementi
+  ignorati, `xmp` e `plaintext`, il `toString`, lo stile in sospeso e il foglio del link nello stato salvato, il limite di `setLink`, e la **crescita** di scrittori e lettore (otto volte l'ingresso deve costare meno di
+  ventiquattro volte il tempo: lineare è otto, quadratico sessantaquattro); il lettore nuovo del Markdown è confrontato con quello di prima (`MarkdownReferenceReader`) su 4 000 righe casuali. `FluidRichTextR2UiTest`
+  (`sample`, Robolectric, 7): il foglio del link col documento cambiato sotto e alla ricreazione, l'incolla grande letto fuori dal thread principale e arrivato intero, un elenco numerato lungo che si ridisegna come uno puntato.
 - **Non provato da test**: la tastiera vera (Gboard, correzione, dettatura: si guardano in mano) e il vetro della barra.
 
 ## Dove guardare
@@ -232,7 +252,7 @@ tasto «Aa» ha il suo nome (`FluidRichTextLabels.formatting`), la barra ha un t
 |---|---|
 | `FluidRichTextDocument.kt` | il modello: stili, pila di contenitori, documento, `buildFluidRichText` |
 | `FluidRichTextState.kt` | lo stato, i comandi, `FluidRichTextChangeSource`, `FluidRichTextFormat`, il `Saver`, `rememberFluidRichTextState` |
-| `FluidRichTextEditor.kt` | il campo, le trasformazioni d'ingresso e d'uscita, i segni accanto al testo, gli appunti |
+| `FluidRichTextEditor.kt` | il campo, le trasformazioni d'ingresso e d'uscita, i segni accanto al testo (`RichTextDecorations`: il piano rifatto solo quando cambia il documento, il disegno della sola parte in vista, ogni segno misurato una volta), gli appunti |
 | `FluidRichTextEdits.kt` | le modifiche pure del testo sul documento (interno, testato) |
 | `FluidRichTextCaretAvoidance.kt` | i passi che portano la riga del cursore sopra la barra (interno, Kotlin puro, testato) |
 | `FluidRichTextToolbar.kt` | la barra e il tasto «Aa»; la barra è un preset di `FluidKeyboardBar` (engine-ui, F6B.9) |

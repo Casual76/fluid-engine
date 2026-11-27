@@ -32,12 +32,13 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -72,6 +73,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -82,12 +84,16 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.ResolvedTextDirection
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.ceil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 
 /** I valori di serie di [FluidRichTextEditor]. */
@@ -136,8 +142,10 @@ object FluidRichTextEditorDefaults {
  *
  * **Incolla** dagli appunti: l'HTML (da un browser, da Google Documenti, da un'altra mail) tiene cio' che
  * l'editor sa mostrare ([FluidRichTextHtml.read]); il testo con stili di un'altra app pure; il testo
- * semplice entra con il formato del punto in cui si incolla. **Copia** mette negli appunti anche l'HTML
- * della selezione, cosi' copiare e incollare dentro l'editor non perde gli stili.
+ * semplice entra con il formato del punto in cui si incolla. Un HTML grande (una pagina web intera) si legge
+ * fuori dal thread principale ed entra un istante dopo, se nel frattempo documento e cursore non sono
+ * cambiati. **Copia** mette negli appunti anche l'HTML della selezione, cosi' copiare e incollare dentro
+ * l'editor non perde gli stili.
  *
  * **Elenchi e citazioni annidati.** Ogni paragrafo ha un livello di rientro (vedi
  * [FluidRichTextParagraphStyle]): i tasti riduci/aumenta rientro della barra, Tab e Maiusc+Tab, l'a capo
@@ -203,6 +211,7 @@ fun FluidRichTextEditor(
   val scroll = rememberScrollState()
   var layoutGetter by remember { mutableStateOf<(() -> TextLayoutResult?)?>(null) }
   val measurer = rememberTextMeasurer()
+  val decorations = remember(measurer) { RichTextDecorations(measurer) }
   val indentLimit = remember(state) { RichTextIndentLimit() }
   val fontSizePx = with(LocalDensity.current) {
     (if (resolvedStyle.fontSize.isSp) resolvedStyle.fontSize else FallbackFontSize).toPx()
@@ -211,7 +220,8 @@ fun FluidRichTextEditor(
   val output = remember(state, colors, indentLimit) { RichTextOutputTransformation(state, colors, indentLimit) }
   val clipboard = LocalClipboard.current
   val richClipboard = remember(clipboard, state) { RichTextClipboard(clipboard, state) }
-  val receiver = remember(state) { RichTextPasteReceiver(state) }
+  val pasteScope = rememberCoroutineScope()
+  val receiver = remember(state, pasteScope) { RichTextPasteReceiver(state, pasteScope) }
 
   // La rete di sicurezza: se il testo del campo e il documento si separassero (non dovrebbe succedere:
   // l'unica strada per cambiare il testo passa dalla trasformazione d'ingresso), si riallineano qui.
@@ -299,6 +309,22 @@ fun FluidRichTextEditor(
     }
   }
 
+  // I segni accanto al testo: il piano si rifa' solo se cambiano documento, layout, stile o tetto del rientro
+  // (gli stati letti nel blocco della cache); il disegno legge lo scorrimento e disegna la parte in vista.
+  // Il modificatore e' ricordato: l'editor si ricompone a ogni spostamento del cursore, e un blocco nuovo
+  // butterebbe la cache.
+  val decorationsModifier = remember(state, decorations, resolvedStyle, colors, indentLimit, scroll) {
+    Modifier.drawWithCache {
+      val layout = layoutGetter?.invoke()
+      val plan = if (layout == null) null else decorations.plan(this, state.document, layout, resolvedStyle, colors, indentLimit.capEm)
+      onDrawBehind {
+        if (plan == null) return@onDrawBehind
+        val top = scroll.value.toFloat()
+        translate(top = -top) { decorations.draw(this, plan, top, top + size.height) }
+      }
+    }
+  }
+
   val description = state.format.describe(labels)
   CompositionLocalProvider(LocalClipboard provides richClipboard) {
     BasicTextField(
@@ -338,12 +364,7 @@ fun FluidRichTextEditor(
         Box(
           modifier = Modifier
             .clipToBounds()
-            .drawBehind {
-              val layout = layoutGetter?.invoke() ?: return@drawBehind
-              translate(top = -scroll.value.toFloat()) {
-                drawParagraphDecorations(state.document, layout, resolvedStyle, colors, measurer, indentLimit.capEm)
-              }
-            },
+            .then(decorationsModifier),
         ) {
           if (placeholder != null && state.document.isEmpty()) {
             Text(
@@ -449,7 +470,7 @@ internal fun FluidRichTextState.handleKeyEvent(event: KeyEvent): Boolean {
 /**
  * Disegna gli stili del documento sul testo che il campo mostra: grassetto, corsivo, sottolineato e
  * link come stili di carattere, elenchi e citazioni come rientro di paragrafo (i segni li disegna
- * [drawParagraphDecorations] in quello spazio).
+ * [RichTextDecorations] in quello spazio).
  *
  * Se testo e documento non coincidono (un istante fra due scritture) non disegna niente: un intervallo
  * fuori dal testo farebbe cadere il campo, e il fotogramma dopo e' gia' giusto.
@@ -570,49 +591,147 @@ private fun blockIndentEm(block: FluidRichTextBlock): Float =
  * I segni accanto al testo: il segno o il numero di una voce (il segno dei puntati cambia per livello),
  * una barra per ogni citazione in cui sta il paragrafo. Stanno nel rientro del paragrafo, ognuno all'inizio
  * del suo contenitore, sul lato dove comincia la riga (a destra in arabo ed ebraico).
+ *
+ * **Cosa costa** (R2, difetto 52). Dove va ogni segno si calcola in [plan] solo quando cambiano documento,
+ * layout del testo, stile o tetto del rientro, non a ogni disegno. [draw] disegna solo i paragrafi che
+ * toccano la parte del campo in vista (un campo alto quanto il testo li ha tutti in vista: la pagina che
+ * scorre non lo ridisegna), e misura ogni segno una volta sola: i numeri di un elenco lungo sono tutti
+ * diversi, e la cache del `TextMeasurer` (otto testi) li rimisurava tutti a ogni disegno.
  */
-private fun DrawScope.drawParagraphDecorations(
-  document: FluidRichTextDocument,
-  layout: TextLayoutResult,
-  textStyle: TextStyle,
-  colors: RichTextColors,
-  measurer: androidx.compose.ui.text.TextMeasurer,
-  capEm: Float,
-) {
-  val textLength = layout.layoutInput.text.length
-  val fontSizePx = if (textStyle.fontSize.isSp) textStyle.fontSize.toPx() else FallbackFontSize.toPx()
-  val width = layout.size.width.toFloat()
-  val barWidth = QuoteBarWidth.toPx()
-  val barInset = QuoteBarInset.toPx()
-  val scale = indentScale(document, capEm)
-  for (index in 0 until document.paragraphCount) {
-    val style = document.paragraphStyles[index]
-    if (style.depth == 0) continue
-    val start = document.paragraphStart(index).coerceAtMost(textLength)
-    val end = document.paragraphEnd(index).coerceAtMost(textLength)
-    val firstLine = layout.getLineForOffset(start)
-    val lastLine = layout.getLineForOffset(end)
-    val rtl = layout.getParagraphDirection(start) == ResolvedTextDirection.Rtl
-    val offsets = containerOffsetsEm(style, scale)
-    style.blocks.forEachIndexed { level, block ->
-      if (block != FluidRichTextBlock.Quote) return@forEachIndexed
-      val fromEdge = offsets[level] * fontSizePx + barWidth / 2f + barInset
-      val x = if (rtl) width - fromEdge else fromEdge
-      drawLine(
-        color = colors.quoteBar,
-        start = Offset(x, layout.getLineTop(firstLine)),
-        end = Offset(x, layout.getLineBottom(lastLine)),
-        strokeWidth = barWidth,
-      )
+internal class RichTextDecorations(private val measurer: TextMeasurer) {
+  private val markers = HashMap<String, TextLayoutResult>()
+  private var markerStyle: TextStyle? = null
+
+  /** Dove vanno i segni dei paragrafi con un rientro, nell'ordine del documento (le righe crescono con lui). */
+  internal class Plan(
+    val count: Int,
+    val tops: FloatArray,
+    val bottoms: FloatArray,
+    val baselines: FloatArray,
+    val rtl: BooleanArray,
+    /** Il bordo del testo da cui il segno si scosta: il segno finisce qui (o comincia qui, da destra a sinistra). */
+    val markerEdges: FloatArray,
+    val markerTexts: Array<String?>,
+    /** Le barre delle citazioni del paragrafo `i` stanno in `barXs[barStarts[i] until barStarts[i + 1]]`. */
+    val barStarts: IntArray,
+    val barXs: FloatArray,
+    val barWidth: Float,
+    val colors: RichTextColors,
+  )
+
+  fun plan(
+    density: Density,
+    document: FluidRichTextDocument,
+    layout: TextLayoutResult,
+    textStyle: TextStyle,
+    colors: RichTextColors,
+    capEm: Float,
+  ): Plan = with(density) {
+    val wantedMarkerStyle = textStyle.copy(color = colors.marker, textIndent = null)
+    if (wantedMarkerStyle != markerStyle) {
+      markers.clear()
+      markerStyle = wantedMarkerStyle
     }
-    val kind = style.list ?: continue
-    val marker = if (kind == FluidRichTextListKind.Bullet) bulletMarker(style.listLevel) else "${document.listNumber(index)}."
-    val measured = measurer.measure(marker, textStyle.copy(color = colors.marker, textIndent = null))
-    val textStart = offsets[style.depth] * fontSizePx
-    val gap = fontSizePx * MarkerGapEm
-    val x = if (rtl) width - textStart + gap else textStart - gap - measured.size.width
-    val baseline = layout.getLineBaseline(firstLine)
-    drawText(measured, topLeft = Offset(x, baseline - measured.firstBaseline))
+    val textLength = layout.layoutInput.text.length
+    val fontSizePx = if (textStyle.fontSize.isSp) textStyle.fontSize.toPx() else FallbackFontSize.toPx()
+    val width = layout.size.width.toFloat()
+    val barWidth = QuoteBarWidth.toPx()
+    val barInset = QuoteBarInset.toPx()
+    val scale = indentScale(document, capEm)
+    var count = 0
+    for (style in document.paragraphStyles) if (style.depth > 0) count++
+    val tops = FloatArray(count)
+    val bottoms = FloatArray(count)
+    val baselines = FloatArray(count)
+    val rtl = BooleanArray(count)
+    val markerEdges = FloatArray(count)
+    val markerTexts = arrayOfNulls<String>(count)
+    val barStarts = IntArray(count + 1)
+    var bars = FloatArray(maxOf(4, count))
+    var barCount = 0
+    var slot = 0
+    for (index in 0 until document.paragraphCount) {
+      val paragraphStyle = document.paragraphStyles[index]
+      if (paragraphStyle.depth == 0) continue
+      val start = document.paragraphStart(index).coerceAtMost(textLength)
+      val end = document.paragraphEnd(index).coerceAtMost(textLength)
+      val firstLine = layout.getLineForOffset(start)
+      val lastLine = layout.getLineForOffset(end)
+      val rightToLeft = layout.getParagraphDirection(start) == ResolvedTextDirection.Rtl
+      val offsets = containerOffsetsEm(paragraphStyle, scale)
+      tops[slot] = layout.getLineTop(firstLine)
+      bottoms[slot] = layout.getLineBottom(lastLine)
+      baselines[slot] = layout.getLineBaseline(firstLine)
+      rtl[slot] = rightToLeft
+      barStarts[slot] = barCount
+      paragraphStyle.blocks.forEachIndexed { level, block ->
+        if (block != FluidRichTextBlock.Quote) return@forEachIndexed
+        val fromEdge = offsets[level] * fontSizePx + barWidth / 2f + barInset
+        if (barCount == bars.size) bars = bars.copyOf(bars.size * 2)
+        bars[barCount++] = if (rightToLeft) width - fromEdge else fromEdge
+      }
+      val kind = paragraphStyle.list
+      if (kind != null) {
+        markerTexts[slot] = if (kind == FluidRichTextListKind.Bullet) bulletMarker(paragraphStyle.listLevel) else "${document.listNumber(index)}."
+        val textStart = offsets[paragraphStyle.depth] * fontSizePx
+        val gap = fontSizePx * MarkerGapEm
+        markerEdges[slot] = if (rightToLeft) width - textStart + gap else textStart - gap
+      }
+      slot++
+    }
+    barStarts[count] = barCount
+    Plan(count, tops, bottoms, baselines, rtl, markerEdges, markerTexts, barStarts, bars, barWidth, colors)
+  }
+
+  /** Disegna i segni dei paragrafi che toccano `[visibleTop, visibleBottom]`, nelle coordinate del testo. */
+  fun draw(scope: DrawScope, plan: Plan, visibleTop: Float, visibleBottom: Float) {
+    // Il primo paragrafo che finisce sotto il bordo alto: i fondi crescono con i paragrafi.
+    var low = 0
+    var high = plan.count
+    while (low < high) {
+      val mid = (low + high) ushr 1
+      if (plan.bottoms[mid] < visibleTop) low = mid + 1 else high = mid
+    }
+    var slot = low
+    while (slot < plan.count && plan.tops[slot] <= visibleBottom) {
+      for (bar in plan.barStarts[slot] until plan.barStarts[slot + 1]) {
+        val x = plan.barXs[bar]
+        scope.drawLine(
+          color = plan.colors.quoteBar,
+          start = Offset(x, plan.tops[slot]),
+          end = Offset(x, plan.bottoms[slot]),
+          strokeWidth = plan.barWidth,
+        )
+      }
+      val marker = plan.markerTexts[slot]
+      if (marker != null) {
+        val measured = markerLayout(marker)
+        val edge = plan.markerEdges[slot]
+        val x = if (plan.rtl[slot]) edge else edge - measured.size.width
+        scope.drawText(measured, topLeft = Offset(x, plan.baselines[slot] - measured.firstBaseline))
+      }
+      slot++
+    }
+  }
+
+  private fun markerLayout(marker: String): TextLayoutResult {
+    markers[marker]?.let { return it }
+    val measured = measurer.measure(marker, markerStyle ?: TextStyle.Default)
+    markerMeasures++
+    // Oltre il tetto (un elenco di migliaia di voci) i numeri in piu' si misurano quando servono.
+    if (markers.size < MaxCachedMarkers) markers[marker] = measured
+    return measured
+  }
+
+  internal companion object {
+    private const val MaxCachedMarkers = 1024
+
+    /**
+     * F7.32 · Quanti segni sono stati misurati in tutto il processo (ogni misura passa da [markerLayout]): per le prove,
+     * che contano le misure di un disegno invece di cronometrarlo. Solo dal thread principale, come il disegno.
+     */
+    internal var markerMeasures: Long = 0L
+      private set
   }
 }
 
@@ -676,9 +795,18 @@ internal class RichTextClipboard(
  * Riceve cio' che si incolla: HTML o testo con stili diventano un frammento formattato, il testo semplice
  * entra col formato del punto. Cio' che non e' testo (un'immagine dalla tastiera) torna indietro, e il
  * campo lo ignora.
+ *
+ * Un HTML oltre [SyncPasteLength] caratteri (o un testo con stili lungo, che diventa HTML) si legge su
+ * [worker], fuori dal thread principale: leggerne uno da 4 milioni di caratteri dentro il callback degli
+ * appunti bloccava l'interfaccia per secondi (R2, difetto 51). Entra solo se documento e selezione sono
+ * ancora quelli dell'incolla ([FluidRichTextState.pasteInBackground]).
  */
 @OptIn(ExperimentalFoundationApi::class)
-internal class RichTextPasteReceiver(private val state: FluidRichTextState) : ReceiveContentListener {
+internal class RichTextPasteReceiver(
+  private val state: FluidRichTextState,
+  private val scope: CoroutineScope,
+  private val worker: CoroutineContext = Dispatchers.Default,
+) : ReceiveContentListener {
   override fun onReceive(transferableContent: TransferableContent): TransferableContent? {
     if (!state.isEditable) return transferableContent
     // Solo gli appunti: un testo trascinato deve cadere dove lo si lascia, e quello lo fa il campo
@@ -694,11 +822,20 @@ internal class RichTextPasteReceiver(private val state: FluidRichTextState) : Re
       val text = item.text
       when {
         !html.isNullOrEmpty() -> {
-          state.paste(FluidRichTextHtml.read(html))
+          if (html.length <= SyncPasteLength) {
+            state.paste(FluidRichTextHtml.read(html))
+          } else {
+            state.pasteInBackground(scope, worker) { FluidRichTextHtml.read(html) }
+          }
           return null
         }
         text is Spanned && text.hasSupportedSpans() -> {
-          state.paste(FluidRichTextHtml.read(Html.toHtml(text, Html.TO_HTML_PARAGRAPH_LINES_INDIVIDUAL)))
+          // L'HTML di un testo con stili e' qualche volta piu' lungo del testo.
+          if (text.length <= SyncPasteLength / 8) {
+            state.paste(FluidRichTextHtml.read(Html.toHtml(text, Html.TO_HTML_PARAGRAPH_LINES_INDIVIDUAL)))
+          } else {
+            state.pasteInBackground(scope, worker) { FluidRichTextHtml.read(Html.toHtml(text, Html.TO_HTML_PARAGRAPH_LINES_INDIVIDUAL)) }
+          }
           return null
         }
         !text.isNullOrEmpty() -> {
@@ -708,6 +845,14 @@ internal class RichTextPasteReceiver(private val state: FluidRichTextState) : Re
       }
     }
     return transferableContent
+  }
+
+  internal companion object {
+    /**
+     * Fin qui l'HTML si legge subito, nel callback: qualche millisecondo, e il testo c'e' gia' al
+     * fotogramma dopo. Oltre si legge fuori dal thread principale.
+     */
+    const val SyncPasteLength: Int = 32 * 1024
   }
 }
 

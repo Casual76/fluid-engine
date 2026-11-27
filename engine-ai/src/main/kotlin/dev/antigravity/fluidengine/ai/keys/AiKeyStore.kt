@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.antigravity.fluidengine.ai.provider.ProviderId
+import dev.antigravity.fluidengine.vault.VaultException
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,11 +74,21 @@ class AiKeyStore(
 
   suspend fun currentStates(): Map<ProviderId, KeyState> = states.first()
 
-  /** La chiave in chiaro, adesso. Null se manca o se il Keystore non la legge piu' (e allora la toglie). */
+  /**
+   * La chiave in chiaro, adesso. Null se manca o se il Keystore non la legge piu' (e allora la toglie), e null anche
+   * se il Keystore non risponde adesso (e allora la lascia: si riprova alla prossima richiesta).
+   */
   suspend fun key(provider: ProviderId): String? {
     val blob = store.data.first()[keyOf(provider)] ?: return null
     // Il Keystore blocca (millisecondi, decine con StrongBox): mai sul thread principale (F8.23).
-    val plain = withContext(Dispatchers.IO) { cipher.decrypt(blob) }
+    val plain = try {
+      withContext(Dispatchers.IO) { cipher.decrypt(blob) }
+    } catch (e: VaultException.Unavailable) {
+      // R2 · Un errore passeggero del Keystore: niente chiave per questa volta, ma non si butta (e non si cade).
+      return null
+    } catch (e: VaultException.NeedsAuthentication) {
+      return null
+    }
     if (plain == null) {
       set(provider, null)
       return null

@@ -170,17 +170,27 @@ class OcrR1Test {
 
   private fun page(): Bitmap = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
 
+  /** Aspetta [condition] in tempo vero, con un tetto largo (il lavoro gira su `Dispatchers.IO`). */
+  private fun awaitReal(what: String, condition: () -> Boolean) {
+    val end = System.nanoTime() + 20_000_000_000L
+    while (!condition()) {
+      assertTrue("tempo scaduto: $what", System.nanoTime() < end)
+      Thread.sleep(5)
+    }
+  }
+
   @Test fun unaLetturaAnnullataAMetaSiRicordaLoStesso() {
     FluidLiveText.clearCache()
     val calls = AtomicInteger()
     FluidLiveText.recognizer = { SlowRecognizer(300, calls) }
     // La ricerca cambia mentre Tesseract legge la pagina: chi l'aveva chiesta se ne va, la lettura finisce lo stesso.
     val job = CoroutineScope(Dispatchers.Default).launch { FluidLiveText.read(context, "r1:pagina-0") { page() } }
-    Thread.sleep(120)
+    // F7.32 · Si annulla quando la lettura è partita davvero, e si aspetta che finisca, invece di due sonni da 120 e
+    // 400 ms: sul PC carico la lettura poteva non essere ancora partita, o non ancora finita.
+    awaitReal("la lettura parte") { calls.get() == 1 }
     job.cancel()
     runBlocking { job.join() }
-    Thread.sleep(400)
-    assertNotNull("il lavoro già fatto non si butta", FluidLiveText.cached("r1:pagina-0"))
+    awaitReal("il lavoro già fatto non si butta") { FluidLiveText.cached("r1:pagina-0") != null }
     // La ricerca che riparte trova la pagina già letta.
     runBlocking { FluidLiveText.read(context, "r1:pagina-0") { error("non serve rileggerla") } }
     assertEquals(1, calls.get())
@@ -196,12 +206,19 @@ class OcrR1Test {
       delay(450)
       // A metà della seconda pagina della ricerca, la pagina in vista chiede la sua lettura.
       val start = System.nanoTime()
+      val before = calls.get()
       val view = async { FluidLiveText.read(context, "r1:in-vista") { page() } }
       view.await()
       val waited = (System.nanoTime() - start) / 1_000_000
+      // Le pagine della ricerca partite mentre la pagina in vista aspettava (la sua lettura è una delle chiamate).
+      val overtaken = calls.get() - before - 1
       search.cancel()
-      // Il lucchetto è equo: la pagina in vista passa dopo quella in corso, non dopo tutta la ricerca (2,7 s).
-      assertTrue("la pagina in vista ha aspettato $waited ms", waited < 1100)
+      // Il lucchetto è equo: la pagina in vista passa dopo quella in corso, non dopo tutta la ricerca (2,7 s). F7.32: si
+      // contano le pagine partite fra la richiesta e la fine della sua lettura (al più due: una che partiva proprio mentre
+      // la chiedeva, una appena dopo, quando il lucchetto si libera; senza l'equità sarebbero otto), non i
+      // millisecondi (era «meno di 1100 ms»: sul PC carico i sonni da 300 ms durano di più).
+      println("OCR R1: la pagina in vista ha aspettato $waited ms, passata da $overtaken pagine della ricerca")
+      assertTrue("la pagina in vista è stata passata da $overtaken pagine della ricerca ($waited ms)", overtaken <= 2)
     }
   }
 

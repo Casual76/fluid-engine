@@ -157,7 +157,10 @@ fun FluidLiveClockProvider(
   content: @Composable () -> Unit,
 ) {
   val time = LocalFluidTimeSource.current
-  LaunchedEffect(clock, time) { clock.run(time) }
+  // Solo mentre la pagina si vede, come il cronometro (R2): in secondo piano l'orologio non si sveglia; al ritorno i
+  // testi il cui cambio e' passato si aggiornano subito.
+  val lifecycle = LocalLifecycleOwner.current.lifecycle
+  LaunchedEffect(clock, time, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { clock.run(time) } }
   CompositionLocalProvider(LocalFluidLiveClock provides clock, content = content)
 }
 
@@ -181,9 +184,13 @@ internal fun rememberLiveNow(key: Any?, nextChange: (Long) -> Long): Long {
     }
     SideEffect { clock.schedule(waiter, deadline) }
   } else {
-    LaunchedEffect(waiter, deadline, key) {
-      delay((deadline - time.nowMillis()).coerceAtLeast(1L))
-      waiter.tick.intValue++
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(waiter, deadline, key, lifecycle) {
+      // Solo mentre la pagina si vede (R2): in secondo piano il testo non si sveglia, e al ritorno si aggiorna.
+      lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+        delay((deadline - time.nowMillis()).coerceAtLeast(1L))
+        waiter.tick.intValue++
+      }
     }
   }
   return now

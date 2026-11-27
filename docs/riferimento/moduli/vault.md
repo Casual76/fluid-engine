@@ -108,11 +108,15 @@ le chiavi dei provider già salvate si riaprono, e una versione di prima rilegge
   li ricifra con la sua chiave (quella dell'account, `K_bak`).
 - **Fuori dal thread principale.** Ogni lettura e scrittura è `suspend` e lavora su `Dispatchers.IO` (`FluidVault.create`
   ne accetta un altro); `FluidKeystoreKey` è bloccante e va chiamata fuori dal thread principale.
-- **Tutto o niente.** La scheda della sezione, i valori, i file si scrivono accanto e poi si scambiano.
+- **Tutto o niente.** La scheda della sezione, i valori, i file si scrivono accanto, si mettono sul disco (`sync`) e poi
+  si scambiano (`ATOMIC_MOVE`, col ripiego dove non c'è): anche dopo uno spegnimento brusco resta il file di prima o quello
+  nuovo intero (R2: i file non avevano il `sync`). Due scritture dello stesso file vanno in fila, una dopo l'altra.
 - **I file a pezzi.** `VaultFile` cifra a pezzi da 64 KiB (lo «streaming AEAD» di Tink, schema STREAM): un pezzo
   toccato, tolto, spostato o un file rinominato a mano danno `VaultCorruptStreamException` alla lettura.
-- **Un DataStore solo nelle sezioni «solo telefono».** Un DataStore tiene i dati letti in memoria finché vive: in una
-  sezione all'impronta usa `values` o i file, che dimenticano tutto quando la sezione si richiude.
+- **Un DataStore solo nelle sezioni «solo telefono» (`VaultAccess.Device()`, senza `whileUnlocked`).** Un DataStore
+  tiene i dati letti in chiaro in memoria finché vive: in una sezione all'impronta, o «solo a telefono sbloccato» (dove
+  allo schermo spento esce la chiave ma la sua copia resterebbe), usa `values` o i file, che dimenticano tutto quando la
+  sezione si richiude. Chiederlo lì è un `IllegalArgumentException` (R2: prima `whileUnlocked = true` passava).
 - **StrongBox quando c'è.** Si chiede sempre (`VaultKeySpec.strongBox`); senza chip la chiave nasce nel TEE.
 
 ## Il dialogo: `VaultAuthenticator`
@@ -121,11 +125,20 @@ La cassaforte non mostra niente: chiede a un `VaultAuthenticator` con un `VaultA
 dare a `BiometricPrompt.CryptoObject`, o il codice del telefono) e riceve un `VaultAuthResult`. `engine-security` ne ha uno
 pronto, `FluidSystemAuthenticator`, col `BiometricPrompt` di sistema. Un'app può scriverne uno suo.
 
+Il dialogo si chiede **sempre sul thread principale**, anche quando `unlock` arriva da un lavoro in sottofondo (R2: prima
+girava sul filo di chi chiamava). Una scheda della sezione che non si legge (un errore del disco) dà
+`VaultUnlock.Unavailable(KeystoreError)`, «Riprova fra poco», invece di un'eccezione che faceva cadere `FluidVaultContent`.
+
 ## Trappole
 
 - **Un `VaultAuthenticator` che dice «sì» senza il dialogo vero non apre niente**: il Keystore vuole il `CryptoObject`
   passato a `BiometricPrompt` e sbloccato da lui. Il risultato è `VaultUnlock.Failed`.
-- **Una sezione nasce con un accesso e non lo cambia**: chiederla con un altro è un `IllegalStateException`.
+- **Una sezione nasce con un accesso e non lo cambia**: chiederla con un altro nello stesso processo è un
+  `IllegalStateException`. La scheda sul disco ricorda l'accesso, la riserva e `whileUnlocked` (R2): in un processo dopo
+  (un'app aggiornata che chiede un'altra riserva, o `whileUnlocked` diverso) la sezione non si apre, con
+  `VaultException.Corrupt` («è nata con un altro accesso») e `VaultUnlock.Failed`; prima si accettava in silenzio con la
+  chiave di prima, più debole. Per cambiare: `reset()` e una sezione nuova. Una scheda scritta prima di R2, senza
+  `whileUnlocked`, prende quello chiesto alla prima lettura e da lì lo ricorda.
 - **Una sezione `Biometric` vuole un blocco schermo**: senza, `VaultUnlock.Unavailable(NoScreenLock)` con la sua frase.
 - **Il segreto dell'app (`AppSecret`) non ha un limite di tentativi suo**: lo mette chi lo chiede (il PIN di
   `engine-security` fa aspettare come iPhone).
@@ -138,7 +151,9 @@ pronto, `FluidSystemAuthenticator`, col `BiometricPrompt` di sistema. Un'app pu�
   schermo spento, il dialogo finto che non basta, l'impronta aggiunta con la riserva e la chiave rifatta, nessuna
   riserva, il blocco schermo tolto, il PIN dell'app, nessuna impronta registrata, la chiave diretta),
   `VaultFilesAndStoresTest` (file a pezzi fuori dal thread di chi chiama, pezzi toccati, tolti, scambiati, rinominati,
-  Preferences e DataStore tipizzato cifrati).
+  Preferences e DataStore tipizzato cifrati), `VaultR2Test` (la riserva e `whileUnlocked` ricordati dalla scheda, la
+  scheda di prima, niente DataStore «solo a telefono sbloccato», due scritture dello stesso file insieme, la scrittura
+  interrotta, la scheda illeggibile).
 - `sample/src/testDebug/.../novita/F8p23VaultAndroidTest.kt` (Robolectric, con un fornitore «AndroidKeyStore» finto che
   legge il `KeyGenParameterSpec` vero): le chiavi della 3.x riaperte con lo stesso alias, `AiKeyStore` che le rilegge dal
   suo DataStore, StrongBox, i parametri delle chiavi, la sezione all'impronta col Keystore di Android.

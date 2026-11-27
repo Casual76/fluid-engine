@@ -62,6 +62,8 @@ FluidGauge(value: Float, range: ClosedFloatingPointRange<Float>, modifier, style
 FluidGauge(value: () -> Float, range, …)                 // lo stesso, col valore letto nel disegno (otto volte al secondo)
 FluidGaugeThreshold(value: Float, label: String? = null, color = Color.Unspecified)
 FluidGaugeStyle.Arc | Ring | Capacity
+// fluidGaugeDescription(…, thresholds, thresholdTexts, …): con thresholdTexts più corta le soglie senza testo dicono il
+// loro numero (R2: prima la frase cadeva, e col quadrante del widget cadeva la Home)
 ```
 Altri nomi (4.0, F8.6): `FluidChartTouchDefaults` (le misure dello scrubber), `FluidChartDiagnostics` (contatori e tag delle prove, non per le app), `FluidGaugeDefaults`, `FluidGaugeReading`/`fluidGaugeReading(…)`, `fluidGaugeArcAngles(…)`, `fluidGaugeDescription(…)` (le usa anche il widget), `FluidDataLabels`/`LocalFluidDataLabels` (le parole, con `FluidDataLabels.English`).
 
@@ -81,7 +83,7 @@ vuole barre separate col denominatore dichiarato.
   delle fette **disegnate**: `fluidDonutLayout` dà le stesse fette e `sourceIndices` per risalire alle voci di partenza. Il colore di «Altro» è un neutro, portato a 3:1 come gli altri.
 - **Selezione.** Un tocco su una fetta (o sulla sua riga di legenda) la evidenzia e scrive nel foro la sua percentuale; un tocco sulla stessa, o fuori, la toglie. Gestita dal grafico e salvata con lo stato della pagina, **oppure
   controllata** da `selectedIndex` + `onSelectedChange` (con `onSelectedChange` la sorgente è `selectedIndex`). Un indice fuori dai dati (la lista è diminuita) vale nessuna selezione. Ogni scelta suona un colpo `Tap`, mai due.
-- **Il foro** porta `centerValue` («1.240», il totale) e `centerLabel` sotto. Il valore **si riduce** per entrare nel foro (al 200% «1.240» non ci sta a 34 sp): mai a capo (una cifra spezzata è un numero sbagliato), mai tagliato;
+- **Il foro** porta `centerValue` («1.240», il totale) e `centerLabel` sotto. Il valore **si riduce** per entrare nel foro (al 200% «1.240» non ci sta a 34 sp) quanto serve, senza pavimento (R2: prima si fermava a metà e un totale di dieci cifre usciva tagliato): mai a capo (una cifra spezzata è un numero sbagliato), mai tagliato;
   l'etichetta va su due righe.
 - **Testo grande.** Al 200% l'anello si assottiglia (0,22 → 0,15 del diametro) e il foro cresce; la legenda va a capo. Tutti i numeri esistono anche come testo nella legenda.
 - **Le percentuali scritte sommano esattamente 100** (arrotondate col metodo del resto più grande), e una quota minuscola si scrive «meno dell'1%», **mai 0%**. Numeri e percentuali usano i separatori della lingua
@@ -143,7 +145,7 @@ Un valore dentro un intervallo, da leggere a colpo d'occhio: `Gauge` di SwiftUI,
 
 - **Tre forme.** `Arc`: l'arco grande aperto in basso (242°, l'apertura di 118° misurata sulle HIG «Gauges»; spessore 0,1 del diametro), col numero al centro, l'etichetta sotto e il minimo e il massimo sotto le estremità.
   `Ring`: l'anello chiuso da riga (36 dp di serie, sta in una riga da 44), col numero dentro da 32 dp in su. `Capacity`: la barra (6 dp) con l'etichetta e il valore sopra e gli estremi sotto.
-- **Soglie.** `FluidGaugeThreshold(25f, "Limite")`: da quel valore in su l'arco prende il colore della soglia (in dissolvenza) e la pista ha un segno; sotto arco e barra le soglie con nome si leggono col valore
+- **Soglie.** `FluidGaugeThreshold(25f, "Limite")`: da quel valore in su l'arco prende il colore della soglia (in dissolvenza; col movimento ridotto subito, come l'arco, R2) e la pista ha un segno; sotto arco e barra le soglie con nome si leggono col valore
   («Limite 25 %»), e quella superata è scritta in grassetto, «oltre: Limite 25 %». Senza colore le intermedie sono l'avviso e l'ultima l'errore del tema: il caso comune è «più alto è peggio»; una soglia buona (la media sopra
   il 6) passa il suo colore. I colori sono portati a 3:1, lo scritto resta a 4,5:1: **il colore non è l'unica informazione**.
 - **Mai bugiardo.** Un valore fuori dall'intervallo si ferma all'estremo e il numero resta quello vero; un intervallo vuoto non divide per zero.

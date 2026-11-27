@@ -7,23 +7,31 @@ import android.os.Bundle
 import android.os.SystemClock
 import dev.antigravity.fluidengine.vault.FluidVault
 import dev.antigravity.fluidengine.vault.VaultAccess
+import dev.antigravity.fluidengine.vault.VaultException
 import dev.antigravity.fluidengine.vault.VaultSection
+import dev.antigravity.fluidengine.vault.VaultValues
 import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Lo stato del blocco dell'app. */
 sealed interface FluidAppLockState {
-  /** Le impostazioni non sono ancora lette: l'app non si mostra (un attimo, all'avvio). */
+  /**
+   * Le impostazioni non sono ancora lette: l'app non si mostra (un attimo, all'avvio; o finché un errore passeggero della
+   * cassaforte non passa, e intanto si riprova).
+   */
   data object Loading : FluidAppLockState
 
   /** Aperta. */
@@ -132,21 +140,39 @@ class FluidAppLock internal constructor(
   }
 
   private suspend fun load() {
-    val loaded = try {
-      val v = section.values
-      FluidAppLockSettings(
-        enabled = v.getString(KeyEnabled) == "1",
-        timeout = (v.getString(KeyTimeout)?.toLongOrNull() ?: 0L).milliseconds,
-        hasPin = v.contains(KeyPin),
-        pinLength = v.getString(KeyPinLength)?.toIntOrNull() ?: FluidAppLockDefaults.PinLength,
-      )
-    } catch (e: Exception) {
-      // La cassaforte non si legge (Keystore azzerato): il blocco riparte spento invece di chiudere fuori la persona.
-      FluidAppLockSettings()
-    }
-    _settings.value = loaded
-    if (_state.value == FluidAppLockState.Loading) {
-      if (loaded.enabled) engage() else _state.value = FluidAppLockState.Unlocked
+    var wait = FirstRetryMillis
+    while (true) {
+      val loaded = try {
+        val v = section.values
+        FluidAppLockSettings(
+          enabled = v.getString(KeyEnabled) == "1",
+          timeout = (v.getString(KeyTimeout)?.toLongOrNull() ?: 0L).milliseconds,
+          hasPin = v.contains(KeyPin),
+          pinLength = v.getString(KeyPinLength)?.toIntOrNull() ?: FluidAppLockDefaults.PinLength,
+        )
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: VaultException.Invalidated) {
+        // La chiave non c'è più (Keystore azzerato): le impostazioni sono perse, e il blocco riparte spento come su un
+        // telefono nuovo invece di chiudere fuori la persona.
+        FluidAppLockSettings()
+      } catch (e: VaultException.Corrupt) {
+        // La scheda è rovinata: persa anche lei. Chi ha i file dell'app potrebbe comunque cancellarla (vedi la scheda).
+        FluidAppLockSettings()
+      } catch (e: Exception) {
+        // R2 · Un errore passeggero (il Keystore che non risponde, il disco): non si apre l'app. Resta coperta
+        // (`Loading`) e si riprova, da mezzo secondo a 30 s.
+        null
+      }
+      if (loaded != null) {
+        _settings.value = loaded
+        if (_state.value == FluidAppLockState.Loading) {
+          if (loaded.enabled) engage() else _state.value = FluidAppLockState.Unlocked
+        }
+        return
+      }
+      delay(wait)
+      wait = (wait * 2).coerceAtMost(MaxRetryMillis)
     }
   }
 
@@ -169,7 +195,7 @@ class FluidAppLock internal constructor(
 
   /**
    * Imposta il PIN dell'app ([pin], solo cifre, 4–8), o lo toglie (null). Si tiene solo la sua impronta (PBKDF2 con un
-   * sale), mai il PIN. Chi lo passa lo azzera dopo.
+   * sale, calcolato su `Dispatchers.Default`), mai il PIN. Chi lo passa lo azzera dopo.
    */
   suspend fun setPin(pin: CharArray?) {
     val values = section.values
@@ -181,7 +207,8 @@ class FluidAppLock internal constructor(
     }
     require(pin.size in 4..8 && pin.all { it in '0'..'9' }) { "il PIN dell'app sono da 4 a 8 cifre" }
     val salt = FluidPinHash.salt()
-    val hash = FluidPinHash.hash(pin, salt, pinIterations)
+    // R2 · 210 000 giri di PBKDF2 (0,2–0,5 s): mai sul thread di chi chiama, che di solito è il principale.
+    val hash = withContext(Dispatchers.Default) { FluidPinHash.hash(pin, salt, pinIterations) }
     values.putBytes(KeyPin, FluidPinHash.encode(salt, pinIterations, hash))
     values.putString(KeyPinLength, pin.size.toString())
     values.remove(KeyFailures)
@@ -191,15 +218,16 @@ class FluidAppLock internal constructor(
 
   /**
    * Controlla il PIN dell'app. Giusto: l'app si apre. Sbagliato: conta, e dal quinto errore di fila fa aspettare come
-   * iPhone ([FluidAppLockDefaults.pinDelay]). Chi passa [pin] lo azzera dopo.
+   * iPhone ([FluidAppLockDefaults.pinDelay]), anche dopo un riavvio. Il PBKDF2 gira su `Dispatchers.Default`. Chi passa
+   * [pin] lo azzera dopo.
    */
   suspend fun checkPin(pin: CharArray): FluidPinCheck {
     val values = section.values
     val stored = values.getBytes(KeyPin) ?: return FluidPinCheck.NoPin
     val failures = values.getString(KeyFailures)?.toIntOrNull() ?: 0
-    val lastFailure = values.getString(KeyLastFailure)?.let(::decodeFailureTime)
+    val lastFailure = values.getString(KeyLastFailure)?.let { decodeFailureTime(values, it) }
     FluidAppLockRules.pinWaitUntil(failures, lastFailure, clock())?.let { return FluidPinCheck.Wait(it) }
-    val correct = FluidPinHash.verify(pin, stored)
+    val correct = withContext(Dispatchers.Default) { FluidPinHash.verify(pin, stored) }
     stored.fill(0)
     if (correct) {
       values.remove(KeyFailures)
@@ -282,12 +310,19 @@ class FluidAppLock internal constructor(
 
   private fun encodeFailureTime(now: Long): String = "$now:${bootMarker()}"
 
-  /** Il tempo dell'ultimo errore, o «adesso» se il telefono si è riavviato da allora (si aspetta da capo). */
-  private fun decodeFailureTime(text: String): Long? {
+  /**
+   * Il tempo dell'ultimo errore, o «adesso» se il telefono si è riavviato da allora (si aspetta da capo). «Adesso» si
+   * riscrive col segno dell'accensione nuova, così l'attesa riparte una volta sola (R2: prima ripartiva a ogni tentativo,
+   * e dopo un riavvio con cinque errori il PIN non si poteva più usare).
+   */
+  private suspend fun decodeFailureTime(values: VaultValues, text: String): Long? {
     val parts = text.split(':')
     val at = parts.getOrNull(0)?.toLongOrNull() ?: return null
-    val boot = parts.getOrNull(1)?.toLongOrNull() ?: return clock()
-    return if (kotlin.math.abs(boot - bootMarker()) > 60_000) clock() else at
+    val boot = parts.getOrNull(1)?.toLongOrNull()
+    if (boot != null && kotlin.math.abs(boot - bootMarker()) <= 60_000) return at
+    val now = clock()
+    values.putString(KeyLastFailure, encodeFailureTime(now))
+    return now
   }
 
   // L'ora dell'accensione: stabile finché il telefono non si riavvia (o qualcuno sposta l'orologio, e allora si aspetta
@@ -301,6 +336,10 @@ class FluidAppLock internal constructor(
     const val KeyPinLength = "pin-length"
     const val KeyFailures = "pin-failures"
     const val KeyLastFailure = "pin-last-failure"
+
+    /** La prima e l'ultima attesa prima di rileggere le impostazioni dopo un errore passeggero (R2). */
+    const val FirstRetryMillis = 500L
+    const val MaxRetryMillis = 30_000L
 
     /** Per i test: un blocco con la sezione, l'orologio e lo scope scelti a mano, fuori dal conto delle attività. */
     fun forTests(

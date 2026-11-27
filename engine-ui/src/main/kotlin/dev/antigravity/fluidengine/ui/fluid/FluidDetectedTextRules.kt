@@ -44,9 +44,25 @@ private val groupedNumber = Regex("""\d{1,3}(?:[. \u00a0]\d{3}){2,4}""")
 private val dottedQuad = Regex("""\d{1,3}(?:\.\d{1,3}){3}""")
 private const val StreetWord = """[\p{L}][\p{L}'’.-]*"""
 private val italianStreet = Regex(
-  """$WordStart(?:via|viale|vicolo|piazza|piazzale|corso|largo)$Space+(?:$StreetWord$Space+){0,4}$StreetWord(?:,$Space*|$Space+)(?:n\.$Space*)?\d{1,5}(?:[/-][\p{L}\d]{1,3})?$WordEnd""",
+  """$WordStart(via|viale|vicolo|piazza|piazzale|corso|largo)$Space+((?:$StreetWord$Space+){0,4}$StreetWord)((?:,$Space*|$Space+)(n\.$Space*)?\d{1,5}([/-][\p{L}\d]{1,3})?)$WordEnd""",
   RegexOption.IGNORE_CASE,
 )
+
+/**
+ * «via», «corso» e «largo» sono anche parole di tutti i giorni («via posta il 12», «corso di inglese 10»,
+ * «largo di 3 metri»): con loro serve un nome con la maiuscola («via Roma 12») o un segno di civico (la
+ * virgola, «n.», «12/A»). Le altre (viale, piazza…) bastano da sole (R2).
+ */
+private fun MatchResult.isPlausibleItalianStreet(): Boolean {
+  if (groupValues[1].lowercase(Locale.ROOT) !in ambiguousStreetWords) return true
+  val names = groupValues[2].split(' ', '\t', '\u00a0')
+  if (names.any { it.firstOrNull()?.isUpperCase() == true }) return true
+  // «n.» puo' finire fra le parole del nome (e' una parola anche lei): conta come segno di civico.
+  val civic = groupValues[3]
+  return civic.startsWith(",") || groups[4] != null || groups[5] != null || names.last().equals("n.", ignoreCase = true)
+}
+
+private val ambiguousStreetWords = setOf("via", "corso", "largo")
 private val englishStreet = Regex(
   """$WordStart\d{1,5}[a-z]?$Space+(?:[\p{L}][\p{L}'’-]*$Space+){1,5}(?:Street|Road|Avenue|Lane|Drive|Boulevard|Court|Way|St|Rd|Ave|Ln|Dr|Blvd|Ct)$WordEnd""",
   RegexOption.IGNORE_CASE,
@@ -82,7 +98,9 @@ internal fun detectTextRules(
       "en" -> englishStreet
       else -> null
     }
-    street?.findAll(text)?.forEach { values.add(it.detected(FluidDetectedTextKind.Address)) }
+    street?.findAll(text)?.forEach {
+      if (street !== italianStreet || it.isPlausibleItalianStreet()) values.add(it.detected(FluidDetectedTextKind.Address))
+    }
   }
   if (FluidDetectedTextKind.Phone in kinds) {
     for (match in phonePattern.findAll(text)) {
@@ -118,15 +136,54 @@ private fun trimWebLink(raw: String): String {
   return trimmed.dropLast(minOf(excess, trimmed.length - trimmed.trimEnd(')').length))
 }
 
+/**
+ * Il link pronto da aprire, o null: solo `http` e `https`, mai con nome e password, sempre con un host
+ * che ha un punto. `java.net.URI` rifiuta i caratteri che non conosce (`|`, `^`…): si riprova con quelli
+ * codificati. Un host con lettere accentate (`città.it`) o col trattino basso non e' un nome che `URI`
+ * sappia leggere (l'host resta nullo): lo si legge dall'autorita' e lo si controlla qui (R2). Il valore
+ * resta quello scritto: e' cio' che si apre.
+ */
 internal fun normalizedWebLink(raw: String): String? {
   val target = if (raw.startsWith("www.", ignoreCase = true)) "https://$raw" else raw
-  val uri = try {
-    URI(target)
-  } catch (_: java.net.URISyntaxException) {
-    return null
-  }
-  if (uri.scheme?.lowercase(Locale.ROOT) !in setOf("http", "https") || uri.userInfo != null || uri.host?.contains('.') != true) return null
+  val uri = parseLenientUri(target) ?: return null
+  if (uri.scheme?.lowercase(Locale.ROOT) !in setOf("http", "https") || uri.userInfo != null) return null
+  val host = uri.host ?: registryHost(uri.rawAuthority) ?: return null
+  if (!host.contains('.')) return null
   return target
+}
+
+private fun parseLenientUri(target: String): URI? = try {
+  URI(target)
+} catch (_: java.net.URISyntaxException) {
+  try {
+    URI(encodeUriIllegal(target))
+  } catch (_: java.net.URISyntaxException) {
+    null
+  }
+}
+
+/** I caratteri ASCII che `URI` non accetta, in `%XX`; il resto (anche le lettere accentate) com'e'. */
+private fun encodeUriIllegal(text: String): String = buildString(text.length) {
+  for (char in text) {
+    if (char.code in 0x21..0x7e && char !in UriIllegalAscii) append(char)
+    else if (char.code < 0x80) append('%').append("%02X".format(char.code))
+    else append(char)
+  }
+}
+
+private const val UriIllegalAscii = "\"<>\\^`{|}"
+
+/**
+ * L'host di un'autorita' che `URI` non sa leggere come nome di server, se e' un nome credibile: niente
+ * nome e password, lettere (anche accentate), cifre, `-`, `_` e punti, senza punti in testa, in coda o
+ * doppi. La porta, se c'e', si toglie.
+ */
+private fun registryHost(authority: String?): String? {
+  if (authority.isNullOrEmpty() || '@' in authority) return null
+  val host = authority.substringBeforeLast(':').takeIf { authority.substringAfterLast(':', "").all(Char::isDigit) } ?: authority
+  if (host.isEmpty() || host.startsWith('.') || host.endsWith('.') || ".." in host) return null
+  if (!host.all { it.isLetterOrDigit() || it == '-' || it == '_' || it == '.' }) return null
+  return host
 }
 
 internal fun isDetectedEmail(raw: String): Boolean = emailPattern.matches(raw)

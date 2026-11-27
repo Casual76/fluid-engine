@@ -323,9 +323,19 @@ delle altre azioni. In una schermata senza host i link web restano apribili e gl
 **Lingua e selezione.** `FluidTextDetection` segue la lingua dell'app di serie, oppure riceve il locale del documento.
 Le date e gli orari semplici sono risolti dalle regole italiane e inglesi, con la data di oggi al momento
 del riconoscimento. Il servizio Android 9+ integra indirizzi, link, mail e telefoni, soggetti alle regole di
-convalida. Il riconoscimento gira in background e la cache in memoria ha dimensione limitata. Il testo non
+convalida. Un servizio disattivato o guasto (chiederlo, chiederne il limite, chiedergli i link: ognuna di
+queste chiamate può lanciare) lascia i soli dati delle regole locali, senza eccezioni e senza tenerli in cache,
+così al giro dopo si riprova. Il riconoscimento gira in background e la cache in memoria ha dimensione limitata. Il testo non
 sottolineato resta selezionabile con `selectable = true`. Nei paragrafi Markdown il riconoscimento parte a
 testo arrivato e mantiene i link dell'autore e il codice in linea.
+
+**Indirizzi e link, dalla review R2.** «via», «corso» e «largo» sono anche parole di tutti i giorni: con loro
+la regola italiana vuole un nome con la maiuscola («via Roma 12», «Corso Vittorio Emanuele II 5») o un segno di
+civico (la virgola, «n.», «12/A»), così «mandato via posta il 12» o «corso di inglese 10» non diventano un
+indirizzo; «via roma 12» scritto tutto minuscolo non si sottolinea più, «via roma, 12» sì. Le altre parole
+(viale, vicolo, piazza, piazzale) bastano da sole. Un link con lettere accentate (`https://città.it/menu`), col
+trattino basso nell'host o con un carattere che `java.net.URI` non accetta (`|`) si sottolinea e si apre; l'host
+resta obbligatorio (con un punto), nome e password nell'indirizzo restano rifiutati.
 
 ### `FluidMarkdown` e `FluidMarkdownParser`
 
@@ -436,7 +446,8 @@ parole e, dentro una parola, avanza **in proporzione** (l'evidenziazione scorre 
 Gli elementi scelti da Alessio il 23 novembre 2026 per il testo che si muove. Il tono è uno: **ciò che arriva o cambia è
 sfocato mentre si muove e si mette a fuoco** (R7, la nota «col blur durante il movimento»). I numeri di movimento stanno in
 `FluidTextMotion`, ognuno con la sua fonte o «a occhio» con la data. Da fermo nessuno di questi elementi ridisegna; col
-movimento ridotto il numero cambia a dissolvenza e il testo compare intero, senza sfocatura. Le scene sono nella pagina
+movimento ridotto il numero cambia a dissolvenza e il testo compare intero, senza sfocatura; anche se «Riduci movimento» si
+accende mentre il testo sta arrivando, le parole in attesa entrano subito (R2). Le scene sono nella pagina
 «Elementi nuovi» della galleria (`--es gallery.page NewElements --es novita.scene <id>`).
 
 ### Scegliere in fretta
@@ -463,7 +474,8 @@ Wallet.
 **Comportamento.** Il testo si divide in tre parti: ciò che sta prima della prima cifra (il segno, «€ »), il corpo dalla
 prima all'ultima cifra, l'unità. Il corpo si allinea **da destra**, per valore di posizione (99 → 100 fa entrare l'1 e
 scorrere le altre due); segno, virgola e unità **non scorrono mai**: restano, scivolano di lato se il numero si allunga, o
-cambiano a dissolvenza sul posto (MB → GB). Il verso viene dal **valore**, non dal testo: un conto alla rovescia scende anche
+cambiano a dissolvenza sul posto (MB → GB). Anche un separatore che nasce o se ne va (999 → 1.000) cambia sul posto: prima
+entrava viaggiando con le cifre (R2). Il verso viene dal **valore**, non dal testo: un conto alla rovescia scende anche
 da «1:00» a «0:59». La molla è quella di serie di SwiftUI da iOS 17 (0,5 s senza rimbalzo); la cifra viaggia di 0,62 righe
 e la sua σ arriva a 0,15 dell'altezza delle maiuscole (R7). Un testo solo, impaginato una volta per valore; il movimento si
 legge nel disegno e nella misura (la larghezza segue fra il vecchio e il nuovo), mai nella composizione. Le cifre in viaggio
@@ -523,7 +535,8 @@ Store (in SwiftUI non c'è: l'App Store lo fa con `lineLimit`).
 
 **Comportamento.** Il taglio si misura sul layout vero (una volta per larghezza, testo e stile): «… altro» sta nell'ultima
 riga senza coprire il testo, e se la misura del pezzo e dell'insieme non coincidono al pixel si toglie una lettera piuttosto
-che mandare «altro» a capo. Un tocco apre il paragrafo sul posto: l'altezza cresce con una molla senza rimbalzo (0,5 s) e il
+che mandare «altro» a capo. Il taglio cade sempre fra due grafemi interi (R2): un emoji o una lettera con l'accento unito non
+si spezzano più prima di «… altro». Un tocco apre il paragrafo sul posto: l'altezza cresce con una molla senza rimbalzo (0,5 s) e il
 resto **arriva riga per riga, sfocato** (lo stesso arrivo del testo di PampAI). Un tocco su un link apre il link, non il
 paragrafo. Lo stato si salva; TalkBack ha «Espandi» sul paragrafo e lo stato «Testo ridotto» / «Testo intero». Aperto resta
 aperto, come nell'App Store; `collapsible = true` lo richiude.
@@ -550,7 +563,8 @@ LocalFluidTimeSource provides FluidTimeSource { … }                           
 `FluidLiveClockProvider` sulla pagina c'è **un'attesa sola** per tutti i tempi della pagina, arrotondata al secondo pieno: una
 lista di cento righe batte al più una volta al secondo, e solo quando un testo cambia. Senza, ogni testo aspetta da solo.
 Il cronometro scorre con le cifre di `FluidNumericText`, verso il basso; a zero chiama `onExpire` una volta. In sottofondo non
-batte (`repeatOnLifecycle(STARTED)`). L'anello della capsula avanza di un passo al secondo con una molla breve e poi sta
+batte (`repeatOnLifecycle(STARTED)`), e dalla R2 nemmeno i tempi relativi e l'orologio della pagina: al ritorno i testi il cui
+cambio è passato si aggiornano subito. L'anello della capsula avanza di un passo al secondo con una molla breve e poi sta
 fermo. TalkBack legge la forma intera («2 minuti fa», «Mancano 4 minuti e 59 secondi»).
 
 **Trappole.** La capsula è quieta, nel tono: sta nella riga o nella barra. Sopra una foto la si mette in un vetro dell'app
@@ -567,6 +581,7 @@ FluidAsyncImage(phase: FluidImagePhase, contentDescription, modifier, thumbHash:
   contentScale = ContentScale.Crop, shape = RectangleShape, onRetry = null)
 FluidImagePhase.Loading / FluidImagePhase.Success(painter | imageBitmap) / FluidImagePhase.Failure(error)
 FluidThumbHash.encode(width, height, rgba) / decode(hash) / imageBitmap(hash) / averageColor(hash) / aspectRatio(hash)
+// un'impronta corrotta (meno di 5 byte, o 5 col bit dell'alfa) lancia IllegalArgumentException, mai un indice fuori (R2)
 ```
 
 **Comportamento.** L'app fa il caricamento vero (Coil o il suo client) e dice la fase; con Coil la traduzione è di poche righe

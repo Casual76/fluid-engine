@@ -122,10 +122,46 @@ object FluidRecurrenceText {
       }
     }
 
+    /** Dopo «solo»: «il lunedì», «la domenica», «lun e gio». */
+    private fun onlyOn(days: List<DayOfWeek>): String =
+      if (days.size == 1) "${if (days[0] == DayOfWeek.SUNDAY) "la" else "il"} ${full.getValue(days[0])}" else weekdays(days)
+
+    /** I mesi che limitano una regola, fra parentesi: « (luglio e agosto)». */
+    private fun monthsLimit(rule: FluidRecurrenceRule): String =
+      if (rule.monthsOfYear.isNotEmpty()) " (${join(rule.monthsOfYear.sorted().map(::month))})" else ""
+
+    /**
+     * Il giorno della settimana che limita i giorni del mese (R2): «, se è venerdì», «, se è l'ultimo venerdì». Vuoto
+     * se la regola non ha tutti e due.
+     */
+    private fun weekdayCondition(rule: FluidRecurrenceRule): String {
+      if (rule.daysOfMonth.isEmpty() || rule.daysOfWeek.isEmpty()) return ""
+      val days = rule.daysOfWeek.map { d ->
+        if (d.ordinal == 0) full.getValue(d.dayOfWeek)
+        else ordinalDay(d.ordinal, full.getValue(d.dayOfWeek), feminine = d.dayOfWeek == DayOfWeek.SUNDAY)
+      }
+      val list = if (days.size == 1) days[0] else days.dropLast(1).joinToString(", ") + " o " + days.last()
+      return ", se è $list"
+    }
+
     override fun rule(rule: FluidRecurrenceRule, start: LocalDate): String {
       val n = rule.interval
       return when (rule.frequency) {
-        FluidRecurrenceFrequency.Daily -> every(n, "giorno", "giorni")
+        FluidRecurrenceFrequency.Daily -> {
+          // R2: i limiti di una regola giornaliera si dicono (prima era sempre «Ogni giorno»). Ogni giorno ma solo il
+          // lunedì e' ogni lunedì.
+          val days = ordered(rule.daysOfWeek.map { it.dayOfWeek }, rule.weekStart)
+          val base = when {
+            days.isNotEmpty() && days.size < 7 && n == 1 ->
+              this.rule(rule.copy(frequency = FluidRecurrenceFrequency.Weekly, monthsOfYear = emptyList(), daysOfMonth = emptyList()), start)
+            days.isNotEmpty() && days.size < 7 -> "${every(n, "giorno", "giorni")}, solo ${onlyOn(days)}"
+            else -> every(n, "giorno", "giorni")
+          }
+          val monthDays = if (rule.daysOfMonth.isNotEmpty()) {
+            ", solo ${join(rule.daysOfMonth.sortedWith(monthDayOrder).map(::monthDay))}"
+          } else ""
+          base + monthDays + monthsLimit(rule)
+        }
         FluidRecurrenceFrequency.Weekly -> {
           val days = ordered(rule.daysOfWeek.map { it.dayOfWeek }.ifEmpty { listOf(start.dayOfWeek) }, rule.weekStart)
           when {
@@ -135,12 +171,11 @@ object FluidRecurrenceText {
             n == 1 -> "Ogni ${weekdays(days)}"
             days.size == 1 -> "Ogni $n settimane, ${if (days[0] == DayOfWeek.SUNDAY) "la" else "il"} ${weekdays(days)}"
             else -> "Ogni $n settimane, ${weekdays(days)}"
-          }
+          } + monthsLimit(rule)
         }
         FluidRecurrenceFrequency.Monthly -> {
           val head = every(n, "mese", "mesi")
-          val limit = if (rule.monthsOfYear.isNotEmpty()) " (${join(rule.monthsOfYear.sorted().map(::month))})" else ""
-          "$head ${inMonth(rule, start)}$limit"
+          "$head ${inMonth(rule, start)}${monthsLimit(rule)}${weekdayCondition(rule)}"
         }
         FluidRecurrenceFrequency.Yearly -> {
           val head = every(n, "anno", "anni")
@@ -153,7 +188,7 @@ object FluidRecurrenceText {
             months.isNotEmpty() -> "$head ${inMonth(rule, start)} di ${join(months.map(::month))}"
             rule.daysOfMonth.isNotEmpty() -> "$head ${inMonth(rule, start)} di ogni mese"
             else -> "$head ${inMonth(rule, start)} dell'anno"
-          }
+          } + weekdayCondition(rule)
         }
       }
     }
@@ -251,10 +286,36 @@ object FluidRecurrenceText {
       }
     }
 
+    private fun monthsLimit(rule: FluidRecurrenceRule): String =
+      if (rule.monthsOfYear.isNotEmpty()) " (${join(rule.monthsOfYear.sorted().map(::month))})" else ""
+
+    /** «, if it's a Friday», «, if it's the last Friday» (R2). */
+    private fun weekdayCondition(rule: FluidRecurrenceRule): String {
+      if (rule.daysOfMonth.isEmpty() || rule.daysOfWeek.isEmpty()) return ""
+      val days = rule.daysOfWeek.map { d ->
+        if (d.ordinal == 0) full.getValue(d.dayOfWeek) else ordinalDay(d.ordinal, full.getValue(d.dayOfWeek))
+      }
+      val article = if (rule.daysOfWeek.first().ordinal == 0) "a " else ""
+      val list = if (days.size == 1) days[0] else days.dropLast(1).joinToString(", ") + " or " + days.last()
+      return ", if it's $article$list"
+    }
+
     override fun rule(rule: FluidRecurrenceRule, start: LocalDate): String {
       val n = rule.interval
       return when (rule.frequency) {
-        FluidRecurrenceFrequency.Daily -> every(n, "day", "days")
+        FluidRecurrenceFrequency.Daily -> {
+          val days = ordered(rule.daysOfWeek.map { it.dayOfWeek }, rule.weekStart)
+          val base = when {
+            days.isNotEmpty() && days.size < 7 && n == 1 ->
+              this.rule(rule.copy(frequency = FluidRecurrenceFrequency.Weekly, monthsOfYear = emptyList(), daysOfMonth = emptyList()), start)
+            days.isNotEmpty() && days.size < 7 -> "${every(n, "day", "days")}, only on ${weekdays(days)}"
+            else -> every(n, "day", "days")
+          }
+          val monthDays = if (rule.daysOfMonth.isNotEmpty()) {
+            ", only on ${join(rule.daysOfMonth.sortedWith(monthDayOrder).map(::monthDay))}"
+          } else ""
+          base + monthDays + monthsLimit(rule)
+        }
         FluidRecurrenceFrequency.Weekly -> {
           val days = ordered(rule.daysOfWeek.map { it.dayOfWeek }.ifEmpty { listOf(start.dayOfWeek) }, rule.weekStart)
           when {
@@ -263,12 +324,10 @@ object FluidRecurrenceText {
             days == ordered(Weekend, rule.weekStart) -> if (n == 1) "Every weekend" else "Every $n weeks on weekends"
             n == 1 -> "Every ${weekdays(days)}"
             else -> "Every $n weeks on ${weekdays(days)}"
-          }
+          } + monthsLimit(rule)
         }
-        FluidRecurrenceFrequency.Monthly -> {
-          val limit = if (rule.monthsOfYear.isNotEmpty()) " (${join(rule.monthsOfYear.sorted().map(::month))})" else ""
-          "${every(n, "month", "months")} on ${inMonth(rule, start)}$limit"
-        }
+        FluidRecurrenceFrequency.Monthly ->
+          "${every(n, "month", "months")} on ${inMonth(rule, start)}${monthsLimit(rule)}${weekdayCondition(rule)}"
         FluidRecurrenceFrequency.Yearly -> {
           val head = every(n, "year", "years")
           val months = rule.monthsOfYear.sorted()
@@ -280,7 +339,7 @@ object FluidRecurrenceText {
             months.isNotEmpty() -> "$head on ${inMonth(rule, start)} of ${join(months.map(::month))}"
             rule.daysOfMonth.isNotEmpty() -> "$head on ${inMonth(rule, start)} of every month"
             else -> "$head on ${inMonth(rule, start)} of the year"
-          }
+          } + weekdayCondition(rule)
         }
       }
     }

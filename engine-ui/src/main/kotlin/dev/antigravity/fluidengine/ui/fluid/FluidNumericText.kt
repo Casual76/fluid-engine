@@ -423,8 +423,10 @@ internal object FluidNumericRoll {
         hasOld && hasNew && old[oi] == new[ni] -> NumericSlotKind.Static
         hasOld && hasNew && roll && old[oi].isDigit() && new[ni].isDigit() -> NumericSlotKind.Roll
         hasOld && hasNew -> NumericSlotKind.Swap
-        hasNew -> if (roll) NumericSlotKind.Enter else NumericSlotKind.Swap
-        else -> if (roll) NumericSlotKind.Exit else NumericSlotKind.Swap
+        // Solo le cifre entrano ed escono viaggiando; un separatore che nasce o se ne va (999 → 1.000) cambia sul posto,
+        // a dissolvenza, come promette il KDoc: virgola e separatori non scorrono mai (R2).
+        hasNew -> if (roll && new[ni].isDigit()) NumericSlotKind.Enter else NumericSlotKind.Swap
+        else -> if (roll && old[oi].isDigit()) NumericSlotKind.Exit else NumericSlotKind.Swap
       }
       into += NumericSlot(kind, if (hasOld) oi else -1, if (hasNew) ni else -1)
     }

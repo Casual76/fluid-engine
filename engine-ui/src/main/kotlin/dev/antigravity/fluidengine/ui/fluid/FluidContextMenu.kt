@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
@@ -221,7 +220,10 @@ fun rememberFluidContextMenu(
 ): FluidContextMenuController {
   val host = LocalFluidGlassModalHostState.current
   val entry = rememberFluidGlassModalEntry()
-  val layer = rememberGraphicsLayer()
+  // F7.29b (D2): il layer nasce con la sua display list vuota. Al distacco l'overlay lo disegna prima che la riga lo
+  // registri, e un layer mai registrato si registrava due volte nello stesso fotogramma (vuoto dall'overlay, vero dalla
+  // riga).
+  val layer = rememberRecordedGraphicsLayer()
   val controller = remember(host, entry, layer) {
     FluidContextMenuController(host, entry, layer)
   }

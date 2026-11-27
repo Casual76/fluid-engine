@@ -153,6 +153,9 @@ class FluidSystemAuthenticator(
       credentialInPrompt = false,
       negativeIsFallback = request.fallback != null,
       crypto = request.cipher,
+      // R2 · Il sensore bloccato da troppe impronte sbagliate (anche per sempre, finché non si scrive il codice) per una
+      // sezione con la riserva vale come il tasto della riserva: la sezione passa al codice o al PIN dell'app.
+      lockoutIsFallback = request.fallback != null,
     )
   }
 
@@ -176,6 +179,7 @@ class FluidSystemAuthenticator(
     credentialInPrompt: Boolean,
     negativeIsFallback: Boolean,
     crypto: javax.crypto.Cipher? = null,
+    lockoutIsFallback: Boolean = false,
   ): VaultAuthResult {
     if (Build.VERSION.SDK_INT < 28) return VaultAuthResult.Unavailable(VaultUnavailability.NoBiometrics)
     FluidAppLock.allowLeavingForSystemUi(2.minutes)
@@ -204,7 +208,7 @@ class FluidSystemAuthenticator(
           }
 
           override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-            if (continuation.isActive) continuation.resume(errorResult(errorCode, errString))
+            if (continuation.isActive) continuation.resume(errorResult(errorCode, errString, lockoutIsFallback))
           }
         }
         try {
@@ -222,8 +226,10 @@ class FluidSystemAuthenticator(
     }
   }
 
-  private fun errorResult(code: Int, message: CharSequence): VaultAuthResult = when (code) {
+  private fun errorResult(code: Int, message: CharSequence, lockoutIsFallback: Boolean): VaultAuthResult = when (code) {
     BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED, BiometricPrompt.BIOMETRIC_ERROR_CANCELED -> VaultAuthResult.Cancelled
+    BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT, BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT ->
+      if (lockoutIsFallback) VaultAuthResult.Fallback else VaultAuthResult.Failed(message.toString().ifBlank { labels.authenticationFailed })
     BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS, BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT,
     BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE -> VaultAuthResult.Unavailable(VaultUnavailability.NoBiometrics)
     BiometricPrompt.BIOMETRIC_ERROR_NO_DEVICE_CREDENTIAL -> VaultAuthResult.Unavailable(VaultUnavailability.NoScreenLock)

@@ -121,7 +121,7 @@ class F8p25WidgetSmallTest {
       }
     }
     rule.waitForIdle()
-    rule.waitUntil(5_000) { frame() != null }
+    rule.waitUntil(GlanceFirstFrameMillis) { frame() != null }
     val widgetName = textViews(frame()!!).first { it.text.toString() == "Matematica" }
     assertEquals(TextUtils.TruncateAt.END, widgetName.ellipsize)
     assertTrue("widget: «Matematica» senza puntini", (widgetName.layout?.getEllipsisCount(0) ?: 0) > 0)
@@ -163,7 +163,7 @@ class F8p25WidgetSmallTest {
     for (s in smallSizes) {
       size = s
       rule.waitForIdle()
-      rule.waitUntil(5_000) { frame() != null }
+      rule.waitUntil(GlanceFirstFrameMillis) { frame() != null }
       val frame = frame()!!
       val shown = texts(frame)
       assertTrue("${s.label}: niente lezioni in ${shown}", "Matematica" in shown)
@@ -214,3 +214,10 @@ class F8p25WidgetSmallTest {
     const val NarrowCellDp = 90
   }
 }
+
+/**
+ * F7.32 · L'attesa della prima composizione di Glance, in tempo vero: col PC carico da quattro build ne ha chiesti
+ * 4,15 s (`lg-unione-r2`, 26/11; `EngineWidgetGaugeTest`), e un'attesa da 5 s cadeva per il tempo, non per il widget.
+ * È un'attesa, non un tetto di ciò che la prova misura.
+ */
+private const val GlanceFirstFrameMillis = 30_000L

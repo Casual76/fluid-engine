@@ -9,6 +9,7 @@ import android.view.textclassifier.TextClassifier
 import android.view.textclassifier.TextLinks
 import java.time.LocalDate
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -42,8 +43,11 @@ internal suspend fun classifyFluidText(
   kinds: Set<FluidDetectedTextKind>,
 ): List<FluidDetectedValue> = withContext(textDetectionDispatcher) {
   val entityTypes = classifierKinds.filterValues { it in kinds }.keys
+  // Il servizio di sistema e' fuori dal nostro controllo: disattivato o guasto, chiederlo puo' lanciare
+  // (un IPC). Allora restano le sole regole locali, come per un servizio che manca (R2, difetto 55).
+  var complete = true
   val classifier = if (Build.VERSION.SDK_INT >= 28 && entityTypes.isNotEmpty()) {
-    context.getSystemService(TextClassificationManager::class.java)?.textClassifier
+    platformCall({ complete = false }) { context.getSystemService(TextClassificationManager::class.java)?.textClassifier }
   } else null
   val key = DetectionKey(text, locale, today, kinds, classifier)
   textDetectionCache.get(key)?.let { return@withContext it }
@@ -51,13 +55,12 @@ internal suspend fun classifyFluidText(
   // Le regole locali hanno la precedenza sui suggerimenti del servizio di sistema.
   val localValues = detectTextRules(text, locale, today, kinds)
   if (classifier == null || Build.VERSION.SDK_INT < 28) {
-    textDetectionCache.put(key, localValues)
+    if (complete) textDetectionCache.put(key, localValues)
     return@withContext localValues
   }
   val values = DetectedRanges()
   localValues.forEach(values::add)
-  var complete = true
-  val windowLength = classifier.maxGenerateLinksTextLength.coerceIn(0, ClassifierWindow)
+  val windowLength = (platformCall({ complete = false }) { classifier.maxGenerateLinksTextLength } ?: 0).coerceIn(0, ClassifierWindow)
   val step = windowLength - minOf(windowLength / 4, ClassifierOverlap)
   if (step > 0) {
     var start = 0
@@ -72,14 +75,7 @@ internal suspend fun classifyFluidText(
         .setEntityConfig(TextClassifier.EntityConfig.createWithExplicitEntityList(entityTypes))
         .build()
       // Un servizio disattivato o un modello non disponibile lascia comunque i dati locali.
-      val links = try {
-        classifier.generateLinks(request).links
-      } catch (e: RuntimeException) {
-        ensureActive()
-        if (e is kotlinx.coroutines.CancellationException) throw e
-        complete = false
-        break
-      }
+      val links = platformCall({ complete = false }) { classifier.generateLinks(request).links } ?: break
       for (link in links) {
         val from = link.start
         val to = link.end
@@ -95,6 +91,19 @@ internal suspend fun classifyFluidText(
   val result = values.toList()
   if (complete) textDetectionCache.put(key, result)
   result
+}
+
+/**
+ * Una chiamata al servizio di classificazione: se lancia (servizio disattivato, modello assente, IPC
+ * rotto) torna null dopo [onFailure]. L'annullamento della coroutine passa sempre.
+ */
+private inline fun <T> CoroutineScope.platformCall(onFailure: () -> Unit, call: () -> T): T? = try {
+  call()
+} catch (e: RuntimeException) {
+  ensureActive()
+  if (e is kotlinx.coroutines.CancellationException) throw e
+  onFailure()
+  null
 }
 
 private fun safeBoundary(text: String, end: Int): Int =

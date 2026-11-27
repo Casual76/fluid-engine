@@ -640,6 +640,12 @@ private class WheelLabels(
   }
 }
 
+/**
+ * Da quante voci di distanza dallo zero una ruota che gira torna nel primo giro, a ruota ferma: 16 384. Li' il passo di un
+ * Float e' 1/512 di voce (un decimo di pixel su una voce di 64 px): nessun salto si vede, e prima nessuna posizione cambia.
+ */
+internal const val RebaseRows: Float = 16_384f
+
 @Composable
 private fun rememberWheelLabels(
   measurer: TextMeasurer,
@@ -663,8 +669,11 @@ internal class FluidWheelDriver(
   private val scope: CoroutineScope,
   column: FluidWheelColumn,
 ) {
-  /** La posizione disegnata, in voci. Letta solo in disegno. */
-  var position by mutableFloatStateOf(column.selected.toFloat())
+  /**
+   * La posizione disegnata, in voci. Letta solo in disegno. Su una ruota che non gira nasce dentro le voci: una scelta
+   * fuori (100 su 10 voci) parte dall'ultima, non da una ruota vuota (R2, difetto 31).
+   */
+  var position by mutableFloatStateOf(fluidWheelBirthRow(column))
     private set
 
   /** Quante volte una colonna e' stata disegnata (per le prove di riposo): non uno stato, non ricompone. */
@@ -686,12 +695,12 @@ internal class FluidWheelDriver(
    * ferma dice a [onTravel] `posa − ancora`, col segno. Si sposta quando la scelta cambia: alla posa, e quando la ruota
    * segue un valore da fuori.
    */
-  private var anchorRow: Float = column.selected.toFloat()
+  private var anchorRow: Float = fluidWheelBirthRow(column)
   private var reducedMotion = false
   private var haptics: FluidHaptics? = null
   private var enabled = true
 
-  private val inertia = FluidDetentInertia().apply { snapTo(column.selected.toFloat()) }
+  private val inertia = FluidDetentInertia().apply { snapTo(fluidWheelBirthRow(column)) }
   private val notches = FluidSliderNotchGate()
   private var job: Job? = null
   private val frame: (Long) -> Long = { it }
@@ -802,14 +811,17 @@ internal class FluidWheelDriver(
   fun follow(index: Int) {
     if (dragging || moving || count <= 0) return
     val wanted = index.coerceIn(0, count - 1)
-    if (centred == wanted && position == fluidDetentRound(position)) {
+    // Una ruota che non gira e sta fuori dalle sue voci (nata fuori, o con meno voci di prima) non mostrerebbe niente:
+    // centred, gia' portato dentro, direbbe «ci sono» (R2, difetto 31). Torna dentro di colpo: non e' un moto da vedere.
+    val outside = !cyclic && (position < 0f || position > lastIndex)
+    if (!outside && centred == wanted && position == fluidDetentRound(position)) {
       anchorRow = position
       return
     }
     val target = fluidDetentNearest(position, wanted, count, cyclic)
     // La scelta e' gia' quella nuova: le voci del prossimo gesto si contano da li', anche se il dito la prende a meta'.
     anchorRow = target
-    if (reducedMotion || rowPx <= 0f) {
+    if (outside || reducedMotion || rowPx <= 0f) {
       inertia.snapTo(target)
       position = target
       notches.restart(wanted)
@@ -856,6 +868,7 @@ internal class FluidWheelDriver(
     job?.cancel()
     if (settle) inertia.springTo(position, speed, target, rowPx, response) else inertia.flingTo(position, speed, target, rowPx)
     job = scope.launch {
+      val self = coroutineContext[Job]
       val glide: suspend () -> Unit = {
         var last = -1L
         while (inertia.moving) {
@@ -868,7 +881,19 @@ internal class FluidWheelDriver(
           if (report) tick(now / 1_000_000L, inertia.velocity)
         }
         position = inertia.position
-        if (report) land() else notches.restart(centred)
+        if (report) {
+          land()
+        } else {
+          notches.restart(centred)
+          // R2 (difetto 32): un secondo cambio da fuori arrivato mentre questa molla correva non aveva trovato la ruota
+          // libera; a ruota ferma si ricontrolla, e se la scelta non e' quella al centro la ruota la raggiunge.
+          if (!dragging) {
+            job = null
+            follow(selected)
+          }
+        }
+        // Ferma davvero: nessuna corsa nuova partita da qui (un rifiuto, il secondo cambio).
+        if (job == null || job === self) rebase()
       }
       // F8.1b: la corsa partita dal dito (lancio, assestamento, tocco), posa compresa, conta come il dito: il numero che
       // mostra la voce scelta cambia di colpo, nitido. Quella che segue un valore dell'app no.
@@ -916,6 +941,22 @@ internal class FluidWheelDriver(
     }
   }
 
+  /**
+   * A ruota ferma, su una ruota che gira e che si e' allontanata di [RebaseRows] voci, la posizione torna nel primo giro
+   * (meno k giri interi): una ruota girata a lungo non cresce fino a perdere la frazione dei Float (gia' a 2^20 voci il
+   * passo di un Float e' un ottavo di voce; oltre 2^24 il conto delle voci fatte sbaglia, R2). Il disegno e le voci fatte
+   * non cambiano, perche' ancora e posizione si spostano insieme; sotto la soglia la posizione resta continua.
+   */
+  private fun rebase() {
+    if (!cyclic || count <= 0 || dragging || abs(position) < RebaseRows) return
+    val turns = kotlin.math.floor(position / count)
+    if (turns == 0f) return
+    val shift = turns * count
+    position -= shift
+    anchorRow -= shift
+    inertia.snapTo(position)
+  }
+
   /** Un tic se la voce al centro e' cambiata, con la rete dei 55 ms. */
   private fun tick(nowMillis: Long, speed: Float) {
     if (count <= 0) return
@@ -925,6 +966,10 @@ internal class FluidWheelDriver(
     }
   }
 }
+
+/** Dove nasce una colonna: la sua scelta, portata dentro le voci se la ruota non gira (R2, difetto 31). */
+internal fun fluidWheelBirthRow(column: FluidWheelColumn): Float =
+  if (column.cyclic) column.selected.toFloat() else column.selected.coerceIn(0, max(0, column.count - 1)).toFloat()
 
 /**
  * Le voci da [from] a [to] per la strada corta, col segno: su una ruota che gira all'infinito al piu' mezzo giro (a

@@ -205,7 +205,8 @@ internal fun fluidCodeGroups(length: Int): List<Int> = when {
 /**
  * Il testo nuovo del campo a codice dopo un cambio della tastiera: un carattere scritto si aggiunge, un incolla o
  * un'autocompilazione (più caratteri insieme) si legge come un codice intero («Il tuo codice è 482913», «482-913»).
- * Sempre solo caratteri validi, mai più di [length]. Pura.
+ * Sempre solo caratteri validi, mai più di [length]; un incolla con più caratteri validi del codice e nessun codice
+ * della lunghezza giusta (un numero di telefono) non entra: resta [previous]. Pura.
  */
 internal fun fluidCodeInput(previous: String, raw: String, length: Int, digitsOnly: Boolean): String {
   fun valid(c: Char) = if (digitsOnly) c in '0'..'9' else c.isLetterOrDigit() && c.code < 128
@@ -213,6 +214,8 @@ internal fun fluidCodeInput(previous: String, raw: String, length: Int, digitsOn
   if (inserted > 1 || (inserted >= 1 && !raw.startsWith(previous))) {
     // Più di un carattere arrivato insieme: un codice incollato o proposto. Vince la sequenza lunga quanto il codice.
     fluidCodeFromText(raw, length..length, digitsOnly, strict = false)?.let { return it }
+    // R2: un numero piu' lungo del codice (un telefono incollato) non si taglia alle prime cifre: l'incolla non entra.
+    if (raw.count(::valid) > length) return previous
   }
   return raw.filter(::valid).take(length).let { if (digitsOnly) it else it.uppercase() }
 }
@@ -285,7 +288,9 @@ fun FluidCodeField(
         shake.animateTo(1f, tween(FluidCodeFieldMotion.ShakeMs, easing = LinearEasing))
       }
       delay(FluidCodeFieldMotion.ClearDelayMs)
-      state.clear()
+      // R2 (difetto 28): si svuota solo il codice sbagliato. Chi ha gia' riscritto durante la scossa (ogni cifra nuova
+      // toglie l'errore, [FluidCodeFieldState.set]) tiene le cifre nuove.
+      if (state.isError) state.clear()
       shake.snapTo(0f)
     }
   }
@@ -343,7 +348,9 @@ fun FluidCodeField(
           .focusRequester(focus)
           .onFocusChanged { focused = it.isFocused }
           .semantics {
-            contentType = ContentType.SmsOtpCode
+            // Il codice monouso si fa proporre dall'autocompilazione; un PIN no: un codice SMS non va proposto (ne'
+            // salvato) nel campo del PIN della schermata di blocco (R2).
+            if (!secret) contentType = ContentType.SmsOtpCode
             contentDescription = name
             stateDescription = spokenState
             if (state.isError) error(labels.codeWrong)

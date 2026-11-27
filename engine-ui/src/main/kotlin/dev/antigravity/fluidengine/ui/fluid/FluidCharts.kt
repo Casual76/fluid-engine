@@ -960,8 +960,8 @@ private class DonutGeometry(
 
 /**
  * Il valore e l'etichetta del foro. Il valore **si riduce** per entrare nella larghezza del foro (al 200% un
- * «1.240» in 34 sp non ci sta): mai a capo (una cifra spezzata e' un numero sbagliato) e mai tagliato; l'etichetta
- * puo' andare a capo su due righe.
+ * «1.240» in 34 sp non ci sta), quanto serve: mai a capo (una cifra spezzata e' un numero sbagliato) e mai tagliato;
+ * l'etichetta puo' andare a capo su due righe.
  */
 @Composable
 private fun DonutCenter(main: String, sub: String?, width: Dp, modifier: Modifier = Modifier) {
@@ -974,10 +974,18 @@ private fun DonutCenter(main: String, sub: String?, width: Dp, modifier: Modifie
     if (natural <= widthPx || natural == 0) {
       base
     } else {
-      base.copy(
-        fontSize = base.fontSize * (widthPx / natural).coerceAtLeast(0.5f),
-        lineHeight = base.lineHeight * (widthPx / natural).coerceAtLeast(0.5f),
-      )
+      // R2 (difetto 34): si riduce finche' entra, senza pavimento (prima si fermava a meta', e un totale di dieci cifre
+      // al 200% usciva dal foro tagliato). La misura della scritta ridotta non scala al pixel col corpo: si rimisura,
+      // e si stringe ancora del poco che manca.
+      var scale = widthPx / natural
+      var fitted = base.copy(fontSize = base.fontSize * scale, lineHeight = base.lineHeight * scale)
+      repeat(3) {
+        val width = measurer.measure(main, fitted, softWrap = false, maxLines = 1).size.width
+        if (width <= widthPx || width == 0) return@remember fitted
+        scale *= widthPx / width * 0.98f
+        fitted = base.copy(fontSize = base.fontSize * scale, lineHeight = base.lineHeight * scale)
+      }
+      fitted
     }
   }
   Column(

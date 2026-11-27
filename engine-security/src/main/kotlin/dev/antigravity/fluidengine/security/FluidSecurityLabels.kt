@@ -90,6 +90,14 @@ data class FluidSecurityLabels(
   val contentView: String = "Visualizza",
   /** Il tasto che lo richiude. */
   val contentLock: String = "Blocca",
+
+  // --- R2 (in coda, dalla 4.0) ------------------------------------------------------------------------------------
+  /** Una scelta delle impostazioni che la cassaforte non ha salvato. */
+  val settingSaveFailed: String = "Non è stato possibile salvare. Riprova.",
+  /** Il PIN di adesso, prima di spegnere il blocco o di cambiare il PIN, quando il telefono non ha impronta né codice. */
+  val pinCurrentTitle: String = "Scrivi il PIN attuale",
+  /** Il titolo del dialogo di sistema prima di spegnere il blocco o di cambiare il PIN. */
+  val confirmTitle: String = "Conferma che sei tu",
 ) {
   /** Il nome di un tempo di blocco: «Subito», «Dopo 5 min», «Dopo 1 h». */
   fun timeout(duration: Duration): String = when {
@@ -150,6 +158,9 @@ data class FluidSecurityLabels(
       contentLockedSubtitle = "Use your fingerprint to see it.",
       contentView = "View",
       contentLock = "Lock",
+      settingSaveFailed = "Couldn't save. Try again.",
+      pinCurrentTitle = "Enter your current app PIN",
+      confirmTitle = "Confirm it's you",
     )
   }
 }

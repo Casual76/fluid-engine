@@ -41,9 +41,16 @@ Uno per app, creato all'avvio: conta da sé le attività aperte (come `ProcessLi
 - Bloccandosi richiude le sezioni della cassaforte (`lockVaultOnLock`).
 
 Le impostazioni e il PIN stanno in una sezione «solo telefono» della cassaforte, fuori dal backup: su un telefono nuovo il
-blocco riparte spento. Il PIN (4–8 cifre, 6 di serie come iPhone) si tiene come PBKDF2 con un sale, mai in chiaro; dal
-quinto errore di fila si aspetta come iPhone: 1 minuto, 5, 15, 15, poi un'ora (`FluidAppLockDefaults.pinDelay`). Un
-riavvio del telefono non accorcia l'attesa.
+blocco riparte spento. Il PIN (4–8 cifre, 6 di serie come iPhone) si tiene come PBKDF2 con un sale, mai in chiaro, e il
+PBKDF2 (210 000 giri) gira su `Dispatchers.Default`, mai sul thread di chi chiama; dal quinto errore di fila si aspetta
+come iPhone: 1 minuto, 5, 15, 15, poi un'ora (`FluidAppLockDefaults.pinDelay`). Un riavvio del telefono (o l'ora
+spostata) non accorcia l'attesa: dopo il riavvio l'attesa riparte una volta da capo, poi il PIN giusto apre (R2: prima
+ripartiva a ogni tentativo, per sempre).
+
+**Le impostazioni che non si leggono all'avvio** (R2). Se la chiave della sezione non c'è più (Keystore azzerato) o la
+scheda è rovinata, il blocco riparte spento: sono perse, come su un telefono nuovo (e chi ha i file dell'app potrebbe
+comunque cancellarle). Un errore passeggero (il Keystore che non risponde, il disco) non apre l'app: resta coperta
+(`FluidAppLockState.Loading`) e si riprova da sola, da mezzo secondo a 30 s.
 
 ## `FluidAppLockHost`: la schermata di blocco
 
@@ -55,7 +62,11 @@ riavvio del telefono non accorcia l'attesa.
 - **Il PIN** è il campo a codice di F8.3 (`FluidCodeField`, nascosto): sbagliato trema e lo dice, troppi tentativi fanno
   aspettare con un solo risveglio (nessun conto alla rovescia che ridisegna).
 - **Il contenuto bloccato resta composto** (navigazione e stato restano), ma non si disegna, non prende il dito e TalkBack
-  non lo legge (`clearAndSetSemantics`); il fuoco e la tastiera si chiudono.
+  non lo legge (`clearAndSetSemantics`); il fuoco e la tastiera si chiudono. Con una tastiera, un D-pad o Switch Access il
+  fuoco non ci entra (il contenuto è un gruppo del fuoco che rifiuta l'ingresso: Tab passa ai tasti della schermata) e i
+  tasti non gli arrivano (R2: prima Invio premeva un tasto invisibile).
+- **Le capacità del telefono si rileggono a ogni ritorno in primo piano** (`rememberFluidAuthCapability`): un blocco
+  schermo o un'impronta messi nelle impostazioni del telefono mentre l'app è bloccata si vedono al rientro.
 - **L'anteprima nelle recenti è oscurata** finché il blocco è acceso: `setRecentsScreenshotEnabled(false)` da Android 13,
   `FLAG_SECURE` prima (che toglie anche gli screenshot). È `FluidSecureWindowHold` di `engine-ui`, lo stesso segno dei
   valori riservati, contato.
@@ -83,6 +94,22 @@ direttamente:
 Quando la 1.4.0 sarà stabile e l'engine compilerà contro la 36.1 si potrà passare a lei senza cambiare l'API
 (`VaultAuthenticator` e `FluidLockAuthenticator` restano).
 
+**Il sensore bloccato** (troppe impronte sbagliate, `BIOMETRIC_ERROR_LOCKOUT`, anche per sempre) per una sezione della
+cassaforte con la riserva vale come il tasto della riserva: `VaultAuthResult.Fallback`, e la sezione passa al codice del
+telefono o al PIN dell'app (R2: prima restava chiusa). Senza riserva resta `Failed` con la frase del sistema.
+
+## La riga delle impostazioni
+
+`FluidAppLockSettingsGroup` (R2):
+- **Spegnere il blocco, cambiare o togliere il PIN chiedono prima chi sei**, come iOS per «Richiedi Face ID» e per
+  «Cambia codice»: il dialogo di sistema (il parametro in coda `authenticator`, di serie quello dell'attività), oppure, se il telefono non
+  ha né impronta né codice, il PIN di adesso (`FluidSecurityLabels.pinCurrentTitle`, con gli stessi errori e le stesse
+  attese della schermata di blocco). Accenderlo e scegliere il primo PIN non chiedono niente.
+- **Un salvataggio rifiutato dalla cassaforte lo dice** (`FluidSecurityLabels.settingSaveFailed`, una riga in fondo al
+  gruppo), e la scelta del PIN resta aperta: prima sembrava accettato.
+- **Il blocco schermo si rilegge al ritorno**: messo nelle impostazioni del telefono, l'interruttore si accende senza
+  ricreare la schermata.
+
 ## Il contenuto protetto
 
 `FluidLockedContent` è il segno di iOS: il lucchetto, «L'album Nascosto è bloccato», «Usa l'impronta per vederlo» e il
@@ -106,7 +133,11 @@ riserva con la frase pronta se l'impronta è cambiata), e il contenuto si richiu
 
 - `engine-security/src/test` (JVM): `FluidAppLockTest` (quando si blocca, «dopo 5 minuti», l'uscita permessa che vale
   una volta, quella non usata, quella scaduta, la cassaforte richiusa, il PIN come impronta con l'attesa di iPhone, le
-  parole dei tempi).
+  parole dei tempi); `FluidAppLockR2Test` (il PIN dopo un riavvio e con l'ora spostata, il PBKDF2 fuori dal filo di chi
+  chiama, le impostazioni illeggibili per un momento e col Keystore azzerato).
+- `sample/src/testDebug/.../novita/F8p23LockR2Test.kt` (Robolectric): Tab e D-pad sotto il blocco, il blocco schermo
+  messo mentre l'app è bloccata, il sensore bloccato, la riga che dice i salvataggi rifiutati, rilegge il blocco schermo
+  e chiede chi sei prima di spegnere o di cambiare il PIN, il dialogo della cassaforte sul thread principale.
 - `sample/src/testDebug/.../novita/F8p23LockUiTest.kt` (Robolectric): il vetro che copre e TalkBack che non legge il
   contenuto, il dialogo che parte da solo, il tasto che lo riapre, il rientro (sì), la condivisione e la rotazione (no),
   `FLAG_SECURE` su Android 12, il PIN con l'errore, il PIN subito senza impronta né codice, «Riduci movimento», la

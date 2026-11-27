@@ -2,13 +2,13 @@ package dev.antigravity.fluidengine.sample.bilanci
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import dev.antigravity.fluidengine.ai.memory.AiMemoryBook
-import dev.antigravity.fluidengine.ai.memory.AiMemoryConfig
-import dev.antigravity.fluidengine.ai.memory.AiMemoryStore
 import dev.antigravity.fluidengine.sample.GlassBenchDevice
 import dev.antigravity.fluidengine.sample.GlassBenchHeap
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import dev.antigravity.fluidengine.sample.novita.F9p3Tags
 import dev.antigravity.fluidengine.sample.novita.NewElementSections
-import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -56,24 +56,11 @@ class F8BalanceTest {
   @After
   fun stop() = restore.close()
 
-  /**
-   * F7.29 · Le scene di F9.3 aprono la memoria di PampAI su un filo in sottofondo e intanto mostrano «apro la memoria…».
-   * La prima apertura del processo costa sui 80 ms veri (le classi e l'indice; le altre 2–3 ms): arrivava dopo
-   * l'assestamento, e la chat vera compariva a caso nel moto o nell'uscita di `ricordi-chat` (2 corse su 4, 27/11).
-   * Si apre una memoria vuota una volta prima della misura, fuori dai contatori (nessun layer, nessun filtro): la scena
-   * arriva nell'entrata, come sul telefono dopo la prima apertura. È lo stesso caso dei programmi condivisi del vetro
-   * ([BalanceHarness]): un costo che il processo paga una volta sola non va in conto alla scena che capita prima.
-   */
-  private fun openMemoryOnce() {
-    runBlocking { AiMemoryBook.open(AiMemoryStore.inMemory(), AiMemoryConfig()) }
-  }
-
   private fun pack(name: String) {
     val section = NewElementSections.single { it.pack == name }
     val file = GlassBalanceRegistry.load(GlassBalanceRegistry.fragmentName(name))
     val problems = ArrayList<String>()
     if (file == null) problems += "$name: manca il frammento ${GlassBalanceRegistry.fragmentName(name)}"
-    if (name == "F9.3") openMemoryOnce()
     for (scene in section.scenes) {
       val rows = file?.rowsOf(scene.id).orEmpty()
       if (rows.isNotEmpty() && rows.all { row -> row.values.values.all { it == BalanceValue.NotVerifiable } }) {
@@ -82,7 +69,10 @@ class F8BalanceTest {
       }
       harness.clearLog()
       val meter = try {
-        BalanceRuns.measureNewElement(harness, scene, file?.margins?.get(scene.id) ?: 0)
+        // F7.32: il lavoro in sottofondo sull'orologio della prova, per le scene che il frammento dichiara (`@sottofondo`).
+        harness.awaitsBackground = file?.background?.contains(scene.id) == true
+        // F7.29: le scene che arrivano da fili propri (la memoria di F9.3) aspettano di essere pronte ([Ready]).
+        BalanceRuns.measureNewElement(harness, scene, file?.margins?.get(scene.id) ?: 0, Ready[scene.id])
       } catch (error: Throwable) {
         problems += "$name/${scene.id}: la scena non si misura al PC (${error.javaClass.simpleName}: ${error.message?.take(300)}). " +
           "Se è così per natura, righe NV col motivo nel frammento"
@@ -139,5 +129,23 @@ class F8BalanceTest {
   companion object {
     /** I pacchetti col loro metodo (F7.29: F8.24, F8.25, F8.26, F9.1, F9.2 e F9.3, arrivati dopo F7.28). */
     val Known = (1..26).map { "F8.$it" }.toSet() + setOf("F9.1", "F9.2", "F9.3")
+
+    /**
+     * F7.29 · Le scene che arrivano dopo un lavoro su fili veri, e quando sono pronte ([BalanceHarness.awaitReady]).
+     * `ricordi-chat` apre la memoria di PampAI su `Dispatchers.IO` e sul filo dell'indice di ricerca, e intanto mostra
+     * «apro la memoria…»: la chat vera arrivava a caso nella posa o nel moto, secondo il carico del PC (2 corse su 4 il
+     * 27/11; e ancora, con la memoria aperta una volta prima della misura, nel lotto dell'unione R4, al fotogramma 0 del
+     * moto). `ricordi-pagina` lo stesso, e lì le righe misuravano il solo segnaposto. Ora il banco le aspetta
+     * nell'entrata, sull'orologio della prova.
+     */
+    val Ready: Map<String, (List<SemanticsNode>) -> Boolean> = mapOf(
+      "ricordi-chat" to { nodes -> nodes.any { it.config.getOrNull(SemanticsProperties.TestTag) == F9p3Tags.Chat } },
+      // La pagina «Cosa ricordo di te» apre la memoria e ci scrive i ricordi della scena (gli stessi fili): fino ad allora
+      // il segnaposto, con lo stesso titolo e «apro la memoria…».
+      "ricordi-pagina" to { nodes -> nodes.hasText("Cosa ricordo di te") && !nodes.hasText("apro la memoria") },
+    )
+
+    private fun List<SemanticsNode>.hasText(part: String): Boolean =
+      any { node -> node.config.getOrNull(SemanticsProperties.Text)?.any { part in it.text } == true }
   }
 }

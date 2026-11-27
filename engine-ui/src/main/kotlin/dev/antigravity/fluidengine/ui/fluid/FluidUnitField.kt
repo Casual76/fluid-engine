@@ -260,7 +260,11 @@ fun FluidUnitField(
       }
     }
   }
-  val choices = units.filter { it == unit || it.canConvertTo(unit) || it.dimension == unit.dimension }
+  // Con un valore da convertire si offrono solo le unita' in cui si converte davvero (R2): una valuta senza cambio
+  // dichiarato cambiava l'unita' lasciando il numero, e 12 € diventavano «12 $» in silenzio. A campo vuoto, tutte quelle
+  // della stessa grandezza.
+  val mustConvert = convertOnUnitChange && value != null
+  val choices = units.filter { it == unit || it.canConvertTo(unit) || (!mustConvert && it.dimension == unit.dimension) }
   val before = FluidUnitFormat.symbolBefore(unit, locale)
   val capsule: @Composable () -> Unit = {
     UnitCapsule(unit, locale, choices.takeIf { onUnitChange != null && it.size > 1 }, choose, enabled, labels)

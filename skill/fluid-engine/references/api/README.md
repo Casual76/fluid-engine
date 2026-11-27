@@ -34,7 +34,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-wear-sync](wear-sync.md) | 8 | 90 |
 | [engine-richtext](richtext.md) | 9 | 104 |
 | [engine-vault](vault.md) | 10 | 125 |
-| [engine-security](security.md) | 7 | 78 |
+| [engine-security](security.md) | 7 | 80 |
 | [engine-viewer](viewer.md) | 40 | 314 |
 | [engine-sync](sync.md) | 13 | 162 |
 | [engine-revisions](revisions.md) | 2 | 18 |

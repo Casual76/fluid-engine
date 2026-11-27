@@ -1868,7 +1868,10 @@ colonna sono in `bilanci/LEGGIMI.txt`.
 - **in moto**: nessun layer registrato due volte nello stesso fotogramma e nessun vetro che cattura due volte nello
   stesso fotogramma (lo stesso campo alla stessa revisione); nessuna colonna oltre il tetto; nessuna cattura più grande
   del vetro (o della sua finestra) alla scala scelta più il margine ottico (`@margine`, di serie zero); un figlio della
-  sorgente che cambia arriva al vetro al fotogramma dopo;
+  sorgente che cambia arriva al vetro al fotogramma dopo. Le due cause trovate (F7.29b): un layer che un altro disegna
+  prima che il suo proprietario lo registri (`drawLayer` di Compose lo registra vuoto al suo posto: il layer deve nascere
+  già registrato, con `rememberRecordedGraphicsLayer` o `recordEmpty()` quando nasce, fuori dal disegno), e uno stato
+  scritto nel disegno che qualcuno applica a metà disegno (i layer che l'avevano già letto si registrano di nuovo);
 - **in moto stabile** zero layer, bitmap e programmi nuovi per fotogramma (le ombre di Robolectric che contano le
   fabbriche, in `sample/src/testDebug/java/…/bilanci/`), e il banco ripetibile delle allocazioni: il vetro sul percorso
   caldo meno la stessa scena senza vetro, rosso solo se l'incremento si ripete nelle tre ripetizioni. Una lista o una
@@ -1892,6 +1895,29 @@ fissa, profilo Pieno): dicono se un elemento costa di più di ieri, non quanto c
 il lavoro del tablet (F7.14, S6). Dove il vetro decide sull'orologio vero (la cattura tenuta si rinfresca ogni 110 ms
 veri) o la scena finisce di arrivare in sottofondo (miniature, testo letto), il tetto di catture, filtri, fabbriche e
 ridisegni lascia un margine, scritto in testa a ogni file; nodi, layer, pixel, byte e rilascio sono esatti.
+
+**Le prove non dipendono dall'ordine né dal tempo vero (F7.32).** Il banco tiene tre regole, e chi scrive una scena o un
+componente le rispetta:
+- **niente istanti assoluti in un oggetto di processo.** I segnali del movimento fra pagine di serie
+  (`LocalRouteMotionSignals`) sono uno per processo, e il loro timbro («il vetro resta al minimo fino a…») è un istante di
+  `SystemClock.uptimeMillis()`. Sul telefono l'orologio non torna indietro e il timbro scade dopo 40 ms; Robolectric lo
+  rimette a 100 ms a ogni prova, e un timbro lasciato da `FluidPageHost` in una prova di prima teneva il vetro della prova
+  dopo al minimo (qualità 0,25) e la sonda sospesa, che leggeva per la prima volta nella posa (le pose di dieci pacchetti
+  di F8 quando le scene di «Misure» giravano prima). Il banco dà a ogni scena i suoi segnali. Un componente nuovo tiene un
+  istante come quello in uno stato della composizione, non in un oggetto di processo;
+- **l'ora dei testi vivi è quella di `LocalFluidTimeSource`.** Una scena che prende «adesso» per un conto alla rovescia
+  lo prende da lì, non da `Instant.now()`: nel banco è l'orologio della prova, e i secondi scendono uguali a ogni corsa;
+- **il lavoro in sottofondo si dichiara.** Una scena che finisce di arrivare con un lavoro su `Dispatchers.Default` o
+  `IO` lo scrive nel suo frammento (`@sottofondo <id> | motivo`): il banco aspetta che quei fili siano fermi prima di far
+  avanzare l'orologio della prova (`BackgroundWork`), e quello che torna al principale arriva al fotogramma dopo, a ogni
+  corsa, come sul telefono, dove prende pochi millisecondi. Oggi lo dichiarano la sincronia di F8.21, i dati nel testo
+  di F8.9 e «Senza PampAI» di F9.1 (lo stato di PampAI, F7.32b). Il lavoro su fili propri (un `HandlerThread`, un `Executor`) e le attese in tempo vero (una fotocamera finta)
+  restano fuori: per quelli c'è l'assestamento.
+
+`BalanceOrderTest` lo prova: un timbro lasciato a 4 s da una prova di prima fa cadere le pose coi segnali di serie e non
+col banco; un PC carico (i fili in sottofondo occupati per 1,5 s quando entra una scena) non cambia le righe. Una prova
+di costo conta (layer, misure, letture), non cronometra: un tetto in millisecondi cade sul PC carico (la prova dei segni
+dell'elenco numerato di R2-F6 ora conta le misure dei segni per disegno).
 
 ## Token, costanti, `GlassDefaults`
 
@@ -1931,6 +1957,7 @@ ridisegni lascia un margine, scritto in testa a ogni file; nodi, layer, pixel, b
   `GlassBalanceScenesTest` (le diciotto scene di «Misure» e tasto, gruppo, popover, tab bar), `F8BalanceTest` (ogni scena
   di «Elementi nuovi»), `GlassHotPathAllocationTest` (il banco delle allocazioni) e `GlassBalanceGuardsTest` (ogni
   guardia con la mutazione che la fa cadere); sul dispositivo la quiete in `GlassNodeCountInstrumentedTest`.
+  `BalanceOrderTest` (F7.32): le stesse righe con una prova di prima che lascia un timbro e col PC carico.
 - **Non verificato dai test**: com'è il vetro. Gli host dei test non hanno fondale; sfocatura, lente, bordo e ombra si guardano in mano (dimensione D1 di `docs/10-coerenza.md`), e le tre costanti della taglia sono da giudicare su un dispositivo. Il materiale nuovo è misurato sul banco (`tools/glassbench`) e **visto su un solo dispositivo, un Tab S9** (vedi «I limiti dichiarati oggi»).
 
 ## Dove guardare

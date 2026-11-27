@@ -16,6 +16,7 @@ package dev.antigravity.fluidengine.ui.fluid
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,6 +67,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import java.util.Locale
 
 /** Le tre forme del quadrante. */
 enum class FluidGaugeStyle {
@@ -200,7 +202,8 @@ private val GaugeWarningDark = Color(0xFFFFB74D)
  * La frase di un quadrante per TalkBack: il valore nel suo intervallo, le soglie (col nome, o «soglia») e, se superata,
  * quale. «18 %, da 0 a 100 %. Limite 25 %.» La usano [FluidGauge] e il quadrante del widget. Pura.
  *
- * @param thresholdTexts i valori scritti delle soglie, nell'ordine di [thresholds].
+ * @param thresholdTexts i valori scritti delle soglie, nell'ordine di [thresholds]. Se e' piu' corta, alle soglie senza
+ *   testo si scrive il loro numero (R2: prima la frase cadeva, e nel widget cadeva la Home); i testi in piu' si ignorano.
  */
 fun fluidGaugeDescription(
   valueText: String,
@@ -213,7 +216,8 @@ fun fluidGaugeDescription(
 ): String {
   val parts = mutableListOf(labels.gaugeValueOf(valueText, minText, maxText))
   thresholds.forEachIndexed { i, t ->
-    val named = labels.gaugeThresholdAt(t.label ?: labels.gaugeThreshold, thresholdTexts[i])
+    val written = thresholdTexts.getOrNull(i) ?: fluidFormatNumber(t.value.toDouble(), Locale.getDefault())
+    val named = labels.gaugeThresholdAt(t.label ?: labels.gaugeThreshold, written)
     parts += if (i == reading.active) labels.gaugeBeyond(named) else named
   }
   return parts.joinToString(". ") { it.trim().trimEnd('.') } + "."
@@ -338,7 +342,8 @@ fun FluidGauge(
   val enter by rememberFluidChartEnter()
   val activeColor = animateColorAsState(
     targetValue = reading.active.let { if (it >= 0) colors.second[it] else colors.first },
-    animationSpec = FluidMotion.color(),
+    // Col movimento ridotto l'arco si posa subito, e il colore con lui (R2: prima sfumava 240 ms col colore vecchio).
+    animationSpec = if (reduced) snap() else FluidMotion.color(),
     label = "gauge",
   )
   val geometry = GaugeGeometry(style, colors.second, drawn, { enter }, activeColor)

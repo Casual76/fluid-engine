@@ -14,6 +14,7 @@ package dev.antigravity.fluidengine.sample.bilanci
  * <id> <fase> <nodi> <layer> <cat/f> <catture> <pixel> <KiB> <fab> <fx> <rid> <alloc/f> <ver> <prova> | <motivo>
  * <id> atteso <ver> | <motivo>
  * @margine <id> <px>
+ * @sottofondo <id> | <motivo>
  * ```
  * Un numero e' un tetto (si misura al piu' quello), `-` una colonna che in quella fase non si misura, `NV` una colonna che
  * al PC non si puo' verificare (serve il motivo, e la prova vera altrove). [ver] e' la sigla del pacchetto che ha scritto
@@ -113,6 +114,8 @@ internal class BalanceFile(
   val expected: List<ExpectedEntry>,
   val margins: Map<String, Int>,
   val defects: List<KnownDefect> = emptyList(),
+  /** F7.32 · Le scene che il banco misura col lavoro in sottofondo sull'orologio della prova (`@sottofondo`, [BackgroundWork]). */
+  val background: Set<String> = emptySet(),
 ) {
   fun rowsOf(id: String): List<BalanceRow> = rows.filter { it.id == id }
 
@@ -133,6 +136,7 @@ internal object GlassBalanceRegistry {
     val expected = ArrayList<ExpectedEntry>()
     val margins = LinkedHashMap<String, Int>()
     val defects = ArrayList<KnownDefect>()
+    val background = LinkedHashSet<String>()
     text.lines().forEachIndexed { index, raw ->
       val line = index + 1
       // Un commento è una riga intera che comincia con «#»: il motivo può contenere qualunque carattere.
@@ -149,9 +153,18 @@ internal object GlassBalanceRegistry {
         defects += KnownDefect(name, line, parts[1], parts[2], parts[3], reason)
         return@forEachIndexed
       }
+      if (trimmed.startsWith("@sottofondo ")) {
+        val bar = trimmed.indexOf('|')
+        if (bar < 0) fail("manca «| motivo»")
+        val parts = trimmed.substring(0, bar).trim().split(Regex("\\s+"))
+        if (parts.size != 2) fail("«@sottofondo <id> | motivo»")
+        if (trimmed.substring(bar + 1).trim().length < 20) fail("@sottofondo vuole il motivo: quale lavoro in sottofondo, su che filo")
+        background += parts[1]
+        return@forEachIndexed
+      }
       if (trimmed.startsWith("@")) {
         val parts = trimmed.split(Regex("\\s+"))
-        if (parts[0] != "@margine" || parts.size != 3) fail("direttiva sconosciuta («@margine <id> <px>», «@difetto <id> <fase> <chiave> | motivo»)")
+        if (parts[0] != "@margine" || parts.size != 3) fail("direttiva sconosciuta («@margine <id> <px>», «@difetto <id> <fase> <chiave> | motivo», «@sottofondo <id> | motivo»)")
         margins[parts[1]] = parts[2].toIntOrNull() ?: fail("margine non intero")
         return@forEachIndexed
       }
@@ -190,7 +203,7 @@ internal object GlassBalanceRegistry {
       if (rows.any { it.id == id && it.phase == phase }) fail("riga doppia per $id $phase")
       rows += BalanceRow(name, line, id, phase, values, version, proof, reason)
     }
-    return BalanceFile(name, rows, expected, margins, defects)
+    return BalanceFile(name, rows, expected, margins, defects, background)
   }
 
   /** Il file [name] dalle risorse di prova (`bilanci/<name>`), o null se non c'è. */

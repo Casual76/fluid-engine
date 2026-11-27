@@ -200,7 +200,8 @@ object FluidFormat {
     )
     val step = relativeStep(abs(delta))
       ?: return formatter.format(RelativeDateTimeFormatter.Direction.PLAIN, RelativeDateTimeFormatter.AbsoluteUnit.NOW)
-    val count = (abs(delta) / step.millis).toDouble()
+    // I mesi (30 giorni) arrivano a 11: da 360 a 364 giorni restano «11 mesi», poi l'anno (R2: prima «12 mesi fa»).
+    val count = (abs(delta) / step.millis).let { if (step.millis == Month) minOf(it, MaxMonths) else it }.toDouble()
     val direction = if (delta < 0) RelativeDateTimeFormatter.Direction.LAST else RelativeDateTimeFormatter.Direction.NEXT
     return formatter.format(count, direction, step.unit)
   }
@@ -215,8 +216,9 @@ object FluidFormat {
     val unit = relativeStep(age)?.millis ?: Minute
     return if (delta <= 0L) {
       // Passato: il numero cresce al prossimo multiplo dell'unità, o l'unità cambia alla soglia dopo (28 giorni sono
-      // «4 settimane», 30 sono già «1 mese»): vince la più vicina.
-      var next = unit - age % unit
+      // «4 settimane», 30 sono già «1 mese»): vince la più vicina. Dall'undicesimo mese il numero non cresce più: il
+      // prossimo cambio è l'anno.
+      var next = if (unit == Month && age / Month >= MaxMonths) Year - age else unit - age % unit
       for (threshold in Thresholds) if (threshold > age) {
         next = minOf(next, threshold - age)
         break
@@ -289,7 +291,9 @@ object FluidFormat {
     maxUnits: Int = 2,
   ): String {
     require(maxUnits >= 1) { "Almeno un'unità: $maxUnits" }
-    val total = abs(duration.seconds)
+    // Il valore assoluto prima dei secondi (R2): `seconds` arrotonda verso il basso, e -1 ms diventava «-1 s» mentre
+    // 1 ms è «0 s». Così una durata negativa tronca come la positiva, e zero non ha segno.
+    val total = duration.abs().seconds
     val parts = listOf(
       total / 86_400 to MeasureUnit.DAY,
       total % 86_400 / 3_600 to MeasureUnit.HOUR,
@@ -311,7 +315,7 @@ object FluidFormat {
       },
     )
     val text = format.formatMeasures(*measures.toTypedArray())
-    return if (duration.isNegative) "-$text" else text
+    return if (duration.isNegative && total > 0) "-$text" else text
   }
 
   /**
@@ -381,6 +385,9 @@ object FluidFormat {
   private const val Week = 7 * Day
   private const val Month = 30 * Day
   private const val Year = 365 * Day
+
+  /** Il numero più grande di mesi che [relative] scrive: 11, poi l'anno. */
+  private const val MaxMonths = 11L
 
   private val ByteUnits = arrayOf("B", "KB", "MB", "GB", "TB", "PB", "EB")
 

@@ -149,7 +149,9 @@ class McpClientTest {
         return server.send(request, onMessage)
       }
     }
-    val client = McpClient(slow, requestTimeoutMillis = 300)
+    // F7.32 · Il tempo massimo vale per ogni richiesta, anche per le due di `connect()`, in tempo vero: con 300 ms sul PC
+    // carico poteva scadere già lì. La chiamata lenta dura 5 s: con 2 s la prova dice la stessa cosa.
+    val client = McpClient(slow, requestTimeoutMillis = 2_000)
     client.connect()
     val error = failure<McpError.Timeout> { runBlocking { client.callTool("eventi", JsonObject(emptyMap())) } }
     assertTrue(error.uncertain)

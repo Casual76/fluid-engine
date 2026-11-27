@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
+import java.text.BreakIterator
 
 /**
  * Un paragrafo lungo chiuso a [collapsedMaxLines] righe, con «altro» in fondo all'ultima riga: un tocco lo apre sul posto
@@ -198,7 +199,13 @@ internal class FluidExpandablePlan(
       val y = (full.getLineTop(lastLine) + full.getLineBottom(lastLine)) / 2f
       val rtl = full.getParagraphDirection(lineStart) == androidx.compose.ui.text.style.ResolvedTextDirection.Rtl
       val room = if (rtl) suffixWidth.toFloat() else (width - suffixWidth).toFloat()
-      var cut = full.getOffsetForPosition(Offset(room.coerceAtLeast(0f), y)).coerceIn(lineStart, lineEnd)
+      // Si taglia fra due grafemi, mai dentro uno (R2): un emoji e' una coppia di Char, una lettera con l'accento unito due
+      // o piu'; tagliare a meta' lasciava un carattere rotto prima di «… altro».
+      val graphemes = BreakIterator.getCharacterInstance().apply { setText(text.text) }
+      fun boundaryAtOrBefore(offset: Int): Int =
+        if (offset <= 0 || offset >= text.length || graphemes.isBoundary(offset)) offset
+        else graphemes.preceding(offset).let { if (it == BreakIterator.DONE) 0 else it }
+      var cut = boundaryAtOrBefore(full.getOffsetForPosition(Offset(room.coerceAtLeast(0f), y)).coerceIn(lineStart, lineEnd))
       // Indietro fino a che il paragrafo chiuso sta nelle sue righe: la misura del pezzo e quella dell'insieme non
       // coincidono al pixel (il kerning fra «…» e il testo), e un «altro» che va a capo è peggio di una lettera in meno.
       var collapsed = collapsedText(text, cut, suffix)
@@ -206,7 +213,7 @@ internal class FluidExpandablePlan(
       while (cut > lineStart && guard < 24 &&
         measurer.measure(collapsed, style, constraints = constraints).lineCount > maxLines
       ) {
-        cut--
+        cut = boundaryAtOrBefore(cut - 1).coerceAtLeast(lineStart)
         guard++
         collapsed = collapsedText(text, cut, suffix)
       }

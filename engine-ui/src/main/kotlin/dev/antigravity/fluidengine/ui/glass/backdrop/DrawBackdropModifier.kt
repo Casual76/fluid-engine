@@ -108,6 +108,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 // Fluid Engine addition (F1A.7): il materiale di una superficie, per la diagnostica.
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModel
+import dev.antigravity.fluidengine.ui.fluid.recordEmpty
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerBackdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriter
 import dev.antigravity.fluidengine.ui.glass.backdrop.backdrops.LayerFallbackWriters
@@ -2504,7 +2505,10 @@ private class DrawBackdropNode(
     }
 
     private fun createOwnMaterial(): LayerBackdrop {
-        val layer = requireGraphicsContext().createGraphicsLayer()
+        // Fluid Engine addition (F7.29b, D4): il materiale nasce con la display list vuota. Il vetro dentro lo campiona
+        // nel fotogramma in cui entra, prima che il pannello lo registri, e un layer mai registrato si registrava due volte
+        // nello stesso fotogramma (vuoto dal `drawLayer` del vetro dentro, vero dal pannello).
+        val layer = requireGraphicsContext().createGraphicsLayer().recordEmpty()
         // Fluid Engine addition (F1A.7): il materiale proprio, solo quando del vetro dentro lo campiona.
         census.layer(FluidGlassLayerKind.Material)
         val material = materialLayerBackdrop(layer)

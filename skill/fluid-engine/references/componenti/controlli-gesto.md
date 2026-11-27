@@ -491,6 +491,8 @@ FluidRangeSlider(
   passa sempre i nomi delle due maniglie.
 - Un `value` più stretto di `minDistance` si mostra allargato (la fine si allontana; in fondo alla pista l'inizio
   arretra), ma `onValueChange` non arriva finché il dito non muove una maniglia.
+- Un `valueRange` al contrario (`10f..0f`) vale un punto, all'inizio, come nello slider: le maniglie stanno lì, e
+  «imposta», «Aumenta» e «Diminuisci» di TalkBack non spostano niente. Prima facevano cadere l'app (R2).
 
 **Non usarlo quando.** Un valore solo (`FluidSlider`); un punto in qualcosa che avanza (`FluidScrubber`).
 
@@ -565,7 +567,11 @@ FluidWheelPicker(
   scambiati), e da lì consuma tutto: in una lista o in un foglio che si trascina gira la ruota, non la pagina. Un gesto
   che va prima di lato è di chi sta sotto (un pager).
 - **Il valore è del chiamante**: `onSelectedChange` arriva **quando la ruota si ferma** (come `didSelectRow`), non a
-  ogni voce. Un chiamante che rifiuta vede la ruota tornare. Un `selected` cambiato da fuori la porta con la molla (0,38 s).
+  ogni voce. Un chiamante che rifiuta vede la ruota tornare. Un `selected` cambiato da fuori la porta con la molla (0,38 s);
+  se cambia ancora mentre la molla corre (A → B → C), a molla ferma la ruota raggiunge l'ultimo (R2: prima restava su
+  B). Un `selected` fuori dalle voci di una ruota che non gira la posa sull'ultima voce (o sulla prima), di colpo: prima
+  la ruota restava vuota. Su una ruota che gira, a ruota ferma e oltre 16 384 voci dallo zero la posizione torna nel primo
+  giro: girata a lungo non perde la precisione dei `Float`, e sotto la soglia resta continua.
 - **Le voci spente** (`isEnabled`) sono al 35%; una ruota che si ferma su una di loro scivola alla più vicina.
 - **Sempre nitida** (F8.2b, scelta di Alessio): la ruota la muove il dito, e ciò che muove l'utente resta nitido anche
   durante l'inerzia. Si sfoca solo ciò che l'app muove da sola, come in iOS. Vale anche fuori dalla ruota (F8.1b): un
@@ -627,7 +633,7 @@ FluidRulerDial(
   neutralValue: Float? = 0f,
   enabled: Boolean = true,
   onValueChangeFinished: (() -> Unit)? = null,
-  valueText: ((Float) -> String)? = …,                       // di serie «−12», «2,5»
+  valueText: ((Float) -> String)? = …,                       // di serie «−12», «2,5», «2,51» col passo 0,01
   contentDescription: String? = null,
 )
 // F8.15c: la stessa ghiera col valore come lambda, letto solo dove serve (effetti, disegno, semantica)
@@ -670,7 +676,9 @@ FluidRulerDial(value = { stato.valore }, onValueChange = { stato.valore = it }, 
 **Trappole.**
 
 - `step` è anche la precisione: i valori che arrivano sono multipli del passo dall'inizio dell'intervallo. Per un valore
-  più fine, un passo più piccolo (0,1 dB) e principali più rade.
+  più fine, un passo più piccolo (0,1 dB) e principali più rade. La scritta di serie ha i decimali del passo (almeno
+  uno): col passo 0,01 «2,51» e «2,54» restano due scritte, anche per TalkBack (R2; prima tutto a un decimale).
+- Un valore cambiato da fuori due volte mentre la molla corre: a molla ferma la ghiera raggiunge l'ultimo (R2).
 - La ghiera non è vetro: sta su una barra o su una pagina, come in Foto. Sopra una foto mettila in un pannello di vetro.
 
 **Non usarlo quando.** Un valore con un inizio e una fine che si vogliono vedere (`FluidSlider`); una scelta fra voci

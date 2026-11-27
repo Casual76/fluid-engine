@@ -36,9 +36,11 @@ import dev.antigravity.fluidengine.sharein.FluidShareIn
 import dev.antigravity.fluidengine.sharein.FluidShareInContent
 import dev.antigravity.fluidengine.sharein.FluidShareInDestination
 import dev.antigravity.fluidengine.sharein.FluidShareInFiles
+import dev.antigravity.fluidengine.sharein.FluidShareInPhase
 import dev.antigravity.fluidengine.sharein.FluidShareInPolicy
 import dev.antigravity.fluidengine.sharein.FluidShareInProblem
 import dev.antigravity.fluidengine.sharein.FluidShareInSheet
+import dev.antigravity.fluidengine.sharein.FluidShareInState
 import dev.antigravity.fluidengine.sharein.FluidShareInTags
 import dev.antigravity.fluidengine.sharein.copy
 import dev.antigravity.fluidengine.sharein.rememberFluidShareInState
@@ -239,11 +241,18 @@ class F8p10ShareInTest {
 
   private val destinations = listOf(FluidShareInDestination("appunti", "Appunti"), FluidShareInDestination("scuola", "Scuola"))
 
-  private fun sheet(intent: Intent, reduced: Boolean = false, onSave: (FluidShareInDestination, FluidShareInContent) -> Unit, onClose: () -> Unit) {
+  private fun sheet(
+    intent: Intent,
+    reduced: Boolean = false,
+    onSave: (FluidShareInDestination, FluidShareInContent) -> Unit,
+    onClose: () -> Unit,
+    onState: (FluidShareInState) -> Unit = {},
+  ) {
     compose.setContent {
       FluidTheme(settings = remember { EngineSettings() }) {
         CompositionLocalProvider(LocalFluidMotionPolicy provides if (reduced) FluidMotionPolicy(0f) else FluidMotionPolicy.Default) {
           val state = rememberFluidShareInState(intent, policy)
+          onState(state)
           FluidShareInSheet(state, destinations, onSave = { d, c -> onSave(d, c) }, onClose = onClose, title = "Fluid Glass")
         }
       }
@@ -297,9 +306,27 @@ class F8p10ShareInTest {
     assertTrue("l'ultima destinazione sopra il bordo: ${last.bottom} contro ${root.bottom}", last.bottom <= root.bottom)
   }
 
+  /**
+   * F7.32 · Aspetta, con l'orologio di Compose fermo, che il foglio abbia letto ciò che è arrivato. La lettura va su
+   * `Dispatchers.IO`, in tempo vero; il foglio sta in basso ed è alto quanto ciò che mostra («Leggo cosa è arrivato…»
+   * è più basso del testo). Sotto carico il testo arrivava dopo il primo fotogramma misurato e il foglio «si spostava»
+   * senza nessuna animazione (una volta nel lotto R2). L'orologio fermo vuol dire che intanto nessuna animazione va
+   * avanti: il fotogramma dopo è ancora il primo del foglio intero.
+   */
+  private fun awaitArrivalWithClockHeld(state: () -> FluidShareInState?) {
+    val end = System.currentTimeMillis() + 20_000
+    while (compose.runOnIdle { state()?.phase } in setOf(null, FluidShareInPhase.Reading)) {
+      assertTrue("la lettura di ciò che è arrivato non finisce", System.currentTimeMillis() < end)
+      Thread.sleep(5)
+    }
+  }
+
   @Test fun reducedMotionShowsTheSheetInPlaceAtOnce() {
     compose.mainClock.autoAdvance = false
-    sheet(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "x"), reduced = true, onSave = { _, _ -> }, onClose = {})
+    var state: FluidShareInState? = null
+    sheet(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "x"), reduced = true, onSave = { _, _ -> }, onClose = {}, onState = { state = it })
+    compose.mainClock.advanceTimeByFrame()
+    awaitArrivalWithClockHeld { state }
     compose.mainClock.advanceTimeByFrame()
     val first = compose.onNodeWithTag(FluidShareInTags.Sheet).fetchSemanticsNode().positionInRoot.y
     compose.mainClock.advanceTimeBy(600)

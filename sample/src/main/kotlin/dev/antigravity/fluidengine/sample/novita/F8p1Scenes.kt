@@ -76,6 +76,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidTextArrival
 import dev.antigravity.fluidengine.ui.fluid.FluidTextStyles
 import dev.antigravity.fluidengine.ui.fluid.FluidThumbHash
 import dev.antigravity.fluidengine.ui.fluid.FluidTimerText
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidTimeSource
 import dev.antigravity.fluidengine.ui.fluid.fluidGlass
 import dev.antigravity.fluidengine.ui.fluid.glassBackdropSource
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
@@ -490,8 +491,12 @@ internal fun ExpandableScene(onBack: () -> Unit) {
 
 @Composable
 internal fun CountdownScene(onBack: () -> Unit) {
-  var night by remember { mutableStateOf(Instant.now().plusSeconds(5 * 60L)) }
-  var undo by remember { mutableStateOf(Instant.now().plusSeconds(10L)) }
+  // F7.32 · L'ora di partenza dallo stesso orologio delle capsule (`LocalFluidTimeSource`, di serie quello del sistema):
+  // nelle prove dei bilanci è l'orologio della prova, e i secondi scendono uguali a ogni corsa.
+  val time = LocalFluidTimeSource.current
+  fun now(): Instant = Instant.ofEpochMilli(time.nowMillis())
+  var night by remember { mutableStateOf(now().plusSeconds(5 * 60L)) }
+  var undo by remember { mutableStateOf(now().plusSeconds(10L)) }
   var sent by remember { mutableStateOf(false) }
   FluidScreen(title = "Conto alla rovescia", subtitle = "F8.1 · conto-alla-rovescia", onBack = onBack) {
     item("notte-titolo") { FluidSectionHeader("Il timer della notte", detail = "Sounds · l'anello si svuota, le cifre scendono.") }
@@ -530,15 +535,15 @@ internal fun CountdownScene(onBack: () -> Unit) {
         FluidButton(
           "Ricomincia",
           {
-            night = Instant.now().plusSeconds(5 * 60L)
-            undo = Instant.now().plusSeconds(10L)
+            night = now().plusSeconds(5 * 60L)
+            undo = now().plusSeconds(10L)
             sent = false
           },
           Modifier.testTag(F8p1Tags.Restart),
           style = FluidButtonStyle.Tinted,
           size = FluidButtonSize.Small,
         )
-        FluidButton("Ultimi 5 s", { night = Instant.now().plusSeconds(5L) }, style = FluidButtonStyle.Tinted, size = FluidButtonSize.Small)
+        FluidButton("Ultimi 5 s", { night = now().plusSeconds(5L) }, style = FluidButtonStyle.Tinted, size = FluidButtonSize.Small)
       }
     }
     item("nota") {

@@ -41,10 +41,10 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.Density
+import dev.antigravity.fluidengine.ui.fluid.rememberRecordedGraphicsLayer
 import dev.antigravity.fluidengine.ui.glass.backdrop.Backdrop
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.isRecordedByDrawBackdropNode
@@ -53,9 +53,12 @@ import java.lang.ref.WeakReference
 
 private val DefaultOnDraw: ContentDrawScope.() -> Unit = { drawContent() }
 
+// Fluid Engine change (F7.29b, D4): the default layer starts with an empty display list, so a nested glass that samples
+// this material before its owner records it (the frame a panel enters) no longer makes Compose record it a second
+// time in the same frame.
 @Composable
 fun rememberLayerBackdrop(
-    graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
+    graphicsLayer: GraphicsLayer = rememberRecordedGraphicsLayer(),
     onDraw: ContentDrawScope.() -> Unit = DefaultOnDraw
 ): LayerBackdrop {
     return remember(graphicsLayer, onDraw) {

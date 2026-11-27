@@ -30,8 +30,9 @@ import okio.Path.Companion.toOkioPath
  *
  * Uno per file e per processo, come vuole DataStore: chiamarla due volte con lo stesso nome dà lo stesso.
  *
- * **Solo per [VaultAccess.Device].** Un DataStore tiene in memoria i dati letti finché vive, e una sezione all'impronta
- * deve dimenticarli quando si richiude: lì servono [VaultSection.values] o [VaultFile].
+ * **Solo per [VaultAccess.Device], senza `whileUnlocked`.** Un DataStore tiene in memoria i dati letti finché vive, e una
+ * sezione all'impronta o «solo a telefono sbloccato» deve dimenticarli quando si richiude (allo schermo spento, R2): lì
+ * servono [VaultSection.values] o [VaultFile]. Chiederlo lì è un `IllegalArgumentException`.
  *
  * Un file che non si decifra (toccato, o di un'altra chiave) diventa `CorruptionException`: con [corruptionHandler] si
  * riparte dal valore che dà lui.
@@ -83,8 +84,15 @@ fun VaultSection.preferencesDataStore(
 }
 
 private fun VaultSection.requireDeviceSection() {
-  require(access is VaultAccess.Device) {
+  val device = access as? VaultAccess.Device
+  require(device != null) {
     "un DataStore tiene i dati in memoria: in una sezione all'impronta usa values o file (sezione «$name»)"
+  }
+  // R2 · Allo schermo spento la chiave esce, ma la copia in chiaro del DataStore resterebbe, e un lavoro in sottofondo
+  // la leggerebbe ancora: la promessa di `whileUnlocked` non varrebbe.
+  require(!device.whileUnlocked) {
+    "un DataStore tiene i dati in chiaro in memoria anche a schermo spento: in una sezione «solo a telefono sbloccato» " +
+      "usa values o file (sezione «$name»)"
   }
 }
 

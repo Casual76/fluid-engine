@@ -79,6 +79,7 @@ keys.anyVerified.collect { enabled -> showAssistantButton(enabled) }
 **Comportamento.**
 - `states` espone solo **presenza e data**: la chiave in chiaro non esce mai da un `Flow`. `key(provider)` la legge e la decifra al momento.
 - Se il Keystore **non riesce piu' a decifrare** (telefono ripristinato, chiave invalidata) `key` ritorna `null` **e cancella la voce**: l'utente vede «reinserisci la chiave», meglio di un 401 senza spiegazione.
+- Se il Keystore **non risponde adesso** (un errore passeggero del sistema, o una chiave che chiede un'autenticazione recente) `key` ritorna `null` per questa volta **e la voce resta** (R2 di F8.23: prima l'eccezione usciva da `key` e faceva cadere chi chiamava).
 - `set` con una chiave **azzera la verifica** (`markVerified` solo se la chiave c'e'); con `null`/vuota/spazi toglie chiave e verifica. Il testo si `trim`-a.
 - Un file DataStore **corrotto** si butta (`AiDataStores.corruptionHandler`, dalla 3.0.0): le chiavi vanno reinserite, ma l'app riparte invece di fallire ogni lettura e scrittura per sempre.
 

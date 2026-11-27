@@ -98,6 +98,10 @@ class VaultSection internal constructor(
     VaultUnlock.Unavailable(VaultUnavailability.KeystoreError)
   } catch (e: ProviderException) {
     VaultUnlock.Unavailable(VaultUnavailability.KeystoreError)
+  } catch (e: IOException) {
+    // R2 · La scheda della sezione non si legge (un errore del disco): un esito, «riprova fra poco», non un'eccezione
+    // che fa cadere chi chiama (`FluidVaultContent` la lanciava in uno scope di composizione).
+    VaultUnlock.Unavailable(VaultUnavailability.KeystoreError)
   }
 
   private suspend fun unlockSafely(authenticator: VaultAuthenticator, prompt: VaultPrompt): VaultUnlock {
@@ -152,6 +156,8 @@ class VaultSection internal constructor(
       }
     } catch (e: VaultException) {
       e.toUnlock()
+    } catch (e: IOException) {
+      VaultUnlock.Unavailable(VaultUnavailability.KeystoreError)
     }
   }
 
@@ -390,7 +396,7 @@ class VaultSection internal constructor(
             VaultReserve.None -> null
           },
         )
-        when (val result = authenticator.authenticate(request)) {
+        when (val result = ask(authenticator, request)) {
           VaultAuthResult.Success -> {
             try {
               val key = withContext(vault.io) { op.finish(biometricWrapped) }
@@ -419,6 +425,13 @@ class VaultSection internal constructor(
     }.also { if (it is VaultUnlock.Lost) _state.value = VaultSectionState.Lost(it.reason) }
   }
 
+  /**
+   * Il dialogo, sempre sul thread principale come promette [VaultAuthenticator] (R2: chiamata da un lavoro in
+   * sottofondo, `unlock` lo chiedeva su quel filo, e il `BiometricPrompt` nasceva lì).
+   */
+  private suspend fun ask(authenticator: VaultAuthenticator, request: VaultAuthRequest): VaultAuthResult =
+    withContext(vault.main) { authenticator.authenticate(request) }
+
   private fun lostOrCancelled(invalid: VaultInvalidation?): VaultUnlock =
     if (invalid != null) VaultUnlock.Lost(invalid) else VaultUnlock.Cancelled
 
@@ -438,7 +451,7 @@ class VaultSection internal constructor(
       title = prompt.title,
       subtitle = invalid?.let { vault.labels.reason(it, VaultReserve.DeviceCredential) } ?: prompt.subtitle,
     )
-    when (val result = authenticator.authenticate(request)) {
+    when (val result = ask(authenticator, request)) {
       VaultAuthResult.Success -> Unit
       VaultAuthResult.Fallback, VaultAuthResult.Cancelled -> return VaultUnlock.Cancelled
       is VaultAuthResult.Failed -> return VaultUnlock.Failed(result.message)
@@ -541,17 +554,41 @@ class VaultSection internal constructor(
     return op.finish(sealed.copyOfRange(VaultCrypto.NonceBytes, sealed.size))
   }
 
+  /** La scheda com'è, senza confrontarla con l'accesso chiesto: per [reset], che deve poter buttare anche una sezione nata diversa. */
   private fun readRecordOrNull(): SectionRecord? = try {
-    readRecord()
+    if (recordFile.exists()) SectionRecord.decode(recordFile.readBytes(), vault.name, name) else null
   } catch (e: VaultException) {
+    null
+  } catch (e: IOException) {
     null
   }
 
+  /**
+   * La scheda, che deve essere nata con l'accesso chiesto: lo stesso tipo, la stessa riserva e lo stesso
+   * «solo a telefono sbloccato» (R2: prima riserva e `whileUnlocked` cambiati da un'app aggiornata si accettavano in
+   * silenzio, con la chiave di prima, più debole). Una scheda di prima di R2, senza `whileUnlocked`, prende quello chiesto.
+   */
   private fun readRecord(): SectionRecord? {
     if (!recordFile.exists()) return null
     val record = SectionRecord.decode(recordFile.readBytes(), vault.name, name)
     val expected = if (access is VaultAccess.Biometric) AccessBiometric else AccessDevice
     if (record.access != expected) throw VaultException.Corrupt("la sezione «$name» è nata con un altro accesso")
+    when (val a = access) {
+      is VaultAccess.Biometric -> if (record.reserve != a.reserve) {
+        throw VaultException.Corrupt("la sezione «$name» è nata con un altro accesso (la riserva ${record.reserve}, non ${a.reserve})")
+      }
+      is VaultAccess.Device -> {
+        val stored = record.whileUnlocked
+        if (stored == null) {
+          val updated = record.copy(whileUnlocked = a.whileUnlocked)
+          writeRecord(updated)
+          return updated
+        }
+        if (stored != a.whileUnlocked) {
+          throw VaultException.Corrupt("la sezione «$name» è nata con un altro accesso (whileUnlocked = $stored, non ${a.whileUnlocked})")
+        }
+      }
+    }
     return record
   }
 
@@ -571,14 +608,18 @@ class VaultSection internal constructor(
     val reserveWrapped: ByteArray? = null,
     val vaultName: String = "",
     val sectionName: String = "",
+    /** «Solo a telefono sbloccato» (R2, in coda alla scheda); null in una scheda scritta prima, che non lo diceva. */
+    val whileUnlocked: Boolean? = null,
   ) {
     fun associated(purpose: String): ByteArray = "fluid-vault/v1/$vaultName/$sectionName/$purpose".toByteArray(Charsets.UTF_8)
 
+    // Il segno in più sta in fondo: una versione di prima lo ignora, e una scheda di prima non ce l'ha (`atEnd`).
     fun encode(): ByteArray = VaultRecordWriter()
       .int(RecordMagic).int(RecordVersion).int(access).int(generation)
       .text(keyAlias).bytes(keyWrapped)
       .text(biometricAlias).bytes(biometricWrapped)
       .int(reserve.ordinal).text(reserveAlias).bytes(reserveWrapped)
+      .int(if (whileUnlocked == true) FlagWhileUnlocked else 0)
       .toByteArray()
 
     override fun equals(other: Any?): Boolean = this === other
@@ -602,26 +643,36 @@ class VaultSection internal constructor(
           reserveWrapped = r.bytes(),
           vaultName = vaultName,
           sectionName = sectionName,
+          whileUnlocked = if (r.atEnd()) null else (r.int() and FlagWhileUnlocked) != 0,
         )
       }
     }
   }
 
   private fun newRecord(access: Int, reserve: VaultReserve = VaultReserve.None): SectionRecord =
-    SectionRecord(access = access, generation = 1, reserve = reserve, vaultName = vault.name, sectionName = name)
+    SectionRecord(
+      access = access,
+      generation = 1,
+      reserve = reserve,
+      vaultName = vault.name,
+      sectionName = name,
+      whileUnlocked = (this.access as? VaultAccess.Device)?.whileUnlocked ?: false,
+    )
 
   internal companion object {
     const val AccessDevice = 0
     const val AccessBiometric = 1
     const val RecordMagic = 0x46564B31 // "FVK1"
     const val RecordVersion = 1
+    /** Il segno «solo a telefono sbloccato» nell'ultimo campo della scheda (R2). */
+    const val FlagWhileUnlocked = 1
     const val KeyPurpose = "key"
     const val ReservePurpose = "reserve"
     const val SecretPurpose = "secret"
     val BoxHeader = byteArrayOf(0x46, 0x56, 0x01, 0x01) // "FV", versione 1, scatola
     val BoxInfo = "fluid-vault/v1/box".toByteArray(Charsets.UTF_8)
 
-    /** Scrive [bytes] in [target] tutto o niente: un file accanto, poi lo scambio. */
+    /** Scrive [bytes] in [target] tutto o niente: un file accanto, sul disco (`sync`), poi lo scambio. */
     fun atomicWrite(target: File, bytes: ByteArray) {
       target.parentFile?.mkdirs()
       val temp = File(target.parentFile, ".${target.name}.tmp")
@@ -629,6 +680,11 @@ class VaultSection internal constructor(
         out.write(bytes)
         out.fd.sync()
       }
+      moveIntoPlace(temp, target)
+    }
+
+    /** Mette [temp] (già sul disco) al posto di [target] con un solo scambio; dove `ATOMIC_MOVE` non c'è, il ripiego. */
+    fun moveIntoPlace(temp: File, target: File) {
       try {
         Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
       } catch (e: IOException) {

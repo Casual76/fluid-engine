@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ui.fluid
 
+import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,14 +23,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
@@ -256,10 +260,46 @@ object FluidConnectionCapsuleTags {
   const val SyncNow: String = "fluid:connection:sync-now"
 }
 
-/** Lo stato della capsula: la fase, e da quando. Uno per capsula. */
+/**
+ * Lo stato della capsula: la fase, e da quando ([since], sull'orologio monotono). Uno per capsula, e si salva (R2): dopo
+ * una rotazione la frase di passaggio resta, e i suoi tempi contano dall'inizio, non dalla ricreazione. [inputs] sono
+ * gli ingressi che hanno dato la fase: ricreata con gli stessi, la capsula non rifà il passo.
+ */
 @Stable
 internal class FluidConnectionCapsuleState {
   var phase: FluidConnectionPhase by mutableStateOf(FluidConnectionPhase.Hidden)
+    private set
+  var since: Long = SystemClock.elapsedRealtime()
+    private set
+  var inputs: String = ""
+
+  /** Passa a [next]; l'istante cambia solo se la fase cambia. */
+  fun moveTo(next: FluidConnectionPhase) {
+    if (next == phase) return
+    phase = next
+    since = SystemClock.elapsedRealtime()
+  }
+
+  /** Quanto manca, da adesso, a [millis] dall'inizio della fase. */
+  fun remaining(millis: Long): Long = (millis - (SystemClock.elapsedRealtime() - since)).coerceAtLeast(0L)
+
+  companion object {
+    private val Phases = listOf(
+      FluidConnectionPhase.Hidden, FluidConnectionPhase.Offline, FluidConnectionPhase.NoInternet,
+      FluidConnectionPhase.BackOnline, FluidConnectionPhase.Synced,
+    )
+
+    val Saver: Saver<FluidConnectionCapsuleState, Any> = listSaver(
+      save = { listOf(it.phase.name, it.since, it.inputs) },
+      restore = { saved ->
+        FluidConnectionCapsuleState().apply {
+          phase = Phases.firstOrNull { it.name == saved[0] } ?: FluidConnectionPhase.Hidden
+          since = saved[1] as Long
+          inputs = saved[2] as String
+        }
+      },
+    )
+  }
 }
 
 /** La frase della capsula per [phase] (con le modifiche in attesa di [status]). Pura. */
@@ -301,7 +341,8 @@ private data class FluidConnectionFace(val phase: FluidConnectionPhase, val text
  *   ([FluidGlassTransition.Materialize]); la frase che cambia entra sfocata ([FluidGlassContentTransition]: la cambia
  *   l'app, non il dito).
  * - **Ferma non ridisegna**: niente gira a riposo; il giro dell'icona c'e' solo mentre sincronizza.
- * - **TalkBack** sente la frase (regione viva: «Offline» si annuncia da solo) e ha l'azione «Mostra i dettagli»; il
+ * - **TalkBack** sente la frase (regione viva educata: «Offline» si annuncia da solo, e cosi' ogni cambio di fase; una
+ *   modifica in piu' in attesa non si riannuncia, R2) e ha l'azione «Mostra i dettagli»; il
  *   bersaglio e' di 44 dp. Col movimento ridotto il vetro e la frase cambiano a dissolvenza (lo fa il piano).
  * - **Il pannello** e' un popover di vetro che nasce dalla capsula: serve un host dei modali alla radice
  *   (`FluidGlassModalHost`), come per ogni popover dell'engine.
@@ -328,26 +369,36 @@ fun FluidConnectionCapsule(
   backdrop: GlassBackdropState = currentGlassBackdrop(),
 ) {
   val labels = LocalFluidConnectionLabels.current
-  val state = remember { FluidConnectionCapsuleState() }
+  val state = rememberSaveable(saver = FluidConnectionCapsuleState.Saver) { FluidConnectionCapsuleState() }
   val latestStatus by rememberUpdatedState(status)
   // La fase: il cambio arriva col cambio degli ingressi, le uscite a tempo con un'attesa. Niente gira a ogni fotogramma.
   LaunchedEffect(online, connected, status.state, status.pending) {
-    state.phase = FluidConnectionRule.next(state.phase, online, connected, latestStatus)
+    val inputs = "$online|$connected|${status.state}|${status.pending}"
+    if (inputs == state.inputs) return@LaunchedEffect
+    state.inputs = inputs
+    state.moveTo(FluidConnectionRule.next(state.phase, online, connected, latestStatus))
+  }
+  // Le uscite a tempo, chiavate sulla fase e non sugli ingressi (R2): con `pending` fra le chiavi ogni modifica mandata
+  // faceva ripartire l'attesa, e «Di nuovo in linea · sincronizzo» restava oltre il tetto di 10 s.
+  val syncingNow = FluidConnectionRule.syncing(status)
+  LaunchedEffect(state.phase) {
     when (state.phase) {
       FluidConnectionPhase.BackOnline -> {
-        if (!FluidConnectionRule.syncing(latestStatus)) {
-          delay(FluidConnectionCapsuleDefaults.BackOnlineHoldMillis)
-          if (state.phase == FluidConnectionPhase.BackOnline) state.phase = FluidConnectionPhase.Hidden
-        } else {
-          delay(FluidConnectionCapsuleDefaults.BackOnlineMaxMillis)
-          if (state.phase == FluidConnectionPhase.BackOnline) state.phase = FluidConnectionPhase.Hidden
-        }
+        delay(state.remaining(FluidConnectionCapsuleDefaults.BackOnlineMaxMillis))
+        if (state.phase == FluidConnectionPhase.BackOnline) state.moveTo(FluidConnectionPhase.Hidden)
       }
       FluidConnectionPhase.Synced -> {
-        delay(FluidConnectionCapsuleDefaults.SyncedHoldMillis)
-        if (state.phase == FluidConnectionPhase.Synced) state.phase = FluidConnectionPhase.Hidden
+        delay(state.remaining(FluidConnectionCapsuleDefaults.SyncedHoldMillis))
+        if (state.phase == FluidConnectionPhase.Synced) state.moveTo(FluidConnectionPhase.Hidden)
       }
       else -> Unit
+    }
+  }
+  // Di nuovo in linea senza niente da mandare: via dopo la tenuta breve, contata da quando non c'e' piu' niente.
+  LaunchedEffect(state.phase, syncingNow) {
+    if (state.phase == FluidConnectionPhase.BackOnline && !syncingNow) {
+      delay(FluidConnectionCapsuleDefaults.BackOnlineHoldMillis)
+      if (state.phase == FluidConnectionPhase.BackOnline) state.moveTo(FluidConnectionPhase.Hidden)
     }
   }
   val phase = state.phase
@@ -357,7 +408,14 @@ fun FluidConnectionCapsule(
     spinning = phase == FluidConnectionPhase.BackOnline && FluidConnectionRule.syncing(status),
   )
   val namespace = rememberFluidGlassNamespace()
-  var panelOpen by remember { mutableStateOf(false) }
+  // Il pannello aperto resiste alla rotazione (R2).
+  var panelOpen by rememberSaveable { mutableStateOf(false) }
+  // TalkBack sente la frase quando cambia la fase, non a ogni modifica in attesa (R2): la regione viva sulla frase col
+  // conteggio la riannunciava a ogni salvataggio. La regione viva resta finche' la frase e' quella con cui la fase e'
+  // entrata; una modifica in piu' cambia la frase e spegne la regione viva nello stesso aggiornamento, e la fase dopo la
+  // riaccende. Toccato, il nodo legge sempre la frase intera col conteggio.
+  val entryText = remember(phase) { face.text }
+  val live = face.text == entryText
   // Nessun fondale da sfocare: la capsula piena (F8.20b). Sul Tab S9 il vetro limpido lasciava leggere il testo sotto.
   val solid = backdrop.backdrop === emptyBackdrop()
   val solidFill = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f)
@@ -378,7 +436,7 @@ fun FluidConnectionCapsule(
           .clearAndSetSemantics {
             contentDescription = face.text
             role = Role.Button
-            liveRegion = LiveRegionMode.Polite
+            if (live) liveRegion = LiveRegionMode.Polite
             onClick(label = labels.showDetails) {
               panelOpen = true
               true

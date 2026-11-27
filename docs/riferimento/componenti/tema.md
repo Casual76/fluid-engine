@@ -683,7 +683,7 @@ titolo appena questo viaggia al centro della barra. Un rosso che non si puo' int
   sole); `ERROR` → `Danger`. Un anno che la fonte non ha ancora aperto non e' un guasto: nessuno puo' ripararlo e riportarlo in rosso
   come una sessione scaduta insegna a ignorare il rosso.
 - **Offline con modifiche in attesa** (F8.20): con `SyncStatus.pending > 0` il nome dell'indicatore e il titolo dell'avviso dicono
-  «Offline · 3 modifiche in attesa» (`FluidSyncStrings.offlinePending` col segnaposto `%1$d`, e `offlinePendingOne`); l'avviso ha la nuvola sbarrata invece del punto esclamativo.
+  «Offline · 3 modifiche in attesa» (`FluidSyncStrings.offlinePending` col segnaposto `%1$d`, e `offlinePendingOne`; il numero in cifre latine anche su un telefono in arabo, R2); l'avviso ha la nuvola sbarrata invece del punto esclamativo.
   Per dirlo sopra il contenuto, con il ritorno in linea, c'e' la capsula della rete (`FluidConnectionCapsule`,
   [elementi-dinamici.md](elementi-dinamici.md)).
 - **Glifo** di `FluidSyncIndicator` (26 dp): `notice` → `Info`; `SYNCING` → `FluidSpinner` da 14 dp; `OFFLINE` → nuvola barrata (13 dp);

@@ -62,8 +62,10 @@ data class FluidDateRange(
   /** Vero se c'e' un giorno solo. */
   val isSingleDay: Boolean get() = start == endInclusive
 
+  // Ci si ferma all'ultimo giorno prima di sommare: un intervallo che finisce a `LocalDate.MAX` non chiede il giorno
+  // dopo, che non esiste (R2).
   override fun iterator(): Iterator<LocalDate> =
-    generateSequence(start) { d -> d.plusDays(1).takeIf { it <= endInclusive } }.iterator()
+    generateSequence(start) { d -> if (d >= endInclusive) null else d.plusDays(1) }.iterator()
 
   /** La mezzanotte del primo giorno in [zone] (la prima ora valida, se quella notte manca la mezzanotte). */
   fun startInstant(zone: ZoneId): Instant = start.atStartOfDay(zone).toInstant()

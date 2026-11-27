@@ -10,6 +10,7 @@ Una riga
   <id> <fase> <nodi> <layer> <cat/f> <catture> <pixel> <KiB> <fab> <fx> <rid> <alloc/f> <ver> <prova> | <motivo>
   <id> atteso <ver> | <motivo>
   @margine <id> <px>                 il margine ottico per lato delle catture di <id> (di serie 0)
+  @sottofondo <id> | <motivo>        <id> si misura col lavoro in sottofondo sull'orologio della prova (F7.32)
   # ...                              un commento (solo righe intere)
 
 Le fasi: entrata, moto (o moto:<tratto>), posa (o posa:<tratto>), uscita, rilascio. Ogni elemento disponibile le ha
@@ -47,9 +48,32 @@ prova dicono, per ogni fotogramma con fabbriche, di chi sono i layer nati (il mo
 
 Il processo caldo (F7.29). Una riga non deve dipendere da quale prova gira prima nella stessa JVM (Gradle fa girare
 prima le classi cadute l'ultima volta, e apre una JVM nuova ogni 80 classi). Per questo il banco compila tutti i
-programmi AGSL condivisi dell'engine prima della prima misura, e F8BalanceTest apre una volta la memoria di F9.3:
-sono costi che il processo paga una volta sola, e prima finivano sulla scena che capitava per prima (menu-tasto 17
-o 18, scorrimento-testo 45 o 47). Un programma che un componente crea per conto suo, fuori dalla cache, conta ancora.
+programmi AGSL condivisi dell'engine prima della prima misura: sono costi che il processo paga una volta sola, e prima
+finivano sulla scena che capitava per prima (menu-tasto 17 o 18, scorrimento-testo 45 o 47). Un programma che un
+componente crea per conto suo, fuori dalla cache, conta ancora.
+
+La scena che arriva da fili propri (F7.29). @sottofondo (F7.32) ferma l'orologio della prova finché Dispatchers.Default
+e IO non hanno finito; un lavoro su un filo proprio non lo vede (la memoria di F9.3 apre l'indice di ricerca sul suo
+filo, «fluid-search-…», e lì fa ogni scrittura). Una scena così, che mostra prima un segnaposto, dichiara in
+F8BalanceTest.Ready quando è pronta; il banco la aspetta nell'entrata, dopo i primi 40 fotogrammi, sull'orologio della
+prova (BalanceHarness.awaitReady: un fotogramma solo quando Compose ha lavoro in sospeso, altrimenti si lasciano finire i
+fili e si consegna all'istante di adesso). Così l'entrata conta sempre il suo arrivo e posa, moto e uscita misurano
+sempre la scena intera, quale che sia il carico del PC.
+
+L'ordine e il tempo vero (F7.32). Tre regole del banco, perché una riga dica la stessa cosa a ogni corsa:
+  - ogni scena ha i suoi segnali del movimento fra pagine (LocalRouteMotionSignals). Quelli di serie sono uno per
+    processo e il loro timbro è un istante di SystemClock: Robolectric lo rimette a 100 ms a ogni prova, e un timbro
+    lasciato da FluidPageHost in una prova di prima teneva il vetro al minimo e la sonda sospesa nella prova dopo (le
+    pose di dieci pacchetti di F8 quando le scene di «Misure» giravano prima, F7.29);
+  - l'ora dei testi vivi (LocalFluidTimeSource) è l'orologio della prova: il conto alla rovescia di F8.1 scende due
+    volte in ogni posa di 2 s, come sul telefono, invece che quando capitava col tempo vero;
+  - per le scene che il loro frammento dichiara con @sottofondo (oggi la sincronia di F8.21, i dati nel testo di
+    F8.9 e «Senza PampAI» di F9.1), prima di ogni fotogramma il banco aspetta che Dispatchers.Default e IO abbiano finito (BackgroundWork): il
+    lavoro in sottofondo della scena arriva al fotogramma dopo, a ogni corsa, come sul telefono. Il lavoro su fili propri
+    e le attese in tempo vero (una fotocamera finta) restano all'assestamento. Una scena con lavoro in sottofondo la
+    dichiara, e il pacchetto misura di nuovo le sue righe: con la barriera il sottofondo arriva sempre dentro l'entrata.
+BalanceOrderTest lo prova: un timbro lasciato a 4 s da una prova di prima, e un PC carico (i fili in sottofondo occupati
+1,5 s quando entra una scena), non cambiano le righe. Con FLUID_BILANCI_ORDINE=1 fa anche gli ordini completi.
 
 Se una riga diventa rossa
   1. Leggere il messaggio: dice elemento, fase, colonna, misura e tetto (e la riga misurata intera nell'uscita della

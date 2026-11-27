@@ -445,7 +445,9 @@ fun FluidTransferRow(
         onClick = { action.run(controls, item.id) },
         style = if (action.primary) FluidButtonStyle.Tinted else FluidButtonStyle.Plain,
         size = FluidButtonSize.Small,
-        modifier = Modifier.widthIn(min = 44.dp).testTag(FluidTransferTags.action(item.id)),
+        // Per TalkBack il tasto e' gia' un'azione della riga (una riga, un nodo): qui resta solo per il dito (R2: prima
+        // «Pausa» era due volte, l'azione della riga e un nodo a parte).
+        modifier = Modifier.widthIn(min = 44.dp).testTag(FluidTransferTags.action(item.id)).clearAndSetSemantics { },
       )
     }
   }

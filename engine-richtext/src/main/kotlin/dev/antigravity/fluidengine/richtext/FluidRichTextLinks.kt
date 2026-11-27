@@ -133,7 +133,7 @@ object FluidRichTextPlainText {
       openLink = null
       linkText.setLength(0)
     }
-    document.forEachRun { runStart, runEnd, format ->
+    document.forEachRunIn(start, end) { runStart, runEnd, format ->
       val a = maxOf(runStart, start)
       val b = minOf(runEnd, end)
       if (a < b) {

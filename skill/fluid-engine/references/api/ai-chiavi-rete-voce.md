@@ -18,7 +18,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val states: Flow<Map<ProviderId, KeyState>>`
   - `val anyVerified: Flow<Boolean>` — Vero se almeno un provider ha una chiave verificata: la condizione per accendere l'assistente.
   - `suspend fun currentStates(): Map<ProviderId, KeyState>`
-  - `suspend fun key(provider: ProviderId): String?` — La chiave in chiaro, adesso. Null se manca o se il Keystore non la legge piu' (e allora la toglie).
+  - `suspend fun key(provider: ProviderId): String?` — La chiave in chiaro, adesso. Null se manca o se il Keystore non la legge piu' (e allora la toglie), e null anche se il Keystore non risponde adesso (e allora la lascia: si riprova alla prossima richiesta).
   - `suspend fun set(provider: ProviderId, key: String?)` — Salva (cifrata) o rimuove; una chiave nuova parte non verificata.
   - `suspend fun markVerified(provider: ProviderId, atMillis: Long)`
 

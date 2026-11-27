@@ -195,7 +195,7 @@ fun FluidRangeSlider(
         val rawValue = fluidSliderValue(rawFraction, range)
         val threshold = if ((travel || settling) && stops.size > 1) 1f else currentThreshold
         val stop = fluidSliderStopIndex(rawValue, stops, range, threshold)
-        val snapped = if (stop >= 0) stops[stop].coerceIn(range.start, range.endInclusive) else rawValue
+        val snapped = if (stop >= 0) stops[stop].coerceIn(range.start, fluidRangeTop(range)) else rawValue
         val start = currentStart
         val end = currentEnd
         val next = if (which == RangeStart) fluidRangeClampStart(snapped, end, range, currentGap)
@@ -441,7 +441,7 @@ fun FluidRangeSlider(
             if (enabled) {
               fun move(target: Float): Boolean {
                 val range = currentRange
-                val snapped = fluidSliderSnap(target.coerceIn(range.start, range.endInclusive), currentStops, range, currentThreshold)
+                val snapped = fluidSliderSnap(target.coerceIn(range.start, fluidRangeTop(range)), currentStops, range, currentThreshold)
                 val s = currentStart
                 val e = currentEnd
                 val next = if (which == RangeStart) fluidRangeClampStart(snapped, e, range, currentGap)
@@ -509,8 +509,16 @@ internal fun fluidRangeClampStart(candidate: Float, end: Float, range: ClosedFlo
   candidate.coerceIn(range.start, max(range.start, end - gap))
 
 /** Dove puo' andare la fine [candidate] con l'inizio a [start]: mai prima di `start + gap`, mai fuori da [range]. */
-internal fun fluidRangeClampEnd(candidate: Float, start: Float, range: ClosedFloatingPointRange<Float>, gap: Float): Float =
-  candidate.coerceIn(min(range.endInclusive, start + gap), range.endInclusive)
+internal fun fluidRangeClampEnd(candidate: Float, start: Float, range: ClosedFloatingPointRange<Float>, gap: Float): Float {
+  val top = fluidRangeTop(range)
+  return candidate.coerceIn(min(top, start + gap), top)
+}
+
+/**
+ * Il bordo alto di [range] come lo legge il cursore: un intervallo al contrario (`10f..0f`) vale un punto, all'inizio,
+ * come in [fluidRangeStartOf]. Ogni `coerceIn` passa da qui: con `start > endInclusive` lancerebbe (R2, difetto 33).
+ */
+internal fun fluidRangeTop(range: ClosedFloatingPointRange<Float>): Float = max(range.start, range.endInclusive)
 
 /**
  * Quale maniglia sta sotto un dito a [x] (in pixel dall'inizio della riga), con i centri a [startCentre] e [endCentre] e
@@ -559,11 +567,12 @@ internal fun fluidRangeStepTarget(
   range: ClosedFloatingPointRange<Float>,
   step: Float,
 ): Float {
+  val top = fluidRangeTop(range)
   if (stops.size > 1) {
-    val sorted = stops.map { it.coerceIn(range.start, range.endInclusive) }.sorted()
-    return if (direction > 0) sorted.firstOrNull { it > current + 1e-6f } ?: range.endInclusive
+    val sorted = stops.map { it.coerceIn(range.start, top) }.sorted()
+    return if (direction > 0) sorted.firstOrNull { it > current + 1e-6f } ?: top
     else sorted.lastOrNull { it < current - 1e-6f } ?: range.start
   }
-  return (current + direction * step).coerceIn(range.start, range.endInclusive)
+  return (current + direction * step).coerceIn(range.start, top)
 }
 

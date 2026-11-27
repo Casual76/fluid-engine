@@ -119,7 +119,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun clear()` — Dimentica tutto (per esempio quando l'app svuota le sue copertine).
   - `val size: Int` — Quante voci tiene adesso.
 - `@Composable fun rememberFluidContentColors(key: Any?, load: suspend () -> Bitmap?): State<FluidContentColors?>` — I colori dell'immagine che [key] identifica, letti una volta sola: dalla cache se ci sono, altrimenti [load] e [fluidContentColorsOf] su `Dispatchers.Default`, mai sul thread principale.
-- `@Composable fun rememberFluidContentColors(image: ImageBitmap?, key: Any? = image): State<FluidContentColors?>` — [rememberFluidContentColors] per un'immagine gia' in memoria; la chiave di serie e' l'immagine stessa.
+- `@Composable fun rememberFluidContentColors(image: ImageBitmap?, key: Any? = image): State<FluidContentColors?>` — [rememberFluidContentColors] per un'immagine gia' in memoria; la chiave di serie e' l'immagine stessa, tenuta **in modo debole** nella cache (R2): la cache tiene i colori, non l'immagine, e un'immagine che l'app lascia andare non resta appesa fra le 64 voci. Una chiave data ([key], l'indirizzo della copertina) resta com'e'.
 
 ## `engine-ui/ui/theme/FluidContentTheme.kt`
 

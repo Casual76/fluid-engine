@@ -125,9 +125,20 @@ class FluidPasswordRules(
   /** Vero se [password] rispetta tutte le regole. */
   fun isSatisfiedBy(password: String): Boolean = requirements.all { satisfies(it, password) }
 
+  /**
+   * Due regole con gli stessi campi sono uguali (R2): un campo che le riceve create in composizione
+   * (`FluidPasswordRules.parse(…)` come argomento) non rifà la password proposta a ogni ricomposizione.
+   */
+  override fun equals(other: Any?): Boolean = other is FluidPasswordRules && other.minLength == minLength &&
+    other.maxLength == maxLength && other.required == required && other.allowed == allowed &&
+    other.maxConsecutive == maxConsecutive
+
+  override fun hashCode(): Int = listOf(minLength, maxLength, required, allowed, maxConsecutive).hashCode()
+
+  // Le lunghezze contano i caratteri, non i Char di UTF-16: un emoji e' un carattere (R2).
   private fun satisfies(requirement: FluidPasswordRequirement, password: String): Boolean = when (requirement) {
-    is FluidPasswordRequirement.MinLength -> password.length >= requirement.count
-    is FluidPasswordRequirement.MaxLength -> password.length <= requirement.count
+    is FluidPasswordRequirement.MinLength -> password.codePointCount(0, password.length) >= requirement.count
+    is FluidPasswordRequirement.MaxLength -> password.codePointCount(0, password.length) <= requirement.count
     is FluidPasswordRequirement.Contains -> password.any { c -> requirement.any.any { c in it } }
     is FluidPasswordRequirement.MaxConsecutive -> longestRun(password) <= requirement.count
     is FluidPasswordRequirement.OnlyAllowed -> password.all { c -> requirement.allowed.any { c in it } }
@@ -234,7 +245,9 @@ class FluidPasswordRules(
           "allowed" -> charsets(value).takeIf { it.isNotEmpty() }?.let { (allowed ?: mutableListOf<FluidPasswordCharset>().also { list -> allowed = list }).addAll(it) }
         }
       }
-      val minimum = min ?: 8
+      // Senza minlength il minimo di serie e' 8, ma mai oltre un maxlength piu' basso (R2): «maxlength: 6» vuole
+      // password di 6 al piu', e una proposta di 8 il servizio la rifiuterebbe.
+      val minimum = min ?: max?.let { minOf(8, it) } ?: 8
       return FluidPasswordRules(
         minLength = minimum,
         maxLength = max?.coerceAtLeast(minimum.coerceAtLeast(1)),
@@ -270,14 +283,18 @@ class FluidPasswordRules(
       return parts.filter { it.isNotBlank() }
     }
 
+    /** La ripetizione piu' lunga di un carattere, per caratteri interi: «🔑🔑🔑» e' tre volte lo stesso (R2). */
     internal fun longestRun(text: String): Int {
       var best = 0
       var run = 0
-      var previous: Char? = null
-      for (c in text) {
+      var previous = -1
+      var i = 0
+      while (i < text.length) {
+        val c = text.codePointAt(i)
         run = if (c == previous) run + 1 else 1
         previous = c
         if (run > best) best = run
+        i += Character.charCount(c)
       }
       return best
     }

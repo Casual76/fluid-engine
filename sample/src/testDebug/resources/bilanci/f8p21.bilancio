@@ -7,6 +7,12 @@
 # letto), che la prova non guida. Nodi, layer, pixel, byte e il rilascio sono la misura esatta.
 # Il motivo di ogni riga dice la misura vera.
 #
+# F7.32 · I motori finti delle tre scene lavorano su `Dispatchers.Default` (registro, unione, sigillo): il banco le
+# misura col lavoro in sottofondo sull'orologio della prova.
+@sottofondo sync-due-dispositivi | la sincronia simulata su Dispatchers.Default; in tempo vero arrivava dentro o dopo l'entrata (F7.29: catture 11 su 9 in 2 corse su 6)
+@sottofondo sync-conflitto | la sincronia simulata su Dispatchers.Default, come sync-due-dispositivi
+@sottofondo sync-fermo | la sincronia simulata su Dispatchers.Default, come sync-due-dispositivi
+#
 # id                       fase              nodi   layer   cat/f catture   pixel     KiB     fab      fx     rid alloc/f  ver   prova
 sync-due-dispositivi       entrata              9      13       5       9   45210       0     114      12       -       -  F7.28 F8BalanceTest | entrata (F7.28, 26/11): 9 nodi e 13 layer del vetro, 7 catture (al più 5 per fotogramma, la più grande 45210 px), 0 KiB del vetro, 76 layer, bitmap o programmi nuovi e 8 filtri; il tetto è il massimo di 3 corse (catture, fab cambiano fra una corsa e l'altra).
 sync-due-dispositivi       moto                 9      13       2      51     960       0       4       3       -       -  F7.28 F8BalanceTest | moto (F7.28, 26/11), il dito che trascina dal centro in su per 24 fotogrammi: 46 catture, al più 2 per fotogramma, la più grande 960 px; nel tratto stabile 1 fabbriche e 0 filtri nuovi per fotogramma (fabbriche in moto stabile: vedi i difetti del rapporto F7.28); il tetto è il massimo di 3 corse (cat/f, catture, pixel, fab cambiano fra una corsa e l'altra).

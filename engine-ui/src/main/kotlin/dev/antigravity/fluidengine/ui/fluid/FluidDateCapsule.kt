@@ -153,7 +153,9 @@ fun FluidDurationCapsule(
 ) {
   var open by rememberSaveable { mutableStateOf(false) }
   FluidPickerCapsule(
-    text = text(seconds),
+    // La capsula dice quello che la ruota mostra: la durata portata dentro i suoi limiti (R2: -90 s dava una capsula vuota
+    // sopra una ruota al minimo).
+    text = text(fluidDurationClamp(seconds, maxHours, showSeconds, minuteInterval, minimumSeconds)),
     label = label,
     open = open,
     onOpenChange = { open = it },
@@ -278,9 +280,10 @@ internal fun fluidDateRangeText(start: LocalDate, end: LocalDate, locale: Locale
 
 /** «45 min», «1 h 30 min», «2 h», e con i secondi «1 min 5 s». */
 internal fun fluidDurationText(seconds: Long, showSeconds: Boolean, units: FluidDurationUnits): String {
-  val h = seconds / 3600
-  val m = seconds % 3600 / 60
-  val s = seconds % 60
+  val total = seconds.coerceAtLeast(0L)
+  val h = total / 3600
+  val m = total % 3600 / 60
+  val s = total % 60
   val parts = buildList {
     if (h > 0) add("$h h")
     if (m > 0 || (h == 0L && (!showSeconds || s == 0L))) add("$m ${units.minutes}")

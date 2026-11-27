@@ -15,13 +15,15 @@ package dev.antigravity.fluidengine.richtext
  * comincia il testo della voce che lo contiene (`- a` / `  - b`, `1. a` / `   1. b`), una citazione nella
  * citazione e' `> > `, una citazione in una voce `  > `; la numerazione riparte in ogni sotto-elenco. I
  * caratteri che il Markdown leggerebbe come segni (`*`, `_`, `[`, `]`, `\`, `` ` ``, `<`, e in testa al
- * testo del paragrafo `#`, `>`, `-`, `+`, `1.`) escono preceduti da `\`.
+ * testo del paragrafo `#`, `>`, `-`, `+`, `~`, `1.`) escono preceduti da `\`: un paragrafo che comincia con
+ * `~~~` non apre un blocco di codice alla rilettura.
  *
  * In ingresso, oltre a quanto sopra: `__grassetto__`, `_corsivo_`, `* `/`+ ` per l'elenco puntato, `1)`,
  * annidamenti con rientri di 2-4 spazi o tab e piu' segni sulla stessa riga (`- > citazione nella voce`),
  * fino a [FluidRichTextParagraphStyle.MaxDepth] livelli, i titoli `#` (diventano un paragrafo in grassetto), i link automatici
- * `<https://…>`, il codice (resta testo, senza segni), i blocchi di codice recintati (testo, riga per
- * riga). Gli indirizzi dei link passano da [FluidRichTextLinks.sanitize]. Il Markdown non e' il formato
+ * `<https://…>`, il codice (resta testo, senza segni; dentro, al piu' uno spazio per lato se ci sono tutti e
+ * due, come in CommonMark), i blocchi di codice recintati (testo, riga per riga; il recinto si chiude con
+ * uno dello stesso segno lungo almeno quanto quello che l'ha aperto). Gli indirizzi dei link passano da [FluidRichTextLinks.sanitize]. Il Markdown non e' il formato
  * di riferimento dell'editor: se l'app puo' scegliere, per salvare usi [FluidRichTextHtml].
  */
 object FluidRichTextMarkdown {
@@ -50,6 +52,7 @@ object FluidRichTextMarkdown {
       if (markdown.length > FluidRichTextHtml.MaxInputLength) markdown.substring(0, FluidRichTextHtml.MaxInputLength) else markdown,
     )
     val assembler = DocumentAssembler()
+    // Il recinto aperto, intero (tre o piu' accenti o tilde): lo chiude una riga con almeno altrettanti.
     var fence: String? = null
     // I contenitori della riga prima, con la colonna dove comincia il loro contenuto: una riga che li
     // ripete (`> ` per la citazione, il rientro della voce per un elenco) ci resta dentro.
@@ -67,7 +70,7 @@ object FluidRichTextMarkdown {
       }
       val trimmedStart = rawLine.trimStart()
       if (trimmedStart.startsWith("```") || trimmedStart.startsWith("~~~")) {
-        fence = trimmedStart.take(3)
+        fence = trimmedStart.takeWhile { it == trimmedStart[0] }
         previous = emptyList()
         continue
       }
@@ -267,7 +270,7 @@ private class MarkdownInlineWriter(
     val start = document.paragraphStart(paragraph)
     val end = document.paragraphEnd(paragraph)
     var linkOpen: String? = null
-    document.forEachRun { runStart, runEnd, format ->
+    document.forEachRunIn(start, end) { runStart, runEnd, format ->
       val a = maxOf(runStart, start)
       val b = minOf(runEnd, end)
       if (a < b) {
@@ -282,7 +285,7 @@ private class MarkdownInlineWriter(
           // Spazi soli: il Markdown non sa dare uno stile a uno spazio (`** **` non e' grassetto, e una
           // coppia vuota di segni rovinerebbe il testo). Restano dentro i segni aperti, o fuori.
           appendEscaped(piece)
-          return@forEachRun
+          return@forEachRunIn
         }
         val wanted = buildList {
           if (format.bold) add(Marker.Bold)
@@ -334,7 +337,7 @@ private class MarkdownInlineWriter(
       val atStart = atLineStart && onlyBlanks
       when {
         char in AlwaysEscaped -> out.append('\\').append(char)
-        atStart && (char == '#' || char == '>' || char == '-' || char == '+') -> out.append('\\').append(char)
+        atStart && (char == '#' || char == '>' || char == '-' || char == '+' || char == '~') -> out.append('\\').append(char)
         (char == '.' || char == ')') && atLineStart && leadingDigits in 1..9 -> out.append('\\').append(char)
         else -> out.append(char)
       }
@@ -364,7 +367,16 @@ private class MarkdownInlineWriter(
   }
 }
 
-/** Legge i segni in linea di una riga di Markdown. */
+/**
+ * Legge i segni in linea di una riga di Markdown.
+ *
+ * **In tempo lineare** anche su una riga ostile di milioni di caratteri (R2, difetto 54). Le domande che il
+ * lettore fa sul resto della riga — c'e' piu' avanti chi chiude questo `*`? dove si chiude questa `[`? e
+ * questo codice? — non si rifanno scorrendo la riga ogni volta: le risposte si preparano con una passata
+ * sola, la prima volta che servono, e si leggono avanzando, perche' il lettore va solo in avanti. Le
+ * risposte sono le stesse di prima: una barra rovesciata protegge il carattere dopo se ne ha un numero
+ * dispari davanti, contando da dove comincia la loro fila.
+ */
 private class MarkdownInlineReader(
   private val line: String,
   private val assembler: DocumentAssembler,
@@ -388,14 +400,16 @@ private class MarkdownInlineReader(
           index += 2
         }
         char == '`' -> {
-          val ticks = line.drop(index).takeWhile { it == '`' }.length
-          val close = line.indexOf("`".repeat(ticks), index + ticks)
+          var ticksEnd = index
+          while (ticksEnd < line.length && line[ticksEnd] == '`') ticksEnd++
+          val ticks = ticksEnd - index
+          val close = ticks().closer(ticksEnd, ticks)
           if (close in 0 until to) {
-            pending.append(line.substring(index + ticks, close).trim())
+            pending.append(codeContent(line.substring(ticksEnd, close)))
             index = close + ticks
           } else {
-            pending.append(line, index, index + ticks)
-            index += ticks
+            pending.append(line, index, ticksEnd)
+            index = ticksEnd
           }
         }
         char == '*' || char == '_' -> index = delimiterRun(index, to, char)
@@ -408,23 +422,21 @@ private class MarkdownInlineReader(
           index += 4
         }
         char == '<' -> {
-          val close = line.indexOf('>', index + 1)
-          val candidate = if (close in 0 until to) line.substring(index + 1, close) else null
-          val url = candidate?.takeIf { !it.contains(' ') }?.let { FluidRichTextLinks.sanitize(it) }
+          val url = autolinkAt(index, to)
           if (url != null && link == null) {
             setFormat { link = url }
             pending.append(FluidRichTextLinks.displayText(url))
             setFormat { link = null }
-            index = close + 1
+            index = nextGreater + 1
           } else {
             pending.append(char)
             index++
           }
         }
         char == '[' && link == null -> {
-          val closeBracket = matchingBracket(index, to)
+          val closeBracket = brackets().match(index, to)
           if (closeBracket > 0 && closeBracket + 1 < to && line[closeBracket + 1] == '(') {
-            val closeParen = closingParen(closeBracket + 2, to)
+            val closeParen = parens().match(closeBracket + 1, to)
             if (closeParen in 0 until to) {
               val target = line.substring(closeBracket + 2, closeParen).trim().substringBefore(' ').removePrefix("<").removeSuffix(">")
               val url = FluidRichTextLinks.sanitize(target.replace("\\(", "(").replace("\\)", ")"))
@@ -458,6 +470,14 @@ private class MarkdownInlineReader(
     pending.setLength(0)
   }
 
+  /** Il testo di un codice in linea: al piu' uno spazio tolto per lato, se ci sono tutti e due e non e' solo spazi (CommonMark). */
+  private fun codeContent(content: String): String =
+    if (content.length >= 2 && content.first() == ' ' && content.last() == ' ' && content.any { it != ' ' }) {
+      content.substring(1, content.length - 1)
+    } else {
+      content
+    }
+
   /**
    * Un gruppo di `*` (o di `_`) consecutivi, letto come fa CommonMark: prima chiude quel che e' aperto
    * (il corsivo con un segno, il grassetto con due), poi apre con quel che resta (due per il grassetto,
@@ -484,11 +504,12 @@ private class MarkdownInlineReader(
       }
     }
     if (canOpen) {
-      if (!bold && remaining >= 2 && hasCloser(end, to, char, 2)) {
+      val closers = closers(char)
+      if (!bold && remaining >= 2 && closers.has(end, to, 2)) {
         setFormat { bold = true }
         remaining -= 2
       }
-      if (!italic && remaining >= 1 && hasCloser(end, to, char, 1)) {
+      if (!italic && remaining >= 1 && closers.has(end, to, 1)) {
         setFormat { italic = true }
         remaining--
       }
@@ -497,57 +518,214 @@ private class MarkdownInlineReader(
     return end
   }
 
-  /** C'e' piu' avanti un gruppo di almeno [count] segni [char] che puo' chiudere (non dopo uno spazio, non protetto)? */
-  private fun hasCloser(from: Int, to: Int, char: Char, count: Int): Boolean {
-    var index = from
-    while (index < to) {
-      if (line[index] == '\\') {
+  // --- le risposte preparate ------------------------------------------------------------------------
+
+  private var starClosers: DelimiterClosers? = null
+  private var underscoreClosers: DelimiterClosers? = null
+  private var tickRuns: TickRuns? = null
+  private var bracketPairs: Pairs? = null
+  private var parenPairs: Pairs? = null
+
+  private fun closers(char: Char): DelimiterClosers =
+    if (char == '*') starClosers ?: DelimiterClosers(line, char).also { starClosers = it }
+    else underscoreClosers ?: DelimiterClosers(line, char).also { underscoreClosers = it }
+
+  private fun ticks(): TickRuns = tickRuns ?: TickRuns(line).also { tickRuns = it }
+
+  private fun brackets(): Pairs = bracketPairs ?: Pairs(line, '[', ']').also { bracketPairs = it }
+
+  private fun parens(): Pairs = parenPairs ?: Pairs(line, '(', ')').also { parenPairs = it }
+
+  // Il primo `>`, il primo spazio e il primo `<` dopo l'ultima domanda: il lettore va solo avanti, e cosi'
+  // ognuno si cerca una volta. -1: non ce n'e' piu'. Una domanda piu' indietro (non succede) ricomincia.
+  private var nextGreater = -2
+  private var nextSpace = -2
+  private var nextLess = -2
+  private var lastAutolink = -1
+
+  private fun advance(cursor: Int, after: Int, char: Char): Int =
+    if (cursor != -2 && (cursor == -1 || cursor > after)) cursor else line.indexOf(char, after + 1)
+
+  /**
+   * L'indirizzo del link automatico `<…>` che comincia in [start], o null. E' quello di prima: il testo
+   * fino al primo `>`, se non ha spazi e se [FluidRichTextLinks.sanitize] lo accetta. Un `<` in mezzo o un
+   * testo oltre la lunghezza massima di un indirizzo non passerebbero comunque: si scartano senza
+   * copiarli, cosi' una fila di `<` non costa il quadrato.
+   */
+  private fun autolinkAt(start: Int, to: Int): String? {
+    if (start < lastAutolink) {
+      nextGreater = -2
+      nextSpace = -2
+      nextLess = -2
+    }
+    lastAutolink = start
+    nextGreater = advance(nextGreater, start, '>')
+    if (nextGreater !in 0 until to) return null
+    nextSpace = advance(nextSpace, start, ' ')
+    if (nextSpace in 0 until nextGreater) return null
+    nextLess = advance(nextLess, start, '<')
+    if (nextLess in 0 until nextGreater) return null
+    if (nextGreater - start - 1 > FluidRichTextLinks.MaxLength * 2) return null
+    return FluidRichTextLinks.sanitize(line.substring(start + 1, nextGreater))
+  }
+
+  private fun Char.isAsciiPunctuation(): Boolean = this in '!'..'/' || this in ':'..'@' || this in '['..'`' || this in '{'..'~'
+}
+
+/** Una lista di interi che cresce, senza scatole. */
+private class IntList {
+  var values = IntArray(8)
+    private set
+  var size = 0
+    private set
+
+  fun add(value: Int) {
+    if (size == values.size) values = values.copyOf(size * 2)
+    values[size++] = value
+  }
+
+  fun removeLast() {
+    size--
+  }
+
+  /** La prima posizione con un valore almeno [value] (i valori sono crescenti). */
+  fun lowerBound(value: Int): Int {
+    var low = 0
+    var high = size
+    while (low < high) {
+      val mid = (low + high) ushr 1
+      if (values[mid] < value) low = mid + 1 else high = mid
+    }
+    return low
+  }
+}
+
+/**
+ * Le sequenze di [char] della riga che possono chiudere un corsivo o un grassetto: non protette da una
+ * barra rovesciata e non dopo uno spazio. Le trova una passata sola, con la regola di prima (una `\`
+ * salta il carattere dopo). Da qualunque posizione il lettore chieda, la passata da li' avrebbe visto le
+ * stesse sequenze: le posizioni in cui chiede sono fine di una sequenza, e una fila di `\` si legge a
+ * coppie dal suo inizio sia da li' sia dall'inizio della riga.
+ */
+private class DelimiterClosers(line: String, char: Char) {
+  private val starts = IntList()
+  private val ends = IntList()
+  private val longStarts = IntList()
+  private val longEnds = IntList()
+
+  init {
+    var index = 0
+    while (index < line.length) {
+      val current = line[index]
+      if (current == '\\') {
         index += 2
         continue
       }
-      if (line[index] == char) {
+      if (current == char) {
         var end = index
-        while (end < to && line[end] == char) end++
-        if (end - index >= count && index > from && !line[index - 1].isWhitespace()) return true
+        while (end < line.length && line[end] == char) end++
+        if (index > 0 && !line[index - 1].isWhitespace()) {
+          starts.add(index)
+          ends.add(end)
+          if (end - index >= 2) {
+            longStarts.add(index)
+            longEnds.add(end)
+          }
+        }
         index = end
         continue
       }
       index++
     }
-    return false
   }
 
-  /** La `)` che chiude l'indirizzo di un link: non protetta da `\`, e con le parentesi interne in pari. */
-  private fun closingParen(from: Int, to: Int): Int {
-    var depth = 0
-    var index = from
-    while (index < to) {
-      when (line[index]) {
-        '\\' -> index++
-        '(' -> depth++
-        ')' -> if (depth == 0) return index else depth--
+  /** C'e' da [from] in poi, prima di [to], una sequenza di almeno [count] segni (1 o 2) che puo' chiudere? */
+  fun has(from: Int, to: Int, count: Int): Boolean {
+    val runStarts = if (count >= 2) longStarts else starts
+    val runEnds = if (count >= 2) longEnds else ends
+    // La prima da [from] in poi: se e' troppo corta perche' [to] la taglia, quelle dopo cominciano oltre [to].
+    val at = runStarts.lowerBound(from)
+    if (at >= runStarts.size) return false
+    val start = runStarts.values[at]
+    return start < to && minOf(runEnds.values[at], to) - start >= count
+  }
+}
+
+/**
+ * Le sequenze di accenti gravi della riga e, per ognuna, la prossima piu' lunga: la chiusura di un codice
+ * di `n` accenti e' la prima sequenza che ne ha almeno `n` (quello che trovava `indexOf`), e saltando di
+ * piu' lunga in piu' lunga la si trova in al piu' `n` passi.
+ */
+private class TickRuns(line: String) {
+  private val starts = IntList()
+  private val lengths = IntList()
+  private val nextLonger: IntArray
+
+  init {
+    var index = 0
+    while (index < line.length) {
+      if (line[index] == '`') {
+        val start = index
+        while (index < line.length && line[index] == '`') index++
+        starts.add(start)
+        lengths.add(index - start)
+      } else {
+        index++
       }
-      index++
     }
-    return -1
+    val count = starts.size
+    nextLonger = IntArray(count)
+    val stack = IntArray(count)
+    var top = 0
+    for (run in count - 1 downTo 0) {
+      while (top > 0 && lengths.values[stack[top - 1]] <= lengths.values[run]) top--
+      nextLonger[run] = if (top > 0) stack[top - 1] else count
+      stack[top++] = run
+    }
   }
 
-  private fun matchingBracket(open: Int, to: Int): Int {
-    var depth = 0
-    var index = open
-    while (index < to) {
+  /** Dove comincia la prima sequenza da [from] in poi con almeno [ticks] accenti, o -1. */
+  fun closer(from: Int, ticks: Int): Int {
+    var run = starts.lowerBound(from)
+    while (run < starts.size && lengths.values[run] < ticks) run = nextLonger[run]
+    return if (run < starts.size) starts.values[run] else -1
+  }
+}
+
+/**
+ * Le coppie [open]/[close] della riga (le parentesi di un link), accoppiate con una pila in una passata
+ * sola, con la regola di prima: una `\` salta il carattere dopo, e si chiude la piu' recente ancora
+ * aperta: e' la stessa risposta del conteggio della profondita' che si faceva da ogni apertura.
+ */
+private class Pairs(line: String, open: Char, close: Char) {
+  private val opens = IntList()
+  private val matches = IntList()
+
+  init {
+    val stack = IntList()
+    var index = 0
+    while (index < line.length) {
       when (line[index]) {
         '\\' -> index++
-        '[' -> depth++
-        ']' -> {
-          depth--
-          if (depth == 0) return index
+        open -> {
+          stack.add(opens.size)
+          opens.add(index)
+          matches.add(-1)
+        }
+        close -> if (stack.size > 0) {
+          matches.values[stack.values[stack.size - 1]] = index
+          stack.removeLast()
         }
       }
       index++
     }
-    return -1
   }
 
-  private fun Char.isAsciiPunctuation(): Boolean = this in '!'..'/' || this in ':'..'@' || this in '['..'`' || this in '{'..'~'
+  /** Dove si chiude l'apertura in [at], se prima di [to]; altrimenti -1. */
+  fun match(at: Int, to: Int): Int {
+    val index = opens.lowerBound(at)
+    if (index >= opens.size || opens.values[index] != at) return -1
+    val end = matches.values[index]
+    return if (end in 0 until to) end else -1
+  }
 }

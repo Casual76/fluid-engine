@@ -128,6 +128,7 @@ restituisce al ritorno; anche sul telefono resta un popover (`FluidCompactAdapta
 - `label` è quello che legge TalkBack prima del valore; `text` sostituisce il testo di serie.
 - `FluidDurationCapsule` è la stessa capsula per una durata («45 min», «1 h 30 min»): il popover ha la ruota del timer
   (`FluidDurationWheel`, la `UIDatePicker` in modo `countDownTimer`) con l'aptica a scatti, e si chiude toccando fuori.
+  La capsula scrive la durata dentro i limiti della ruota (R2): -90 s dicono «1 min», il minimo che la ruota mostra.
 
 ## Il pannello «Ripeti»: `FluidRecurrenceSheet`
 
@@ -138,6 +139,10 @@ frequenza, i giorni della settimana in capsule (l'ultimo acceso non si spegne) o
 martedì», «l'ultimo martedì», presi dall'inizio). Poi la fine (mai, in una data con la capsula, dopo N volte), la **frase**
 («Ogni mar e gio fino al 20 dicembre») e le **prossime date esatte**. Frase e date le cambia la regola, non il dito: cambiano
 sfocate (`FluidGlassContentTransition`).
+
+**Aperto e chiuso con «Fine» senza toccare niente, restituisce la regola com'era** (R2): la bozza sa dire solo una parte
+di una regola ricca (giorni del mese, mesi, posizioni), e prima «ogni mese il 15» tornava «ogni mese il giorno
+dell'inizio». **La bozza resiste alla rotazione e al processo ucciso** (`rememberSaveable`), come il calendario accanto.
 
 ```kotlin
 FluidRecurrenceSheet(
@@ -152,6 +157,14 @@ FluidRecurrenceSheet(
 **La regola** è un dato puro (`FluidRecurrenceRule`, come `EKRecurrenceRule` e la `RRULE` di RFC 5545) che l'app salva e
 l'engine espande: i casi limite (il 31 del mese, il 29 febbraio, «l'ultimo venerdì», il quinto lunedì, l'ora legale) sono
 provati una volta in `engine-foundation`. L'espansione lavora su date locali, mai su millisecondi sommati.
+
+**Giorni del mese e giorni della settimana insieme si intersecano**, come vuole RFC 5545 (§ 3.3.10, nota 1: in una regola
+mensile `BYDAY` con `BYMONTHDAY` *limita*): `FREQ=MONTHLY;BYDAY=FR;BYMONTHDAY=13` è «ogni venerdì 13», l'esempio della
+RFC. Il numero del giorno conta anche lì (R2): `BYDAY=2FR;BYMONTHDAY=1,…,14` è solo il secondo venerdì, e
+`BYMONTHDAY=15;BYDAY=-1FR` non cade mai (prima l'engine dava i mesi in cui il 15 è un venerdì). **La frase dice i
+limiti** (R2): «Ogni mese il 13, se è venerdì», «Ogni lunedì» per una regola giornaliera solo il lunedì (prima «Ogni
+giorno»), «Ogni giorno (gennaio)», «Ogni lunedì (luglio e agosto)». Un intervallo di giorni che finisce a
+`LocalDate.MAX` si scorre fino in fondo.
 
 ## Token, costanti, Defaults
 
@@ -171,7 +184,8 @@ provati una volta in `engine-foundation`. L'espansione lavora su date locali, ma
   il quinto lunedì, l'ultimo giorno feriale, il giorno del Ringraziamento, le settimane alterne col loro `WKST`, l'inizio che
   non rispetta la regola, la fine per data e per conteggio, l'ora legale (le 9 restano le 9, l'ora che manca, quella che si
   ripete), la `RRULE` avanti e indietro, la frase in italiano e in inglese, il primo giorno della settimana per lingua,
-  l'intervallo che attraversa l'ora legale (71 e 73 ore, tre giorni).
+  l'intervallo che attraversa l'ora legale (71 e 73 ore, tre giorni). `R2F5aFoundationTest`: venerdì 13 come la RFC, il
+  numero del giorno che limita, la frase coi limiti, l'intervallo fino a `LocalDate.MAX`.
 - `engine-ui/…/F8p8CalendarTest`: i tocchi delle tre scelte, gli stili della fascia, dove si posa una pagina, la resistenza,
   il moto senza allocazioni per fotogramma, i segni che scrivono solo i giorni che cambiano, i testi della capsula.
 - In `F8p8DatesUiTest` anche le ruote del mese e dell'anno: il titolo toccato, il mese col dito, l'anno con TalkBack, il
@@ -180,7 +194,8 @@ provati una volta in `engine-foundation`. L'espansione lavora su date locali, ma
 - `sample/…/F8p8DatesUiTest` (Robolectric, dito vero): il mese trascinato e lanciato, nessun giorno ricomposto durante il
   gesto, le frecce, TalkBack sui giorni coi segni, i segni che ricompongono solo i giorni toccati, le tre scelte, la
   striscia e il ritorno, «Riduci movimento», la capsula che apre il popover e scrive subito il valore, la ruota della durata, il
-  pannello «Ripeti» personalizzato.
+  pannello «Ripeti» personalizzato. `R2F5aFieldsUiTest`: «Ripeti» aperto e chiuso restituisce la regola com'era, la bozza
+  dopo la ricreazione, la capsula di una durata negativa.
 
 ## Dove guardare
 

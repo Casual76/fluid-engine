@@ -256,7 +256,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ui/ui/glass/backdrop/backdrops/LayerBackdrop.kt`
 
-- `@Composable fun rememberLayerBackdrop(graphicsLayer: GraphicsLayer = rememberGraphicsLayer(), onDraw: ContentDrawScope.() -> Unit = DefaultOnDraw): LayerBackdrop`
+- `@Composable fun rememberLayerBackdrop(graphicsLayer: GraphicsLayer = rememberRecordedGraphicsLayer(), onDraw: ContentDrawScope.() -> Unit = DefaultOnDraw): LayerBackdrop`
 - `class LayerBackdrop internal constructor(val graphicsLayer: GraphicsLayer, internal val onDraw: ContentDrawScope.() -> Unit) : Backdrop`
 
 ## `engine-ui/ui/glass/backdrop/backdrops/LayerBackdropModifier.kt`

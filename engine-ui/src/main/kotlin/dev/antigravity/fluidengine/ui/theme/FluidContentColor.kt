@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import java.lang.ref.WeakReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -85,6 +86,13 @@ object FluidContentColorDefaults {
    */
   const val MonochromeShare: Float = 0.04f
 
+  /**
+   * Sopra 0,94 di luminosita' un pixel conta fra i colorati solo con almeno questa saturazione: **0,5**, a occhio (27
+   * novembre 2026, R2). Un giallo, un rosso o un azzurro pieni (saturazione vicina a 1) sono colore; un bianco tinto, un
+   * riflesso o il bordo di un JPEG (sotto 0,3) no.
+   */
+  internal const val BrightColoredSaturation: Float = 0.5f
+
   /** Quante voci tiene la cache per chiave: **64**, come la cache dei colori di Fluidify. */
   const val CacheSize: Int = 64
 
@@ -138,7 +146,8 @@ fun fluidContentColorsOf(image: ImageBitmap): FluidContentColors? = fluidContent
  * Come Pampa Widgets: un pixel ogni [FluidContentColorDefaults.SampleStep], alfa sotto
  * [FluidContentColorDefaults.MinAlpha] scartata; `dominant` e' la media; `vibrant` la media pesata per saturazione al
  * quadrato, luminosita' e vicinanza a una luminosita' di 0,62 dei pixel abbastanza saturi (≥ 0,16) e ne' neri ne'
- * bianchi (0,14–0,94), arricchita del 16 % (qui la media si fa sulla tinta piu' pesante e sulle vicine, vedi
+ * bianchi (0,14–0,94, e sopra 0,94 solo i colori pieni, saturi almeno [FluidContentColorDefaults.BrightColoredSaturation]),
+ * arricchita del 16 % (qui la media si fa sulla tinta piu' pesante e sulle vicine, vedi
  * [heaviestHue]); senza massa abbastanza il pixel migliore (arricchito del 12 %), e senza
  * nemmeno quello la media arricchita del 45 %. In piu', per fasce di tinta di 30°, i colori distinti per [swatches].
  */
@@ -187,7 +196,12 @@ fun fluidContentColorsOf(pixels: IntArray, width: Int, height: Int): FluidConten
         bestSat = sat
         bestBrightness = brightness
       }
-      if (sat >= 0.16f && brightness in 0.14f..0.94f) {
+      // Colorati: abbastanza saturi, ne' neri ne' bianchi. Il bianco si riconosce dalla saturazione, non dal canale
+      // pieno: un giallo o un rosso puro ha il canale a 255 ed e' il piu' colorato di tutti (R2, difetto 37). Sopra
+      // 0,94 conta solo un colore pieno ([FluidContentColorDefaults.BrightColoredSaturation]), non un bianco appena tinto.
+      if (sat >= 0.16f && brightness >= 0.14f &&
+        (brightness <= 0.94f || sat >= FluidContentColorDefaults.BrightColoredSaturation)
+      ) {
         colored++
         val weight = (sat * sat) * (0.50f + 0.50f * brightness) * (0.70f + 0.30f * balance)
         accentWeight += weight
@@ -434,7 +448,31 @@ fun rememberFluidContentColors(key: Any?, load: suspend () -> Bitmap?): State<Fl
   return state
 }
 
-/** [rememberFluidContentColors] per un'immagine gia' in memoria; la chiave di serie e' l'immagine stessa. */
+/**
+ * [rememberFluidContentColors] per un'immagine gia' in memoria; la chiave di serie e' l'immagine stessa, tenuta **in modo
+ * debole** nella cache (R2): la cache tiene i colori, non l'immagine, e un'immagine che l'app lascia andare non resta
+ * appesa fra le 64 voci. Una chiave data ([key], l'indirizzo della copertina) resta com'e'.
+ */
 @Composable
-fun rememberFluidContentColors(image: ImageBitmap?, key: Any? = image): State<FluidContentColors?> =
-  rememberFluidContentColors(key = if (image == null) null else key) { image?.asAndroidBitmap() }
+fun rememberFluidContentColors(image: ImageBitmap?, key: Any? = image): State<FluidContentColors?> {
+  val cacheKey = if (image != null && key === image) remember(image) { FluidWeakImageKey(image) } else key
+  return rememberFluidContentColors(key = if (image == null) null else cacheKey) { image?.asAndroidBitmap() }
+}
+
+/**
+ * La chiave della cache per un'immagine senza chiave: l'immagine per identita', tenuta con un riferimento debole.
+ * Quando l'immagine non c'e' piu' la chiave non e' uguale a nessun'altra, e la sua voce esce per anzianita'.
+ */
+private class FluidWeakImageKey(image: ImageBitmap) {
+  private val ref = WeakReference(image)
+  private val hash = System.identityHashCode(image)
+
+  override fun hashCode(): Int = hash
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is FluidWeakImageKey || other.hash != hash) return false
+    val mine = ref.get() ?: return false
+    return mine === other.ref.get()
+  }
+}

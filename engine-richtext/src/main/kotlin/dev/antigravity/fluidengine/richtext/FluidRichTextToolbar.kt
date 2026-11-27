@@ -8,10 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -243,7 +240,12 @@ fun FluidRichTextFormatButton(
   )
 }
 
-/** Il foglio del link: testo e indirizzo, «Fatto», «Togli il link» se ce n'e' gia' uno. */
+/**
+ * Il foglio del link: testo e indirizzo, «Fatto», «Togli il link» se ce n'e' gia' uno. Testo e indirizzo
+ * scritti stanno nello stato, e con lui resistono alla rotazione. Se col foglio aperto l'app cambia il
+ * documento sotto (le parole del link non sono piu' quelle), «Fatto» e «Togli il link» chiudono il foglio
+ * senza cambiare niente.
+ */
 @Composable
 private fun FluidRichTextLinkSheet(state: FluidRichTextState) {
   val request = state.linkRequest
@@ -259,18 +261,15 @@ private fun FluidRichTextLinkSheet(state: FluidRichTextState) {
     paneTitle = labels.linkTitle,
   ) {
     if (request == null) return@FluidGlassModalPortal
-    var text by remember(request) { mutableStateOf(request.text) }
-    // Un indirizzo di posta o un numero si mostrano come li si scrive; un indirizzo web intero.
-    var address by remember(request) {
-      mutableStateOf(request.url.let { if (it.startsWith("http")) it else FluidRichTextLinks.displayText(it) })
-    }
+    val text = state.linkDraftText
+    val address = state.linkDraftAddress
     val safe = FluidRichTextLinks.fromUserInput(address)
     val showError = address.isNotBlank() && safe == null
     val focus = remember { FocusRequester() }
     LaunchedEffect(request) { runCatching { focus.requestFocus() } }
     val confirm = {
       if (safe != null) {
-        state.applyLink(request.range, safe, if (request.canEditText) text else null)
+        if (state.isLinkRequestCurrent(request)) state.applyLink(request.range, safe, if (request.canEditText) text else null)
         state.linkRequest = null
         state.requestFocus()
       }
@@ -289,8 +288,10 @@ private fun FluidRichTextLinkSheet(state: FluidRichTextState) {
           FluidButton(
             text = labels.linkRemove,
             onClick = {
-              state.select(request.range)
-              state.removeLink()
+              if (state.isLinkRequestCurrent(request)) {
+                state.select(request.range)
+                state.removeLink()
+              }
               state.linkRequest = null
               state.requestFocus()
             },
@@ -311,14 +312,14 @@ private fun FluidRichTextLinkSheet(state: FluidRichTextState) {
       if (request.canEditText) {
         FluidTextField(
           value = text,
-          onValueChange = { text = it },
+          onValueChange = { state.linkDraftText = it },
           label = labels.linkText,
           modifier = Modifier.padding(bottom = 12.dp),
         )
       }
       FluidTextField(
         value = address,
-        onValueChange = { address = it },
+        onValueChange = { state.linkDraftAddress = it },
         label = labels.linkAddress,
         placeholder = labels.linkAddressPlaceholder,
         isError = showError,

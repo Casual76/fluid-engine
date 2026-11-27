@@ -707,7 +707,8 @@ attesa), cosa aspetta e **«Sincronizza ora»**, un tasto con esito spento senza
 **Apple.** Nessun componente pubblico: è il comportamento di Mail e di Note su iOS quando manca la rete, sopra
 `NWPathMonitor`. La forma e i tempi seguono la pillola di attività; le uscite a tempo sono **a occhio** (25/11/2026):
 «Tutto aggiornato» resta 1,6 s, «Di nuovo in linea» senza niente da mandare 2 s, «sincronizzo» al più 10 s
-(`FluidConnectionCapsuleDefaults`).
+(`FluidConnectionCapsuleDefaults`). I tempi contano dall'inizio della fase (R2): prima ogni modifica mandata faceva ripartire
+i 10 s. Fase, istante e pannello aperto resistono alla rotazione.
 
 ```kotlin
 val online by remember { EngineNetwork.states(context) }.collectAsState(initial = EngineNetwork.current(context))
@@ -743,8 +744,10 @@ capsula il testo non si legga, anche col tetto del vetro pieno.
   cambia entra sfocata (`FluidGlassContentTransition`: la cambia l'app, non il dito). Il vetro rifrange `backdrop`: quello
   dell'`overlay` della schermata; su una foto in una scena, il `rememberGlassBackdrop` della foto.
 - **Ferma non ridisegna**: nessuna scrittura di stato a riposo; gira solo il segno di «sincronizzo».
-- **TalkBack**: un tasto con la frase come nome, regione viva educata («Offline» si annuncia da solo), l'azione «Mostra i
-  dettagli»; bersaglio da 44 dp (la capsula ne è alta 36). Col movimento ridotto la lente e la frase cambiano a dissolvenza.
+- **TalkBack**: un tasto con la frase come nome, regione viva educata («Offline» si annuncia da solo, e così ogni cambio di
+  fase); una modifica in più in attesa non si riannuncia (R2: la regione viva resta solo finché la frase è quella con cui
+  la fase è entrata, e toccata la capsula dice sempre il conteggio di adesso); l'azione «Mostra i dettagli»; bersaglio da
+  44 dp (la capsula ne è alta 36). Col movimento ridotto la lente e la frase cambiano a dissolvenza.
 - **Le macchine**: `FluidConnectionPhase` (`Hidden`, `Offline`, `NoInternet`, `BackOnline`, `Synced`); le parole in
   `FluidConnectionLabels` (italiano, `english()`), da `LocalFluidConnectionLabels`.
 - **Serve un host dei modali** alla radice per il pannello, come per ogni popover.
@@ -782,7 +785,8 @@ FluidTransferActivity(attivita, transfers.overview.collectAsState().value, trans
 - **I numeri cambiano da soli**, quindi scorrono sfocati (`FluidNumericText`) e **al più una volta al secondo**, come in
   Safari (a occhio); la barra segue ogni avanzamento. Lo stato cambia subito.
 - **TalkBack**: una riga è un nodo solo (nome, stato, quantità, velocità) con le azioni (il tasto, «Annulla», «Apri») come
-  azioni di accessibilità.
+  azioni di accessibilità. Il tasto visibile resta per il dito, fuori dall'albero di TalkBack: «Pausa» non c'è più due
+  volte (R2).
 - **La pillola** (`FluidTransferActivity`): pubblica `FluidActivity.transfer` col titolo del trasferimento (o «3
   trasferimenti»), l'avanzamento da uno stato (niente ripubblicazioni a ogni byte), pausa, riprendi, annulla e «Apri»; si
   ripubblica solo quando cambia cosa dice; alla fine si chiude con la spunta o col motivo dell'errore. **Fuori dall'app**

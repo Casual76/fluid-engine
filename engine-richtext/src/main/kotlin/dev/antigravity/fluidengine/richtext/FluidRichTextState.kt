@@ -17,6 +17,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.TextRange
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Da dove viene l'ultima modifica del documento: serve a un'app che salva di continuo per distinguere
@@ -45,7 +50,8 @@ enum class FluidRichTextChangeSource {
  * mostra la barra di formattazione.
  *
  * **Chi lo possiede.** L'app, con [rememberFluidRichTextState]: sopravvive alla rotazione e alla morte
- * del processo (documento e selezione, non la cronologia), e lo passa all'editor e alla barra, che
+ * del processo (documento e selezione, lo stile scelto col cursore fermo e non ancora scritto, il foglio
+ * del link aperto con cio' che vi si sta scrivendo; non la cronologia), e lo passa all'editor e alla barra, che
  * possono stare in due punti diversi dell'albero (l'editor nella pagina, la barra nell'overlay sopra la
  * tastiera).
  *
@@ -132,6 +138,13 @@ class FluidRichTextState(
 
   /** Il link che si sta modificando nel foglio della barra: null quando il foglio e' chiuso. */
   internal var linkRequest: FluidRichTextLinkRequest? by mutableStateOf(null)
+
+  /**
+   * Il testo e l'indirizzo che si stanno scrivendo nel foglio del link. Stanno qui e non nel foglio perche'
+   * resistano alla rotazione con lui (il [Saver] li porta).
+   */
+  internal var linkDraftText: String by mutableStateOf("")
+  internal var linkDraftAddress: String by mutableStateOf("")
 
   internal val focusRequester: FocusRequester = FocusRequester()
 
@@ -245,6 +258,21 @@ class FluidRichTextState(
     commit(documentState.replaceWith(from, to, fragment), TextRange(from + fragment.text.length), FluidRichTextChangeSource.Paste)
   }
 
+  /**
+   * Incolla un frammento che costa leggere (un HTML grande): [read] gira su [worker], fuori dal thread
+   * principale, e il frammento entra (sul thread di [scope]) solo se documento e selezione sono ancora
+   * quelli del momento dell'incolla. Se nel frattempo la persona ha scritto o spostato il cursore, la
+   * lettura si butta: incollare li' sarebbe incollare nel posto sbagliato. R2, difetto 51.
+   */
+  internal fun pasteInBackground(scope: CoroutineScope, worker: CoroutineContext, read: () -> FluidRichTextDocument): Job {
+    val documentAtPaste = documentState
+    val selectionAtPaste = selection
+    return scope.launch {
+      val fragment = withContext(worker) { read() }
+      if (documentState === documentAtPaste && selection == selectionAtPaste) paste(fragment)
+    }
+  }
+
   internal fun pastePlain(text: String) {
     val from = selection.min
     val to = selection.max
@@ -342,7 +370,9 @@ class FluidRichTextState(
   /**
    * Fa della selezione un link a [url] (completato con [FluidRichTextLinks.fromUserInput]: `esempio.it`
    * va bene). Col cursore dentro un link ne cambia l'indirizzo; col cursore fermo altrove inserisce
-   * [text] (o l'indirizzo) come link. Con [text] diverso dal testo attuale lo sostituisce.
+   * [text] (o l'indirizzo) come link. Con [text] diverso dal testo attuale lo sostituisce, se la selezione
+   * sta in un paragrafo solo: su piu' paragrafi il testo resta com'e' e diventa tutto link (sostituirlo
+   * fonderebbe i paragrafi; anche il foglio del link, li', non offre il campo del testo).
    *
    * @return falso, senza cambiare niente, se l'indirizzo non e' sicuro (`javascript:`, vuoto…).
    */
@@ -372,7 +402,9 @@ class FluidRichTextState(
     val wantedText = text?.let { normalizeEditorText(it).replace('\n', ' ') }?.takeIf { it.isNotEmpty() }
     val result: FluidRichTextDocument
     val end: Int
-    if (range.collapsed || (wantedText != null && wantedText != currentText && !currentText.contains('\n'))) {
+    // Il testo si sostituisce solo in un paragrafo: e' il limite scritto in [setLink] (R2), un punto solo.
+    val replacesText = wantedText != null && wantedText != currentText && !currentText.contains('\n')
+    if (range.collapsed || replacesText) {
       val shown = wantedText ?: FluidRichTextLinks.displayText(safeUrl)
       val base = if (range.collapsed) doc.typingFormatAt(range.min) else doc.formatAt(range.min)
       result = doc.replaceText(range.min, range.max, shown, base.copy(link = safeUrl))
@@ -392,7 +424,24 @@ class FluidRichTextState(
     val url = if (range.collapsed) null else doc.allInline(range.min, range.max) { it.link != null }.let {
       if (it) doc.formatAt(range.min).link else null
     }
-    linkRequest = FluidRichTextLinkRequest(range, text, url ?: "", canEditText = !text.contains('\n'))
+    val request = FluidRichTextLinkRequest(range, text, url ?: "", canEditText = !text.contains('\n'))
+    // Un indirizzo di posta o un numero si mostrano come li si scrive; un indirizzo web intero.
+    linkDraftText = request.text
+    linkDraftAddress = request.url.let { if (it.startsWith("http")) it else FluidRichTextLinks.displayText(it) }
+    linkRequest = request
+  }
+
+  /**
+   * Vero se il foglio del link [request] parla ancora del documento di adesso: l'intervallo sta nel testo e
+   * il testo li' e' ancora quello di quando il foglio si e' aperto. Se l'app ha cambiato il documento da
+   * codice col foglio aperto (una sincronizzazione, un ripristino) il foglio non applica niente e si chiude:
+   * prima la conferma cadeva fuori dal testo, o metteva il link sulle parole sbagliate (R2, difetto 53).
+   */
+  internal fun isLinkRequestCurrent(request: FluidRichTextLinkRequest): Boolean {
+    val text = documentState.text
+    val range = request.range
+    return range.min >= 0 && range.max <= text.length && range.length == request.text.length &&
+      text.regionMatches(range.min, request.text, 0, request.text.length)
   }
 
   /** I paragrafi toccati dalla selezione, come intervallo semiaperto: vedi [selectedParagraphRange]. */
@@ -522,7 +571,10 @@ class FluidRichTextState(
      */
     const val MaxSavedLength: Int = 50_000
 
-    /** Salva documento, selezione e «Aa» in tipi che un `Bundle` accetta. Non la cronologia. */
+    /**
+     * Salva documento, selezione, «Aa», lo stile in sospeso e il foglio del link aperto (con le sue bozze) in
+     * tipi che un `Bundle` accetta. Non la cronologia.
+     */
     val Saver: Saver<FluidRichTextState, Any> = Saver(
       save = { state ->
         val doc = state.document
@@ -544,6 +596,8 @@ class FluidRichTextState(
               state.selection.end,
               state.isFormattingRequested,
               SavedParagraphsVersion,
+              savePending(state.pending),
+              saveLinkSheet(state),
             )
           }
         }
@@ -558,6 +612,8 @@ class FluidRichTextState(
           val document = FluidRichTextDocument(text, decodeRuns(list[1] as IntArray, links), paragraphs)
           FluidRichTextState(document, TextRange(list[4] as Int, list[5] as Int)).also {
             it.isFormattingRequested = list[6] as Boolean
+            it.pending = restorePending(list.getOrNull(8), document.text.length)
+            restoreLinkSheet(it, list.getOrNull(9))
           }
         }.getOrNull()
       },
@@ -577,6 +633,58 @@ class FluidRichTextState(
       size += 8L * doc.runs.size + 4L * doc.paragraphCount
       for (link in links) size += 8L + 2L * link.length
       return size
+    }
+
+    // Lo stile scelto col cursore fermo: posizione, i tre interruttori, il link ("" se non c'e').
+    private fun savePending(pending: PendingFormat?): ArrayList<Any> {
+      if (pending == null) return arrayListOf()
+      val format = pending.format
+      var flags = 0
+      if (format.bold) flags = flags or 1
+      if (format.italic) flags = flags or 2
+      if (format.underline) flags = flags or 4
+      return arrayListOf(pending.offset, flags, format.link ?: "")
+    }
+
+    private fun restorePending(saved: Any?, length: Int): PendingFormat? = runCatching {
+      val list = saved as? List<*> ?: return null
+      if (list.size < 3) return null
+      val offset = list[0] as Int
+      val flags = list[1] as Int
+      val link = (list[2] as String).takeIf { it.isNotEmpty() }?.let { FluidRichTextLinks.sanitize(it) }
+      if (offset !in 0..length) return null
+      PendingFormat(offset, FluidRichTextInlineFormat(flags and 1 != 0, flags and 2 != 0, flags and 4 != 0, link))
+    }.getOrNull()
+
+    // Il foglio del link aperto: l'intervallo, il testo e l'indirizzo di quando si e' aperto, le bozze.
+    private fun saveLinkSheet(state: FluidRichTextState): ArrayList<Any> {
+      val request = state.linkRequest ?: return arrayListOf()
+      return arrayListOf(
+        request.range.start,
+        request.range.end,
+        request.text,
+        request.url,
+        request.canEditText,
+        state.linkDraftText,
+        state.linkDraftAddress,
+      )
+    }
+
+    private fun restoreLinkSheet(state: FluidRichTextState, saved: Any?) {
+      runCatching {
+        val list = saved as? List<*> ?: return
+        if (list.size < 7) return
+        val request = FluidRichTextLinkRequest(
+          TextRange(list[0] as Int, list[1] as Int),
+          list[2] as String,
+          list[3] as String,
+          list[4] as Boolean,
+        )
+        if (!state.isLinkRequestCurrent(request)) return
+        state.linkDraftText = list[5] as String
+        state.linkDraftAddress = list[6] as String
+        state.linkRequest = request
+      }
     }
 
     private fun linksOf(doc: FluidRichTextDocument): List<String> = doc.runs.mapNotNull { it.format.link }.distinct()

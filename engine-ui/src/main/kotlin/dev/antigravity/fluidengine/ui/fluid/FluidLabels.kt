@@ -448,8 +448,12 @@ data class FluidSyncStrings(
   /** Lo stesso con una modifica sola. */
   val offlinePendingOne: String = "Offline · una modifica in attesa",
 ) {
-  /** La frase di [offlinePending] per [count] modifiche. */
-  fun offlinePending(count: Int): String = if (count == 1) offlinePendingOne else String.format(offlinePending, count)
+  /**
+   * La frase di [offlinePending] per [count] modifiche. Il numero in cifre latine, senza la lingua del telefono (R2): in
+   * un'app italiana su un telefono in arabo prima usciva in cifre arabe dentro la frase italiana.
+   */
+  fun offlinePending(count: Int): String =
+    if (count == 1) offlinePendingOne else String.format(java.util.Locale.ROOT, offlinePending, count)
 
   companion object {
     /** Le stesse frasi in inglese (3.0.4). */

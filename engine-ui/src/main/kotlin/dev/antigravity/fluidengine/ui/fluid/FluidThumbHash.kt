@@ -126,6 +126,9 @@ object FluidThumbHash {
     val qDc = ((header24 shr 12) and 63) / 31.5f - 1f
     val lScale = ((header24 shr 18) and 31) / 31f
     val hasAlpha = (header24 shr 23) != 0
+    // R2 (difetto 27): con l'alfa il sesto byte e' l'intestazione dell'alfa. Un'impronta corrotta di 5 byte si rifiuta
+    // con lo stesso errore delle altre, non con un indice fuori dall'array.
+    require(!hasAlpha || hash.size >= 6) { "un ThumbHash con l'alfa ha almeno 6 byte" }
     val pScale = ((header16 shr 3) and 63) / 63f
     val qScale = ((header16 shr 9) and 63) / 63f
     val isLandscape = (header16 shr 15) != 0
@@ -231,6 +234,7 @@ object FluidThumbHash {
     val p = ((header shr 6) and 63) / 31.5f - 1f
     val q = ((header shr 12) and 63) / 31.5f - 1f
     val hasAlpha = (header shr 23) != 0
+    require(!hasAlpha || hash.size >= 6) { "un ThumbHash con l'alfa ha almeno 6 byte" }
     val a = if (hasAlpha) (hash[5].toInt() and 15) / 15f else 1f
     val b = l - 2f / 3f * p
     val r = (3f * l - b + q) / 2f

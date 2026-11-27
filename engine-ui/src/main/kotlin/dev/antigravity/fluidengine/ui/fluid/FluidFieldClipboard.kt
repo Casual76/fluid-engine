@@ -146,9 +146,28 @@ internal object FluidClipRules {
 
 private val LinkPattern = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE)
 
-/** Il link dentro [text] (il primo), senza la punteggiatura che lo chiude; null se non ce n'è uno. */
-internal fun fluidLinkFromText(text: String): String? =
-  LinkPattern.find(text)?.value?.trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '»')
+/**
+ * Il link dentro [text] (il primo), senza la punteggiatura che lo chiude; null se non ce n'è uno. Una parentesi chiusa
+ * in fondo resta se nel link ce n'è una aperta che la chiede («…/wiki/X_(Y)»), e va via se chiude la frase (R2).
+ */
+internal fun fluidLinkFromText(text: String): String? {
+  var link = LinkPattern.find(text)?.value ?: return null
+  while (link.isNotEmpty()) {
+    val last = link.last()
+    val open = when (last) {
+      ')' -> '('
+      ']' -> '['
+      else -> null
+    }
+    val drop = when {
+      open != null -> link.count { it == open } < link.count { it == last }
+      else -> last in ".,;:!?»"
+    }
+    if (!drop) break
+    link = link.dropLast(1)
+  }
+  return link
+}
 
 /**
  * Il codice dentro [text]. Con [strict] il testo **è** il codice (tolti gli spazi e i trattini fra le cifre: «123 456»,
@@ -162,8 +181,10 @@ internal fun fluidCodeFromText(text: String, lengths: IntRange, digitsOnly: Bool
   if (strict) return compact.takeIf { it.length in lengths && it.all(::valid) }?.uppercase()
   val runs = Regex(if (digitsOnly) "[0-9]+" else "[A-Za-z0-9]+").findAll(compact).map { it.value }.toList()
   runs.firstOrNull { it.length in lengths }?.let { return it.uppercase() }
+  // R2: senza una sequenza della lunghezza giusta, i caratteri validi valgono solo se sono un codice intero: un numero
+  // piu' lungo (un telefono, «3331234567») si rifiuta invece di prenderne le prime cifre.
   val all = compact.filter(::valid)
-  return all.take(lengths.last).takeIf { it.length >= lengths.first }?.uppercase()
+  return all.takeIf { it.length in lengths }?.uppercase()
 }
 
 /** Vero se negli appunti descritti da [facts] c'è il dato di [kind]. Senza certezza, no (la nota di Alessio). */
@@ -376,7 +397,8 @@ class FluidSensitiveCopy internal constructor(
 }
 
 /**
- * La copia delicata: un dato che si copia **segnato come riservato** e che **si cancella dopo un tempo** (di serie 60 s).
+ * La copia delicata: un dato che si copia **segnato come riservato** e che **si cancella dopo un tempo** (di serie 60 s),
+ * finché il processo dell'app vive (vedi il limite qui sotto).
  * È `UIPasteboard.setItems(_:options:)` con `.expirationDate` di iOS, come copiano le app di password.
  *
  * - **Riservato.** Il clip porta `ClipDescription.EXTRA_IS_SENSITIVE`: da Android 13 il sistema non lo mostra
@@ -387,6 +409,12 @@ class FluidSensitiveCopy internal constructor(
  *   ancora quel segno: se la persona ha copiato altro, non si tocca niente (scheda dell'idea, «rischi»).
  * - **In secondo piano** Android non lascia leggere nemmeno la descrizione: nel dubbio non si cancella, e la cancellazione
  *   aspetta il ritorno dell'app in primo piano, dove il segno si rilegge.
+ * - **Il limite: il tempo vive nel processo dell'app** (R2). Se il processo muore prima della scadenza (la persona
+ *   chiude l'app dalle recenti, il sistema la toglie per la memoria), nessuno cancella più: il dato resta negli appunti
+ *   finché non si copia altro. Da Android 13 il sistema stesso svuota gli appunti dopo un'ora (di serie) e non mostra
+ *   il dato riservato nell'anteprima; sotto Android 13 resta. Una cancellazione pianificata fuori dal processo non può
+ *   controllare il segno (in secondo piano la descrizione non si legge), e cancellerebbe anche quello che la persona ha
+ *   copiato dopo. È diverso da `.expirationDate` di iOS, che il sistema rispetta anche ad app chiusa.
  */
 object FluidSensitiveClipboard {
   /** Il tempo di serie: 60 s, quello della scheda dell'idea (e delle app di password su iOS, che di solito danno 60–90 s). */

@@ -425,12 +425,34 @@ class FluidRichTextDocument internal constructor(
     }
   }
 
+  /**
+   * Come [forEachRun], ma solo i tratti che toccano `[start, end)`: si parte dal tratto di [start] (una
+   * ricerca binaria) e ci si ferma al primo dopo [end]. Gli scrittori lo chiamano per ogni paragrafo, e
+   * cosi' scrivere un documento costa quanto la sua lunghezza, non paragrafi per tratti (R2, difetto 50).
+   */
+  internal inline fun forEachRunIn(start: Int, end: Int, action: (start: Int, end: Int, format: FluidRichTextInlineFormat) -> Unit) {
+    if (runs.isEmpty() || start >= end) return
+    var index = runIndexAt(start)
+    var position = runStart(index)
+    while (index < runs.size && position < end) {
+      val run = runs[index]
+      action(position, position + run.length, run.format)
+      position += run.length
+      index++
+    }
+  }
+
   override fun equals(other: Any?): Boolean =
     other is FluidRichTextDocument && text == other.text && runs == other.runs && paragraphStyles == other.paragraphStyles
 
   override fun hashCode(): Int = (text.hashCode() * 31 + runs.hashCode()) * 31 + paragraphStyles.hashCode()
 
-  override fun toString(): String = "FluidRichTextDocument(text=${text.take(80)}, spans=$spans, paragraphs=$paragraphStyles)"
+  /**
+   * Solo misure, mai il contenuto: il testo e gli indirizzi dei link sono dati di chi scrive, e un log che
+   * stampasse il documento li porterebbe in logcat (R2).
+   */
+  override fun toString(): String =
+    "FluidRichTextDocument(length=${text.length}, paragraphs=$paragraphCount, spans=${spans.size}, links=${runs.count { it.format.link != null }})"
 
   companion object {
     /** Il documento vuoto: un paragrafo normale senza testo. */

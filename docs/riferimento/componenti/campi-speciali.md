@@ -54,7 +54,8 @@ Measurement e Currency, Calcolatrice di iOS 18 con le conversioni), fatta una vo
 - `.` e `,` sono entrambi il decimale della lingua: sulla tastiera italiana il punto diventa virgola;
 - oltre le cifre dell'unità il tasto non entra; il meno solo se `allowNegative` (vero di serie per le temperature);
 - un incolla si legge con `FluidUnitFormat.parse`, che accetta l'altra convenzione e il simbolo attaccato («1,234.56»
-  in un campo italiano, «12,5 km»).
+  in un campo italiano, «12,5 km»). Le migliaia devono essere gruppi veri (R2): «1.2.3» non è un numero (prima era 123);
+  i gruppi dell'India («1,00,000») si leggono.
 
 **Le unità.** `FluidUnits` ha le più usate di Foundation (lunghezza, massa, temperatura, volume, superficie, velocità,
 durata, dati, energia, percentuale, tre valute), con i fattori delle definizioni (1 in = 2,54 cm, 1 lb = 0,45359237 kg):
@@ -64,10 +65,15 @@ vale un dollaro oggi.
 
 **I formati** (`FluidUnitFormat`): lo spazio fra numero e simbolo non va a capo; «21 °C» in italiano, «21°C» in inglese;
 «12,5%» in italiano e in inglese, «12 %» in tedesco e francese; «12,50 €» in italiano, «€12.50» in inglese. TalkBack legge
-«12,5 chilometri» (`FluidUnitFormat.spoken`, parole in italiano e in inglese).
+«12,5 chilometri» (`FluidUnitFormat.spoken`, parole in italiano e in inglese). **Le cifre sono sempre latine e i gruppi da
+tre**: in una lingua con cifre sue (l'arabo d'Egitto) i separatori sono quelli latini, «1,234.5», invece dei separatori
+arabi accanto a cifre latine (R2); in lettura le cifre e i separatori arabi valgono lo stesso. I gruppi dell'India si
+leggono ma si scrivono a tre.
 
 **La capsula** con più `units` si tocca e apre il menu contestuale dell'engine; scegliendo un'unità il valore si
-converte (`convertOnUnitChange`).
+converte (`convertOnUnitChange`). Con un valore da convertire la capsula offre **solo le unità in cui si converte
+davvero** (R2): una valuta senza cambio non si offre, perché 12 € sarebbero diventati «12 $» in silenzio. A campo vuoto
+le offre tutte.
 
 ## Il campo a codice
 
@@ -78,11 +84,15 @@ gruppi da tre, otto in due da quattro (lo stacco dei codici di Apple).
 - **Il codice proposto.** Il campo dice al sistema che aspetta un codice monouso (`ContentType.SmsOtpCode`, come
   `textContentType(.oneTimeCode)`): il servizio di autocompilazione (Google, Samsung Pass) può proporre il codice
   dell'SMS sopra la tastiera, e la scelta riempie tutte le caselle. Nessuna libreria di Google Play services; la
-  proposta dipende dal servizio del telefono e non è garantita.
+  proposta dipende dal servizio del telefono e non è garantita. Con `secret = true` (un PIN) il campo non dichiara il
+  codice SMS (R2): l'autocompilazione non deve proporre né salvare codici monouso nel PIN della schermata di blocco.
 - **L'incolla.** Un codice incollato col dito lungo riempie le caselle in un colpo, anche dentro una frase («Il tuo
   codice è 482913», «482-913»). Sotto le caselle il tasto incolla compare se negli appunti c'è un codice (vedi sotto).
+  Un numero più lungo del codice (un telefono, «3331234567») **non entra**: prima si prendevano le prime cifre e
+  `onComplete` partiva con un codice mai scritto (R2).
 - **L'errore.** `FluidCodeFieldState.fail()`: le caselle tremano (10 dp, 480 ms, a occhio), l'aptica d'errore, la tinta
-  d'errore, poi le caselle si svuotano; riscrivendo l'errore va via. Con «Riduci movimento» niente scossa.
+  d'errore, poi le caselle si svuotano; riscrivendo l'errore va via. Chi riscrive durante la scossa tiene le cifre nuove:
+  si svuota solo il codice sbagliato (R2). Con «Riduci movimento» niente scossa.
 - **La verifica.** `verifying = true`: il campo non si scrive e le cifre si velano; il lavoro e l'esito li dice il tasto
   con esito accanto ([elementi-dinamici.md](elementi-dinamici.md)).
 - **TalkBack** legge il nome, «cifra 3 di 6», «codice completo», e l'errore.
@@ -102,7 +112,9 @@ password forte» e «Scegli la mia password», come le schermate di registrazion
 
 - **Le regole** sono dati dell'app: `FluidPasswordRules(minLength, maxLength, required, allowed, maxConsecutive)` o la
   riga delle Password Rules di Apple con `FluidPasswordRules.parse`. Una riga per regola, per TalkBack «Almeno 8
-  caratteri, fatto».
+  caratteri, fatto». Le lunghezze e le ripetizioni contano i caratteri, non le metà di un emoji («🔑🔑🔑🔑» è lungo 4);
+  con il solo `maxlength` il minimo di serie (8) non lo supera («maxlength: 6» propone password di 6). Due regole con
+  gli stessi campi sono uguali (`equals`): create in composizione non rifanno la proposta a ogni ricomposizione (R2).
 - **La forza** (`FluidPasswordStrength.estimate`) è una stima semplice e dichiarata: l'alfabeto usato per la lunghezza
   efficace (le ripetizioni e le sequenze contano poco), e le password più comuni restano deboli. Niente zxcvbn. Sotto la
   parola c'è «Stima indicativa».
@@ -121,11 +133,13 @@ password forte» e «Scegli la mia password», come le schermate di registrazion
   indovina) o, per un'immagine, la sfocatura (`FluidPrivateVeil.Blur`, da Android 12).
 - **Si scopre** col tocco, o col cancello (`LocalFluidPrivateGate`): il blocco dell'engine
   (`rememberFluidBiometricGate` di `engine-security`, dalla 4.0: [`../moduli/security.md`](../moduli/security.md)), o
-  l'impronta dell'app.
+  l'impronta dell'app. Un cancello che lancia vale «no»: il valore resta coperto e l'app non cade (R2).
 - **Si ricopre da solo** dopo `recoverAfter` (30 s di serie, a occhio), in secondo piano e quando esce dalla composizione.
 - **Mai nelle schermate recenti**: mentre è scoperto la finestra non lascia la sua immagine alle recenti (da Android 13
   `setRecentsScreenshotEnabled(false)`, prima `FLAG_SECURE`); con `blockScreenshots` anche gli screenshot sono neri.
-  `FLAG_SECURE` vale per tutta la finestra: Android non sa fare di meno.
+  `FLAG_SECURE` vale per tutta la finestra: Android non sa fare di meno. **Da Android 13 le istantanee delle recenti,
+  spente una volta, restano spente finché l'attività vive** (R2): Android non dice se l'app le aveva già spente da sé,
+  e riaccenderle a un'app che le teneva spente era una fuga. `FLAG_SECURE` invece torna com'era.
 - **La modalità discreta** (`LocalFluidDiscreetMode`) vela insieme i valori `discreetOnly`; l'interruttore è dell'app.
 - Lo scambio fra velo e valore entra sfocato in 300 ms (R7); con «Riduci movimento» cambia e basta.
 
@@ -139,6 +153,12 @@ tempo** (60 s di serie), come `UIPasteboard` con `.expirationDate`. Sotto Androi
   legge senza il contenuto. Se la persona ha copiato altro, non si tocca niente.
 - **In secondo piano** Android non lascia leggere gli appunti: nel dubbio non si cancella, e la cancellazione aspetta il
   ritorno dell'app.
+- **Il tempo vive nel processo dell'app** (R2). Se il processo muore prima della scadenza (la persona chiude l'app dalle
+  recenti, il sistema la toglie per la memoria) nessuno cancella più, e il dato resta negli appunti finché non si copia
+  altro. Da Android 13 il sistema svuota da sé gli appunti dopo un'ora (di serie) e non mostra il dato riservato
+  nell'anteprima; sotto Android 13 resta. Una cancellazione pianificata fuori dal processo non saprebbe se il clip è
+  ancora il nostro (in secondo piano non si legge), e cancellerebbe quello che la persona ha copiato dopo. iOS con
+  `.expirationDate` cancella anche ad app chiusa.
 - **Il tasto** `FluidCopyButton` è il tasto con esito di Copia: dopo il tocco dice «Copiato» e fa vedere il tempo che
   resta nello stesso vetro, col pieno del contatore «Annulla» (aggiornato a passi di 125 ms nelle finestre lunghe, non a
   ogni fotogramma); TalkBack legge «Copiato, si cancella fra 58 s». Toccato mentre conta, copia di nuovo.
@@ -186,6 +206,7 @@ l'ultimo appunto nella loro barra, mascherato nei campi segreti.
 
 - **Il tasto incolla del codice fra Android 12 e 15 non compare.** È voluto (nel dubbio, no): non leggere il contenuto
   per farlo comparire, o torna l'avviso di Android.
+- **Un link con le parentesi** («…/wiki/X_(Y)») arriva intero: la parentesi finale va via solo se chiude la frase (R2).
 - **`FLAG_SECURE` è per tutta la finestra.** Con `blockScreenshots` uno screenshot della pagina intera è nero finché un
   valore è scoperto.
 - **Un valore riservato in una lista** si ricopre quando la riga esce dallo schermo: lo stato non va tenuto in alto.
@@ -194,10 +215,14 @@ l'ultimo appunto nella loro barra, mascherato nei campi segreti.
 
 ## Come si prova
 
-- I test puri: `FluidUnitsTest`, `FluidPasswordRulesTest` (engine-foundation), `FluidSpecialFieldsPureTest` (engine-ui).
+- I test puri: `FluidUnitsTest`, `FluidPasswordRulesTest` (engine-foundation), `FluidSpecialFieldsPureTest` (engine-ui);
+  per la R2 `R2F5aFoundationTest` (password, numeri incollati), `R2F5aPureTest` (codice e link dagli appunti) e
+  `R2F5aWindowAndTextTest` (le recenti non riaccese).
 - I test con l'albero Compose vero: `F8p3FieldsUiTest` della galleria (il campo con unità in italiano e in inglese, il
   codice incollato e proposto, l'errore, le regole, il velo che si ricopre con la finestra protetta, il clip riservato
-  con la sua scadenza, il tasto incolla che compare solo coi dati concordati e non legge prima del tocco).
+  con la sua scadenza, il tasto incolla che compare solo coi dati concordati e non legge prima del tocco); per la R2
+  `R2F5aFieldsUiTest` (il codice riscritto durante la scossa, il PIN senza codice SMS, il cancello che lancia, la valuta
+  senza cambio).
 - In galleria: «Elementi nuovi» › «Campi speciali» (`--es gallery.page NewElements --es novita.scene unita`, `codice`,
   `password`, `riservato`, `copia`, `incolla`), su pagina, foto chiara e foto scura.
 

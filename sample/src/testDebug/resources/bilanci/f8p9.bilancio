@@ -7,6 +7,11 @@
 # letto), che la prova non guida. Nodi, layer, pixel, byte e il rilascio sono la misura esatta.
 # Il motivo di ogni riga dice la misura vera.
 #
+# F7.32 · Le due scene riconoscono date, orari, indirizzi e contatti su `Dispatchers.IO` (il riconoscimento del
+# testo, FluidDetectedText): il banco le misura col lavoro in sottofondo sull'orologio della prova.
+@sottofondo dati-nel-testo | il riconoscimento dei dati nel testo su Dispatchers.IO; in tempo vero arrivava anche nel moto (F7.29, corsa d1: menu aperto al fotogramma 19)
+@sottofondo dati-mail-markdown | il riconoscimento di date, orari e indirizzi email nel Markdown, su Dispatchers.IO
+#
 # id                       fase              nodi   layer   cat/f catture   pixel     KiB     fab      fx     rid alloc/f  ver   prova
 dati-nel-testo             entrata              5       8       3       5   45210       0      66       9       -       -  F7.28 F8BalanceTest | entrata (F7.28, 26/11): 5 nodi e 8 layer del vetro, 3 catture (al più 3 per fotogramma, la più grande 45210 px), 0 KiB del vetro, 44 layer, bitmap o programmi nuovi e 6 filtri.
 dati-nel-testo             moto                 5       8       0       2       0       0       3       3       -       -  F7.28 F8BalanceTest | moto (F7.28, 26/11), il dito che trascina dal centro in su per 24 fotogrammi: 0 catture, al più 0 per fotogramma, la più grande 0 px; nel tratto stabile 0 fabbriche e 0 filtri nuovi per fotogramma.

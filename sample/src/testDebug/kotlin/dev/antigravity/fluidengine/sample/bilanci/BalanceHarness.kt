@@ -4,16 +4,26 @@ package dev.antigravity.fluidengine.sample.bilanci
 
 import android.graphics.RenderNode
 import android.os.Looper
+import android.view.View
+import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ExperimentalComposeRuntimeApi
+import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.node.LayoutNode
+import androidx.compose.ui.node.RootForTest
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.getAllSemanticsNodes
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.unit.IntSize
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
+import dev.antigravity.fluidengine.ui.fluid.FluidTimeSource
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidTimeSource
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
@@ -22,6 +32,8 @@ import dev.antigravity.fluidengine.ui.glass.field.FluidGlassProbeDiagnostics
 import dev.antigravity.fluidengine.ui.glass.field.GlassCostLevers
 import dev.antigravity.fluidengine.ui.glass.field.GlassShaderSources
 import dev.antigravity.fluidengine.ui.glass.quality.android.FluidGlassResources
+import dev.antigravity.fluidengine.ui.theme.LocalRouteMotionSignals
+import dev.antigravity.fluidengine.ui.theme.rememberRouteMotionSignals
 import java.time.Duration
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowLog
@@ -93,14 +105,43 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
   private var contentSet = false
 
   /**
+   * F7.32 · L'ora dei testi vivi ([LocalFluidTimeSource]) sull'orologio della prova: un secondo pieno di partenza, più il
+   * tempo dell'orologio di Compose, quello che fa scadere i `delay` degli effetti. Con l'ora del sistema (di serie) il
+   * conto alla rovescia di F8.1 aspettava il secondo dopo sull'orologio della prova e poi leggeva l'ora vera: i secondi
+   * che scendevano nella posa dipendevano da quanto era carico il PC (`conto/posa`, 4 corse su 6 in F7.29). Così ogni
+   * corsa vede gli stessi secondi, come sul telefono, dove i due orologi sono uno.
+   */
+  private val timeAnchor = System.currentTimeMillis() / 1000L * 1000L
+  val time = FluidTimeSource { timeAnchor + compose.mainClock.currentTime }
+
+  /**
    * Mostra [content] al posto della scena di prima (la regola di prova permette un solo `setContent` per prova): una
    * chiave per scena, così lo stato di una non passa alla dopo.
+   *
+   * F7.32 · Ogni scena ha i suoi segnali del movimento fra pagine ([LocalRouteMotionSignals]). Quelli di serie sono uno
+   * solo per tutto il processo, e il loro timbro (`glassRelaxAt`, «il vetro resta al minimo fino a…») è un istante di
+   * `SystemClock.uptimeMillis()`. Sul telefono l'orologio non torna indietro e il timbro scade dopo 40 ms; Robolectric
+   * invece lo rimette a 100 ms a ogni prova, e un timbro lasciato da `FluidPageHost` in una scena di «Misure» (per
+   * esempio a 4,8 s) teneva il vetro della prova dopo al minimo (qualità 0,25) per i suoi primi 4,8 s: la sonda, sospesa
+   * sotto 0,9, leggeva per la prima volta nella posa, e luce e tinta si ridisegnavano lì (le pose di dieci pacchetti di
+   * F8 quando `GlassBalanceScenesTest` girava prima di `F8BalanceTest`, F7.29).
    */
   fun show(content: @Composable () -> Unit) {
+    if (awaitsBackground) System.getProperty(BackgroundDelayProperty)?.toLongOrNull()?.let(BackgroundWork::occupy)
     if (!contentSet) {
       contentSet = true
       scene.value = content
-      compose.setContent { key(generation.intValue) { scene.value?.invoke() } }
+      compose.setContent {
+        CompositionLocalProvider(LocalFluidTimeSource provides time) {
+          key(generation.intValue) {
+            if (System.getProperty(SharedRouteSignalsProperty) == "1") {
+              scene.value?.invoke()
+            } else {
+              CompositionLocalProvider(LocalRouteMotionSignals provides rememberRouteMotionSignals()) { scene.value?.invoke() }
+            }
+          }
+        }
+      }
     } else {
       compose.runOnUiThread {
         scene.value = content
@@ -130,8 +171,24 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
     logIndex = 0
   }
 
+  /**
+   * F7.32 · Prima di far avanzare l'orologio della prova, il lavoro in sottofondo delle scene finisce ([BackgroundWork]):
+   * per la prova dura meno di un fotogramma, come sul telefono, e arriva al fotogramma dopo a ogni corsa.
+   */
+  private fun awaitBackground() {
+    if (awaitsBackground && System.getProperty(NoBackgroundBarrierProperty) != "1") BackgroundWork.await()
+  }
+
+  /**
+   * F7.32 · Se la scena di adesso ha il lavoro in sottofondo sull'orologio della prova: le scene che il loro frammento
+   * dichiara con `@sottofondo`. Le altre vanno come prima di F7.32 (la barriera su tutte cambierebbe le righe di sei
+   * pacchetti: vedi il rapporto di F7.32).
+   */
+  var awaitsBackground: Boolean = false
+
   /** Un fotogramma: l'orologio avanza di 16 ms, gli stati scritti si consegnano, la finestra si disegna. */
   fun frame(meter: GlassBalanceMeter? = null) {
+    awaitBackground()
     compose.mainClock.advanceTimeByFrame()
     shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(FrameMillis))
     Snapshot.sendApplyNotifications()
@@ -158,10 +215,52 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
     }
   }
 
+  /**
+   * F7.29 · Aspetta che la scena sia pronta da misurare ([ready] sull'albero della semantica): per le scene che arrivano
+   * dopo un lavoro su fili veri, come la memoria di F9.3 (`Dispatchers.IO` e il filo dell'indice di ricerca), che
+   * altrimenti compariva a caso nella posa o nel moto secondo il carico del PC. L'orologio della prova avanza di un
+   * fotogramma solo quando Compose ha lavoro in sospeso (una ricomposizione, un fotogramma chiesto); se non ne ha, si
+   * lasciano lavorare i fili veri e si consegna sul principale quello che hanno finito **all'istante di adesso** (il
+   * looper e lo scheduler della prova, 0 ms). Quanti millisecondi veri ci mettano i fili non cambia i fotogrammi né la
+   * misura. Oltre [ReadyTimeoutMillis] veri la prova cade col nome della scena. Restituisce i fotogrammi disegnati.
+   */
+  fun awaitReady(meter: GlassBalanceMeter, what: String, ready: (List<SemanticsNode>) -> Boolean): Int {
+    val deadline = System.nanoTime() + ReadyTimeoutMillis * 1_000_000
+    var frames = 0
+    while (!ready(semantics())) {
+      check(System.nanoTime() < deadline) { "$what: la scena non è pronta dopo ${ReadyTimeoutMillis / 1000} s veri ($frames fotogrammi)" }
+      if (pendingWork()) {
+        frame(meter)
+        frames++
+      } else {
+        Thread.sleep(1)
+        shadowOf(Looper.getMainLooper()).idle()
+        compose.mainClock.advanceTimeBy(0, ignoreFrameDuration = true)
+        Snapshot.sendApplyNotifications()
+      }
+    }
+    return frames
+  }
+
+  @OptIn(ExperimentalComposeRuntimeApi::class)
+  private fun pendingWork(): Boolean = Recomposer.runningRecomposers.value.any { it.hasPendingWork }
+
+  /** I nodi della semantica (non uniti) di tutte le radici di Compose della finestra, letti senza aspettare l'inattività. */
+  fun semantics(): List<SemanticsNode> {
+    val roots = ArrayList<RootForTest>()
+    fun walk(view: View) {
+      if (view is RootForTest) roots += view
+      if (view is ViewGroup) for (i in 0 until view.childCount) walk(view.getChildAt(i))
+    }
+    walk(compose.activity.window.decorView)
+    return roots.flatMap { it.semanticsOwner.getAllSemanticsNodes(mergingEnabled = false, skipDeactivatedNodes = true) }
+  }
+
   /** [millis] di tempo a passi di un fotogramma, disegnando un fotogramma ogni [drawEvery]. */
   fun idle(millis: Long, drawEvery: Int, meter: GlassBalanceMeter? = null) {
     val steps = ((millis + FrameMillis - 1) / FrameMillis).toInt()
     for (step in 1..steps) {
+      awaitBackground()
       compose.mainClock.advanceTimeByFrame()
       shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(FrameMillis))
       Snapshot.sendApplyNotifications()
@@ -226,9 +325,24 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
   }
 
   companion object {
+    /**
+     * F7.32 · Con questa proprietà di sistema a `1` le scene usano i segnali del movimento fra pagine di serie, uno per
+     * processo, come prima di F7.32: solo per `BalanceOrderTest`, che mostra il guasto e poi la correzione. Una
+     * proprietà di sistema e non un campo, perché la prova che la scrive gira fuori dalla sandbox di Robolectric.
+     */
+    const val SharedRouteSignalsProperty = "fluid.bilanci.segnaliCondivisi"
+
+    /** F7.32 · Per `BalanceOrderTest`: a `1` il banco non aspetta il lavoro in sottofondo (com'era prima di F7.32). */
+    const val NoBackgroundBarrierProperty = "fluid.bilanci.senzaBarriera"
+
+    /** F7.32 · Per `BalanceOrderTest`: i millisecondi per cui i fili in sottofondo restano occupati quando entra una scena. */
+    const val BackgroundDelayProperty = "fluid.bilanci.ritardoSottofondo"
     const val FrameTag = "FluidGlassFrame"
     const val FrameMillis = 16L
     const val QuietMillis = 2_000L
+
+    /** F7.29 · Il tetto dell'attesa di [awaitReady], in millisecondi veri: oltre, la scena non arriva e la prova cade. */
+    const val ReadyTimeoutMillis = 60_000L
     val ProbeColor = androidx.compose.ui.graphics.Color(0xFF7FA7D9)
   }
 }

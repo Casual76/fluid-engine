@@ -8,7 +8,8 @@ package dev.antigravity.fluidengine.richtext
  * **In uscita** solo questi tag, e nessun attributo tranne `href`: `div` (un paragrafo; vuoto e'
  * `<div><br></div>`, come lo scrivono i client di posta, cosi' la spaziatura e' la stessa ovunque),
  * `ul`/`ol`/`li`, `blockquote`, `b`, `i`, `u`, `a href`. Spazi doppi, in testa e in coda diventano
- * `&nbsp;` (l'HTML li collasserebbe), il tab `&#9;`. Nessuno stile in linea, nessuna classe: chi lo
+ * `&nbsp;` (l'HTML li collasserebbe), il tab `&#9;`, uno spazio unificatore del testo `&#160;` (cosi' alla
+ * rilettura resta unificatore e non diventa uno spazio). Nessuno stile in linea, nessuna classe: chi lo
  * riceve lo mostra col suo carattere. Gli annidamenti sono quelli dell'HTML valido (dalla [Version] 2):
  * un sotto-elenco sta **dentro** il `<li>` della voce sopra (`<ul><li>a<ul><li>b</li></ul></li></ul>`),
  * una citazione dentro l'altra e' un `<blockquote>` dentro l'altro; un client di posta mostra rientri e
@@ -21,8 +22,12 @@ package dev.antigravity.fluidengine.richtext
  * piu' interno; anche `<ul>` direttamente dentro `<ul>`, come lo scrivono alcuni editor), grassetto/corsivo/sottolineato (anche come `style="font-weight:…"`, che e' come
  * li copia Google Documenti, compreso il suo `<b style="font-weight:normal">` che **non** e' grassetto), e
  * i link con un indirizzo sicuro ([FluidRichTextLinks.sanitize]). Sparisce il contenuto di `script`,
- * `style`, `head`, `template`, `svg`, `math`, `iframe`, `object`, `noscript`, `select`, `textarea`; tutto il
- * resto (tag sconosciuti, colori, caratteri, tabelle) perde il tag e tiene il testo.
+ * `style`, `head`, `template`, `svg`, `math`, `iframe`, `object`, `noscript`, `select`, `textarea`; quello
+ * di `xmp` e `plaintext` e' testo che un browser mostra com'e' (tag compresi, a righe intere), e resta
+ * testo anche qui; tutto il resto (tag sconosciuti, colori, caratteri, tabelle) perde il tag e tiene il
+ * testo. Lo spazio unificatore e il trattino facoltativo restano quello che sono; `&nbsp;` invece e' lo
+ * spazio che l'HTML non collassa, e torna uno spazio normale (e' cosi' che lo scrivono tutti, [write]
+ * compreso).
  *
  * Il lettore non e' un parser HTML5 completo: non ricostruisce l'albero come un browser nei casi
  * patologici (tag chiusi nell'ordine sbagliato, `<p>` dentro `<b>`). Il risultato resta sempre un
@@ -122,7 +127,7 @@ private class HtmlWriter(private val document: FluidRichTextDocument) {
       return
     }
     val open = ArrayList<Tag>()
-    document.forEachRun { runStart, runEnd, format ->
+    document.forEachRunIn(start, end) { runStart, runEnd, format ->
       val a = maxOf(runStart, start)
       val b = minOf(runEnd, end)
       if (a < b) {
@@ -149,7 +154,7 @@ private class HtmlWriter(private val document: FluidRichTextDocument) {
       '>' -> out.append("&gt;")
       '"' -> out.append("&quot;")
       '\t' -> out.append("&#9;")
-      '\u00A0' -> out.append("&nbsp;")
+      '\u00A0' -> out.append("&#160;")
       ' ' -> {
         val hard = index == start || index == end - 1 || text[index - 1] == ' '
         out.append(if (hard) "&nbsp;" else " ")
@@ -261,8 +266,19 @@ private class HtmlReader(private val source: String) {
 
   private fun readStartTag() {
     val (name, afterName) = readTagName(position + 1)
-    var cursor = afterName
     val attributes = HashMap<String, String>()
+    val (end, selfClosing) = scanStartTag(afterName, attributes)
+    position = end
+    startTag(name, attributes, selfClosing)
+  }
+
+  /**
+   * Gli attributi di un tag d'apertura il cui nome finisce in [from], fino al `>` che lo chiude: le
+   * virgolette di un valore contano, un `>` fra virgolette non chiude il tag. Torna la posizione dopo il
+   * `>` e se il tag finisce con `/>`. Senza [attributes] salta soltanto (lo usa [skipElement]).
+   */
+  private fun scanStartTag(from: Int, attributes: MutableMap<String, String>?): Pair<Int, Boolean> {
+    var cursor = from
     var selfClosing = false
     while (cursor < source.length) {
       val char = source[cursor]
@@ -300,17 +316,22 @@ private class HtmlReader(private val source: String) {
               value = source.substring(start, cursor)
             }
           }
-          if (attributeName.isNotEmpty() && attributes.size < MaxAttributes) attributes.putIfAbsent(attributeName, decodeEntities(value))
+          if (attributes != null && attributeName.isNotEmpty() && attributes.size < MaxAttributes) {
+            attributes.putIfAbsent(attributeName, decodeEntities(value))
+          }
         }
       }
     }
-    position = cursor
-    startTag(name, attributes, selfClosing)
+    return cursor to selfClosing
   }
 
   // --- elementi ------------------------------------------------------------------------------------
 
   private fun startTag(name: String, attributes: Map<String, String>, selfClosing: Boolean) {
+    if (name in LiteralTextElements) {
+      readLiteralText(name)
+      return
+    }
     if (name in RawTextElements) {
       skipRawText(name)
       return
@@ -365,6 +386,28 @@ private class HtmlReader(private val source: String) {
     if (close >= 0) skipPast('>')
   }
 
+  /**
+   * `<xmp>` e `<plaintext>`: il contenuto non e' HTML ma testo che il browser mostra com'e', a righe e spazi
+   * interi come un `<pre>` (le entita' restano scritte). `<plaintext>` non si chiude: e' testo fino alla
+   * fine.
+   */
+  private fun readLiteralText(name: String) {
+    val close = if (name == "plaintext") -1 else source.indexOf("</$name", position, ignoreCase = true)
+    val end = if (close < 0) source.length else close
+    blockBoundary()
+    var lineStart = position
+    for (index in position until end) {
+      if (source[index] != '\n') continue
+      appendHard(source.substring(lineStart, if (index > lineStart && source[index - 1] == '\r') index - 1 else index))
+      lineBreak()
+      lineStart = index + 1
+    }
+    appendHard(source.substring(lineStart, end))
+    blockBoundary()
+    position = end
+    if (close >= 0) skipPast('>')
+  }
+
   /** Salta un elemento e tutto cio' che contiene, contando gli annidamenti dello stesso nome. */
   private fun skipElement(name: String) {
     var depth = 1
@@ -385,14 +428,19 @@ private class HtmlReader(private val source: String) {
           skipPast('>')
           if (closing == name) depth--
         }
-        else -> {
-          val (opening, _) = readTagName(position + 1)
+        position + 1 < source.length && source[position + 1].isLetter() -> {
+          val (opening, afterName) = readTagName(position + 1)
           // `</head>` si puo' omettere: il `<body>` la chiude da se'. Senza questo, un HTML senza
           // chiusura della testa (legale) perderebbe tutto il testo.
           if (name == "head" && opening == "body") return
-          skipPast('>')
-          if (opening == name && source[position - 2] != '/') depth++
+          // Le virgolette contano come nella lettura: `<a title="></svg>">` non chiude niente (R2).
+          val (end, selfClosing) = scanStartTag(afterName, null)
+          position = end
+          if (opening == name && !selfClosing) depth++
         }
+        source.startsWith("<!", position) || source.startsWith("<?", position) -> skipPast('>')
+        // Un `<` che non apre un tag e' testo, come nella lettura: la chiusura che viene dopo conta.
+        else -> position++
       }
     }
   }
@@ -512,7 +560,9 @@ private class HtmlReader(private val source: String) {
       when {
         char == '&' -> {
           val (decoded, next) = decodeEntityAt(text, index, end)
-          hard.append(decoded)
+          // `&nbsp;` e' lo spazio che l'HTML non collassa (lo scrittore lo usa cosi', e cosi' tutti):
+          // uno spazio vero. Lo spazio unificatore del testo arriva come carattere o come `&#160;`.
+          hard.append(if (decoded == "\u00A0" && text.startsWith("&nbsp;", index)) " " else decoded)
           index = next
           continue
         }
@@ -536,10 +586,9 @@ private class HtmlReader(private val source: String) {
     val clean = buildString(content.length) {
       for (char in content) {
         when {
-          char == '\u00A0' -> append(' ')
           char == '\t' -> append('\t')
           char == '\n' || char == '\r' -> append(' ')
-          char < ' ' || char == '\u007F' || char == '\u00AD' -> Unit
+          char < ' ' || char == '\u007F' -> Unit
           else -> append(char)
         }
       }
@@ -567,7 +616,8 @@ private class HtmlReader(private val source: String) {
     const val MaxDepth = 256
     const val MaxAttributes = 32
 
-    val RawTextElements = setOf("script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes", "noscript", "plaintext")
+    val RawTextElements = setOf("script", "style", "textarea", "title", "iframe", "noembed", "noframes", "noscript")
+    val LiteralTextElements = setOf("xmp", "plaintext")
     val IgnoredElements = setOf("head", "template", "svg", "math", "object", "select", "datalist", "audio", "video", "canvas", "map")
     val BlockElements = setOf(
       "address", "article", "aside", "blockquote", "center", "dd", "details", "dialog", "div", "dl", "dt",

@@ -51,6 +51,11 @@ import kotlin.math.sin
  * inchiostro, e ogni coppia fa **almeno 4,5:1** (WCAG 1.4.3, il testo), provato da un test su tutta la ruota dei colori,
  * sui grigi, sul nero, sul bianco e sui colori «tossici».
  *
+ * **L'eccezione: il passaggio** (R2). I 4,5:1 valgono per i ruoli fermi. Mentre [FluidContentTheme] sfuma (450 ms) da
+ * una pagina chiara a una scura, fondo e inchiostro si mescolano ognuno per conto suo, come in una dissolvenza: a metà
+ * strada il testo sta su un fondo del suo stesso grigio e per un attimo non si legge (contrasto vicino a 1). Alla fine
+ * del passaggio le coppie tornano a 4,5:1; col movimento ridotto il passaggio non c'è.
+ *
  * @property pageTint il fondo della pagina: la tinta della copertina, chiara nel tema chiaro e scura nel tema scuro (il
  *   lato del tema non cambia: il vetro, le barre di sistema e i controlli restano dalla loro parte).
  * @property onPage il testo sulla pagina.
@@ -411,6 +416,8 @@ val LocalFluidContentRoles = compositionLocalOf<FluidContentRoles?> { null }
  * [FluidContentSide.Theme] quello del tema di fuori. Da mettere attorno al contenuto della pagina, non attorno all'app.
  *
  * Ferma non costa niente; durante il passaggio il tema cambia a ogni fotogramma (solo il colore, per mezzo secondo).
+ * Durante il passaggio fra una pagina chiara e una scura il contrasto del testo scende sotto 4,5:1 per qualche
+ * fotogramma, come in ogni dissolvenza: i 4,5:1 di [FluidContentRoles] valgono ai due capi.
  */
 @Composable
 fun FluidContentTheme(

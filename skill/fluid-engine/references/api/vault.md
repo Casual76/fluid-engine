@@ -36,7 +36,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `data class Failed(val message: String) : VaultAuthResult` — Non riuscita, con la frase del sistema (troppi tentativi, sensore occupato).
   - `data class Unavailable(val reason: VaultUnavailability) : VaultAuthResult` — Questo modo non c'è sul telefono (nessuna impronta, nessun blocco schermo).
 - `fun interface VaultAuthenticator` — Chi mostra il dialogo dell'impronta o del codice per la cassaforte. La cassaforte non ha interfaccia: questo lo dà l'app, o `engine-security` con il dialogo di sistema già pronto (`FluidSystemAuthenticator`).
-  - `suspend fun authenticate(request: VaultAuthRequest): VaultAuthResult` — Mostra il dialogo e aspetta l'esito. Si chiama sul thread principale.
+  - `suspend fun authenticate(request: VaultAuthRequest): VaultAuthResult` — Mostra il dialogo e aspetta l'esito. Si chiama sul thread principale, anche se `unlock` arriva da un altro filo.
 - `data class VaultPrompt(val title: String, val subtitle: String? = null)` — Le parole del dialogo per aprire una sezione: il titolo («Sblocca le note») e una riga sotto.
 - `sealed interface VaultUnlock` — Com'è andata l'apertura di una sezione.
   - `data class Opened(val recovered: VaultInvalidation? = null) : VaultUnlock` — Aperta. [recovered] non nullo: aperta con la riserva dopo che la chiave dell'impronta si era chiusa per quel motivo; la chiave nuova è già fatta, e la prossima volta basta l'impronta.
@@ -84,7 +84,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `val file: File get()` — Dove sta il file cifrato sul disco (fuori dal backup).
   - `val exists: Boolean get()` — Vero se il file c'è.
   - `suspend fun write(bytes: ByteArray)` — Scrive [bytes] nel file, al posto di quello che c'era.
-  - `suspend fun write(block: (OutputStream) -> Unit)` — Scrive il file a pezzi: [block] riceve un `OutputStream` che cifra mentre scrive. Il file nuovo prende il posto del vecchio solo quando [block] finisce senza errori.
+  - `suspend fun write(block: (OutputStream) -> Unit)` — Scrive il file a pezzi: [block] riceve un `OutputStream` che cifra mentre scrive. Il file nuovo prende il posto del vecchio solo quando [block] finisce senza errori, dopo essere stato messo sul disco: anche dopo uno spegnimento brusco resta il file di prima o quello nuovo intero. Due scritture dello stesso file vanno in fila.
   - `suspend fun importFrom(input: InputStream)` — Copia [input] nel file, cifrandolo a pezzi (per importare un file grande senza tenerlo in memoria).
   - `suspend fun read(): ByteArray` — Tutto il file, decifrato. Per un file grande, [read] con il blocco.
   - `suspend fun <T> read(block: (InputStream) -> T): T` — Legge il file a pezzi: [block] riceve un `InputStream` che decifra mentre legge, e che vale solo dentro il blocco. Un pezzo toccato o mancante fa lanciare [VaultCorruptStreamException] alla lettura.

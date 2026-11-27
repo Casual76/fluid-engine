@@ -33,9 +33,14 @@ object FluidUnitFormat {
   /**
    * I separatori di [locale], dalle `DecimalFormatSymbols` della piattaforma. Lo spazio stretto delle migliaia (francese,
    * U+202F) e quello largo restano quelli della lingua: in lettura valgono tutti.
+   *
+   * **Le cifre sono sempre latine** (0–9), e i gruppi sempre da tre: in una lingua con cifre sue (l'arabo d'Egitto) i
+   * separatori sono allora quelli latini, «1,234.5», e non quelli arabi accanto a cifre latine («1٬234٫5», R2). In
+   * lettura le cifre e i separatori arabi valgono lo stesso. I gruppi dell'India (3 + 2) si leggono, ma si scrive a tre.
    */
   fun separators(locale: Locale): Separators {
     val symbols = DecimalFormatSymbols.getInstance(locale)
+    if (symbols.zeroDigit != '0') return Separators('.', ',')
     return Separators(symbols.decimalSeparator, symbols.groupingSeparator)
   }
 
@@ -203,10 +208,20 @@ object FluidUnitFormat {
     if (unit.symbol.startsWith("°")) add(unit.symbol.removePrefix("°"))
   }.filter { it.isNotEmpty() && !it[0].isDigit() }.distinct()
 
-  /** Gli spazi (anche quelli che non vanno a capo), gli apostrofi delle migliaia e il meno tipografico. */
+  /**
+   * Gli spazi (anche quelli che non vanno a capo), gli apostrofi delle migliaia e il meno tipografico; le cifre di altre
+   * scritture (arabe, persiane, devanagari…) diventano latine, e i separatori arabi (U+066B decimale, U+066C migliaia)
+   * punto e virgola latini (R2).
+   */
   private fun normalize(text: String): String = buildString {
     for (c in text.trim()) {
+      if (c !in '0'..'9' && Character.isDigit(c)) {
+        append('0' + Character.digit(c, 10))
+        continue
+      }
       when (c) {
+        '٫' -> append('.')
+        '٬' -> append(',')
         ' ', ' ', ' ', ' ', '\'', '’', '_' -> Unit
         '−', '–' -> append('-')
         else -> append(c)
@@ -255,6 +270,16 @@ object FluidUnitFormat {
     val grouping = if (decimal == null) body.firstOrNull { it == '.' || it == ',' } else if (decimal == '.') ',' else '.'
     if (decimal != null && body.lastIndexOf(decimal) != body.indexOf(decimal)) return null
     if (decimal != null && grouping != null && body.indexOf(grouping).let { it >= 0 && it > body.indexOf(decimal) }) return null
+    // Le migliaia sono gruppi veri (R2): il primo da 1 a 3 cifre, l'ultimo da 3, quelli in mezzo da 3 (o da 2, i gruppi
+    // dell'India). «1.2.3» non e' 123: non e' un numero.
+    if (grouping != null) {
+      val integer = if (decimal != null) body.substringBefore(decimal) else body
+      if (grouping in integer) {
+        val groups = integer.split(grouping)
+        val middleOk = groups.subList(1, groups.size - 1).all { it.length == 3 || it.length == 2 }
+        if (groups.first().length !in 1..3 || groups.last().length != 3 || !middleOk) return null
+      }
+    }
     val plain = buildString {
       if (negative) append('-')
       for (c in body) {

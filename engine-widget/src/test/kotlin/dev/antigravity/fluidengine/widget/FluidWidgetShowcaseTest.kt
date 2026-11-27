@@ -127,7 +127,7 @@ class FluidWidgetShowcaseTest {
         }
       }
     }
-    rule.waitUntil(5_000) { frames().isNotEmpty() }
+    rule.waitUntil(GlanceFirstFrameMillis) { frames().isNotEmpty() }
     val frame = frames().single()
     val density = context.resources.displayMetrics.density
     assertEquals((338 * density).toInt().toFloat(), frame.width.toFloat(), 1.5f)
@@ -148,7 +148,7 @@ class FluidWidgetShowcaseTest {
         }
       }
     }
-    rule.waitUntil(5_000) { frames().isNotEmpty() }
+    rule.waitUntil(GlanceFirstFrameMillis) { frames().isNotEmpty() }
     val density = context.resources.displayMetrics.density
     assertEquals((338 * density).toInt().toFloat(), frames().single().width.toFloat(), 1.5f)
     rule.onNodeWithTag(FluidWidgetShowcaseTags.preview("Medio"))
@@ -347,3 +347,10 @@ class FluidWidgetShowcaseTest {
     return out
   }
 }
+
+/**
+ * F7.32 · L'attesa della prima composizione di Glance, in tempo vero: col PC carico da quattro build ne ha chiesti
+ * 4,15 s (`lg-unione-r2`, 26/11; `EngineWidgetGaugeTest`), e un'attesa da 5 s cadeva per il tempo, non per il widget.
+ * È un'attesa, non un tetto di ciò che la prova misura.
+ */
+private const val GlanceFirstFrameMillis = 30_000L

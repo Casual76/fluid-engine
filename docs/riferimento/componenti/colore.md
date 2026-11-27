@@ -64,8 +64,10 @@ staccato dai bordi, e tutta altezza, dove diventa pagina come ogni foglio di vet
 - **la testata**: il contagocce a sinistra, «Colori» al centro, Chiudi a destra (tasti di vetro), come iOS;
 - **i tre modi** in un `FluidSegmentedControl`: **Griglia** (12 × 10, la prima riga di grigi dal bianco al nero, poi
   nove righe dallo scuro al chiaro coi colori della griglia di iOS: `FluidColorGrid`), **Spettro** (la tinta da
-  sinistra a destra, il bianco in alto, il pieno a metà, il nero in basso) e **Cursori** (rosso, verde, blu da 0 a 255
-  col numero, e il codice esadecimale da scrivere);
+  sinistra a destra, il bianco in alto, il pieno a metà, il nero in basso; il segno ha il colore scelto, anche quando un
+  colore smorzato dai cursori non sta sullo spettro, R2) e **Cursori** (rosso, verde, blu da 0 a 255 col numero, e il
+  codice esadecimale da scrivere: sei cifre tengono l'opacità di adesso, otto, `RRGGBBAA` incollate da un'altra app,
+  portano anche l'opacità se `supportsOpacity`, R2);
 - **l'opacità**, se `supportsOpacity`: un cursore su una scacchiera, col valore in percentuale;
 - **il colore scelto** (un quadrato di 74 dp) e **i recenti** (pallini di 28 dp che vanno a capo), col «+» in fondo che
   salva il colore di adesso, come iOS 26.
@@ -114,7 +116,10 @@ il seme) e `monochrome`. È l'estrattore di Pampa Widgets: l'immagine ridotta a 
 160 scartata, il colore vivo pesato per saturazione al quadrato e luminosità. Una differenza: la media pesata si fa sulla
 fascia di tinta più pesante e sulle due vicine, perché su una copertina a tre colori la media di tutti era un grigio
 fangoso. Un'immagine tutta trasparente dà null (il tema resta normale); una con meno del 4 % di pixel colorati è
-monocroma, e i ruoli restano neutri.
+monocroma, e i ruoli restano neutri. **Un colore pieno è colorato anche a luminosità piena** (R2): il bianco si riconosce
+dalla saturazione, e sopra 0,94 di luminosità un pixel conta fra i colorati se è saturo almeno 0,5 (a occhio). Prima una
+copertina gialla o rossa pura (canale a 255) era «monocroma» e la pagina restava neutra proprio sulle copertine più
+colorate.
 
 **Il colore vivo** (`vivid`, F8.7b). Accanto a `vibrant` l'estrattore tiene la fascia di tinta più viva che pesa davvero:
 quella col peso per la croma OKLCH al quadrato più alto (`FluidContentApple.SeedChromaPower`), se pesa almeno il 15 %
@@ -127,7 +132,9 @@ cambiano di un livello: lo provano le copertine vere della galleria (`F8p7ColorU
 `rememberFluidContentColors(key) { … }` la fa una volta per chiave su `Dispatchers.Default`, con una cache di 64 voci
 (`FluidContentColorCache`, come Fluidify): la stessa copertina la chiedono il mini player, la pagina e il widget. Mentre
 i colori di una chiave nuova si leggono restano quelli di prima, così fra un brano e l'altro la pagina non torna bianca.
-**L'immagine la decodifica l'app**, piccola: 96 px bastano.
+**L'immagine la decodifica l'app**, piccola: 96 px bastano. `rememberFluidContentColors(image)` senza chiave usa
+l'immagine come chiave **tenuta in modo debole** (R2): la cache tiene i colori, non le immagini, e un'immagine lasciata
+andare non resta appesa fra le 64 voci. Una chiave data (l'indirizzo della copertina) resta com'è.
 
 ### I ruoli
 
@@ -168,6 +175,8 @@ con `barTint()` (tinta di Apple, `GlassTintMode.Colored`), un'aura.
 **Il passaggio sfuma**: entrare, cambiare tinta e uscire (`colors` null o `enabled` falso) durano 450 ms sulla curva dei
 colori, ripartendo da dove si è se arriva un cambio a metà. È un cambio guidato dall'app, quindi sfuma; col movimento
 ridotto è immediato. L'albero resta lo stesso, tinto o no: accendere o spegnere la tinta non ricompone la pagina da capo.
+**I 4,5:1 valgono ai due capi** (R2): fra una pagina chiara e una scura fondo e testo si mescolano ognuno per conto suo,
+come in una dissolvenza, e a metà passaggio il testo per qualche fotogramma non si legge (contrasto vicino a 1).
 
 **L'app sceglie** l'immagine, le superfici (`page`, `accent`, i suoi vetri) e quando: il tema va attorno alla pagina, non
 all'app. Ferma non costa niente; durante il passaggio lo schema cambia a ogni fotogramma per mezzo secondo.

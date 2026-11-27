@@ -14,6 +14,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
@@ -52,6 +54,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -67,6 +70,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.antigravity.fluidengine.ui.fluid.ContinuousCornerShape
 import dev.antigravity.fluidengine.ui.fluid.FluidButton
@@ -210,7 +214,21 @@ fun FluidAppLockHost(
         Modifier
           .fillMaxSize()
           .testTag(FluidAppLockTags.Content)
-          .then(if (locked) Modifier.clearAndSetSemantics { } else Modifier)
+          // Bloccata: niente TalkBack, e niente fuoco da tastiera, D-pad o Switch Access (R2). Il gruppo rifiuta
+          // l'ingresso (Tab salta ai tasti della schermata, e una richiesta del contenuto stesso non passa), e un tasto
+          // che arrivasse comunque a un nodo di dentro si ferma qui: Invio non preme niente che non si vede.
+          .then(
+            if (locked) {
+              Modifier
+                .clearAndSetSemantics { }
+                .focusProperties { onEnter = { cancelFocusChange() } }
+                .onPreviewKeyEvent { true }
+            } else {
+              Modifier
+            },
+          )
+          // Sempre un gruppo, così bloccarsi non cambia la forma dell'albero del fuoco sotto un campo che lo ha.
+          .focusGroup()
           .graphicsLayer {
             alpha = if (locked) 0f else 1f
             // L'app entra dalla sfocatura: la schermata la fa cambiare da sola, non il dito (F8, «dito nitido»).
@@ -241,12 +259,32 @@ fun FluidAppLockHost(
   }
 }
 
-/** Le capacità del telefono, rilette a ogni blocco (un'impronta registrata nel frattempo conta). */
+/**
+ * Le capacità del telefono, rilette a ogni blocco e a ogni ritorno in primo piano: un'impronta o un blocco schermo messi
+ * nelle impostazioni del telefono mentre l'app è bloccata contano al rientro (R2).
+ */
 @Composable
 fun rememberFluidAuthCapability(lock: FluidAppLock): FluidAuthCapability {
   val context = LocalContext.current
   val count = lock.lockCount
-  return remember(context, count) { FluidBiometrics.capability(context) }
+  return rememberReadOnResume(context, count) { FluidBiometrics.capability(context) }
+}
+
+/**
+ * [read] adesso, quando cambia una chiave, e a ogni `ON_RESUME` dell'attività: per quello che la persona cambia nelle
+ * impostazioni del telefono e poi torna. Lo stato si scrive sul thread principale (il ciclo di vita parla lì).
+ */
+@Composable
+internal fun <T> rememberReadOnResume(key1: Any?, key2: Any?, read: () -> T): T {
+  val lifecycle = LocalLifecycleOwner.current.lifecycle
+  val currentRead by rememberUpdatedState(read)
+  var value by remember(key1, key2) { mutableStateOf(read()) }
+  DisposableEffect(lifecycle, key1, key2) {
+    val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) value = currentRead() }
+    lifecycle.addObserver(observer)
+    onDispose { lifecycle.removeObserver(observer) }
+  }
+  return value
 }
 
 /** Il nome dell'app, dal suo manifest. */

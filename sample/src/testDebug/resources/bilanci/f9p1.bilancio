@@ -8,6 +8,12 @@
 # letto), che la prova non guida. Nodi, layer, pixel, byte e il rilascio sono la misura esatta.
 # Il motivo di ogni riga dice la misura vera.
 #
+# F7.32b · «Senza PampAI» chiede lo stato di PampAI (AiAssistClient.check) su `Dispatchers.IO`; finché non arriva mostra
+# «Lo cerco…» col composer di vetro (13 nodi, 20 layer), poi il tasto spento con «Installa PampAI» (5 nodi, 8 layer): le
+# righe di posa, moto e uscita misurano questa, la scena vera. Il banco la misura col lavoro in sottofondo
+# sull'orologio della prova.
+@sottofondo pampai-assente | lo stato di PampAI su Dispatchers.IO; in tempo vero, nel lotto lg-unione-r4b (27/11), è arrivato dopo la posa e posa e moto hanno misurato «Lo cerco…» (13 nodi su 5)
+#
 # id                       fase              nodi   layer   cat/f catture   pixel     KiB     fab      fx     rid alloc/f  ver   prova
 pampai-chiedi              entrata             13      20       7       9   45210       0     153      45       -       -  F7.29 F8BalanceTest | entrata (F7.29, 26/11): 13 nodi e 20 layer del vetro, 7 catture (al più 7 per fotogramma, la più grande 45210 px), 0 KiB del vetro, 102 layer, bitmap o programmi nuovi e 30 filtri; il tetto è il massimo di 2 corse più il margine.
 pampai-chiedi              moto                13      20       0       2       0       0       3       3       -       -  F7.29 F8BalanceTest | moto (F7.29, 26/11), il dito che trascina dal centro in su per 24 fotogrammi: 0 catture, al più 0 per fotogramma, la più grande 0 px; nel tratto stabile 0 fabbriche e 0 filtri nuovi per fotogramma (al più, quando entra una riga); il tetto è il massimo di 2 corse più il margine.

@@ -8,6 +8,8 @@ import android.os.Build
 import android.os.SystemClock
 import java.io.File
 import javax.crypto.Cipher
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CoroutineDispatcher
@@ -130,7 +132,7 @@ sealed interface VaultAuthResult {
  * l'app, o `engine-security` con il dialogo di sistema già pronto (`FluidSystemAuthenticator`).
  */
 fun interface VaultAuthenticator {
-  /** Mostra il dialogo e aspetta l'esito. Si chiama sul thread principale. */
+  /** Mostra il dialogo e aspetta l'esito. Si chiama sul thread principale, anche se `unlock` arriva da un altro filo. */
   suspend fun authenticate(request: VaultAuthRequest): VaultAuthResult
 }
 
@@ -211,6 +213,12 @@ class FluidVault internal constructor(
 ) {
   private val sections = LinkedHashMap<String, VaultSection>()
   internal val dataStores = HashMap<String, Any>()
+
+  /**
+   * Dove si chiede il dialogo ([VaultAuthenticator] promette il thread principale, R2): il principale, o il filo di chi
+   * chiama sulla JVM dei test, dove il principale non c'è.
+   */
+  internal val main: CoroutineContext by lazy { mainOrCaller() }
 
   init {
     requireName(name)
@@ -305,6 +313,15 @@ class FluidVault internal constructor(
         "nome non valido: «$name» (lettere minuscole, cifre, punto, trattino, trattino basso; non di soli punti)"
       }
     }
+  }
+
+  private fun mainOrCaller(): CoroutineContext = try {
+    // Sulla JVM senza Android il principale manca: `isDispatchNeeded` lancia, e il dialogo resta sul filo di chi chiama.
+    Dispatchers.Main.immediate.also { it.isDispatchNeeded(EmptyCoroutineContext) }
+  } catch (e: IllegalStateException) {
+    EmptyCoroutineContext
+  } catch (e: UnsupportedOperationException) {
+    EmptyCoroutineContext
   }
 
   private fun listenToScreen(context: Context) {

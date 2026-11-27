@@ -74,7 +74,6 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
-import kotlin.math.roundToLong
 
 /**
  * L'aspetto della ghiera (F8.2). Misure dalle schermate di Foto in iOS 26 (Ritaglia, ~1,15 px a punto) e iOS 18.
@@ -183,7 +182,7 @@ fun FluidRulerDial(
   neutralValue: Float? = 0f,
   enabled: Boolean = true,
   onValueChangeFinished: (() -> Unit)? = null,
-  valueText: ((Float) -> String)? = { fluidRulerDefaultText(it) },
+  valueText: ((Float) -> String)? = { fluidRulerDefaultText(it, step) },
   contentDescription: String? = null,
 ) {
   // F8.15c: il numero passa in uno stato e la ghiera lo legge dove serve (effetti, disegno, semantica). Questo adattatore
@@ -212,7 +211,7 @@ fun FluidRulerDial(
   neutralValue: Float? = 0f,
   enabled: Boolean = true,
   onValueChangeFinished: (() -> Unit)? = null,
-  valueText: ((Float) -> String)? = { fluidRulerDefaultText(it) },
+  valueText: ((Float) -> String)? = { fluidRulerDefaultText(it, step) },
   contentDescription: String? = null,
 ) {
   // Tutto quello che il chiamante puo' ricreare a ogni ricomposizione passa in stati fissi: il corpo salta.
@@ -417,12 +416,32 @@ object FluidRulerDialDiagnostics {
   }
 }
 
-/** La scritta di serie: il valore senza decimali inutili e col segno meno tipografico («−12», «0», «2,5»). */
-internal fun fluidRulerDefaultText(value: Float): String {
-  val rounded = (value * 10f).roundToLong() / 10.0
-  val whole = rounded == floor(rounded)
-  val body = if (whole) abs(rounded).toLong().toString() else abs(rounded).toString().replace('.', ',')
-  return if (rounded < 0) "−$body" else body
+/**
+ * La scritta di serie: il valore senza decimali inutili e col segno meno tipografico («−12», «0», «2,5»). I decimali
+ * sono quelli del [step], almeno uno: col passo di un centesimo «2,51» e «2,54» restano due scritte, anche per TalkBack
+ * (R2; prima tutto si arrotondava a un decimale).
+ */
+internal fun fluidRulerDefaultText(value: Float, step: Float = 0.1f): String {
+  val decimals = fluidRulerStepDecimals(step)
+  // Lo stesso arrotondamento di prima (`Math.round`, la meta' verso l'alto), alle cifre del passo.
+  val rounded = java.math.BigDecimal.valueOf(Math.round(value.toDouble() * Math.pow(10.0, decimals.toDouble())), decimals)
+    .stripTrailingZeros()
+  val whole = rounded.scale() <= 0
+  val magnitude = rounded.abs()
+  val body = if (whole) magnitude.toBigInteger().toString() else magnitude.toPlainString().replace('.', ',')
+  return if (rounded.signum() < 0) "−$body" else body
+}
+
+/** I decimali che servono a scrivere un passo ([step]): 1 fino al decimo, 2 per il centesimo, al più 6. */
+internal fun fluidRulerStepDecimals(step: Float): Int {
+  if (!(step > 0f) || !step.isFinite()) return 1
+  var decimals = 1
+  while (decimals < 6) {
+    val scaled = step.toDouble() * Math.pow(10.0, decimals.toDouble())
+    if (abs(scaled - Math.round(scaled)) < 1e-4 * scaled.coerceAtLeast(1.0)) break
+    decimals++
+  }
+  return decimals
 }
 
 /**
@@ -687,6 +706,12 @@ internal class FluidRulerDriver(private val scope: CoroutineScope, initial: Floa
           finish()
         } else {
           restartHaptics()
+          // R2 (difetto 32): un secondo cambio da fuori arrivato mentre questa molla correva non aveva trovato la ghiera
+          // libera; a ghiera ferma si rilegge il valore, e se e' un altro la ghiera lo raggiunge.
+          if (!dragging) {
+            job = null
+            follow(value)
+          }
         }
       }
       // F8.1b: l'inerzia di un lancio (e il ritorno al neutro col doppio tocco) conta come il dito: i numeri che mostrano

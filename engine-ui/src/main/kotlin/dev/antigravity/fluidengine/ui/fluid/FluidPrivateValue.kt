@@ -52,6 +52,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.VisibilityOff
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -234,7 +235,16 @@ fun Modifier.fluidPrivate(
 
   val requestReveal: () -> Unit = {
     scope.launch {
-      val allowed = currentGate?.authorize() ?: true
+      // R2: un cancello che lancia (la biometria guasta, un servizio che non risponde) vale «no»: nel dubbio il valore
+      // resta coperto, e l'eccezione non esce dalla coroutine facendo cadere l'app. L'annullamento passa.
+      val gate = currentGate
+      val allowed = if (gate == null) true else try {
+        gate.authorize()
+      } catch (e: CancellationException) {
+        throw e
+      } catch (_: Exception) {
+        false
+      }
       if (allowed) state.reveal()
     }
   }
@@ -305,8 +315,19 @@ fun Modifier.fluidPrivate(
 /**
  * Il segno «finestra protetta» di una finestra, contato: lo chiedono i valori riservati scoperti, e si toglie quando
  * l'ultimo lo lascia. Ricorda com'era la finestra prima (un'app che aveva già `FLAG_SECURE` lo tiene).
+ *
+ * **Le recenti (Android 13+) non si riaccendono** (R2, difetto 30): la piattaforma non dice se l'app le aveva già spente
+ * da sé (`setRecentsScreenshotEnabled` non ha un «get»), e riaccenderle a un'app che le teneva spente per tutta
+ * l'attività sarebbe una fuga. Così, dopo il primo valore scoperto, l'anteprima nelle recenti resta vuota finché
+ * l'attività vive ([ReenableRecents], il punto solo da cambiare se Alessio sceglie diversamente).
  */
 internal object FluidSecureWindow {
+  /**
+   * Vero: all'ultimo rilascio le istantanee delle recenti si riaccendono (il comportamento fino alla R2). Falso (di
+   * serie): restano spente, perché lo stato di prima non si può leggere.
+   */
+  internal const val ReenableRecents: Boolean = false
+
   private class Hold(val window: Window, val hadSecure: Boolean) {
     var recents = 0
     var secure = 0
@@ -337,7 +358,7 @@ internal object FluidSecureWindow {
     if (useSecure && hold.secure > 0) {
       if (--hold.secure == 0 && !hold.hadSecure) window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     } else if (!useSecure && hold.recents > 0) {
-      if (--hold.recents == 0 && Build.VERSION.SDK_INT >= 33) activity.setRecentsScreenshotEnabled(true)
+      if (--hold.recents == 0 && Build.VERSION.SDK_INT >= 33 && ReenableRecents) activity.setRecentsScreenshotEnabled(true)
     }
     if (hold.recents == 0 && hold.secure == 0) holds.remove(window)
   }
@@ -346,8 +367,9 @@ internal object FluidSecureWindow {
 /**
  * Tiene la finestra fuori dalle recenti finché [active]: l'anteprima nelle app recenti è vuota
  * (`setRecentsScreenshotEnabled(false)` da Android 13, `FLAG_SECURE` prima, che toglie anche gli screenshot), e con
- * [blockScreenshots] anche gli screenshot sono neri. Le richieste si contano: la finestra torna com'era quando
- * l'ultima se ne va, e un'app che aveva già `FLAG_SECURE` lo tiene. È lo stesso segno dei valori riservati, pubblico
+ * [blockScreenshots] anche gli screenshot sono neri. Le richieste si contano: `FLAG_SECURE` torna com'era quando
+ * l'ultima se ne va, e un'app che lo aveva già lo tiene. Le istantanee delle recenti di Android 13+ invece **restano
+ * spente** finché l'attività vive (R2): la piattaforma non dice se l'app le aveva già spente da sé. È lo stesso segno dei valori riservati, pubblico
  * dalla 4.0 per il blocco dell'app (`engine-security`, F8.23).
  */
 @Composable

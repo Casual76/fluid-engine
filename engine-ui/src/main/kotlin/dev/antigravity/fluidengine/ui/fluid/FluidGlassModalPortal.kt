@@ -16,7 +16,6 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -435,7 +434,9 @@ fun Modifier.fluidExpandOrigin(
   // quando la finestra e' in scena smette di disegnarsi DI COLPO — l'immagine continua il viaggio
   // nella finestra, quindi il cambio di proprietario non ha niente da mostrare.
   val host = LocalFluidGlassModalHostState.current
-  val layer = rememberGraphicsLayer()
+  // F7.29b (D3): nasce con la display list vuota, così il pop-up che la disegna nel fotogramma dell'apertura non la
+  // registra al posto dell'origine (due registrazioni nello stesso fotogramma).
+  val layer = rememberRecordedGraphicsLayer()
   val node = remember(layer) { FluidExpandAnchorNode(layer) }
   DisposableEffect(host, node) {
     host?.expandAnchors?.add(node)

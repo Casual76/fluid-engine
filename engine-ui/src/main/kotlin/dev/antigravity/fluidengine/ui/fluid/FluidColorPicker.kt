@@ -837,7 +837,7 @@ fun FluidColorPicker(
         hue = h
         emit(c.copy(alpha = color.alpha))
       }
-      FluidColorPickerMode.Sliders -> ColorSliders(color, strings) { emit(it) }
+      FluidColorPickerMode.Sliders -> ColorSliders(color, strings, supportsOpacity) { emit(it) }
     }
     if (supportsOpacity) {
       Caption(strings.opacity)
@@ -1036,6 +1036,7 @@ private fun ColorSpectrum(
   val shape = ContinuousCornerShape(FluidColorPickerDefaults.PanelCorner)
   val position = spectrumPosition(color, hue)
   val latestPosition by rememberUpdatedState(position)
+  val latestColor by rememberUpdatedState(color)
   Box(
     modifier = Modifier
       .fillMaxWidth()
@@ -1093,7 +1094,9 @@ private fun ColorSpectrum(
           val center = Offset(p.x * size.width, p.y * size.height)
           drawCircle(Color.Black.copy(alpha = 0.22f), radius = marker + 1.dp.toPx(), center = center)
           drawCircle(Color.White, radius = marker, center = center)
-          drawCircle(spectrumColor(p.x, p.y), radius = marker - ring, center = center)
+          // Il segno ha il colore scelto, non quello dello spettro in quel punto: un colore smorzato e scuro (dai
+          // cursori) non sta sullo spettro, e il segno mostrava un altro colore, saturo (R2).
+          drawCircle(latestColor.copy(alpha = 1f), radius = marker - ring, center = center)
         }
       },
   )
@@ -1102,7 +1105,7 @@ private fun ColorSpectrum(
 // --- I cursori ------------------------------------------------------------------------------------------------------
 
 @Composable
-private fun ColorSliders(color: Color, strings: FluidColorPickerStrings, onPick: (Color) -> Unit) {
+private fun ColorSliders(color: Color, strings: FluidColorPickerStrings, supportsOpacity: Boolean, onPick: (Color) -> Unit) {
   val channels = listOf(
     Triple(strings.red, "r", color.red),
     Triple(strings.green, "g", color.green),
@@ -1143,21 +1146,26 @@ private fun ColorSliders(color: Color, strings: FluidColorPickerStrings, onPick:
         textAlign = TextAlign.End,
         modifier = Modifier.weight(1f),
       )
-      HexField(color, strings, onPick)
+      HexField(color, strings, supportsOpacity, onPick)
     }
   }
 }
 
 @Composable
-private fun HexField(color: Color, strings: FluidColorPickerStrings, onPick: (Color) -> Unit) {
+private fun HexField(color: Color, strings: FluidColorPickerStrings, supportsOpacity: Boolean, onPick: (Color) -> Unit) {
   val shown = fluidColorHex(color).removePrefix("#")
   var text by remember(shown) { mutableStateOf(shown) }
   FluidTextField(
     value = text,
     onValueChange = { typed ->
-      val clean = typed.removePrefix("#").filter { Character.digit(it, 16) >= 0 }.take(6).uppercase(Locale.ROOT)
+      // Sei cifre: il colore, con l'opacita' di adesso. Otto (`RRGGBBAA`, incollate da un'altra app): anche l'opacita',
+      // se il selettore la sostiene (R2: prima le ultime due si perdevano e si applicava subito solo il colore).
+      val clean = typed.removePrefix("#").filter { Character.digit(it, 16) >= 0 }.take(8).uppercase(Locale.ROOT)
       text = clean
-      if (clean.length == 6) fluidParseHexColor(clean)?.let { onPick(it.copy(alpha = color.alpha)) }
+      when (clean.length) {
+        6 -> fluidParseHexColor(clean)?.let { onPick(it.copy(alpha = color.alpha)) }
+        8 -> fluidParseHexColor(clean)?.let { onPick(if (supportsOpacity) it else it.copy(alpha = color.alpha)) }
+      }
     },
     modifier = Modifier.width(128.dp).testTag(FluidColorPickerTags.Hex),
     placeholder = "RRGGBB",

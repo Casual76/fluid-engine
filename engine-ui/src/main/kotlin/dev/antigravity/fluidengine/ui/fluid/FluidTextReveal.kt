@@ -524,7 +524,15 @@ internal class RevealTracker {
     byLine: Boolean = false,
     rewriteArrives: Boolean = false,
   ) {
-    if (seen && newText == text) return
+    if (seen && newText == text) {
+      // Lo stesso testo con le durate a zero: «Riduci movimento» si e' acceso mentre il testo arrivava. Le parole in
+      // attesa entrano subito, invece di finire il loro arrivo sfocato (R2).
+      if (revealNanos == 0L && rewriteNanos == 0L && revealing.isNotEmpty()) {
+        for (token in revealing) token.born = RevealCommitted
+        revealing = emptyList()
+      }
+      return
+    }
     this.staggerNanos = staggerNanos
     this.spreadNanos = spreadNanos
     this.byLine = byLine

@@ -130,12 +130,12 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun toggleQuote()` — Mette o toglie la citazione ai paragrafi toccati dalla selezione: se stanno gia' tutti in una citazione ne escono del tutto (anche dalle citazioni annidate; gli elenchi restano), altrimenti chi non c'era entra in una citazione che lo contiene tutto (elenchi e sotto-elenchi compresi).
   - `fun increaseIndent()` — Aumenta di un livello il rientro dei paragrafi toccati che ne hanno uno: una voce diventa la voce di un sotto-elenco dello stesso tipo (la numerazione riparte), un paragrafo citato una citazione nella citazione. I paragrafi normali e quelli gia' a [FluidRichTextParagraphStyle.MaxDepth] restano dove sono. Si annulla in un passo. Il tasto della barra e Tab da una tastiera fisica fanno questo;
   - `fun decreaseIndent()` — Diminuisce di un livello il rientro dei paragrafi toccati: una voce di un sotto-elenco torna voce dell'elenco sopra, una voce di primo livello torna paragrafo, una citazione annidata torna citazione semplice, un paragrafo citato esce dalla citazione. Il tasto della barra e Maiusc+Tab.
-  - `fun setLink(url: String, text: String? = null): Boolean` — Fa della selezione un link a [url] (completato con [FluidRichTextLinks.fromUserInput]: `esempio.it` va bene). Col cursore dentro un link ne cambia l'indirizzo; col cursore fermo altrove inserisce [text] (o l'indirizzo) come link. Con [text] diverso dal testo attuale lo sostituisce.
+  - `fun setLink(url: String, text: String? = null): Boolean` — Fa della selezione un link a [url] (completato con [FluidRichTextLinks.fromUserInput]: `esempio.it` va bene). Col cursore dentro un link ne cambia l'indirizzo; col cursore fermo altrove inserisce [text] (o l'indirizzo) come link.
   - `fun removeLink()` — Toglie il link dalla selezione, o dal link che il cursore tocca. Il testo resta.
   - `companion object`
     - `const val MaxHistory: Int` — Quanti passi tiene l'annulla.
     - `const val MaxSavedLength: Int` — Oltre questa lunghezza lo stato salvato da Android non porta il documento (vedi la nota sul salvataggio in [FluidRichTextState]).
-    - `val Saver: Saver<FluidRichTextState, Any>` — Salva documento, selezione e «Aa» in tipi che un `Bundle` accetta. Non la cronologia.
+    - `val Saver: Saver<FluidRichTextState, Any>` — Salva documento, selezione, «Aa», lo stile in sospeso e il foglio del link aperto (con le sue bozze) in tipi che un `Bundle` accetta. Non la cronologia.
 - `@Composable fun rememberFluidRichTextState(initial: FluidRichTextDocument = FluidRichTextDocument.Empty): FluidRichTextState` — Crea e ricorda lo stato di un editor, salvato per la rotazione e la morte del processo.
 
 ## `engine-richtext/richtext/FluidRichTextToolbar.kt`

@@ -407,4 +407,56 @@ class GlassBalanceGuardsTest {
     assertTrue("un layer a ogni fotogramma deve cadere anche sotto il tetto: $every", every.any { "fotogrammi stabili: layer, bitmap o programmi nuovi" in it })
     assertTrue("e non sul tetto, che lo lascerebbe passare: $every", every.none { "fab 1 (tetto" in it })
   }
+
+  /**
+   * F7.29b · D4 sempre, non solo quando il tempo vero lo vuole. Un pannello di vetro con un vetro dentro entra in scena
+   * mentre il moto è misurato: il vetro dentro campiona il materiale proprio del pannello (il layer che nasce quando il
+   * vetro dentro si attacca) nel fotogramma in cui lo trova la prima volta. Prima di F7.29b quel layer non aveva ancora
+   * una display list: `drawLayer` del vetro dentro lo registrava vuoto, e il pannello, svegliato dal suo primo lettore,
+   * lo registrava di nuovo nello stesso fotogramma (in `GlassBalanceScenesTest` la barra di selezione lo faceva in
+   * alcune corse sì e in altre no). Rosso sulla base R3, verde con il materiale che nasce già registrato.
+   */
+  @Test
+  fun unPannelloCheEntraColVetroDentroRegistraIlSuoMaterialeUnaVolta() {
+    val shown = mutableStateOf(false)
+    val meter = harness.meter("pannello col vetro dentro")
+    harness.show {
+      Stage { backdrop ->
+        if (shown.value) {
+          Box(
+            Modifier
+              .padding(start = 40.dp, top = 80.dp)
+              .size(260.dp, 96.dp)
+              .glassSurface(
+                state = backdrop, tint = GlassDefaults.floatingTint(), shape = FluidCapsuleShape,
+                role = GlassRole.Floating, optics = GlassDefaults.optics(GlassRole.Floating),
+              ),
+          ) {
+            Box(
+              Modifier
+                .padding(16.dp)
+                .size(64.dp)
+                .glassSurface(
+                  state = backdrop, tint = GlassDefaults.floatingTint(), shape = FluidCapsuleShape,
+                  role = GlassRole.Floating, optics = GlassDefaults.optics(GlassRole.Floating),
+                ),
+            )
+          }
+        }
+      }
+    }
+    repeat(8) { harness.frame() }
+    meter.begin("moto")
+    compose.runOnUiThread { shown.value = true }
+    repeat(12) { harness.frame(meter) }
+    meter.end()
+    // La seconda registrazione del materiale viene dall'export del pannello (`DrawBackdropNode.drawGlass`). Nello stesso
+    // fotogramma un altro layer del pannello si registra due volte per un'altra causa, la stessa di D5 (uno stato scritto
+    // nel disegno e applicato a metà disegno quando il pannello avvia l'osservatore del suo export): resta scritto, non
+    // corretto qui (rapporto F7.29, cause-d2-d5.md), e la prova lo stampa.
+    val doubles = meter.violations.filter { "registrato" in it }
+    doubles.filter { "drawGlass" !in it }.forEach { println("Bilancio pannello col vetro dentro, nota (causa di D5): $it") }
+    assertEquals("all'entrata il pannello registra il suo materiale una volta per fotogramma", emptyList<String>(),
+      doubles.filter { "drawGlass" in it })
+  }
 }

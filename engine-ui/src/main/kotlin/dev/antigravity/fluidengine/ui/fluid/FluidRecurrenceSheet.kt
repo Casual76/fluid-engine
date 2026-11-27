@@ -28,6 +28,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -146,7 +149,10 @@ fun FluidRecurrenceSheet(
   source: FluidTransitionSource? = null,
   previewCount: Int = 5,
 ) {
-  val draft = remember(visible, initialRule, start) { FluidRecurrenceDraft(initialRule, start, locale) }
+  // La bozza resiste alla rotazione e al processo ucciso, come il calendario accanto (R2, difetto 39).
+  val draft = rememberSaveable(visible, initialRule, start, saver = fluidRecurrenceDraftSaver(initialRule, start, locale)) {
+    FluidRecurrenceDraft(initialRule, start, locale)
+  }
   FluidGlassSheet(
     visible = visible,
     onDismissRequest = onDismissRequest,
@@ -175,9 +181,13 @@ internal enum class FluidMonthlyMode { DayOfMonth, OrdinalWeekday, LastWeekday }
 /** Come finisce. */
 internal enum class FluidEndMode { Never, OnDate, AfterCount }
 
-/** La regola mentre si sceglie: semplici stati, e la regola vera solo quando serve ([rule]). */
+/**
+ * La regola mentre si sceglie: semplici stati, e la regola vera solo quando serve ([rule]). Se la persona non cambia
+ * niente, [rule] restituisce la regola di partenza com'era (R2, difetto 39): la bozza sa dire solo una parte di una
+ * regola ricca (giorni del mese, mesi, posizioni), e riscriverla l'avrebbe cambiata.
+ */
 @Stable
-internal class FluidRecurrenceDraft(initial: FluidRecurrenceRule?, val start: LocalDate, locale: Locale) {
+internal class FluidRecurrenceDraft(private val initial: FluidRecurrenceRule?, val start: LocalDate, locale: Locale) {
   var preset by mutableStateOf(fluidRecurrencePresetOf(initial))
   var frequency by mutableStateOf(initial?.frequency ?: FluidRecurrenceFrequency.Weekly)
   var interval by mutableIntStateOf(initial?.interval ?: 1)
@@ -203,8 +213,39 @@ internal class FluidRecurrenceDraft(initial: FluidRecurrenceRule?, val start: Lo
   var count by mutableIntStateOf((initial?.end as? FluidRecurrenceEnd.AfterCount)?.count ?: 10)
   val weekStart: DayOfWeek = FluidDates.firstDayOfWeek(locale)
 
+  /** I campi della bozza, nell'ordine del suo salvataggio ([fluidRecurrenceDraftSaver]). */
+  internal fun fields(): List<Any> = listOf(
+    preset.ordinal, frequency.ordinal, interval, weekdays.map { it.value }.sorted().toIntArray(), monthly.ordinal,
+    endMode.ordinal, endDate.toEpochDay(), count,
+  )
+
+  /** I campi com'erano alla nascita: se tornano uguali, la persona non ha cambiato niente. */
+  private val pristine: List<Any> = fields()
+
+  /** Rimette i campi salvati da [fields]. */
+  internal fun restore(saved: List<Any>) {
+    preset = FluidRecurrencePreset.entries[saved[0] as Int]
+    frequency = FluidRecurrenceFrequency.entries[saved[1] as Int]
+    interval = saved[2] as Int
+    weekdays = (saved[3] as IntArray).map { DayOfWeek.of(it) }.toSet()
+    monthly = FluidMonthlyMode.entries[saved[4] as Int]
+    endMode = FluidEndMode.entries[saved[5] as Int]
+    endDate = LocalDate.ofEpochDay(saved[6] as Long)
+    count = saved[7] as Int
+  }
+
+  private fun untouched(): Boolean {
+    val now = fields()
+    return now.indices.all { i ->
+      val a = now[i]
+      val b = pristine[i]
+      if (a is IntArray && b is IntArray) a.contentEquals(b) else a == b
+    }
+  }
+
   /** La regola scelta, o nulla per «Mai». */
   fun rule(): FluidRecurrenceRule? {
+    if (initial != null && untouched()) return initial
     val end = when (endMode) {
       FluidEndMode.Never -> FluidRecurrenceEnd.Never
       FluidEndMode.OnDate -> FluidRecurrenceEnd.OnDate(maxOf(endDate, start))
@@ -242,6 +283,16 @@ internal class FluidRecurrenceDraft(initial: FluidRecurrenceRule?, val start: Lo
     FluidMonthlyMode.LastWeekday -> listOf(FluidRecurrenceDay.last(start.dayOfWeek))
   }
 }
+
+/**
+ * Il salvataggio della bozza di «Ripeti»: i suoi campi semplici. La regola di partenza, l'inizio e la lingua non si
+ * salvano: li ridà il chiamante, uguali, dopo la ricreazione (sono anche le chiavi della bozza).
+ */
+internal fun fluidRecurrenceDraftSaver(initial: FluidRecurrenceRule?, start: LocalDate, locale: Locale): Saver<FluidRecurrenceDraft, Any> =
+  listSaver(
+    save = { it.fields() },
+    restore = { saved -> FluidRecurrenceDraft(initial, start, locale).apply { restore(saved) } },
+  )
 
 /** Il numero del giorno della settimana di [date] nel suo mese: il 24 novembre 2026, un martedi', e' il quarto (4). */
 internal fun fluidWeekdayOrdinal(date: LocalDate): Int = (date.dayOfMonth - 1) / 7 + 1

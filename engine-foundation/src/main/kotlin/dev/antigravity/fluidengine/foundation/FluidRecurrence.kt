@@ -195,7 +195,7 @@ data class FluidRecurrenceRule(
       }
       FluidRecurrenceFrequency.Monthly -> {
         val month = YearMonth.from(begin)
-        if (monthsOfYear.isNotEmpty() && month.month !in monthsOfYear) emptyList() else inMonth(month, start)
+        if (monthsOfYear.isNotEmpty() && month.month !in monthsOfYear) emptyList() else inMonth(month, start, null)
       }
       FluidRecurrenceFrequency.Yearly -> inYear(begin.year, start)
     }
@@ -207,25 +207,41 @@ data class FluidRecurrenceRule(
     }.distinct().sorted()
   }
 
-  private fun inMonth(month: YearMonth, start: LocalDate): List<LocalDate> {
+  /**
+   * I giorni della regola nel mese [month]. Con giorni del mese e giorni della settimana insieme, i secondi **limitano**
+   * i primi (RFC 5545 § 3.3.10, nota 1: «Limit if BYMONTHDAY is present»; l'esempio della RFC e' «ogni venerdi' 13»), e
+   * il numero di un giorno della settimana conta anche qui (R2): `BYMONTHDAY=15;BYDAY=-1FR` vuole il 15 che e' anche
+   * l'ultimo venerdi' del periodo. Il periodo del numero e' il mese, o l'anno ([yearScope]) in una regola annuale
+   * senza mesi.
+   */
+  private fun inMonth(month: YearMonth, start: LocalDate, yearScope: Int?): List<LocalDate> {
     val byMonthDay = daysOfMonth.mapNotNull { monthDay(month, it) }
     return when {
       byMonthDay.isNotEmpty() || daysOfMonth.isNotEmpty() ->
-        if (daysOfWeek.isEmpty()) byMonthDay else byMonthDay.filter { d -> daysOfWeek.any { it.dayOfWeek == d.dayOfWeek } }
+        if (daysOfWeek.isEmpty()) byMonthDay else byMonthDay.filter { d -> daysOfWeek.any { it.matches(d, yearScope) } }
       daysOfWeek.isNotEmpty() -> daysOfWeek.flatMap { weekdaysIn(month.atDay(1), month.atEndOfMonth(), it) }
       else -> listOfNotNull(monthDay(month, start.dayOfMonth))
     }
+  }
+
+  /** Vero se [date] e' questo giorno della settimana, col suo numero nel mese di [date] (o nell'anno [yearScope]). */
+  private fun FluidRecurrenceDay.matches(date: LocalDate, yearScope: Int?): Boolean {
+    if (date.dayOfWeek != dayOfWeek) return false
+    if (ordinal == 0) return true
+    val (first, last) = if (yearScope != null) LocalDate.of(yearScope, 1, 1) to LocalDate.of(yearScope, 12, 31)
+    else date.withDayOfMonth(1) to date.withDayOfMonth(date.lengthOfMonth())
+    return date in weekdaysIn(first, last, this)
   }
 
   private fun inYear(year: Int, start: LocalDate): List<LocalDate> {
     if (monthsOfYear.isNotEmpty()) {
       return monthsOfYear.flatMap { m ->
         val month = YearMonth.of(year, m)
-        if (daysOfMonth.isEmpty() && daysOfWeek.isEmpty()) listOfNotNull(monthDay(month, start.dayOfMonth)) else inMonth(month, start)
+        if (daysOfMonth.isEmpty() && daysOfWeek.isEmpty()) listOfNotNull(monthDay(month, start.dayOfMonth)) else inMonth(month, start, null)
       }
     }
     return when {
-      daysOfMonth.isNotEmpty() -> (1..12).flatMap { inMonth(YearMonth.of(year, it), start) }
+      daysOfMonth.isNotEmpty() -> (1..12).flatMap { inMonth(YearMonth.of(year, it), start, yearScope = year) }
       daysOfWeek.isNotEmpty() -> daysOfWeek.flatMap { weekdaysIn(LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), it) }
       // Il giorno dell'inizio, se quell'anno c'e' (il 29 febbraio solo negli anni bisestili).
       else -> listOfNotNull(monthDay(YearMonth.of(year, start.month), start.dayOfMonth))

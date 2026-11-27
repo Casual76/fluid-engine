@@ -180,11 +180,15 @@ object FluidFeedbackText {
   /** La lunghezza massima dell'indirizzo della issue: GitHub rifiuta gli indirizzi troppo lunghi (a occhio, 8 kB). */
   const val MaxIssueUrlLength: Int = 7_500
 
-  /** Il titolo della issue: la prima riga della frase, al massimo 80 caratteri, dopo l'app e la versione. */
+  /**
+   * Il titolo della issue: la prima riga della frase, al massimo 80 caratteri, dopo l'app e la versione (R3: la
+   * versione solo con «L'app e il telefono» acceso).
+   */
   fun title(draft: FluidFeedbackDraft, info: FluidFeedbackInfo, labels: FluidFeedbackLabels = FluidFeedbackLabels()): String {
     val first = FluidPrivacyScrubber.scrub(draft.description.trim().lineSequence().firstOrNull().orEmpty())
     val summary = if (first.length > 80) first.take(79).trimEnd() + "…" else first
-    return "[${info.appName} ${info.appVersion}] " + summary.ifBlank { labels.untitled }
+    val app = if (draft.includeDevice) "${info.appName} ${info.appVersion}" else info.appName
+    return "[$app] " + summary.ifBlank { labels.untitled }
   }
 
   /**

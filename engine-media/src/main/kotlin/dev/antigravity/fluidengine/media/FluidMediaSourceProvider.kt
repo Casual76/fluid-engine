@@ -95,7 +95,8 @@ abstract class FluidMediaSourceProvider : ContentProvider() {
         source.refresh()
         FluidMediaSourceContract.encodeInfo(source)
       }
-      FluidMediaSourceContract.METHOD_ALBUMS -> guarded(infoDeadlineMillis, Bundle()) {
+      // R3: alla scadenza o a un errore, gli album dicono `error` invece di una lista vuota (che sembrava una libreria senza album).
+      FluidMediaSourceContract.METHOD_ALBUMS -> guarded(infoDeadlineMillis, errorBundle()) {
         if (!source.access.allowsListing()) Bundle() else FluidMediaSourceContract.encodeAlbums(source.albums())
       }
       FluidMediaSourceContract.METHOD_PAGE -> guarded(pageDeadlineMillis, errorPage()) {
@@ -204,6 +205,9 @@ abstract class FluidMediaSourceProvider : ContentProvider() {
   private fun errorPage(): Bundle = FluidMediaSourceContract.encodePage(FluidMediaPage(emptyList())).also {
     it.putString(FluidMediaSourceContract.KEY_ERROR, "timeout")
   }
+
+  /** La risposta degli album che non si sono potuti leggere: vuota (chi legge una versione vecchia vede zero album) con `error`. */
+  private fun errorBundle(): Bundle = Bundle().also { it.putString(FluidMediaSourceContract.KEY_ERROR, "timeout") }
 
   /** Una chiamata sospesa dal filo del binder, con la scadenza: alla scadenza o a un errore, [fallback]. */
   private fun guarded(deadlineMillis: Long, fallback: Bundle, block: suspend () -> Bundle): Bundle = try {

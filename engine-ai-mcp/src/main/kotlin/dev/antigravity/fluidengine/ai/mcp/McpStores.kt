@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.antigravity.fluidengine.ai.keys.AiDataStores
@@ -150,6 +151,10 @@ class McpConnectorStore(private val store: DataStore<Preferences>) {
  *
  * Se il Keystore non decifra piu' (telefono ripristinato) la voce si cancella: il connettore torna "da
  * collegare", meglio di un 401 senza spiegazione.
+ *
+ * **La generazione** (R3-S1): un numero per connettore, in chiaro (non e' un segreto), che cresce a ogni uscita e a ogni
+ * rimozione. Un rinnovo o un ritorno dal browser cominciati prima salvano i loro gettoni solo se la generazione e'
+ * ancora quella ([setTokensIf], [completeSignIn]): l'uscita vince sempre.
  */
 class McpTokenStore(
   private val store: DataStore<Preferences>,
@@ -168,14 +173,14 @@ class McpTokenStore(
     McpTokens(access, (json["refresh"] as? JsonPrimitive)?.contentOrNull, (json["expires"] as? JsonPrimitive)?.longOrNull, (json["scope"] as? JsonPrimitive)?.contentOrNull)
   }
 
-  suspend fun setTokens(id: String, tokens: McpTokens?) = write(TOKENS + id, tokens?.let {
-    buildJsonObject {
-      put("access", it.accessToken)
-      it.refreshToken?.let { r -> put("refresh", r) }
-      it.expiresAtMillis?.let { e -> put("expires", e) }
-      it.scope?.let { s -> put("scope", s) }
-    }
-  })
+  suspend fun setTokens(id: String, tokens: McpTokens?) = write(TOKENS + id, tokens?.let { tokensJson(it) })
+
+  private fun tokensJson(it: McpTokens) = buildJsonObject {
+    put("access", it.accessToken)
+    it.refreshToken?.let { r -> put("refresh", r) }
+    it.expiresAtMillis?.let { e -> put("expires", e) }
+    it.scope?.let { s -> put("scope", s) }
+  }
 
   /** Il cliente registrato per un connettore, con il server di accesso. */
   suspend fun client(id: String): Pair<String, McpAuthServer>? = read(CLIENT + id)?.let { json ->
@@ -210,18 +215,72 @@ class McpTokenStore(
     }
   })
 
+  /** La generazione del connettore [id]: 0 finche' l'utente non esce o non lo toglie. */
+  internal suspend fun generation(id: String): Long = store.data.first()[longPreferencesKey(GENERATION + id)] ?: 0L
+
+  /**
+   * Salva [tokens] (o li cancella, con null) solo se la generazione di [id] e' ancora [generation]: un rinnovo cominciato
+   * prima di un'uscita non rimette niente. Vero se ha scritto.
+   */
+  internal suspend fun setTokensIf(id: String, generation: Long, tokens: McpTokens?): Boolean {
+    val blob = tokens?.let { withContext(Dispatchers.IO) { cipher.encrypt(tokensJson(it).toString()) } }
+    var wrote = false
+    store.edit { prefs ->
+      if ((prefs[longPreferencesKey(GENERATION + id)] ?: 0L) != generation) return@edit
+      if (blob == null) prefs -= stringPreferencesKey(TOKENS + id) else prefs[stringPreferencesKey(TOKENS + id)] = blob
+      wrote = true
+    }
+    return wrote
+  }
+
+  /**
+   * Il ritorno dal browser: i gettoni entrano e l'accesso a meta' se ne va, in una scrittura sola, solo se la generazione
+   * e' ancora [generation] e l'accesso a meta' e' ancora quello con [state]. Vero se e' entrato.
+   */
+  internal suspend fun completeSignIn(id: String, generation: Long, state: String, tokens: McpTokens): Boolean {
+    if (pending(id)?.state != state) return false
+    val blob = withContext(Dispatchers.IO) { cipher.encrypt(tokensJson(tokens).toString()) }
+    var wrote = false
+    store.edit { prefs ->
+      if ((prefs[longPreferencesKey(GENERATION + id)] ?: 0L) != generation) return@edit
+      if (prefs[stringPreferencesKey(PENDING + id)] == null) return@edit
+      prefs[stringPreferencesKey(TOKENS + id)] = blob
+      prefs -= stringPreferencesKey(PENDING + id)
+      wrote = true
+    }
+    return wrote
+  }
+
+  /** Toglie l'accesso a meta' di [id] se e' ancora quello con [state] (un ritorno fallito non cancella uno piu' nuovo). */
+  internal suspend fun dropPending(id: String, state: String) {
+    if (pending(id)?.state == state) setPending(id, null)
+  }
+
+  /** L'uscita: gettoni e accesso a meta' via, e la generazione avanza, in una scrittura sola. */
+  internal suspend fun signOut(id: String) {
+    store.edit { prefs ->
+      prefs -= stringPreferencesKey(TOKENS + id)
+      prefs -= stringPreferencesKey(PENDING + id)
+      prefs[longPreferencesKey(GENERATION + id)] = (prefs[longPreferencesKey(GENERATION + id)] ?: 0L) + 1
+    }
+  }
+
   /** Il connettore che aspetta il ritorno con questo `state`, se c'e'. */
   suspend fun pendingFor(state: String): String? {
     val ids = store.data.first().asMap().keys.map { it.name }.filter { it.startsWith(PENDING) }.map { it.removePrefix(PENDING) }
     return ids.firstOrNull { pending(it)?.state == state }
   }
 
-  /** Dimentica tutto di un connettore (quando l'utente lo toglie). */
+  /**
+   * Dimentica tutto di un connettore (quando l'utente lo toglie). Resta solo la generazione, avanzata: un rinnovo o un
+   * ritorno dal browser ancora in corso non lasciano gettoni di un connettore che non c'e' piu' (R3-S1).
+   */
   suspend fun forget(id: String) {
     store.edit { prefs ->
       prefs -= stringPreferencesKey(TOKENS + id)
       prefs -= stringPreferencesKey(CLIENT + id)
       prefs -= stringPreferencesKey(PENDING + id)
+      prefs[longPreferencesKey(GENERATION + id)] = (prefs[longPreferencesKey(GENERATION + id)] ?: 0L) + 1
     }
   }
 
@@ -264,6 +323,7 @@ class McpTokenStore(
     private const val TOKENS = "tokens_"
     private const val CLIENT = "client_"
     private const val PENDING = "pending_"
+    private const val GENERATION = "generation_"
 
     fun open(file: java.io.File, cipher: SecretCipher = KeystoreCipher(ALIAS)): McpTokenStore = McpTokenStore(AiDataStores.open(file), cipher)
   }
@@ -282,26 +342,35 @@ class McpAuthorization(
 ) : McpCredentials {
 
   override suspend fun bearer(): String? {
+    val generation = tokens.generation(connectorId)
     val current = tokens.tokens(connectorId) ?: return null
     if (!current.expired(clock())) return current.accessToken
-    return renew(current)?.accessToken ?: current.accessToken
+    return renew(current, generation)?.accessToken ?: current.accessToken
   }
 
   override suspend fun refreshAfterUnauthorized(rejected: String?): Boolean {
+    val generation = tokens.generation(connectorId)
     val current = tokens.tokens(connectorId) ?: return false
-    return renew(current) != null
+    // Uscito nel frattempo: niente rinnovo, e il 401 del server dice di entrare di nuovo.
+    return try { renew(current, generation) != null } catch (e: McpError.AuthRequired) { false }
   }
 
-  private suspend fun renew(current: McpTokens): McpTokens? {
+  /**
+   * Il rinnovo, per la [generation] letta prima dei gettoni (R3-S1): se intanto l'utente e' uscito o ha tolto il
+   * connettore, il gettone nuovo non si salva e la richiesta chiede di entrare di nuovo.
+   */
+  private suspend fun renew(current: McpTokens, generation: Long): McpTokens? {
     if (current.refreshToken == null) return null
     val (clientId, server) = tokens.client(connectorId) ?: return null
-    return try {
-      oauth.refresh(server, clientId, serverUrl, current).also { tokens.setTokens(connectorId, it) }
+    val fresh = try {
+      oauth.refresh(server, clientId, serverUrl, current)
     } catch (e: McpError.AuthRequired) {
       // Il gettone di rinnovo non vale piu': si torna a "da collegare".
-      tokens.setTokens(connectorId, null)
-      null
+      tokens.setTokensIf(connectorId, generation, null)
+      return null
     }
+    if (!tokens.setTokensIf(connectorId, generation, fresh)) throw McpError.AuthRequired(null, null)
+    return fresh
   }
 }
 

@@ -171,16 +171,23 @@ class FluidPlaybackController internal constructor(
     refresh()
   }
 
+  /**
+   * Salta a [positionMillis] nell'elemento che si ascolta. Funziona anche **prima che la durata si sappia** (R3): la coda
+   * ricordata riaperta ferma, con elementi senza `durationMillis`, non è ancora preparata e non ha durata ([canSeek] resta
+   * falso, perché una barra senza durata non si disegna); il tocco sull'ora di un paragrafo salta lo stesso, con l'indice,
+   * senza tenerlo dentro una durata che non c'è. Il lettore non si prepara da solo: la durata arriva con Play, o con
+   * [requestDuration].
+   */
   override fun seekTo(positionMillis: Long) {
-    val duration = durationMillis ?: return
-    if (!canSeek) return
-    val target = positionMillis.coerceIn(0L, duration)
-    if (player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) {
-      player.seekTo(target)
-    } else {
+    if (!player.isCommandAvailable(Player.COMMAND_GET_CURRENT_MEDIA_ITEM) || player.mediaItemCount == 0) return
+    val duration = durationMillis
+    val target = if (duration != null) positionMillis.coerceIn(0L, duration) else positionMillis.coerceAtLeast(0L)
+    when {
+      player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM) -> player.seekTo(target)
       // Prima che il lettore sia preparato (la coda ricordata, riaperta ferma) Media3 non offre il salto nell'elemento: si
       // salta con l'indice, che c'e' gia'. Trovato sul Tab S9 il 25/11/2026: il tocco sull'ora non faceva niente.
-      player.seekTo(player.currentMediaItemIndex, target)
+      player.isCommandAvailable(Player.COMMAND_SEEK_TO_MEDIA_ITEM) -> player.seekTo(player.currentMediaItemIndex, target)
+      else -> return
     }
     this.positionMillis = target
   }

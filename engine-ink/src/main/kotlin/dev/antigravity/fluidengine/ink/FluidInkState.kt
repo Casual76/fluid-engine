@@ -1,6 +1,7 @@
 package dev.antigravity.fluidengine.ink
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -9,7 +10,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.retain.retain
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -37,8 +38,8 @@ data class FluidInkRuler(val center: Offset, val angle: Float)
  * modifica fatta da un gesto (la gomma che passa, il lazo che sposta) e' **un passo solo**, dall'inizio alla fine del
  * gesto, come in PencilKit.
  *
- * Non si salva da sola nel `Bundle` (un disegno grande supera il limite di Android): per tenerlo, [encode] e
- * [FluidInkCodec.decode].
+ * Non si salva da sola nel `Bundle` (un disegno grande supera il limite di Android): con [rememberFluidInkState] resta
+ * alla rotazione (R3), e per tenerlo oltre (la morte del processo, una nota da riaprire) [encode] e [FluidInkCodec.decode].
  */
 @Stable
 class FluidInkState(
@@ -313,6 +314,12 @@ class FluidInkState(
     syncCounts()
   }
 
+  /** R3: il foglio se ne va a gesto aperto (la ricreazione): il gesto si annulla, come un palmo, e il vetro riparte. */
+  internal fun interrupt() {
+    cancelEdit()
+    isInteracting = false
+  }
+
   /** La gomma a oggetti lungo il segmento a–b (raggio [radius], nelle unita' del foglio). Vero se ha tolto qualcosa. */
   fun eraseObjects(a: Offset, b: Offset, radius: Float): Boolean {
     val kept = strokes.filterNot { InkGeometry.capsuleHitsStroke(a.x, a.y, b.x, b.y, radius, it) }
@@ -356,10 +363,23 @@ class FluidInkState(
   }
 }
 
-/** Lo stato di un disegno, che sopravvive alla ricomposizione (non alla ricreazione: vedi [FluidInkState]). */
+/**
+ * Lo stato di un disegno, che sopravvive alla ricomposizione e (R3) alla **rotazione** e alle altre ricreazioni
+ * dell'attivita' (il tema, la lingua, la finestra divisa): e' tenuto in memoria con `retain` di Compose, intero (tratti,
+ * cronologia, strumento, vista). Prima era un `remember`: senza `configChanges` nel manifest la rotazione perdeva il
+ * disegno. **Alla morte del processo no**: il `Bundle` non tiene un disegno grande, e chi lo vuole tenere salva i tratti
+ * ([FluidInkState.encode]) a ogni [FluidInkState.revision] o al ✓.
+ *
+ * [initial], [tool] e [drawingPolicy] valgono solo alla nascita, come prima.
+ */
 @Composable
 fun rememberFluidInkState(
   initial: List<FluidInkStroke> = emptyList(),
   tool: FluidInkTool = FluidInkTool.Pen,
   drawingPolicy: FluidInkDrawingPolicy = FluidInkDrawingPolicy.Auto,
-): FluidInkState = remember { FluidInkState(initial, tool, drawingPolicy) }
+): FluidInkState {
+  val state = retain { FluidInkState(initial, tool, drawingPolicy) }
+  // Un gesto a meta' quando il foglio se ne va (il telefono gira col dito giu'): nello stato tenuto non resta aperto.
+  DisposableEffect(state) { onDispose { state.interrupt() } }
+  return state
+}

@@ -32,7 +32,9 @@ import kotlinx.coroutines.joinAll
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -129,7 +131,8 @@ class FluidScanState internal constructor(
   /**
    * Aggiunge in coda la foto [photo] col foglio [quad] (quello trovato, o tutta la foto). La foto va sul disco e la
    * pagina pulita si calcola fuori dal filo principale; la pagina è nella fila subito, con la miniatura che arriva dopo.
-   * Restituisce la pagina, o `null` se la fila è piena (o se la scansione è stata buttata nel frattempo).
+   * Restituisce la pagina, o `null` se la fila è piena (o se la scansione è stata buttata nel frattempo). Lancia
+   * `IOException` se la foto non si scrive per intero (il disco pieno, R3): la fila resta com'era.
    */
   suspend fun add(photo: Bitmap, quad: FluidScanQuad? = null): FluidScanPage? {
     if (list.size >= options.maxPages) return null
@@ -138,8 +141,9 @@ class FluidScanState internal constructor(
     val file = File(folder, "foto-$id.jpg")
     val width = photo.width
     val height = photo.height
+    // R3: uno scatto che il disco non prende per intero non entra nella fila (lo scanner dice «scatto non riuscito»).
     withContext(Dispatchers.IO) {
-      disk.withLock { FileOutputStream(file).use { photo.compress(Bitmap.CompressFormat.JPEG, 92, it) } }
+      disk.withLock { writeJpeg(file, photo, PhotoQuality) }
     }
     val found = quad ?: withContext(Dispatchers.Default) { FluidScanEdges.detect(photo)?.quad } ?: FluidScanQuad.Full
     if (round != generation) {
@@ -193,7 +197,8 @@ class FluidScanState internal constructor(
   /**
    * Rifà la pagina [id] con una foto nuova (il «Riprendi» di VisionKit): stessa posizione nella fila. Lo scatto nuovo
    * prende il posto della foto solo quando la pagina nuova è pronta: annullato a metà (Indietro mentre si scrive), lascia
-   * la foto e la pagina di prima.
+   * la foto e la pagina di prima. Se lo scatto nuovo non si scrive per intero (il disco pieno) lancia `IOException`, e
+   * anche allora resta tutto com'era (R3).
    */
   suspend fun retake(id: String, photo: Bitmap, quad: FluidScanQuad? = null) {
     if (list.none { it.id == id }) return
@@ -201,7 +206,7 @@ class FluidScanState internal constructor(
     // la pagina di prima (fila e pagina pulita) con i byte della foto nuova, e il ritaglio dopo usava quelli.
     val fresh = File(folder, "foto-$id.nuova-${UUID.randomUUID().toString().take(6)}.jpg")
     try {
-      withContext(Dispatchers.IO) { FileOutputStream(fresh).use { photo.compress(Bitmap.CompressFormat.JPEG, 92, it) } }
+      withContext(Dispatchers.IO) { writeJpeg(fresh, photo, PhotoQuality) }
       val found = quad ?: withContext(Dispatchers.Default) { FluidScanEdges.detect(photo)?.quad } ?: FluidScanQuad.Full
       // Da qui la foto e la pagina cambiano insieme, senza annullamenti in mezzo.
       withContext(NonCancellable) {
@@ -232,8 +237,15 @@ class FluidScanState internal constructor(
     process(page, null)
   }
 
-  /** Ricalcola la pagina pulita di [page] in sottofondo; l'ultima versione chiesta vince. */
-  private fun process(page: FluidScanPage, photo: Bitmap?) {
+  /**
+   * Ricalcola la pagina pulita di [page] in sottofondo; l'ultima versione chiesta vince.
+   *
+   * R3: al piu' [CleaningParallelism] pagine si puliscono insieme (in tutto il processo). Ognuna tiene la foto, la
+   * pagina raddrizzata e le mappe del filtro: il filtro cambiato a cento pagine, o cento pagine ritrovate, partivano
+   * tutte insieme. Con [reuse] (il ripristino, per una pagina pulita gia' sul disco e uguale alla pagina salvata) la
+   * miniatura si legge dal disco invece di rifare la pagina; se non si legge, la pagina si rifa'.
+   */
+  private fun process(page: FluidScanPage, photo: Bitmap?, reuse: Boolean = false) {
     val version = (versions[page.id] ?: 0) + 1
     versions[page.id] = version
     jobs.remove(page.id)?.cancel()
@@ -241,14 +253,26 @@ class FluidScanState internal constructor(
     working = true
     jobs[page.id] = scope.launch {
       try {
-        val thumb = withContext(Dispatchers.Default) {
-          val source = photo ?: decode(page.photo)
-          val clean = render(page, source)
-          if (photo == null) source.recycle()
-          disk.withLock { withContext(Dispatchers.IO) { FileOutputStream(File(folder, "pagina-${page.id}.jpg")).use { clean.compress(Bitmap.CompressFormat.JPEG, options.jpegQuality, it) } } }
-          val small = scaleTo(clean, ThumbnailLongSide)
-          if (small !== clean) clean.recycle()
-          small.asImageBitmap()
+        val thumb = Cleaning.withPermit {
+          withContext(Dispatchers.Default) {
+            val kept = if (!reuse) null else disk.withLock {
+              withContext(Dispatchers.IO) { cleanFile(page.id).takeIf { it.exists() }?.let { decodeOrNull(it, ThumbnailLongSide) } }
+            }
+            val small = kept ?: run {
+              val source = photo ?: decode(page.photo)
+              val clean = render(page, source)
+              if (photo == null) source.recycle()
+              try {
+                // R3: una pagina pulita che il disco non prende per intero non resta come buona.
+                disk.withLock { withContext(Dispatchers.IO) { writeJpeg(File(folder, "pagina-${page.id}.jpg"), clean, options.jpegQuality) } }
+              } catch (e: Throwable) {
+                clean.recycle()
+                throw e
+              }
+              scaleTo(clean, ThumbnailLongSide).also { if (it !== clean) clean.recycle() }
+            }
+            small.asImageBitmap()
+          }
         }
         if (versions[page.id] == version && list.any { it.id == page.id }) thumbs[page.id] = thumb
       } catch (cancelled: CancellationException) {
@@ -291,12 +315,26 @@ class FluidScanState internal constructor(
     val unreadable = list.mapIndexedNotNull { i, page -> if (failed(page.id)) i + 1 else null }
     if (unreadable.isNotEmpty()) throw ScanUnreadablePages(unreadable)
     working = true
+    // R3: le pagine pulite rotte trovate sul disco, da segnare da rifare qui sul filo principale.
+    var broken: List<String> = emptyList()
     try {
       val pages = list.toList()
       return withContext(Dispatchers.IO) {
         disk.withLock {
           val gone = pages.mapIndexedNotNull { i, page -> if (cleanFile(page.id).exists()) null else i + 1 }
           if (gone.isNotEmpty()) throw ScanUnreadablePages(gone)
+          // R3: una pagina pulita che non ha nemmeno le misure (tronca, rotta da fuori) non va nel documento: e' da rifare
+          // (come una pulizia fallita), e il prossimo «Salva» la rifa' dalla foto.
+          val unreadableClean = pages.filter { page ->
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(cleanFile(page.id).path, bounds)
+            bounds.outWidth <= 0 || bounds.outHeight <= 0
+          }
+          if (unreadableClean.isNotEmpty()) {
+            broken = unreadableClean.map { it.id }
+            unreadableClean.forEach { cleanFile(it.id).delete() }
+            throw ScanUnreadablePages(unreadableClean.map { pages.indexOf(it) + 1 })
+          }
           val safe = title.replace(Regex("[\\\\/:*?\"<>|]"), "-").trim().ifEmpty { "Scansione" }
           val images = if (output.images) pages.mapIndexed { i, page ->
             File(folder, if (pages.size == 1) "$safe.jpg" else "$safe - ${i + 1}.jpg").also { cleanFile(page.id).copyTo(it, overwrite = true) }
@@ -323,6 +361,9 @@ class FluidScanState internal constructor(
         }
       }
     } finally {
+      // Sul filo principale, come le altre scritture di stato: la revisione dice «Pagina non leggibile», e la cancellazione
+      // del file (che sulla JVM di Windows delle prove puo' non riuscire subito) non decide da sola.
+      for (id in broken) if (list.any { it.id == id }) failures[id] = true
       working = jobs.isNotEmpty()
     }
   }
@@ -366,10 +407,17 @@ class FluidScanState internal constructor(
     }
   }
 
-  internal fun restore(saved: List<FluidScanPage>) {
+  /**
+   * Le pagine ritrovate dopo la ricreazione. R3: quelle in [ready] avevano la pagina pulita sul disco quando l'attivita'
+   * si e' salvata (nessuna pulizia in corso, nessuna fallita): se c'e' ancora, se ne legge solo la miniatura.
+   */
+  internal fun restore(saved: List<FluidScanPage>, ready: Set<String> = emptySet()) {
     if (list.isNotEmpty()) return
-    for (page in saved) if (page.photo.exists()) { list.add(page); process(page, null) }
+    for (page in saved) if (page.photo.exists()) { list.add(page); process(page, null, reuse = page.id in ready) }
   }
+
+  /** R3: la pagina pulita di [id] sul disco e' quella della pagina com'e' adesso (per il salvataggio dello stato). */
+  internal fun cleanOnDisk(id: String): Boolean = jobs[id] == null && failures[id] != true && thumbs[id] != null
 
   private fun cleanFile(id: String) = File(place, "pagina-$id.jpg")
 
@@ -399,12 +447,42 @@ class FluidScanState internal constructor(
     return clean
   }
 
-  /** «Scansione 25 nov 2026, 14:32», nella lingua del telefono. */
+  /**
+   * «Scansione 25 nov 2026, 14.32»: la data nella lingua del telefono, la parola in italiano come le altre parole di serie
+   * ([FluidScanStrings]). Un'app in un'altra lingua passa il suo nome con [FluidScanOptions.title] (R3).
+   */
   fun defaultTitle(): String =
     "Scansione " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date()).replace(':', '.')
 
   internal companion object {
     const val ThumbnailLongSide = 480
+    /** La qualita' JPEG della foto scattata sul disco (a occhio, F8.17). */
+    const val PhotoQuality = 92
+
+    /**
+     * R3 · Quante pagine si puliscono insieme, in tutto il processo: 2. Una pagina in pulizia tiene la foto (fino a 8 MP,
+     * 32 MB), la pagina raddrizzata (2400 px, ~17 MB) e le mappe del filtro; due tengono i processori occupati senza che
+     * cento pagine diventino centinaia di MB (a occhio, 27/11/2026).
+     */
+    const val CleaningParallelism = 2
+    private val Cleaning = Semaphore(CleaningParallelism)
+
+    /**
+     * R3 · Scrive [bitmap] in JPEG in [file]. `Bitmap.compress` non lancia quando lo scrittore fallisce (il disco pieno):
+     * torna falso, con una parte dei byte gia' scritta. Allora il file si toglie e si lancia `IOException`.
+     */
+    fun writeJpeg(file: File, bitmap: Bitmap, quality: Int) {
+      val written = try {
+        FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, it) }
+      } catch (e: IOException) {
+        file.delete()
+        throw e
+      }
+      if (!written) {
+        file.delete()
+        throw IOException("JPEG non scritto per intero (il disco e' pieno?): ${file.name}")
+      }
+    }
     /** I tentativi di cancellare o spostare un file tenuto aperto da altri, a 25 ms l'uno dall'altro. */
     const val DeleteTries = 20
     const val DeleteRetryMillis = 25L
@@ -448,24 +526,30 @@ fun rememberFluidScanState(options: FluidScanOptions = FluidScanOptions()): Flui
   }
 }
 
-/** La sessione e le pagine come righe di testo nel Bundle: id, angoli, quarti, filtro, misure. Le foto restano sul disco. */
-private fun scanStateSaver(context: Context, scope: CoroutineScope, options: FluidScanOptions) = Saver<FluidScanState, ArrayList<String>>(
+/**
+ * La sessione e le pagine come righe di testo nel Bundle: id, angoli, quarti, filtro, misure e (R3) se la pagina pulita
+ * sul disco era pronta per la pagina com'era. Le foto restano sul disco.
+ */
+internal fun scanStateSaver(context: Context, scope: CoroutineScope, options: FluidScanOptions) = Saver<FluidScanState, ArrayList<String>>(
   save = { state ->
     ArrayList(listOf(state.session) + state.pages.map { p ->
       (listOf(p.id, p.quarterTurns.toString(), p.filter.id, p.photoWidth.toString(), p.photoHeight.toString()) +
-        p.quad.points.flatMap { listOf(it.x.toString(), it.y.toString()) }).joinToString(";")
+        p.quad.points.flatMap { listOf(it.x.toString(), it.y.toString()) } +
+        (if (state.cleanOnDisk(p.id)) "1" else "0")).joinToString(";")
     })
   },
   restore = { rows ->
     val session = rows.firstOrNull() ?: return@Saver null
     val folder = File(ScanFiles.root(context), session)
+    val ready = HashSet<String>()
     val pages = rows.drop(1).mapNotNull { row ->
       val f = row.split(';')
-      if (f.size != 13) return@mapNotNull null
+      if (f.size != 13 && f.size != 14) return@mapNotNull null
+      if (f.size == 14 && f[13] == "1") ready += f[0]
       val pts = (0 until 4).map { FluidScanPoint(f[5 + 2 * it].toFloat(), f[6 + 2 * it].toFloat()) }
       FluidScanPage(f[0], FluidScanQuad(pts[0], pts[1], pts[2], pts[3]), f[1].toInt(), FluidScanFilter.of(f[2]),
         File(folder, "foto-${f[0]}.jpg"), f[3].toInt(), f[4].toInt())
     }
-    FluidScanState(context, scope, options, session).also { it.restore(pages) }
+    FluidScanState(context, scope, options, session).also { it.restore(pages, ready) }
   },
 )

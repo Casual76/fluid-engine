@@ -82,7 +82,10 @@ come il tasto di Media3), `buffering`, `positionMillis` (a ogni fotogramma mentr
 `item`, `index`, `queueSize`, e gli extra. È una `FluidMediaSession` con `FluidAudioSpeed`.
 
 **Prima che il lettore sia preparato** (la coda ricordata, riaperta ferma) Media3 non offre il salto nell'elemento: il
-controllo salta con l'indice (`seekTo(index, ms)`), così il tocco sull'ora di un paragrafo funziona anche lì. Un elemento
+controllo salta con l'indice (`seekTo(index, ms)`), così il tocco sull'ora di un paragrafo funziona anche lì, **anche
+quando la durata non si sa** (R3: gli elementi della coda senza `durationMillis`): il salto non si tiene dentro una durata
+che non c'è, e il lettore non si prepara da solo; `canSeek` resta falso finché la durata non arriva (una barra senza
+durata non si disegna), ma `seekTo` funziona. Un elemento
 finito si ricorda dall'inizio, e Play da in fondo riparte da capo (trovati sul Tab S9 il 25 novembre 2026).
 
 ## Trappole
@@ -108,7 +111,8 @@ l'ascolto ma non cambia la coda (R1); il salto dei silenzi di ExoPlayer, pubblic
 dopo il suo minuto, e quello a fine elemento; gli elementi che arrivano da un controllo ritrovano l'indirizzo; un elemento
 che fa il giro in `MediaItem` resta uguale; la coda ricordata torna ferma e la ripresa la propone; la coda cambiata da ferma
 si ricorda, quella svuotata si dimentica, e un elemento senza indirizzo non sposta il punto di ripresa (R1); la
-configurazione dell'app (niente ripresa, salti da 30 s); lo stato del controllo sul lettore. Sul tablet: la notifica, la schermata di blocco, i salti, il timer.
+configurazione dell'app (niente ripresa, salti da 30 s); lo stato del controllo sul lettore; la coda ricordata senza
+durate che si salta lo stesso, senza suonare né prepararsi (R3). Sul tablet: la notifica, la schermata di blocco, i salti, il timer.
 
 ## Dove guardare
 

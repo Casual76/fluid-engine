@@ -34,6 +34,12 @@ class FakeKeysServer(val accountId: String = "acc_bancoprova00000000000000") {
 
   private class Transfer(var sealed: String? = null, var mac: String? = null, var taken: Boolean = false)
 
+  /** F10.7b · Quante volte il telefono nuovo ha chiesto il sigillo, e quante ha confermato di averlo salvato. */
+  var transferPickups = 0
+    private set
+  var transferConfirmations = 0
+    private set
+
   private fun root() = epochs.lastOrNull { it.kind == EpochKind.FIRST || it.kind == EpochKind.RESET }?.epoch ?: 1
   private fun reference() = epochs.lastOrNull { it.kind != EpochKind.NORMAL }?.epoch ?: 1
   private fun chain() = epochs.filter { it.epoch >= root() }.map { it.epoch }
@@ -143,13 +149,30 @@ class FakeKeysServer(val accountId: String = "acc_bancoprova00000000000000") {
     }
   }
 
-  /** `GET /v1/keys/transfers/{id}`: una volta sola. */
-  fun takeTransfer(id: String): TransferSeal {
+  /**
+   * `GET /v1/keys/transfers/{id}` dal F10.7b: il sigillo, ogni volta che il telefono nuovo lo chiede, finché non conferma
+   * con [confirmReceived] (come il server vero, `src/routes/keys.ts`).
+   */
+  fun pickUpTransfer(id: String): TransferSeal {
     val t = transfers[id] ?: throw Refused("not_found")
     if (t.taken || t.sealed == null) throw Refused("not_ready")
-    t.taken = true
-    return TransferSeal(t.sealed!!, t.mac!!).also { t.sealed = null }
+    transferPickups++
+    return TransferSeal(t.sealed!!, t.mac!!)
   }
+
+  /** `POST /v1/keys/transfers/{id}/received`: il sigillo non resta sul server. Ripeterla non fa niente. */
+  fun confirmReceived(id: String) {
+    val t = transfers[id] ?: throw Refused("not_found")
+    if (t.taken) return
+    if (t.sealed == null) throw Refused("transfer_state")
+    t.taken = true
+    t.sealed = null
+    t.mac = null
+    transferConfirmations++
+  }
+
+  /** Ritira e conferma insieme, per le prove che non passano dal client: com'era il `GET` prima di F10.7b. */
+  fun takeTransfer(id: String): TransferSeal = pickUpTransfer(id).also { confirmReceived(id) }
 
   /** Il server ostile cambia lo stato vero (non solo la risposta): per le prove dove il danno resta. */
   fun corruptDoor(doorId: String, change: (DoorInfo) -> DoorInfo) {

@@ -37,7 +37,8 @@ value class FluidFileLayout private constructor(private val id: Int) {
  * stesso punto ([listState]).
  *
  * - **A pagine**: la prima pagina all'apertura ([start]), le altre quando la lista si avvicina alla fine ([loadMore]).
- *   [complete] è vero quando la sorgente non ne ha altre.
+ *   [complete] è vero quando la sorgente non ne ha altre. Un id già arrivato che una pagina dopo ripete (un segno a
+ *   spostamento, una cartella che cambia mentre si scorre) non entra una seconda volta (R3).
  * - **L'ordine** ([sortBy]): una sorgente che ordina da sé si rilegge dall'inizio; le altre si riordinano in memoria.
  * - **La ricerca** ([search]): una sorgente che cerca da sé riceve le parole; per le altre si legge tutta la cartella e
  *   si filtrano i nomi, senza badare a maiuscole e accenti. [items] è ciò che si vede, [files] solo i file (per il
@@ -69,6 +70,8 @@ class FluidFileFolderState internal constructor(
   val listState: LazyListState = LazyListState()
 
   private var loaded by mutableStateOf<List<FluidFileItem>>(emptyList())
+  /** Gli id di [loaded], per scartare quelli che una pagina dopo ripete. Si scrive solo sul principale. */
+  private val seen = HashSet<String>()
   private var next: String? = null
   private var job: Job? = null
   private var generation = 0
@@ -102,7 +105,9 @@ class FluidFileFolderState internal constructor(
         val page = source.list(FluidFileQuery(folder, sort, next, FluidFileQuery.DefaultLimit,
           query.takeIf { source.searches && it.isNotBlank() }))
         if (token != generation) return@launch
-        loaded = loaded + page.items
+        // R3: un id gia' arrivato in questa lettura non entra due volte (una sorgente col segno a spostamento, o che
+        // cambia mentre si scorre). Due chiavi uguali farebbero cadere la lista pigra; come il feed di engine-media.
+        loaded = loaded + page.items.filter { seen.add(it.id) }
         next = page.next
         complete = page.next == null
       } catch (cancelled: CancellationException) {
@@ -131,6 +136,7 @@ class FluidFileFolderState internal constructor(
     complete = false
     next = null
     loaded = emptyList()
+    seen.clear()
     // R2: tutta la cartella solo se c'è una ricerca da fare in memoria; dopo una ricerca si torna alle pagine.
     wantsAll = needsAll()
     loadMore()

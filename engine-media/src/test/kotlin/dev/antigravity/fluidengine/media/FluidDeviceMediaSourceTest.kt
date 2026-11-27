@@ -5,14 +5,20 @@ import android.app.Application
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.content.pm.ProviderInfo
+import android.content.res.AssetFileDescriptor
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
 import android.os.Bundle
 import android.os.CancellationSignal
+import android.os.OperationCanceledException
 import android.provider.MediaStore
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -33,6 +39,15 @@ class FakeMediaStore : ContentProvider() {
     val rows = ArrayList<Array<Any?>>()
     val asked = ArrayList<Bundle?>()
 
+    /** R3: il MediaStore che lancia (una colonna che manca, un permesso tolto) o che non risponde (cursore nullo). */
+    var failure: RuntimeException? = null
+    var answersNull: Boolean = false
+
+    /** R3: una miniatura che il MediaStore decodifica piano; dice quando parte e se il segnale l'ha fermata. */
+    var slowThumbnails: Boolean = false
+    var thumbnailStarted = CountDownLatch(1)
+    var thumbnailCancelled = CountDownLatch(1)
+
     fun row(id: Long, video: Boolean, taken: Long, bucket: String, name: String = "IMG_$id.jpg", favorite: Boolean = false): Array<Any?> =
       arrayOf(
         id,
@@ -45,8 +60,10 @@ class FakeMediaStore : ContentProvider() {
 
   override fun onCreate(): Boolean = true
 
-  override fun query(uri: Uri, projection: Array<out String>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor {
+  override fun query(uri: Uri, projection: Array<out String>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor? {
     asked += queryArgs
+    failure?.let { throw it }
+    if (answersNull) return null
     val columns = FluidDeviceMediaSource.Projection
     val cursor = MatrixCursor(columns)
     val selection = queryArgs?.getString(android.content.ContentResolver.QUERY_ARG_SQL_SELECTION).orEmpty()
@@ -65,6 +82,20 @@ class FakeMediaStore : ContentProvider() {
 
   override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? =
     query(uri, projection, Bundle(), null)
+
+  override fun openTypedAssetFile(uri: Uri, mimeTypeFilter: String, opts: Bundle?, signal: CancellationSignal?): AssetFileDescriptor? {
+    if (!slowThumbnails) return null
+    thumbnailStarted.countDown()
+    val until = System.nanoTime() + 5_000_000_000L
+    while (System.nanoTime() < until) {
+      if (signal?.isCanceled == true) {
+        thumbnailCancelled.countDown()
+        throw OperationCanceledException()
+      }
+      Thread.sleep(5)
+    }
+    return null
+  }
 
   override fun getType(uri: Uri): String? = null
   override fun insert(uri: Uri, values: ContentValues?): Uri? = null
@@ -85,6 +116,11 @@ class FluidDeviceMediaSourceTest {
   fun store() {
     FakeMediaStore.rows.clear()
     FakeMediaStore.asked.clear()
+    FakeMediaStore.failure = null
+    FakeMediaStore.answersNull = false
+    FakeMediaStore.slowThumbnails = false
+    FakeMediaStore.thumbnailStarted = CountDownLatch(1)
+    FakeMediaStore.thumbnailCancelled = CountDownLatch(1)
     val day = 86_400_000L
     val newest = 1_764_000_000_000L
     FakeMediaStore.rows += FakeMediaStore.row(1, false, newest, "Camera", favorite = true)
@@ -167,6 +203,45 @@ class FluidDeviceMediaSourceTest {
     assertEquals(1, delivery.skipped)
     assertEquals(FluidDeviceMediaSource.contentUri(FluidMediaKind.Video, 2), delivery.media[0].uri)
     assertTrue(delivery.media[0].uri.toString().startsWith("content://media/"))
+  }
+
+  @Test fun unMediaStoreCheNonRispondeNonSembraUnaLibreriaVuota() = runBlocking {
+    // R3 (difetto 2a): prima ogni eccezione del MediaStore diventava una pagina vuota e finita («Nessuna foto»).
+    shadowOf(app).grantPermissions(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+    val source = FluidDeviceMediaSource(app)
+    assertEquals(FluidMediaAccess.Full, source.access)
+    FakeMediaStore.failure = IllegalArgumentException("Colonna sconosciuta: is_favorite")
+    assertFailsWith("la pagina") { source.page(FluidMediaQuery(), null, 10) }
+    assertFailsWith("gli album") { source.albums() }
+    FakeMediaStore.failure = null
+    FakeMediaStore.answersNull = true
+    assertFailsWith("la pagina col cursore nullo") { source.page(FluidMediaQuery(), null, 10) }
+    // Tornato a rispondere, tutto come prima.
+    FakeMediaStore.answersNull = false
+    assertEquals(6, source.page(FluidMediaQuery(), null, 10).items.size)
+  }
+
+  @Test fun unaMiniaturaAnnullataSiFermaAncheNelMediaStore() = runBlocking {
+    // R3 (sospetto 6): la cella che esce dallo schermo annulla la lettura; prima il segnale non era legato a niente e la
+    // decodifica continuava fino in fondo.
+    shadowOf(app).grantPermissions(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+    val source = FluidDeviceMediaSource(app)
+    val item = source.page(FluidMediaQuery(), null, 1).items.single()
+    FakeMediaStore.slowThumbnails = true
+    val job = launch(Dispatchers.Default) { source.thumbnail(item, 128) }
+    assertTrue("la miniatura e' partita", FakeMediaStore.thumbnailStarted.await(5, TimeUnit.SECONDS))
+    job.cancel()
+    assertTrue("il segnale arriva al MediaStore", FakeMediaStore.thumbnailCancelled.await(3, TimeUnit.SECONDS))
+    job.join()
+  }
+
+  private suspend fun assertFailsWith(what: String, block: suspend () -> Any?) {
+    val result = try {
+      block()
+    } catch (expected: Exception) {
+      return
+    }
+    throw AssertionError("$what: nessuna eccezione, ma $result")
   }
 
   @Test fun laRicercaPassaComeArgomento() {

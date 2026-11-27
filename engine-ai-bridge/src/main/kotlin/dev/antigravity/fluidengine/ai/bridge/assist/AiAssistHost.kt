@@ -5,6 +5,7 @@ import java.util.ArrayDeque
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -98,7 +99,9 @@ class AiAssistHost(
    * `not_authorized`, e le sue domande in corso si fermano.
    */
   fun setAppConsent(packageName: String, consent: AiAssistConsentState) {
-    consents.setAppConsent(packageName, consent)
+    // Sotto il lucchetto delle domande (R3-S1): una domanda che sta entrando vede gia' il no, o e' gia' registrata e la
+    // ferma [stopAll] qui sotto.
+    synchronized(lock) { consents.setAppConsent(packageName, consent) }
     if (consent == AiAssistConsentState.Denied) stopAll(packageName, AiAssistError(AiAssistError.NotAuthorized)) { true }
   }
 
@@ -108,13 +111,13 @@ class AiAssistHost(
 
   /** Il sì per la pagina di un'app. Toglierlo ferma le sue domande in corso che hanno una pagina. */
   fun setPageConsent(packageName: String, consent: AiAssistConsentState) {
-    consents.setPageConsent(packageName, consent)
+    synchronized(lock) { consents.setPageConsent(packageName, consent) }
     if (consent != AiAssistConsentState.Allowed) stopAll(packageName, AiAssistError(AiAssistError.ConsentRequired)) { it.hasPage }
   }
 
   /** Dimentica un'app: tutte e due le scelte tornano «da chiedere»; le sue domande in corso si fermano. */
   fun forget(packageName: String) {
-    consents.forget(packageName)
+    synchronized(lock) { consents.forget(packageName) }
     stopAll(packageName, AiAssistError(AiAssistError.ConsentRequired, needs = setOf(AiAssistError.NeedsApp))) { true }
   }
 
@@ -165,6 +168,9 @@ class AiAssistHost(
     val timeout = ask.timeoutMillis.coerceIn(limits.minTimeoutMillis, limits.maxTimeoutMillis)
     val id = UUID.randomUUID().toString()
     val session = synchronized(lock) {
+      // I si' dell'utente si rileggono sotto il lucchetto, quello delle revoche (R3-S1): un no arrivato mentre la domanda
+      // passava da `ready` la ferma qui, prima che l'esecutore veda la pagina.
+      consentRefusal(caller.packageName, ask.pageSent)?.let { return AskOutcome(AiAssistProtocol.errorResponse(it), null) }
       // Il conto si rifa' sotto il lucchetto: due domande insieme non passano entrambe dall'ultimo posto.
       admission(caller.packageName)?.let { return AskOutcome(AiAssistProtocol.errorResponse(it), null) }
       starts.getOrPut(caller.packageName) { ArrayDeque() }.addLast(clock())
@@ -179,7 +185,8 @@ class AiAssistHost(
       delay(timeout)
       stop(session, AiAssistError(AiAssistError.Timeout))
     }
-    session.job = scope.launch {
+    // Il lavoro parte solo dopo aver avuto il suo Job: una revoca arrivata prima lo trova e lo ferma (R3-S1).
+    session.job = scope.launch(start = CoroutineStart.LAZY) {
       val sink = SessionSink(session)
       val error: AiAssistError? = try {
         executor.execute(call, sink)
@@ -194,8 +201,8 @@ class AiAssistHost(
       }
       finish(session, error)
     }
-    // Chiusa prima che il lavoro avesse il suo Job (il tempo minimo e' scaduto subito): si ferma anche lui.
-    if (synchronized(lock) { session.finished }) session.job?.cancel()
+    // Chiusa prima che il lavoro avesse il suo Job (il tempo minimo scaduto subito, una revoca): non parte nemmeno.
+    if (synchronized(lock) { session.finished }) session.job?.cancel() else session.job?.start()
     return AskOutcome(AiAssistProtocol.askResponse(id), session)
   }
 
@@ -250,14 +257,22 @@ class AiAssistHost(
       if (AiAssistPolicy.ScopePage !in entry.scopes) return AiAssistError(AiAssistError.NotAuthorized)
       if (ask.page == null) return AiAssistError(AiAssistError.Failed)
     }
-    // I sì che mancano, insieme: la prima volta con la pagina e' un foglio solo.
-    val needs = LinkedHashSet<String>()
-    if (consents.appConsent(caller.packageName) != AiAssistConsentState.Allowed) needs += AiAssistError.NeedsApp
-    if (ask.pageSent && consents.pageConsent(caller.packageName) != AiAssistConsentState.Allowed) needs += AiAssistError.NeedsPage
-    if (needs.isNotEmpty()) return AiAssistError(AiAssistError.ConsentRequired, needs = needs)
+    consentRefusal(caller.packageName, ask.pageSent)?.let { return it }
     val state = ready()
     if (!state.ready) return AiAssistError(AiAssistError.NotReady, reason = state.reason?.let { cleanReason(it) })
     return synchronized(lock) { admission(caller.packageName) }
+  }
+
+  /**
+   * I si' dell'utente per una domanda: il blocco, poi quelli che mancano, insieme (la prima volta con la pagina e' un
+   * foglio solo). Si leggono prima di `ready` e di nuovo sotto [lock], nell'ordine delle revoche.
+   */
+  private fun consentRefusal(packageName: String, pageSent: Boolean): AiAssistError? {
+    if (blocked(packageName)) return AiAssistError(AiAssistError.NotAuthorized)
+    val needs = LinkedHashSet<String>()
+    if (consents.appConsent(packageName) != AiAssistConsentState.Allowed) needs += AiAssistError.NeedsApp
+    if (pageSent && consents.pageConsent(packageName) != AiAssistConsentState.Allowed) needs += AiAssistError.NeedsPage
+    return if (needs.isEmpty()) null else AiAssistError(AiAssistError.ConsentRequired, needs = needs)
   }
 
   /** L'utente ha detto no a quest'app (o l'ha bloccata). */
@@ -302,7 +317,8 @@ class AiAssistHost(
     val entry: AiAssistHistoryEntry?
     synchronized(lock) {
       if (s.finished) return false
-      val rest = s.stream.drain()
+      // Fermata o tagliata dal tetto, l'ultima parola puo' essere mezza chiave: esce nascosta (R3-S1).
+      val rest = s.stream.drain(complete = error == null && !s.overflow)
       if (rest.isNotEmpty()) appendText(s, rest)
       s.events += if (error == null) {
         AiAssistWireEvent(++s.seq, AiAssistProtocol.TYPE_DONE, text = s.sent.toString())
@@ -338,7 +354,7 @@ class AiAssistHost(
       style = task.style,
       question = AiAssistRedaction.scrub(question),
       inputChars = text.length,
-      pageTitle = s.pageTitle,
+      pageTitle = s.pageTitle?.let { AiAssistRedaction.scrub(it) },
       answer = s.sent.toString(),
       receipts = receipts,
       outcome = error?.code ?: AiAssistHistoryEntry.OutcomeDone,
@@ -400,12 +416,13 @@ class AiAssistHost(
     }
   }
 
-  private fun cleanReason(reason: String): String = AiAssistRedaction.scrub(reason.replace('\n', ' ').trim()).take(AiAssistProtocol.MaxReasonChars)
+  private fun cleanReason(reason: String): String = AiAssistRedaction.scrubLine(reason.replace('\n', ' ').trim()).take(AiAssistProtocol.MaxReasonChars)
 
   /** Quello che l'esecutore scrive, filtrato: niente dopo la fine, testo a parole intere, il tetto della risposta. */
   private inner class SessionSink(private val s: Session) : AiAssistSink {
     override fun status(line: String, app: String?) {
-      val clean = AiAssistRedaction.scrub(line.replace('\n', ' ').trim()).take(MaxLineChars)
+      // Ne' chiavi ne' il nome del modello o del fornitore (R3-S1).
+      val clean = AiAssistRedaction.scrubLine(line.replace('\n', ' ').trim()).take(MaxLineChars)
       if (clean.isEmpty()) return
       synchronized(lock) {
         if (s.finished) return

@@ -60,6 +60,9 @@ Ogni entrata (`adopt`) e ogni uscita cambiano una **generazione** (R2): un rinno
 cambio non entrano in cache e non puliscono la sessione nuova; chi li aspettava riprova una volta con quella nuova. Un
 `unauthorized` sul token di un'app toglie dalla cache il token dello Store e rinnova una volta. La chiave del
 dispositivo nasce una volta sola (cerca-o-genera sotto un lucchetto) e la pubblica si rilegge sempre dal Keystore.
+Lo stato che vedono lo Store e le app (`state`) si pubblica sotto lo stesso lucchetto che scrive la sessione (R3):
+`adopt`, `promote` e `restore` nello stesso giro, l'uscita dopo le chiavi e solo se nessuno è entrato nel frattempo.
+Così `promote` non rimette in vista il conto di prima quando un'entrata con un altro account gli passa in mezzo.
 
 **La custodia** (`KeyCustody`, logica pura). La chiave dei dati `CD` a epoche, nata sul telefono. Le porte (il codice
 di recupero, ogni passkey col PRF) sono coppie X25519 ricavate dal segreto; sul server vanno solo pubblica, sale,
@@ -95,9 +98,16 @@ lo copre; `parse` perdona minuscole, spazi e `0/1/8` al posto di `O/I/B`.
 **Il passaggio col QR** (critica S2). Il nuovo mostra `{ transferId, N, s }`; il vecchio lo inquadra, conferma, sigilla
 tutte le epoche verso `N` (HPKE base) e aggiunge `mac` col segreto `s`. Il server non vede ne' `N` ne' `s`. Il nuovo
 chiede il sigillo con `pollTransfer(offer)`: `null` finche' il server risponde `waiting` (l'offerta resta buona),
-`TransferEndedException` se il passaggio e' stato rifiutato o il sigillo gia' ritirato (si ritira una volta sola).
+`TransferEndedException` se il passaggio e' stato rifiutato o il sigillo gia' ritirato e confermato.
 `completeTransfer` e' la stessa cosa, ma senza sigillo lancia `TransferPendingException` (F10.7; prima cadeva con un
-`NullPointerException`).
+`NullPointerException`). Dopo il ritiro il sigillo lo tiene anche l'offerta, finche' la chiave non e' chiusa nel
+Keystore (R3): se la rete cade nella lettura delle chiavi, o il Keystore non scrive, l'eccezione esce ma l'offerta resta
+buona, e lo Store richiama `pollTransfer` con la stessa offerta, senza un QR nuovo. Una verifica che non torna la
+chiude. Dal F10.7b (R3-S2, difetto 11) anche il server tiene il sigillo finche' il telefono nuovo non conferma di
+averlo chiuso nel Keystore, o fino ai 10 minuti: la conferma (`POST /v1/keys/transfers/{id}/received`) la manda
+`CustodyService` da se', dopo il salvataggio. Cosi' anche la risposta persa proprio nel ritiro si chiude con lo stesso
+QR. Resta il processo ucciso prima della custodia: `n` e `s` stanno solo in memoria, e serve un QR nuovo. Con un server
+di prima di F10.7b la conferma risponde 404, e il passaggio riesce lo stesso.
 
 **La sessione di recupero** (`SessionKind.RECOVERY`, entrata col codice). Il server la tiene ridotta (`b\api.md` § 2)
 finche' non si aggiunge una passkey o si collega Google, e non le lascia scrivere la porta del dispositivo
@@ -184,6 +194,9 @@ Sul Tab S9 (Android 16, 25/11): TEE ~8 ms a chiusura o apertura, StrongBox ~120 
   l'epoca, l'impronta da rifare, due account in corsa sul rinnovo e sul token d'app, `unauthorized`, file e risposte
   storti), `CustodyPendingR2Test` (il codice da rimostrare, l'attesa di sicurezza, il codice diverso), `DeviceKeyR2Test`
   (due fili al primo uso, con un Keystore finto).
+- R3 (review `sol-ai`): `AccountSessionR3Test` (la promozione fermata proprio prima di pubblicare mentre entra un altro
+  account: lo stato dice il conto salvato; il sigillo ritirato con la rete che cade prima del Keystore, chiuso al ritiro
+  dopo con lo stesso QR).
 - `AppearanceSyncTest` (F10.8): due dispositivi e il server finto con le regole di `choices.ts`; il conflitto sullo
   stesso campo, gli orologi sfasati di tre ore, l'orologio avanti di due giorni, le lapidi delle eccezioni, il contratto.
 - `PlacesSyncTest` (F10.8): i luoghi cifrati fra due dispositivi, il conflitto per campo, la cancellazione che vince, il

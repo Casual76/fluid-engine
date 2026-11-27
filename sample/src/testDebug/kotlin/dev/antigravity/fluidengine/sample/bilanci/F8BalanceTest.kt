@@ -26,6 +26,7 @@ import org.robolectric.annotation.GraphicsMode
  *
  * Una scena che al PC non si può montare (una libreria nativa che manca, un servizio di sistema) ha nel frammento le
  * sue righe con `NV` in ogni colonna e il motivo: qui non si monta, e la prova vera è quella scritta nel motivo.
+ * F7.32d: qui si salta, ma `BalanceNotVerifiableTest` la prova a montare ogni volta, e cade se ci riesce.
  * Un pacchetto nuovo, che qui non ha ancora il suo metodo, lo misura [pacchettiNuovi].
  */
 @RunWith(RobolectricTestRunner::class)

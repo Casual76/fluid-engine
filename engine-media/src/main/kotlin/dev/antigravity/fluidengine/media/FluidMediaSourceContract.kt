@@ -30,8 +30,8 @@ import dev.antigravity.fluidengine.ui.fluid.viewer.FluidFileInfo
  * | metodo | cosa chiede | cosa risponde |
  * |---|---|---|
  * | [METHOD_INFO] | — | versione, id, nome, cosa sa fare, l'accesso di adesso (con lo sblocco) |
- * | [METHOD_ALBUMS] | — | gli album, con la copertina |
- * | [METHOD_PAGE] | album, testo, tipi, solo locali, segno di pagina, quanti | una pagina di elementi, il segno dopo, come ha capito la ricerca |
+ * | [METHOD_ALBUMS] | — | gli album, con la copertina; o `error` se non si sono potuti leggere |
+ * | [METHOD_PAGE] | album, testo, tipi, solo locali, segno di pagina, quanti | una pagina di elementi, il segno dopo, come ha capito la ricerca; o `error` (R3: la scadenza, un errore della sorgente), che chi legge dice con «Riprova» e non come una pagina vuota |
  * | [METHOD_DELIVER] | gli id nell'ordine della scelta, i tipi ammessi, il tetto | gli indirizzi (col permesso di lettura dato a chi chiede), o il rifiuto col motivo, o lo sblocco |
  * | miniatura | `content://<autorita'>/thumbnail?id=…&kind=…`, lato in `ContentResolver.EXTRA_SIZE` | un'immagine JPEG |
  *
@@ -234,8 +234,14 @@ object FluidMediaSourceContract {
     putStringArray(KEY_INTERPRETATION, page.interpretation.toTypedArray())
   }
 
+  /**
+   * La pagina di una risposta. Una risposta con [KEY_ERROR] (la scadenza o l'errore della sorgente dietro il provider) è
+   * un'[IOException] (R3): prima era una pagina vuota e finita, e il selettore diceva «Nessuna foto».
+   */
+  @Throws(java.io.IOException::class)
   internal fun readPage(bundle: Bundle?, source: String): FluidMediaPage {
     if (bundle == null) return FluidMediaPage(emptyList())
+    bundle.getString(KEY_ERROR)?.let { throw java.io.IOException("La sorgente $source non ha dato la pagina ($it)") }
     return FluidMediaPage(
       items = readItems(bundle.getBundle(KEY_ITEMS), source),
       next = bundle.getString(KEY_NEXT),
@@ -255,8 +261,11 @@ object FluidMediaSourceContract {
     putBundle(A_COVERS, encodeItems(covers))
   }
 
+  /** Gli album di una risposta; una risposta con [KEY_ERROR] è un'[IOException] (R3), come per le pagine. */
+  @Throws(java.io.IOException::class)
   internal fun readAlbums(bundle: Bundle?, source: String): List<FluidMediaAlbum> {
     if (bundle == null) return emptyList()
+    bundle.getString(KEY_ERROR)?.let { throw java.io.IOException("La sorgente $source non ha dato gli album ($it)") }
     val ids = bundle.getStringArray(A_ID) ?: return emptyList()
     val titles = bundle.getStringArray(A_TITLE) ?: return emptyList()
     val counts = bundle.getIntArray(A_COUNT)

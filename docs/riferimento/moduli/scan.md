@@ -40,7 +40,7 @@ Catalogo delle firme: [`../api/scan.md`](../api/scan.md) (generato). Il testo ne
 | trovare il foglio in una foto già fatta | `FluidScanEdges.detect(bitmap)` → `FluidScanDetection(quad, confidence, aspect)` |
 | raddrizzare e pulire una foto da me | `FluidScanImages.straighten(photo, quad)` e `FluidScanImages.filter(page, FluidScanFilter.Document)` |
 | riportare sulla foto un punto della pagina raddrizzata (le righe lette, un riquadro) | `quad.inset(FluidScanImages.EdgeInset).pageMap()!!.photoPoint(u, v)` |
-| passare il risultato a un'altra app | `result.grantTo(Intent(Intent.ACTION_SEND))`: gli URI col permesso di lettura |
+| passare il risultato a un'altra app | `result.grantTo(Intent(Intent.ACTION_SEND))`: gli URI col permesso di lettura, e (R3) il tipo e `EXTRA_STREAM` del PDF; tutte le pagine con `ACTION_SEND_MULTIPLE` |
 | le licenze | `FluidScanLicenses` (CameraX) nella pagina «Licenze e crediti» |
 
 ## Lo scanner: `FluidDocumentScanner`
@@ -116,12 +116,24 @@ data class FluidScanResult(val pdf: Uri?, val images: List<Uri>, val pageCount: 
   `PdfDocument` di Android ricomprimerebbe senza perdita: una pagina peserebbe megabyte. Il formato della pagina è A4 o
   Letter se le proporzioni ci stanno entro il 3%, altrimenti la larghezza di un A4 e l'altezza della pagina, come Note.
   PdfRenderer (i visori), Anteprima e Acrobat lo leggono.
-- Il titolo di serie è «Scansione 25 nov 2026, 14.32» nella lingua del telefono (`FluidScanOptions.title` lo cambia).
+- Il titolo di serie è «Scansione 25 nov 2026, 14.32»: la data nella lingua del telefono, la parola in italiano come le
+  altre parole di serie (`FluidScanStrings`). Un'app in un'altra lingua passa il suo nome con `FluidScanOptions.title`
+  (o `FluidScanRequest.title` col contratto), che è anche il nome dei file.
 - I file restano finché l'app chiama `state.clear()` o Android svuota la cache: chi li vuole tenere li copia.
   `clear()` li cancella in sottofondo anche se la schermata si è già chiusa, dopo le pagine che si stavano scrivendo (R1).
 - **«Salva» che non riesce** (R1): una pagina che non si legge o il documento che non si scrive (il disco pieno) non
   chiudono lo scanner: un avviso dice quali pagine rifare. `state.export()` rifà una volta le pagine fallite e lancia
   `IOException`, col numero delle pagine nel messaggio; la scansione resta com'è.
+- **Un JPEG scritto a metà** (R3): `Bitmap.compress` col disco pieno non lancia, torna falso con una parte dei byte già
+  scritta. Uno scatto così non entra nella fila (`add` e `retake` lanciano `IOException`, lo scanner dice «scatto non
+  riuscito» e la foto di prima resta); una pagina pulita così si toglie dal disco ed è da rifare, come una che non si
+  legge. Una pagina pulita rotta sul disco (senza nemmeno le misure) non va nel PDF: «Salva» la toglie, dice quale, e la
+  volta dopo la rifà dalla foto.
+- **La pulizia delle pagine ha un tetto** (R3): al più due pagine insieme in tutto il processo. Ognuna tiene la foto
+  (fino a 8 MP), la pagina raddrizzata (2400 px,
+  ~17 MB) e le mappe del filtro: il filtro cambiato a cento pagine, o cento pagine ritrovate, prima partivano tutte
+  insieme. **Al ripristino** (la morte del processo, la ricreazione) una pagina la cui pagina pulita era pronta quando
+  l'attività si è salvata ne legge solo la miniatura dal disco; le altre (una pulizia in corso, fallita) si rifanno.
 
 **Universal Converter** apre il PDF (o le immagini) con l'URI che riceve, come oggi da «Apri con…». **Pampa Notes** mette
 le immagini (`FluidScanOutput.Images`) nella nota, o il PDF come allegato.
@@ -201,7 +213,9 @@ lifecycle e view), uguali per ogni architettura; nessuna libreria nativa e nessu
 - *Sintomo*: «Per scansionare serve la fotocamera» anche dopo «Consenti». → Il manifest dell'app non ha `CAMERA`: Android
   rifiuta senza chiedere.
 - *Sintomo*: gli URI della consegna non si aprono in un'altra app. → Vanno passati con `grantTo(intent)` (o col contratto,
-  che lo fa da sé): il FileProvider non è esportato.
+  che lo fa da sé): il FileProvider non è esportato. Con `ACTION_SEND` e `ACTION_SEND_MULTIPLE` `grantTo` mette anche il
+  tipo e `EXTRA_STREAM`, se l'app non li ha già messi (R3: prima solo il permesso, e molte app riceventi non trovavano il
+  file); un invio singolo porta il PDF (o la prima pagina, se il PDF non c'è).
 - *Sintomo*: la fotocamera nera sotto i comandi di vetro. → Un'anteprima mia in una `SurfaceView`: il vetro campiona solo
   una `TextureView` o Compose.
 - *Sintomo*: i file della scansione spariscono. → Stanno nella cache: chi li tiene li copia in `onDone`.
@@ -218,6 +232,10 @@ lifecycle e view), uguali per ogni architettura; nessuna libreria nativa e nessu
 - `ScanStateR1Test`, `ScanScannerR1UiTest` e `ScanActivityR1Test` (R1): «Riprendi» annullato a metà, «Butta» con la
   schermata chiusa o una pagina che si scrive, la pagina che non si legge, `working` dopo una pagina tolta, gli avvisi
   sulla fotocamera e l'annuncio dopo «Riprendi», «Salva» con una pagina rotta, il velo della barra, le sorgenti di CameraX.
+- `ScanStateR3Test` (R3): lo scatto e la pagina pulita scritti a metà (un'ombra di `Bitmap.compress` che scrive un terzo
+  dei byte e torna falso), la pagina pulita rotta sul disco che non va nel PDF, il tetto della pulizia (otto pagine col
+  filtro cambiato: al più due insieme, contate dagli stack dei fili), il ripristino che non rifà le pagine già pulite (e
+  rifà quella cambiata dopo), `grantTo` con il tipo e `EXTRA_STREAM`.
 - `FluidDocumentScannerUiTest` (Robolectric, Compose): due fogli scattati da soli dalla fotocamera finta, la fila
   riordinata **col dito** (tieni premuto e trascina), un angolo ritagliato, il filtro e la rotazione, il PDF consegnato
   per URI; in manuale niente scatti da soli, col movimento ridotto, e le etichette di TalkBack.

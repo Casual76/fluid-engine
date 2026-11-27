@@ -760,6 +760,17 @@ internal class GlassProbeNode(
   private var revisionSeen = false
   private var timerAt = Long.MAX_VALUE
 
+  /**
+   * F7.25e (review R3, difetto 1) · Se la sonda è iscritta alle sorgenti ([subscribe]). Si iscrive quando il suo vetro è
+   * posato (il primo [onGloballyPositioned] dopo l'attacco), non quando si attacca. Un vetro composto e non posato non ha
+   * una posizione e non può leggere: la bolla dello scorrimento rapido a maniglia libera (F7.25, `ScrubberBubbleHost`).
+   * Prima la sua sonda si iscriveva alla pagina appena attaccata, e a ogni ridisegno della pagina chiedeva una lettura. Il
+   * lettore della finestra nasceva per lei, il ping andava al RenderThread, e col RenderThread indietro c'erano l'attesa
+   * breve (fino a 1 ms di principale) e il tetto. Poi la lettura finiva a vuoto, senza miniatura. Da non iscritta non
+   * sente le revisioni e non conta fra i lettori della pagina.
+   */
+  private var subscribed = false
+
   private val revisionListener = LayerRevisionListener { _, _ ->
     revisionSeen = true
     FluidGlassProbeDiagnostics.onWake(GlassProbeWake.Revision)
@@ -796,7 +807,8 @@ internal class GlassProbeNode(
       this.backdrop = backdrop
       recordedGeometry = null
       lastGeometry = null
-      if (isAttached && !unavailable) {
+      // F7.25e: un vetro non ancora posato si iscrive al suo primo posizionamento.
+      if (isAttached && !unavailable && coordinates != null) {
         subscribe()
         signal()
       }
@@ -817,8 +829,7 @@ internal class GlassProbeNode(
     readerMisses = 0
     readerRetryAt = Long.MIN_VALUE
     FluidGlassProbeDiagnostics.onProbeAttached(1)
-    subscribe()
-    signal()
+    // F7.25e: l'iscrizione e il primo segnale arrivano col primo posizionamento ([onGloballyPositioned]).
   }
 
   override fun onDetach() {
@@ -840,6 +851,8 @@ internal class GlassProbeNode(
 
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
     this.coordinates = coordinates
+    // F7.25e: posato, adesso può leggere.
+    if (!subscribed && !unavailable) subscribe()
     FluidGlassProbeDiagnostics.onWake(GlassProbeWake.Positioned)
     signal()
   }
@@ -868,6 +881,7 @@ internal class GlassProbeNode(
     backdrop.forEachPart { if (it is LayerBackdrop && it.onDemand) reads.add(it) }
     sampledLayers = reads
     for (layer in reads) layer.addReader()
+    subscribed = true
   }
 
   private var sampledLayers: Set<LayerBackdrop> = emptySet()
@@ -877,11 +891,13 @@ internal class GlassProbeNode(
     sampledLayers = emptySet()
     for (layer in sources) layer.removeRevisionListener(revisionListener)
     sources = emptyList()
+    subscribed = false
   }
 
   /** Il giro del messaggio: consuma i segnali, chiede allo schedulatore, fa partire la lettura o arma l'attesa. */
   private fun pump() {
-    if (!isAttached || unavailable) return
+    // F7.25e: senza una posizione non c'è niente da leggere (e senza iscrizione non arrivano revisioni).
+    if (!isAttached || unavailable || coordinates == null) return
     val scheduler = scheduler ?: return
     val now = SystemClock.uptimeMillis()
     // Le letture osservate: dove stanno le sorgenti (`layerCoordinates` cambia a ogni loro posizionamento) e la qualità.

@@ -53,7 +53,7 @@ interface FluidFileSource {
 }
 ```
 
-- **A pagine**: `FluidFileQuery(folder, sort, cursor, limit, search)` → `FluidFilePage(items, next)`. `next` null è l'ultima.
+- **A pagine**: `FluidFileQuery(folder, sort, cursor, limit, search)` → `FluidFilePage(items, next)`. `next` null è l'ultima. Un `id` che una pagina dopo ripete (un segno a spostamento, una cartella che cambia mentre si scorre) entra una volta sola: la seconda si scarta (R3: prima due chiavi uguali facevano cadere l'elenco).
 - **Lenta e fallibile**: `list` si chiama dal thread principale e sposta da sé il lavoro (`withContext(Dispatchers.IO)`); un'eccezione diventa «Riprova».
 - **Gli elementi**: `FluidFileItem(id, name, isFolder, mimeType, sizeBytes, modifiedAtMillis, uri, childCount)`. L'`id` è stabile nella sorgente (entra nelle chiavi, nei recenti e nel viaggio d'oro); `uri` è l'indirizzo da cui il visore legge (`viewerFile()`).
 - **Le due di serie** leggono la cartella intera una volta (la prima pagina, o una rilettura) e consegnano le pagine dopo dalla stessa lettura, nell'ordine chiesto (`sorts` vero): un file arrivato mentre si scorre non sposta le pagine e non fa doppioni, e si vede alla rilettura.
@@ -84,8 +84,8 @@ interface FluidFileSource {
 ## Cosa è verificato dai test
 
 - `FluidFileSourcesTest` (Robolectric): l'ordine di File (cartelle prima, la lingua, i versi di serie), la ricerca senza accenti, la cartella dell'app a pagine e dentro la sua radice, un albero letto da un provider finto con gli indirizzi di Android (una richiesta sola per cartella, i documenti sull'albero, il permesso tolto), le posizioni col permesso persistente preso e restituito; R1: la cartella dell'export (lettura e scrittura) e quella che l'app teneva già, nascoste senza togliere il permesso; R2: le pagine della cartella dell'app da una lettura sola.
-- `FluidFileFolderStateTest`: le pagine che arrivano, l'errore con «Riprova» dal punto giusto, la ricerca su tutta la cartella (e, R2, il ritorno alle pagine dopo la ricerca), l'ordine in memoria e quello chiesto alla sorgente; i recenti in ordine, una volta sola, salvati, ripuliti dai file spariti; `FluidFileRecentsRetryTest` (R2): una scrittura fallita si riprova da sé.
-- Nella galleria, `F8p18FilesUiTest` col dito vero: le schede Recenti e Sfoglia (si apre su Recenti quando ce n'è uno, la scheda resta tornando indietro, un file si riapre dai Recenti), la cartella in griglia e in elenco, l'ordine, la ricerca, i nomi per TalkBack, la cartella lunga a pagine con lo scorrimento rapido, il file aperto nel visore e nei recenti, la cartella concessa col selettore di sistema simulato, «Riduci movimento».
+- `FluidFileFolderStateTest`: le pagine che arrivano, l'errore con «Riprova» dal punto giusto, la ricerca su tutta la cartella (e, R2, il ritorno alle pagine dopo la ricerca), l'ordine in memoria e quello chiesto alla sorgente, R3: le pagine sovrapposte con gli stessi id (ogni elemento una volta); i recenti in ordine, una volta sola, salvati, ripuliti dai file spariti; `FluidFileRecentsRetryTest` (R2): una scrittura fallita si riprova da sé.
+- Nella galleria, `F8p18FilesUiTest` col dito vero: le schede Recenti e Sfoglia (si apre su Recenti quando ce n'è uno, la scheda resta tornando indietro, un file si riapre dai Recenti), la cartella in griglia e in elenco, l'ordine, la ricerca, i nomi per TalkBack, la cartella lunga a pagine con lo scorrimento rapido, il file aperto nel visore e nei recenti, la cartella concessa col selettore di sistema simulato, «Riduci movimento». `R3m3FilesSearchTest` (R3): una sorgente con le pagine sovrapposte, in elenco, ogni file una volta e senza cadere.
 
 ## Dove guardare
 

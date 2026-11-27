@@ -73,6 +73,11 @@ internal class GlassBalanceMeter(
   private var stableFrameCount = 0
   private var stableFactoryFrames = 0
   private var recordings = 0L
+  /** F7.32d · Nella posa: i fotogrammi disegnati, quelli con registrazioni, il tratto più lungo di fila e quello in corso. */
+  private var quietFrames = 0
+  private var quietRecordedFrames = 0
+  private var quietLongestRun = 0
+  private var quietRun = 0
   private var lastCaptures = 0L
   private var lastFactories = GlassFactoryCounters.snapshot()
   private var quietStart: Sample? = null
@@ -105,6 +110,10 @@ internal class GlassBalanceMeter(
     stableFrameCount = 0
     stableFactoryFrames = 0
     recordings = 0
+    quietFrames = 0
+    quietRecordedFrames = 0
+    quietLongestRun = 0
+    quietRun = 0
     lastCaptures = FluidGlassDiagnostics.totalCaptures
     lastFactories = GlassFactoryCounters.snapshot()
     GlassFactoryCounters.takeRecordings()
@@ -160,6 +169,12 @@ internal class GlassBalanceMeter(
     val recorded = GlassFactoryCounters.takeRecordings()
     val repeats = GlassFactoryCounters.takeRepeats()
     recordings += recorded.sumOf { it.count }
+    if (quietStart != null) {
+      quietFrames++
+      quietRun = if (recorded.isNotEmpty()) quietRun + 1 else 0
+      if (recorded.isNotEmpty()) quietRecordedFrames++
+      quietLongestRun = max(quietLongestRun, quietRun)
+    }
     if (quietStart != null && recorded.isNotEmpty()) {
       notes += "$name: registrati a riposo ${recorded.map { it.name }.groupingBy { it }.eachCount().toSortedMap()}"
     }
@@ -221,6 +236,11 @@ internal class GlassBalanceMeter(
     )
     // I ridisegni contano nella posa: in entrata e in moto un layer che si registra è il lavoro della fase.
     if (quiet != null) measured[BalanceColumn.Redraws] = recordings
+    // F7.32d · La cadenza a riposo, per il motivo della riga: a ogni fotogramma (un'animazione che non si ferma) o a
+    // scatti (un passo al secondo con la sua molla).
+    if (quiet != null && quietRecordedFrames > 0) {
+      notes += "$name: registrazioni in $quietRecordedFrames fotogrammi su $quietFrames, il tratto più lungo di fila $quietLongestRun"
+    }
     results[name] = measured
     phase = null
     stable = null

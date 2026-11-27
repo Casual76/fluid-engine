@@ -1,5 +1,8 @@
 package dev.antigravity.fluidengine.media
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -81,6 +84,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidTransitionSource
 import dev.antigravity.fluidengine.ui.theme.FluidToneTile
 import dev.antigravity.fluidengine.ui.fluid.FluidSelectionMark
 import dev.antigravity.fluidengine.ui.fluid.FluidSelectionMarkDefaults
+import dev.antigravity.fluidengine.ui.fluid.FluidSpinner
 import dev.antigravity.fluidengine.ui.fluid.GlassDefaults
 import dev.antigravity.fluidengine.ui.fluid.GlassRole
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidMotionPolicy
@@ -102,6 +106,7 @@ import dev.antigravity.fluidengine.ui.theme.FluidListDivider
 import dev.antigravity.fluidengine.ui.theme.FluidListGroup
 import dev.antigravity.fluidengine.ui.theme.FluidListRow
 import dev.antigravity.fluidengine.ui.theme.FluidTone
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.max
@@ -336,7 +341,9 @@ private class ReservedInsets(private val bottom: () -> Int) : WindowInsets {
  *
  * Una foto toccata si allega subito ([onAttach], gia' consegnata dalla sorgente, pronta da leggere) e porta il suo numero
  * finche' e' fra gli allegati dell'app ([attached], le chiavi nell'ordine del vassoio); toccata di nuovo si toglie
- * ([onRemove]). A [maxAttachments] le altre si spengono.
+ * ([onRemove]). A [maxAttachments] le altre si spengono. Mentre una sorgente lenta (il NAS) la consegna, la foto porta la
+ * rotella, un secondo tocco non la consegna di nuovo e conta gia' per il tetto; una consegna rifiutata lo dice con
+ * l'avviso del selettore, e una sorgente chiusa chiede lo sblocco (R3).
  *
  * @param recents la sorgente della striscia (di solito il telefono, [FluidDeviceMediaSource]); null: niente striscia.
  *   Senza accesso alle foto la striscia lascia il posto al tasto del permesso (F8.11).
@@ -406,6 +413,15 @@ private fun AttachmentRecents(
     onResult = { scope.launch { source.refresh() } },
   )
   LaunchedEffect(permission.status) { source.refresh() }
+  // R3: le foto che si stanno consegnando (una sorgente lenta, il NAS) e l'avviso dell'ultima consegna non riuscita. Una
+  // foto in consegna non si consegna una seconda volta e conta per il tetto finché non arriva; un rifiuto si dice con la
+  // frase del selettore, e una sorgente chiusa chiede lo sblocco come nel selettore.
+  var pending by remember(source) { mutableStateOf(emptySet<String>()) }
+  var notice by remember(source) { mutableStateOf<FluidMediaPickerNotice?>(null) }
+  val unlocker = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+    scope.launch { source.refresh() }
+  }
+  notice?.let { MediaNoticeAlert(it, labels, request.limit) { notice = null } }
   val access = source.access
   if (!access.allowsListing()) {
     Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
@@ -432,7 +448,7 @@ private fun AttachmentRecents(
   val cellPx = with(LocalDensity.current) { FluidAttachmentPanelDefaults.RecentSize.roundToPx() }
   val shape = ContinuousCornerShape(FluidRadius.Control)
   val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
-  val atLimit = attached.size >= maxAttachments
+  val atLimit = attached.size + pending.count { it !in attached } >= maxAttachments
   LazyRow(
     Modifier.fillMaxWidth().testTag(FluidAttachmentPanelTags.Recents),
     contentPadding = PaddingValues(horizontal = 16.dp),
@@ -441,6 +457,7 @@ private fun AttachmentRecents(
     items(list, key = { it.key }) { item ->
       val index = attached.indexOf(item.key)
       val chosen = index >= 0
+      val delivering = item.key in pending
       val description = remember(item.key, locale) { pickerDescription(item, labels, locale) }
       Box(
         Modifier
@@ -454,20 +471,43 @@ private fun AttachmentRecents(
           .clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
-            enabled = chosen || !atLimit,
+            enabled = chosen || (!atLimit && !delivering),
           ) {
             if (chosen) {
               onRemove(item.key)
-            } else {
+            } else if (item.key !in pending) {
+              pending = pending + item.key
               scope.launch {
-                val result = source.deliver(listOf(item), request)
-                if (result is FluidMediaDelivery.Ready) result.media.firstOrNull()?.let(onAttach)
+                try {
+                  when (val result = source.deliver(listOf(item), request)) {
+                    is FluidMediaDelivery.Ready -> {
+                      val media = result.media.firstOrNull()
+                      if (media != null) onAttach(media) else notice = FluidMediaPickerNotice(FluidMediaRefusal.NothingAvailable, result.skipped)
+                    }
+                    is FluidMediaDelivery.Refused -> notice = FluidMediaPickerNotice(result.reason, skipped = 0)
+                    is FluidMediaDelivery.NeedsUnlock -> {
+                      val intent = result.unlock
+                      if (intent != null) {
+                        runCatching { unlocker.launch(IntentSenderRequest.Builder(intent.intentSender).build()) }
+                      } else {
+                        source.refresh()
+                      }
+                    }
+                  }
+                } catch (e: CancellationException) {
+                  throw e
+                } catch (_: Exception) {
+                  notice = FluidMediaPickerNotice(FluidMediaRefusal.Failed, skipped = 0)
+                } finally {
+                  pending = pending - item.key
+                }
               }
             }
           },
       ) {
         val phase = rememberFluidMediaThumbnail(source, item, cellPx)
         FluidAsyncImage(phase, contentDescription = null, modifier = Modifier.fillMaxSize())
+        if (delivering) FluidSpinner(Modifier.align(Alignment.Center), size = 20.dp)
         if (item.kind == FluidMediaKind.Video) {
           Text(
             fluidMediaDurationText(item.durationMillis ?: 0L),

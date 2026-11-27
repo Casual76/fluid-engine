@@ -88,7 +88,8 @@ Ogni sorgente dice il suo `FluidMediaAccess` come stato; il selettore mostra la 
 | `NotAllowed` | «Consenti l'accesso alle foto» col tasto del permesso (`rememberFluidPermission(FluidPermission.PhotosAndVideos)`, la spiegazione nasce dal tasto; dopo due no, «Apri Impostazioni») e «Scegli con Android» (il Photo Picker, senza permessi) |
 | `Locked` | «MyCloud Gallery è bloccata» con «Sblocca»: apre lo sblocco dell'app sorgente (`PendingIntent`), poi rilegge |
 | `Unavailable` | «… non è disponibile» con «Riprova» |
-| una pagina che non arriva (il NAS spento, una scadenza, un errore della sorgente) | lo stesso «… non è disponibile» con «Riprova» al posto di «Nessuna foto»; a metà lista una capsula in fondo con «Riprova». Gli elementi arrivati restano (`FluidMediaFeed.failed`, `retry()`: R1) |
+| una pagina che non arriva (il NAS spento, una scadenza, un errore della sorgente) | lo stesso «… non è disponibile» con «Riprova» al posto di «Nessuna foto»; a metà lista una capsula in fondo con «Riprova». Gli elementi arrivati restano (`FluidMediaFeed.failed`, `retry()`: R1). Vale anche per il MediaStore del telefono che lancia o non risponde e per la risposta `error` di una sorgente di un'altra app (R3) |
+| gli album che non arrivano (R3) | nella pagina Album, al posto del gruppo della sorgente, «… non è disponibile» con «Riprova»; un errore non si tiene come «nessun album», e tornando sulla pagina si richiedono |
 
 L'accesso si **rilegge da solo** dopo il dialogo di Android, al ritorno dalle impostazioni (lo stato del permesso) e dopo
 lo sblocco; le pagine della sorgente si ricaricano solo se l'accesso è cambiato.
@@ -129,7 +130,9 @@ Le sorgenti di serie:
 - `FluidDeviceMediaSource` (id `device`): il MediaStore; gli album come Foto (Recenti, Preferiti da Android 11, Video,
   Screenshot, poi le cartelle con la Fotocamera per prima); la ricerca per nome del file e della cartella (il testo passa
   come argomento, mai nell'SQL); le pagine con limite e spostamento (`QUERY_ARG_LIMIT` da Android 11); le miniature con
-  `loadThumbnail` (Android 10+); la consegna con gli indirizzi del MediaStore, riletti uno per uno.
+  `loadThumbnail` (Android 10+); la consegna con gli indirizzi del MediaStore, riletti uno per uno. Un MediaStore che
+  lancia (una colonna che un produttore non ha) o che non risponde (il cursore nullo) **lancia** anche dalla sorgente (R3):
+  prima diventava una pagina vuota e finita, cioè «Nessuna foto».
 - `FluidRemoteMediaSource`: la sorgente di un'altra app attraverso il contratto, trovata con `FluidMediaSources.discover`.
 - `FluidFakeMediaSource`: in memoria, con album, elementi solo nel backup, una ricerca per significato finta (parole
   contro etichette, stagioni contro la data: «mare d'estate» → «Mare», «Estate»), lo sblocco, il NAS spento
@@ -203,7 +206,10 @@ Due presentazioni dello stesso contenuto (le foto recenti in cima, poi le fonti)
 La **striscia delle recenti**: 30 foto da 84 dp con 2 dp fra l'una e l'altra (il selettore compatto di iOS 17); un tocco **allega subito** (la sorgente consegna quell'elemento,
 `onAttach`) e la foto porta il **numero** del vassoio finché è fra gli allegati (`attached`, le chiavi in ordine), un altro
 tocco la toglie (`onRemove`); a `maxAttachments` le altre si spengono; in fondo «Tutte le foto» (`onAllPhotos`, di solito il
-selettore). Senza permesso, al posto della striscia il tasto «Consenti l'accesso».
+selettore). Senza permesso, al posto della striscia il tasto «Consenti l'accesso». Mentre una sorgente lenta (il NAS)
+consegna, la foto porta la rotella, un secondo tocco non la consegna di nuovo e conta già per `maxAttachments`; una
+consegna rifiutata o che fallisce lo dice con l'avviso del selettore (le stesse frasi), e una sorgente chiusa apre lo
+sblocco come nel selettore (R3).
 
 Le **fonti** (`FluidAttachmentSource`) sono un elenco aperto: i preset danno icona e tono della piastrella (fotocamera,
 foto, file, posizione, audio), `other` una dell'app. Cosa fanno lo decide l'app: la fotocamera vuole un `FileProvider`
@@ -238,13 +244,18 @@ suo per `ACTION_IMAGE_CAPTURE`, i file `OpenMultipleDocuments`, la posizione il 
   blocco, NAS spento, tetto, chi non può chiedere, le traduzioni dei `Bundle`), `FluidDeviceMediaSourceTest` (i tre regimi,
   le pagine e gli album contro un MediaStore finto, la consegna riletta, la ricerca come argomento),
   `FluidMediaPickerStateTest` (pagine, ordine e tetto, la consegna da due sorgenti, il rifiuto, i saltati, lo sblocco;
-  R1: la pagina che non arriva e «Riprova», gli elementi scelti nel `Bundle`, la chiave senza elemento).
+  R1: la pagina che non arriva e «Riprova», gli elementi scelti nel `Bundle`, la chiave senza elemento; R3: gli album che
+  non arrivano non si tengono come nessun album). R3: nel MediaStore finto una pagina e gli album che lanciano o col
+  cursore nullo lanciano anche dalla sorgente; nel contratto la risposta `error` di pagine e album è un errore, non un
+  vuoto, e l'accesso resta pieno.
 - `engine-ui`: `FluidSelectionLimitTest` (l'ordine dei tocchi, il tetto, il salvataggio, le parole del numero).
 - `sample`: `F8p14MediaUiTest`, col dito vero e il vetro vero (la scelta col numero e lo scalare, il dito di lato, il tetto,
   la foto sola, gli album di due sorgenti, la ricerca per significato, il permesso negato e «solo alcune» col dialogo di
   Android finto e «Gestisci», lo sblocco e il NAS spento, TalkBack, l'anteprima dalla pressione lunga, il «+», il pannello
   al posto della tastiera anche col movimento ridotto); `R1cMediaPickerTest` (la scelta oltre la prima pagina che
-  sopravvive alla ricreazione e si consegna intera, la chiave senza elemento che si dice, la sorgente che non risponde).
+  sopravvive alla ricreazione e si consegna intera, la chiave senza elemento che si dice, la sorgente che non risponde);
+  `R3m1MediaTest` (gli album che non arrivano dicono «Riprova»; nel pannello tre tocchi svelti su una sorgente lenta
+  allegano una foto sola, col tetto contato; il rifiuto e l'errore della consegna si dicono).
 - In galleria: «Elementi nuovi» › F8.14, scene `selettore-foto`, `foto-profilo`, `accesso-foto`, `allegati-piu`,
   `allegati-tastiera` (`sample/…/novita/F8p14Scenes.kt`).
 

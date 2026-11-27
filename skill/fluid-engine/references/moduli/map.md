@@ -40,7 +40,8 @@ Catalogo delle firme: [`../api/map.md`](../api/map.md) (generato). Il foglio sot
 ## La mappa: `FluidMap`
 
 - **I comandi di vetro**, come Mappe di iOS 26: **in basso a destra, appoggiati sopra il foglio** (16 dp dal bordo, 10 sopra
-  il foglio, e lo seguono quando si posa a un'altra altezza; col foglio in cima spariscono), una capsula 48 × 96 col tasto
+  il foglio, e lo seguono quando si posa a un'altra altezza; col foglio in cima spariscono davvero, anche per il dito e
+  per TalkBack: R3, prima erano solo trasparenti e restavano toccabili), una capsula 48 × 96 col tasto
   dei **livelli** (il pannello che nasce dal tasto, con gli stili e il loro campione) e quello della **posizione** (la
   freccia: vuota, piena quando la mappa segue), e sopra la **bussola**, che compare solo col nord fuori posto (oltre mezzo
   grado), gira con la mappa e toccata riporta il nord su per la strada breve. Le misure vengono dalla guida dell'iPhone e
@@ -62,7 +63,9 @@ Catalogo delle firme: [`../api/map.md`](../api/map.md) (generato). Il foglio sot
 - **L'attribuzione** è sempre in vista in basso a sinistra, sopra il foglio, su un vetro piccolo («OpenFreeMap
   © OpenMapTiles © OpenStreetMap»: i tre nomi che chiedono i termini di OpenFreeMap e l'ODbL), e toccata mostra i
   crediti coi collegamenti (ODbL: openstreetmap.org/copyright a un tocco). Su un telefono stretto va a capo fra un nome e
-  l'altro (il «©» resta attaccato al suo nome) e non passa mai sotto i comandi. TalkBack la legge **una volta**, come un
+  l'altro (il «©» resta attaccato al suo nome) e non passa mai sotto i comandi; se nemmeno in due righe ci sta (il
+  carattere di sistema grande: a 2× su un telefono da 360 dp ne vorrebbe tre, e la terza era «© OpenStreetMap») resta la
+  forma compatta, «© OpenStreetMap», come sulla cartolina (R3). TalkBack la legge **una volta**, come un
   tasto: «Crediti della mappa: OpenFreeMap © OpenMapTiles © OpenStreetMap» (F8.26c; prima la scritta del vetro si
   aggiungeva e i crediti si sentivano due volte).
 - **Il luogo scelto si vede** (F8.26d), come in Mappe: con `selectedMarkerId` la mappa porta il segnaposto in vista da
@@ -158,8 +161,9 @@ di Piazza della Signoria» con l'azione «Apri la mappa».
 della mappa, e **su una riga che non va a capo**. Se la scritta corta non ci sta resta la forma compatta
 (`FluidMapAttribution.compact`, di serie «© OpenStreetMap»: il credito che l'ODbL chiede in vista), che scende fino a
 7 sp; il resto è **dietro un tocco** sui crediti, che apre il popover coi collegamenti, come «Legale» nelle mappe di
-Apple. La cartolina più stretta che tiene i crediti è `FluidMapPostcardDefaults.MinWidth` (80 dp); una prova lo tiene
-fermo. Per TalkBack i crediti sono un tasto a parte, «Crediti della mappa». Fino alla F8.26c la scritta andava a capo in
+Apple. La cartolina più stretta che tiene i crediti è `FluidMapPostcardDefaults.MinWidth` (80 dp), **a ogni grandezza
+del carattere di sistema**: col carattere grande la scritta cresce dove c'è posto e nella cartolina stretta scende fino
+ai 7 dp veri di 1× (R3: a 1,3× i 7 sp erano 9 dp e la scritta si tagliava). Le prove lo tengono fermo a 1, 1,3 e 2. Per TalkBack i crediti sono un tasto a parte, «Crediti della mappa». Fino alla F8.26c la scritta andava a capo in
 tre pezzi e la cartolina di una riga ne mostrava due, senza «© OpenStreetMap».
 
 `fluidViewerLocation(punto, nome, onOpen)` dà il `FluidViewerLocation` del pannello info dei visori: le coordinate come
@@ -178,6 +182,12 @@ Il modulo **non dichiara** il permesso della posizione: lo dichiara l'app che la
 `FluidSystemLocation` legge `LocationManager` senza Play Services (il «fused» di Android 12, poi GPS e rete):
 `FluidSystemLocationEffect(state, enabled)` tiene `state.userLocation` aggiornata mentre la mappa si vede. Senza
 permesso non dà niente e non va in errore.
+
+**Una posizione vecchia non entra come attuale** (R3): `updates()` comincia dall'ultima posizione conosciuta solo se ha
+al più 30 secondi (`LastKnownMaxAgeMillis`, il confine con cui Android dice «attuale» una posizione in memoria), contati
+sull'orologio che non torna indietro; una di ieri non diventa il punto blu e la mappa che segue non ci vola. Ogni
+posizione porta il suo istante, `FluidMapUserLocation.timeMillis` (null se l'app non lo sa); `last()` dà l'ultima
+conosciuta com'è, anche vecchia, e l'istante lo dice.
 
 ## Le mappe di OpenFreeMap
 

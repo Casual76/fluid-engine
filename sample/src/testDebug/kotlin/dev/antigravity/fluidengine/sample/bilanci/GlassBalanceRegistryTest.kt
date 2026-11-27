@@ -62,6 +62,7 @@ class GlassBalanceRegistryTest {
     a entrata 1 1 1 1 1 1 1 1 - - F7.28 F8BalanceTest | una scena di prova, entrata
     a moto    - - - - - - - - - - F7.28 F8BalanceTest | una scena di prova senza moto proprio
     a posa    1 1 0 0 1 1 0 0 0 - F7.28 F8BalanceTest | una scena di prova, posa
+    a posa:dopo 1 1 0 0 1 1 0 0 0 - F7.32d F8BalanceTest | una scena di prova, la posa dopo il gesto
     a uscita  1 1 0 0 0 1 0 0 - - F7.28 F8BalanceTest | una scena di prova, uscita
     a rilascio 0 0 - - - 0 - - - - F7.28 F8BalanceTest | una scena di prova, rilascio
     """.trimIndent(),
@@ -89,6 +90,12 @@ class GlassBalanceRegistryTest {
       .joinToString("\n") { row -> "${row.id} ${row.phase} ${row.values.values.joinToString(" ")} ${row.version} ${row.proof} | ${row.reason}" })
     assertTrue(GlassBalanceRegistry.completeness(mapOf("F8.99" to listOf("a")), { noRelease }, attesi)
       .single().contains("mancano le fasi [rilascio]"))
+    // Rosso (F7.32d): una scena di F8 senza la posa dopo il gesto. Il vetro (le scene di «Misure») non la vuole.
+    val noAfter = GlassBalanceRegistry.parse("f8p99.bilancio", good.rows.filter { it.phase != "posa:dopo" }
+      .joinToString("\n") { row -> "${row.id} ${row.phase} ${row.values.values.joinToString(" ")} ${row.version} ${row.proof} | ${row.reason}" })
+    assertTrue(GlassBalanceRegistry.completeness(mapOf("F8.99" to listOf("a")), { noAfter }, attesi)
+      .single().contains("mancano le fasi [posa:dopo]"))
+    assertEquals(emptyList<String>(), GlassBalanceRegistry.completeness(mapOf("vetro.bilancio" to listOf("a")), { noAfter }, attesi))
     // Rosso: una riga per una scena che non c'è più.
     assertTrue(GlassBalanceRegistry.completeness(mapOf("F8.99" to emptyList()), { good }, attesi)
       .single().contains("scena che non c'è"))
@@ -108,12 +115,31 @@ class GlassBalanceRegistryTest {
     assertThrows(BalanceFormatException::class.java) {
       GlassBalanceRegistry.parse("x", "a ferma 1 1 1 1 1 1 1 1 - - F7.28 F8BalanceTest | una fase che non esiste")
     }
+    // F7.32d · «NV» nel motivo non basta più: serve il posto (il tablet) o la prova che misura davvero.
+    assertThrows(BalanceFormatException::class.java) {
+      GlassBalanceRegistry.parse("x", "a entrata NV NV NV NV NV NV NV NV - - F7.28 F8BalanceTest | non si monta al PC; NV")
+    }
+    GlassBalanceRegistry.parse("x", "a entrata NV NV NV NV NV NV NV NV - - F7.32d F8BalanceTest | NV, la misura vera è sul tablet")
+    GlassBalanceRegistry.parse("x", "a entrata NV NV NV NV NV NV NV NV - - F7.32d F8BalanceTest | NV, la misura vera è in GlassNodeCountInstrumentedTest")
+    // F7.32d · A riposo zero vuol dire zero: nelle pose di F8 e F9 un tetto sopra zero vuole la cadenza nel motivo.
+    assertThrows(BalanceFormatException::class.java) {
+      GlassBalanceRegistry.parse("f8p99.bilancio", "a posa 1 1 0 2 0 0 3 3 3 - F7.28 F8BalanceTest | ferma, niente catture")
+    }
+    assertThrows(BalanceFormatException::class.java) {
+      GlassBalanceRegistry.parse("f9p99.bilancio", "a posa:dopo 1 1 0 0 0 0 0 0 1 - F7.32d F8BalanceTest | ferma dopo il gesto")
+    }
+    GlassBalanceRegistry.parse("f8p99.bilancio", "a posa 1 1 0 0 0 0 0 0 0 - F7.32d F8BalanceTest | ferma: zero è zero")
+    GlassBalanceRegistry.parse("f8p99.bilancio", "a posa 1 1 0 0 0 0 1 0 31 - F7.32d F8BalanceTest | la cadenza: un secondo che scende")
+    GlassBalanceRegistry.parse("vetro.bilancio", "a posa 1 1 0 2 0 0 3 3 3 - F7.28 GlassBalanceScenesTest | il vetro non ha la regola")
     val row = GlassBalanceRegistry.parse("x", "a entrata 1 2 1 1 1 1 0 0 - - F7.28 F8BalanceTest | il tetto di prova").rows.single()
     assertEquals(listOf("layer 3 (tetto 2)"), row.exceeded(mapOf(BalanceColumn.Layers to 3L, BalanceColumn.Nodes to 1L)))
   }
 
   companion object {
-    /** I componenti del vetro che `GlassNodeCountTest` monta da soli: li misura `GlassBalanceScenesTest`. */
-    val GlassComponents = listOf("tasto", "gruppo", "popover", "tab-bar")
+    /**
+     * I componenti del vetro che `GlassNodeCountTest` monta da soli, e (F7.32d) il visore sul PDF finto: li misura
+     * `GlassBalanceScenesTest`.
+     */
+    val GlassComponents = listOf("tasto", "gruppo", "popover", "tab-bar", "pdf-finto")
   }
 }

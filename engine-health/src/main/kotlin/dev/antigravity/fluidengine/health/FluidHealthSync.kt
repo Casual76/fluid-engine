@@ -49,6 +49,9 @@ interface FluidHealthStore {
  * dal backup. Una sezione che si apre col solo telefono basta (`VaultAccess.Device()`); un'app che vuole l'impronta usa una
  * sezione all'impronta, e la copia si legge solo a sezione aperta.
  *
+ * [load] dice com'e' il file: una copia che non si legge (un pezzo cifrato che non torna, un formato che questa versione
+ * non conosce) e' `IOException`. Cosa farne lo decide [FluidHealthSync], che la rifa'.
+ *
  * ```kotlin
  * val store = FluidVaultHealthStore(FluidVault.get(context).section("salute"))
  * ```
@@ -105,6 +108,12 @@ sealed interface FluidHealthSyncResult {
  * dalla copia (un permesso tolto toglie anche la copia: l'app non tiene cio' che non puo' piu' leggere).
  *
  * Una sincronizzazione alla volta ([sync] e' protetta). I dati restano fuori dal thread principale e fuori dai log.
+ *
+ * **Una copia che non si legge vale come assente** (R3): un file rovinato sul disco, un pezzo cifrato che non torna o un
+ * formato che questa versione non conosce (`IOException` dalla [FluidHealthStore]). [snapshot] la da' vuota, e [sync] la
+ * butta e rilegge tutto da Health Connect: la copia e' solo una copia, i dati restano li'. Prima ogni `sync()` e ogni
+ * `snapshot()` cadevano sulla stessa eccezione, per sempre. Una sezione chiusa o una chiave che chiede l'impronta non
+ * sono una copia rovinata: quelle eccezioni della cassaforte passano com'erano, e la copia resta.
  */
 class FluidHealthSync(
   private val gateway: FluidHealthGateway,
@@ -116,8 +125,12 @@ class FluidHealthSync(
 ) {
   private val mutex = Mutex()
 
-  /** La copia di adesso. */
-  suspend fun snapshot(): FluidHealthSnapshot = store.load()
+  /** La copia di adesso; vuota se non si legge (la rifa' la [sync] dopo). */
+  suspend fun snapshot(): FluidHealthSnapshot = try {
+    store.load()
+  } catch (_: IOException) {
+    FluidHealthSnapshot.Empty
+  }
 
   /** Sincronizza: le modifiche se si puo', tutto da capo se serve. */
   suspend fun sync(): FluidHealthSyncResult = mutex.withLock {
@@ -126,7 +139,13 @@ class FluidHealthSync(
     val granted = gateway.granted()
     val readable = metrics.filter { FluidHealthPermission(it) in granted }.toSet()
     val denied = metrics - readable
-    val old = store.load()
+    val old = try {
+      store.load()
+    } catch (_: IOException) {
+      // La copia non si legge: si toglie, e la lettura intera la rifa'.
+      store.clear()
+      FluidHealthSnapshot.Empty
+    }
     if (readable.isEmpty()) {
       if (old.samples.isNotEmpty() || old.token != null) store.save(FluidHealthSnapshot.Empty)
       return FluidHealthSyncResult.NoPermission
@@ -134,33 +153,57 @@ class FluidHealthSync(
     val token = old.token
     if (token == null || old.metrics != readable) return full(readable, denied)
     var current = LinkedHashMap<String, FluidHealthSample>().apply { for (s in old.samples) put(s.id, s) }
+    // I campioni di ogni record di battito («record#indice»), per toglierli tutti insieme: il record tolto, o corretto
+    // con meno campioni (R3: un battito da 10 campioni corretto a 6 lasciava #6..#9 nella copia per 30 giorni).
+    val series = HashMap<String, MutableSet<String>>()
+    for (id in current.keys) seriesOf(id)?.let { series.getOrPut(it) { HashSet() }.add(id) }
     var next: String = token
     var upserted = 0
     var deleted = 0
     while (true) {
       val page = gateway.changes(next)
       if (page.tokenExpired) return full(readable, denied)
+      // Un record di battito arriva intero: i suoi campioni di prima escono, quelli arrivati entrano. Un record che torna
+      // due volte nella pagina riparte da capo (l'indice ricomincia).
+      var run: String? = null
+      var lastIndex = -1
       for (s in page.upserted) {
         if (s.metric !in readable) continue
+        val parent = if (s.metric == FluidHealthMetric.HeartRate) seriesOf(s.id) else null
+        if (parent != null) {
+          val index = s.id.substringAfterLast('#').toIntOrNull() ?: -1
+          if (parent != run || index <= lastIndex) {
+            series.remove(parent)?.forEach { current.remove(it) }
+            run = parent
+          }
+          lastIndex = index
+          series.getOrPut(parent) { HashSet() }.add(s.id)
+        } else {
+          run = null
+        }
         current[s.id] = s
         upserted += 1
       }
       for (id in page.deletedIds) {
         // Health Connect dice l'id del record; un battito e' «record#indice».
         val removed = current.remove(id) != null
-        val prefix = "$id#"
-        val keys = current.keys.filter { it.startsWith(prefix) }
+        val keys = series.remove(id).orEmpty()
         keys.forEach { current.remove(it) }
         if (removed || keys.isNotEmpty()) deleted += 1
       }
       next = page.nextToken
       if (!page.hasMore) break
     }
-    // Il battito cambiato arriva intero: i suoi campioni vecchi oltre i nuovi si sono gia' sovrascritti per id.
     val horizon = clock().minus(window)
     current = LinkedHashMap(current.filterValues { !it.end.isBefore(horizon) })
     store.save(FluidHealthSnapshot(current.values.toList(), next, readable, clock()))
     return FluidHealthSyncResult.Changes(upserted, deleted, denied)
+  }
+
+  /** Il record di un campione di battito («record#indice»), o null per un dato che non e' un campione. */
+  private fun seriesOf(id: String): String? {
+    val at = id.lastIndexOf('#')
+    return if (at > 0) id.substring(0, at) else null
   }
 
   /** Dimentica la copia e il segno: la prossima [sync] rilegge tutto. */
@@ -181,6 +224,9 @@ class FluidHealthSync(
 /**
  * Il formato della copia: binario, con una versione in testa. Le stringhe in UTF modificato di Java, gli istanti in
  * secondi e nanosecondi. Pura: si prova sulla JVM.
+ *
+ * [decode] non si fida del file (R3): un conteggio negativo o piu' grande dei byte che restano, un istante fuori misura o
+ * un dato che non torna danno [IOException], mai memoria chiesta a caso (`ArrayList(Int.MAX_VALUE)`) o un'altra eccezione.
  */
 object FluidHealthCodec {
   private const val Magic = 0x46484C31 // «FHL1»
@@ -218,15 +264,24 @@ object FluidHealthCodec {
     return bytes.toByteArray()
   }
 
-  fun decode(bytes: ByteArray): FluidHealthSnapshot {
+  fun decode(bytes: ByteArray): FluidHealthSnapshot = try {
+    decodeChecked(bytes)
+  } catch (e: IOException) {
+    throw e
+  } catch (e: RuntimeException) {
+    // Un istante fuori misura (DateTimeException), un dato che il modello rifiuta (IllegalArgumentException).
+    throw IOException("Copia dei dati di salute non leggibile", e)
+  }
+
+  private fun decodeChecked(bytes: ByteArray): FluidHealthSnapshot {
     DataInputStream(ByteArrayInputStream(bytes)).use { input ->
       if (input.readInt() != Magic) throw IOException("Non e' una copia dei dati di salute")
       val version = input.readInt()
       if (version != Version) throw IOException("Versione della copia sconosciuta: $version")
       val token = input.readOptString()
-      val metrics = (0 until input.readInt()).map { FluidHealthMetric(input.readUTF()) }.toSet()
+      val metrics = (0 until input.readCount()).map { FluidHealthMetric(input.readUTF()) }.toSet()
       val syncedAt = input.readOptInstant()
-      val count = input.readInt()
+      val count = input.readCount()
       val samples = ArrayList<FluidHealthSample>(count)
       repeat(count) {
         val kind = input.readByte().toInt()
@@ -243,7 +298,7 @@ object FluidHealthCodec {
               val end = input.readInstant()
               val title = input.readOptString()
               val type = input.readInt().takeIf { it != Int.MIN_VALUE }
-              val stages = (0 until input.readInt()).map { FluidSleepStage(input.readInstant(), input.readInstant(), input.readInt()) }
+              val stages = (0 until input.readCount()).map { FluidSleepStage(input.readInstant(), input.readInstant(), input.readInt()) }
               FluidHealthSession(id, metric, start, end, source, title, type, stages, modified)
             }
             else -> throw IOException("Dato di tipo sconosciuto: $kind")
@@ -252,6 +307,13 @@ object FluidHealthCodec {
       }
       return FluidHealthSnapshot(samples, token, metrics, syncedAt)
     }
+  }
+
+  /** Un conteggio: ogni elemento prende almeno un byte, quindi mai negativo e mai piu' dei byte che restano. */
+  private fun DataInputStream.readCount(): Int {
+    val n = readInt()
+    if (n < 0 || n > available()) throw IOException("Conteggio fuori misura nella copia: $n")
+    return n
   }
 
   private fun DataOutputStream.writeOptString(v: String?) {

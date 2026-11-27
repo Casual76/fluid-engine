@@ -18,6 +18,7 @@ import dev.antigravity.fluidengine.sample.material.MaterialFinger
 import dev.antigravity.fluidengine.sample.measure.MeasureScenario
 import dev.antigravity.fluidengine.sample.measure.ScenarioActions
 import dev.antigravity.fluidengine.sample.measure.ScenarioScene
+import dev.antigravity.fluidengine.sample.novita.LocalDemoSyncDispatcher
 import dev.antigravity.fluidengine.sample.novita.NewElementScene
 import dev.antigravity.fluidengine.sample.novita.NewElementsPageAt
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
@@ -32,6 +33,7 @@ import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.rememberGlassBackdrop
 import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
@@ -43,7 +45,10 @@ import kotlinx.coroutines.launch
  *   posa alla fine (due campioni separati da 2 s), l'uscita (20 fotogrammi senza la scena), il rilascio (1 s dopo).
  * - **Un elemento nuovo** ([measureNewElement]): la scena della pagina «Elementi nuovi» com'è nella galleria; entrata
  *   (40 fotogrammi più 1 s), l'assestamento ([settle]), posa, moto (il dito trascina dal centro in su per 24 fotogrammi, 12 px ciascuno, senza
- *   lancio; stabili i fotogrammi 6–21), assestamento non misurato, uscita e rilascio come sopra.
+ *   lancio; stabili i fotogrammi 6–21), il dito alzato e 1,2 s, l'assestamento, la **posa dopo il gesto** (`posa:dopo`,
+ *   F7.32d), uscita e rilascio come sopra. La posa dopo il gesto è la guardia di chi non si ferma: un righello che dopo
+ *   il rilascio continua a disegnare (F7.24b), un'animazione che dopo il tocco gira per sempre, una cattura rifatta a ogni
+ *   fotogramma; la posa prima del gesto misura solo la scena appena montata.
  */
 internal object BalanceRuns {
   /** La pausa fra due tratti, come in `GlassNodeCountTest` (20 fotogrammi disegnati, non misurati). */
@@ -134,11 +139,15 @@ internal object BalanceRuns {
     return meter
   }
 
+  /**
+   * La scena com'è nella galleria. F7.32c: il lavoro dei motori finti di F8.21 sul filo principale di Robolectric
+   * ([LocalDemoSyncDispatcher]), che avanza coi fotogrammi della prova invece che in tempo vero.
+   */
   @Composable
   private fun ElementStage(scene: NewElementScene) {
     FluidTheme(settings = remember { EngineSettings() }) {
       val host = rememberFluidGlassModalHostState()
-      CompositionLocalProvider(LocalFluidGlassModalHostState provides host) {
+      CompositionLocalProvider(LocalFluidGlassModalHostState provides host, LocalDemoSyncDispatcher provides Dispatchers.Main) {
         Box(Modifier.fillMaxSize()) {
           NewElementsPageAt(onBack = {}, initial = scene.id)
           FluidGlassModalHost(state = host, backdrop = null)
@@ -157,12 +166,24 @@ internal object BalanceRuns {
     scene: NewElementScene,
     margin: Int,
     ready: ((List<SemanticsNode>) -> Boolean)? = null,
+  ): GlassBalanceMeter = measureElement(harness, scene.id, margin, ready) { ElementStage(scene) }
+
+  /**
+   * F7.32d · Il copione di un elemento nuovo per [content] qualunque (le scene della galleria, la scena del PDF finto di
+   * `GlassBalanceScenesTest`, le prove delle guardie): vedi l'intestazione.
+   */
+  fun measureElement(
+    harness: BalanceHarness,
+    id: String,
+    margin: Int,
+    ready: ((List<SemanticsNode>) -> Boolean)? = null,
+    content: @Composable () -> Unit,
   ): GlassBalanceMeter {
-    val meter = harness.meter(scene.id, margin)
+    val meter = harness.meter(id, margin)
     meter.begin("entrata")
-    harness.show { ElementStage(scene) }
+    harness.show(content)
     repeat(40) { harness.frame(meter) }
-    if (ready != null) harness.awaitReady(meter, scene.id, ready)
+    if (ready != null) harness.awaitReady(meter, id, ready)
     harness.idle(1_000, drawEvery = 8, meter = meter)
     meter.end()
     settle(harness, meter)
@@ -179,6 +200,10 @@ internal object BalanceRuns {
     meter.end()
     harness.runOnUi { finger.up(start - Offset(0f, 12f * 24)) }
     harness.idle(1_200, drawEvery = 4)
+    // F7.32d · La posa dopo il gesto: l'inerzia e le molle del rilascio finiscono nell'assestamento; quello che lavora
+    // ancora dopo (un'animazione che non si ferma, una cattura a ogni fotogramma) cade qui.
+    settle(harness, meter)
+    harness.quiet(meter, "posa:dopo")
     leave(harness, meter)
     return meter
   }

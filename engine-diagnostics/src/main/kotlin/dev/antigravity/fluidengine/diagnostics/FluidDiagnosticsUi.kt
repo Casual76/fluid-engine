@@ -34,6 +34,7 @@ import dev.antigravity.fluidengine.ui.fluid.FluidSectionFootnote
 import dev.antigravity.fluidengine.ui.fluid.FluidSectionHeader
 import dev.antigravity.fluidengine.ui.fluid.FluidSheetScaffold
 import dev.antigravity.fluidengine.ui.fluid.FluidToggleRow
+import dev.antigravity.fluidengine.ui.fluid.fluidGroupedItems
 import dev.antigravity.fluidengine.ui.fluid.icons.Delete
 import dev.antigravity.fluidengine.ui.fluid.icons.Error
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
@@ -309,6 +310,10 @@ fun FluidDiagnosticsSettingsGroup(
  * La pagina «Dati di diagnostica» (F8.24): cosa si raccoglie, in parole semplici, e i rapporti che sono sul telefono
  * adesso, ognuno col JSON che partirebbe (un tocco sulla riga). «Invia ora» col sì e un indirizzo; «Cancella i dati»
  * con la conferma.
+ *
+ * Mentre la coda si legge (sul filo dell'IO) la pagina non dice «Niente da mandare» e i tasti aspettano: lo dice solo
+ * quando sa che la coda e' vuota. I rapporti sono una riga della lista l'uno, e si compongono quelli che si vedono (R3:
+ * prima la pagina partiva «vuota» anche con i rapporti, e li componeva tutti, fino a 200, in un elemento solo).
  */
 @Composable
 fun FluidDiagnosticsDataPage(
@@ -319,12 +324,14 @@ fun FluidDiagnosticsDataPage(
 ) {
   val consent by diagnostics.consent.collectAsStateWithLifecycle()
   val count by diagnostics.queue.count.collectAsStateWithLifecycle()
-  val records by produceState(initialValue = emptyList<FluidDiagnosticsRecord>(), diagnostics, count) {
+  // Null finche' la coda non e' letta: «sto leggendo» non e' «vuota».
+  val read by produceState<List<FluidDiagnosticsRecord>?>(initialValue = null, diagnostics, count) {
     value = withContext(Dispatchers.IO) {
       diagnostics.queue.refreshCount()
       diagnostics.queue.records().asReversed()
     }
   }
+  val records = read.orEmpty()
   val scope = rememberCoroutineScope()
   var shown by remember { mutableStateOf<FluidDiagnosticsRecord?>(null) }
   var outcome by remember { mutableStateOf<String?>(null) }
@@ -340,28 +347,26 @@ fun FluidDiagnosticsDataPage(
     item(key = "phone") {
       Column {
         FluidSectionHeader(labels.onPhoneHeader)
-        if (records.isEmpty()) {
+        if (read?.isEmpty() == true) {
           FluidEmptyState(labels.emptyTitle, labels.emptyDetail, Modifier.testTag(FluidDiagnosticsTags.Empty))
-        } else {
-          FluidListGroup {
-            records.forEachIndexed { index, record ->
-              if (index > 0) FluidListDivider()
-              FluidListRow(
-                title = fluidDiagnosticsTitle(record, labels),
-                subtitle = fluidDiagnosticsSubtitle(record, labels),
-                modifier = Modifier.testTag(FluidDiagnosticsTags.record(record.id)),
-                leading = { FluidIcon(fluidDiagnosticsIcon(record), contentDescription = null) },
-                tone = when (record.kind) {
-                  FluidDiagnosticsKind.Crash -> FluidTone.Danger
-                  FluidDiagnosticsKind.Exit -> FluidTone.Warning
-                  FluidDiagnosticsKind.Frames -> FluidTone.Info
-                },
-                onClick = { shown = record },
-              )
-            }
-          }
         }
       }
+    }
+    // La chiave porta anche il posto: gli id vengono dal file della coda, e una riga doppia non deve far cadere la lista.
+    fluidGroupedItems(count = records.size, key = { i -> "rapporto:$i:${records[i].id}" }, animateItems = false) { i ->
+      val record = records[i]
+      FluidListRow(
+        title = fluidDiagnosticsTitle(record, labels),
+        subtitle = fluidDiagnosticsSubtitle(record, labels),
+        modifier = Modifier.testTag(FluidDiagnosticsTags.record(record.id)),
+        leading = { FluidIcon(fluidDiagnosticsIcon(record), contentDescription = null) },
+        tone = when (record.kind) {
+          FluidDiagnosticsKind.Crash -> FluidTone.Danger
+          FluidDiagnosticsKind.Exit -> FluidTone.Warning
+          FluidDiagnosticsKind.Frames -> FluidTone.Info
+        },
+        onClick = { shown = record },
+      )
     }
     item(key = "actions") {
       Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {

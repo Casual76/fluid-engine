@@ -56,7 +56,7 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-audio](audio.md) | 4 | 43 |
 | [engine-playback](playback.md) | 3 | 42 |
 | [engine-transcript](transcript.md) | 2 | 27 |
-| [engine-search](search.md) | 8 | 152 |
+| [engine-search](search.md) | 8 | 153 |
 | [engine-search-semantic](search-semantic.md) | 2 | 9 |
 | [engine-scan e engine-scan-core](scan.md) | 11 | 129 |
 | [engine-map](map.md) | 13 | 184 |
@@ -66,8 +66,8 @@ Per cercare: `grep -rn "NomeComponente" references/api/`.
 | [engine-ai: provider e modelli](ai-provider.md) | 13 | 131 |
 | [engine-ai: orchestratore, router, tool](ai-orchestrator.md) | 13 | 206 |
 | [engine-ai: chiavi, rete, voce](ai-chiavi-rete-voce.md) | 14 | 149 |
-| [engine-ai-bridge](ai-bridge.md) | 12 | 192 |
-| [engine-ai-mcp](ai-mcp.md) | 10 | 157 |
+| [engine-ai-bridge](ai-bridge.md) | 12 | 194 |
+| [engine-ai-mcp](ai-mcp.md) | 10 | 158 |
 | [engine-ai-memory e i ricordi di engine-ai](ai-memory.md) | 11 | 139 |
 | [engine-ai-ui](ai-ui.md) | 35 | 314 |
 

@@ -34,6 +34,7 @@ e se tenere i tratti per riaprirli.
 | le parole in un'altra lingua | `FluidInkLabels(…)` a editor, foglio e tavolozza |
 | **non così**: una `Canvas` di Compose con `detectDragGestures` e un `Path` | latenza di un fotogramma in piu', niente pressione, niente palmo, niente forme; il tratto qui è nel front buffer |
 | **non così**: salvare lo stato nel `Bundle` | un disegno grande supera il limite delle transazioni di Android: `encode()` in un file o nel database dell'app |
+| il disegno che resta quando il telefono gira | `rememberFluidInkState()` lo tiene da sé (R3: `retain` di Compose, anche senza `configChanges`); alla morte del processo no: `encode()` a ogni `revision` |
 
 ## Il foglio: `FluidInkCanvas`
 
@@ -121,6 +122,10 @@ file nuovo, e chi viene dopo apre quel file. Nessuno dei due scrive sopra l'orig
   Tab S9 a zoom 1,6 sei pagine A4 larghe 4096 px facevano 384 MiB.
 - **Un export del PDF fermato a metà** (una pagina che non si disegna, l'annullo fra due pagine) chiude lo stesso il
   `PdfDocument` (R1).
+- **Il PDF da annotare si chiude dopo l'ultimo disegno** (R3): uscendo (o alla ricreazione) mentre una pagina si sta
+  disegnando sul filo IO, il foglio smette subito di dare pagine, ma `PdfRenderer` e il descrittore si chiudono quando
+  quel disegno finisce, mai sotto di lui (prima: un'eccezione o un crash nativo, nel caso normale «indietro mentre le
+  pagine arrivano»). La composizione non aspetta.
 
 ## Trappole
 
@@ -139,6 +144,11 @@ file nuovo, e chi viene dopo apre quel file. Nessuno dei due scrive sopra l'orig
 - **La matita** usa il costruttore di `BrushFamily` che androidx.ink 1.0 segna come interno (è pubblico dalla 1.1): un
   salto di versione della libreria va provato sulla matita.
 - **Il foglio bianco è bianco anche in scuro**, come un foglio vero; la tavolozza e le barre seguono il tema.
+- **La rotazione** (R3): `rememberFluidInkState()` tiene lo stato intero (tratti, cronologia, strumento, vista) quando
+  l'attività si ricrea, con `retain` di Compose; prima era un `remember`, e un'app senza `configChanges` (la galleria li
+  ha, e lo nascondeva) perdeva il disegno girando il telefono. Un gesto a metà quando il foglio se ne va si annulla, come
+  un palmo. **Alla morte del processo il disegno non torna**: chi deve tenerlo salva `encode()` (a ogni `revision`, o al
+  ✓), come una nota. Uno stato fatto col costruttore (in un `ViewModel`, o in un `remember` dell'app) dura quanto lui.
 - `FluidInkCanvas` dentro una lista che scorre (la firma in `FluidScreen`): il foglio prende il dito che lo tocca, la
   pagina non scorre partendo dal riquadro. Partendo fuori, sì.
 
@@ -148,7 +158,10 @@ file nuovo, e chi viene dopo apre quel file. Nessuno dei due scrive sopra l'orig
   gomma a oggetti e a pixel, il lazo, duplica, colora), le forme su tratti tremolanti, il salvataggio, la consegna coi
   pixel (la firma trasparente ritagliata, la foto alla sua misura, l'evidenziatore che non si somma, il PDF con ogni tratto
   sulla sua pagina); R1: il PDF che si chiude anche a export fermato o annullato, le pagine sotto il tetto dei visori
-  (`FluidInkPdfBudgetTest`).
+  (`FluidInkPdfBudgetTest`); R3: chiudere il foglio mentre una pagina si disegna rimanda la chiusura del renderer alla
+  fine del disegno (`FluidInkSheetR3Test`).
+- `sample` (`R3m2InkRotationTest`, R3): la ricetta di serie in un'attività senza `configChanges`, il dito che disegna e la
+  ricreazione vera (`ActivityScenario.recreate()`): tratti, strumento e annulla restano, e il foglio nuovo disegna.
 - `sample` (`F8p16InkUiTest`): il dito vero e la penna finta (tipo di strumento, pressione, inclinazione, gomma della penna,
   tasto laterale), il dito che scorre dopo la penna, due dita che ingrandiscono, il lazo che sceglie, sposta e toglie, le
   forme tenendo fermo, annulla e ripristina dai tasti, TalkBack, «Riduci movimento», la consegna della scena della foto.

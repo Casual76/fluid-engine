@@ -184,8 +184,10 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-ai-bridge/ai/bridge/assist/AiAssistHostProvider.kt`
 
-- `abstract class AiAssistHostProvider : ContentProvider()` — L'ospite dell'assistenza, per PampAI: un `ContentProvider` «solo `call`» con autorita' `<applicationId>.ai.assist`, `exported="true"` **senza `android:permission`** e il meta-data `dev.antigravity.fluidengine.ai.ASSIST_HOST` con valore `3`. La sottoclasse da' soltanto l'[AiAssistHost] del processo (con l'esecutore, il registro del consenso e la tabella); il resto sta qui.
+- `abstract class AiAssistHostProvider : ContentProvider()` — L'ospite dell'assistenza, per PampAI: un `ContentProvider` «solo `call`» con autorita' `<applicationId>.ai.assist`, `exported="true"` **senza `android:permission`** e il meta-data `dev.antigravity.fluidengine.ai.ASSIST_HOST` con valore `3`.
   - `abstract fun host(): AiAssistHost` — L'ospite del processo: lo stesso oggetto per ogni chiamata (le domande in corso vivono li').
+  - `companion object`
+    - `const val MemoryTimeoutMillis: Long` — Quanto aspetta al piu' la memoria per un metodo dei ricordi: 10 s, a occhio (27/11/2026; una scrittura cifrata).
 
 ## `engine-ai-bridge/ai/bridge/assist/AiAssistModel.kt`
 
@@ -257,6 +259,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
     - `const val NeedsPage` — Manca il sì per la pagina.
 - `data class AiAssistProgress(val text: String = "", val status: AiAssistStatusLine? = null, val receipts: List<AiAssistReceipt> = emptyList(), val done: Boolean = false, val error: AiAssistError? = null)` — Lo stato di una domanda, **intero** e immutabile: il testo arrivato finora, la riga di stato, le ricevute, se e' finita e come. `AiAssistClient.ask` ne emette uno a ogni novita'; in Compose basta mostrare l'ultimo. L'ultimo elemento del flusso ha [done] vero o un [error].
   - `val finished: Boolean get()`
+  - `val retryable: Boolean` — Se offrire «Riprova» per questa domanda: come [AiAssistError.retryable], ma **non dopo una scrittura** (R3-S1). Una ricevuta fatta o da verificare vuol dire che un tool ha gia' scritto qualcosa (un evento, un promemoria): rifare la stessa domanda lo rifarebbe. Allora decide l'utente, guardando le ricevute.
 - `enum class AiAssistConsentState` — Una scelta dell'utente nel registro di PampAI: il sì per usare PampAI da un'app (la prima volta, F9.1b) e il sì per la pagina. «No» si ricorda: PampAI non chiede piu', e si cambia da «App che usano PampAI».
 - `data class AiAssistStatus(val ready: Boolean, val tasks: Set<String> = emptySet(), val tools: Boolean = false, val page: Boolean = false, val pageConsent: AiAssistConsentState = AiAssistConsentState.NotAsked, val error: AiAssistError? = null, val hostPackage: String? = null, val appConsent: AiAssistConsentState = AiAssistConsentState.NotAsked)` — Cosa l'app puo' fare con PampAI adesso (`AiAssistClient.check`): se e' pronta, quali compiti puo' chiedere, se puo' usare i suoi tool e mandare la pagina, il sì per la pagina e (F9.1b) il sì per usare PampAI. Con [error] il tasto «Chiedi a PampAI» si vede spento ([AiAssistEntry.of]). Un'app che l'utente ha rifiutato o bloccato riceve solo `not_authorized`, senza nient'altro.
 - `data class AiAssistEntry(val enabled: Boolean, val note: String? = null, val action: String? = null, val actionLabel: String? = null)` — Come si mostra il tasto «Chiedi a PampAI» (F9.1b, scelta di Alessio del 26/11/2026: **spento, non nascosto**, quando PampAI non c'e'). [enabled] dice se si puo' toccare; [note] e' la riga sotto («PampAI non c'è»);

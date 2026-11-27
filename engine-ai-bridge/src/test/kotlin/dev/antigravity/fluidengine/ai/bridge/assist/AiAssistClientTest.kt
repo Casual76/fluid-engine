@@ -32,6 +32,8 @@ internal class DirectConnector(
   val methods = ArrayList<String>()
   var dropBatches: Set<Int> = emptySet()
   var dieAfterBatches: Int? = null
+  /** R3-S1: PampAI manda l'ultimo invio (quello con la fine) e muore, e l'app sente la morte prima dell'invio. */
+  var dieWithDone = false
   var opened = 0
   var closed = 0
 
@@ -53,6 +55,11 @@ internal class DirectConnector(
                 val index = batches++
                 wire += batch
                 dieAfterBatches?.let { if (index >= it) { onHostDied?.invoke(); return@AiAssistListener true } }
+                if (dieWithDone && AiAssistProtocol.batchOf(batch)!!.events.any { it.type == AiAssistProtocol.TYPE_DONE }) {
+                  onHostDied?.invoke()
+                  send(batch)
+                  return@AiAssistListener true
+                }
                 if (index !in dropBatches) send(batch)
                 true
               }

@@ -332,8 +332,18 @@ class CustodyService(
    * `null` e l'offerta resta com'è: lo Store riprova ogni pochi secondi, mentre il QR è sullo schermo. Col sigillo fa
    * come [completeTransfer]. Se il passaggio è finito senza sigillo (rifiutato, o già ritirato) dimentica l'offerta e
    * lancia [TransferEndedException].
+   *
+   * R3 · Dopo il ritiro il sigillo lo tiene anche l'offerta. Se la rete cade (o il Keystore non è pronto) prima che la
+   * chiave sia chiusa, l'eccezione esce ma l'offerta resta buona, col sigillo dentro: lo Store richiama [pollTransfer]
+   * con la stessa offerta, senza rifare il QR. Un sigillo che non torna con la verifica chiude l'offerta.
+   *
+   * F10.7b · Anche il server tiene il sigillo, finché questo telefono non conferma di averlo chiuso nel Keystore, o fino
+   * ai 10 minuti. Se la risposta del ritiro si perde, l'errore di rete esce e l'offerta resta buona: il [pollTransfer]
+   * dopo ritrova lo stesso sigillo, con lo stesso QR. Dopo la conferma il server risponde `taken`, e qui è
+   * [TransferEndedException].
    */
   suspend fun pollTransfer(offer: TransferOffer): KeyCustody? {
+    offer.heldSeal?.let { return receiveTransfer(offer, it) }
     val r = client.call("GET", "/v1/keys/transfers/${offer.transferId}", token = session.storeToken())
     val sealed = (r["sealed"] as? JsonPrimitive)?.content
     val mac = (r["mac"] as? JsonPrimitive)?.content
@@ -353,13 +363,37 @@ class CustodyService(
   suspend fun completeTransfer(offer: TransferOffer): KeyCustody = pollTransfer(offer) ?: throw TransferPendingException(offer.transferId)
 
   private suspend fun receiveTransfer(offer: TransferOffer, seal: TransferSeal): KeyCustody {
-    try {
-      val custody = KeyCustody.receiveTransfer(requireNotNull(accountId()), offer, seal, keysView())
-      keyring.saveCustody(custody, grants())
-      dropHalfStart()
-      return ensureDeviceDoor(custody)
-    } finally {
+    // R3 · Da qui il sigillo lo tiene l'offerta finché la chiave non è chiusa nel Keystore (il server lo tiene fino alla
+    // conferma, F10.7b). Una rete caduta nella lettura delle chiavi, o un Keystore che non scrive, lasciano l'offerta
+    // buona per un altro ritiro; una verifica che non torna, o l'account che manca, la chiudono (prima di R3 la chiudeva
+    // ogni eccezione).
+    offer.heldSeal = seal
+    val view = keysView()
+    val custody = try {
+      KeyCustody.receiveTransfer(requireNotNull(accountId()), offer, seal, view)
+    } catch (e: Exception) {
       offer.forget()
+      throw e
+    }
+    keyring.saveCustody(custody, grants())
+    offer.forget()
+    confirmReceived(offer.transferId)
+    dropHalfStart()
+    return ensureDeviceDoor(custody)
+  }
+
+  /**
+   * F10.7b · Dopo il salvataggio, il telefono nuovo dice al server che il sigillo è chiuso nel suo Keystore, e il server
+   * lo cancella. È un di più: se la conferma non arriva (rete caduta, un server di prima di F10.7b che non ha la rotta)
+   * il sigillo scade da solo dopo i 10 minuti, ed è cifrato per una chiave che questo telefono ha già dimenticato.
+   */
+  private suspend fun confirmReceived(transferId: String) {
+    try {
+      client.call("POST", "/v1/keys/transfers/$transferId/received", JsonObject(emptyMap()), session.storeToken())
+    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+      throw e
+    } catch (_: Exception) {
+      // La chiave è già al sicuro: il passaggio è riuscito lo stesso.
     }
   }
 

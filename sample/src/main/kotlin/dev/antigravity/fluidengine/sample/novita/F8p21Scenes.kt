@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,6 +83,7 @@ import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -186,10 +188,18 @@ internal class DemoDevice(val node: String, val label: String, val sync: FluidSy
 private val DemoSpace = SyncSpaceId("gita")
 
 /**
+ * F7.32c · Dove gira il lavoro dei motori finti delle scene (registro, unione, sigillo): di serie `Dispatchers.Default`,
+ * come in un'app. Le prove dei bilanci ci mettono il filo principale di Robolectric, che avanza coi fotogrammi della
+ * prova: su `Default` la sincronia fa più salti fra due fili, e un salto che finisce in pochi microsecondi rientrava a
+ * volte nello stesso fotogramma, a volte in quello dopo (le catture dell'entrata di `sync-due-dispositivi`, 7, 9 o 11).
+ */
+internal val LocalDemoSyncDispatcher = staticCompositionLocalOf<CoroutineDispatcher> { Dispatchers.Default }
+
+/**
  * Il mondo della scena: l'ora (che si puo' far saltare avanti di mesi), il relay e i dispositivi. Ogni modifica chiede un
  * invio dopo [Debounce]; quando un dispositivo manda qualcosa, gli altri in rete sincronizzano (il campanello).
  */
-internal class DemoWorld(private val scope: CoroutineScope) {
+internal class DemoWorld(private val scope: CoroutineScope, private val work: CoroutineDispatcher = Dispatchers.Default) {
   @Volatile var jump: Long = 0
   fun now(): Long = System.currentTimeMillis() + jump
 
@@ -207,7 +217,7 @@ internal class DemoWorld(private val scope: CoroutineScope) {
       sealer = sealer,
       node = node,
       wall = ::now,
-      dispatcher = Dispatchers.Default,
+      dispatcher = work,
       scheduler = SyncScheduler { request(device) },
     )
     device = DemoDevice(node, label, sync, net)
@@ -419,7 +429,8 @@ private fun RelayRow(world: DemoWorld, vararg watch: Any?) {
 @Composable
 private fun TwoDevicesScene(onBack: () -> Unit) {
   val scope = rememberCoroutineScope()
-  val world = remember { DemoWorld(scope) }
+  val work = LocalDemoSyncDispatcher.current
+  val world = remember { DemoWorld(scope, work) }
   val phone = remember { world.device("telefono", "Telefono") }
   val tablet = remember { world.device("tablet", "Tablet") }
   var ground by rememberSaveable { mutableStateOf(SyncBackdrop.Page) }
@@ -478,7 +489,8 @@ private fun SyncConflict.toChoice(world: DemoWorld, viewer: DemoDevice): FluidVe
 @Composable
 private fun ConflictScene(onBack: () -> Unit) {
   val scope = rememberCoroutineScope()
-  val world = remember { DemoWorld(scope) }
+  val work = LocalDemoSyncDispatcher.current
+  val world = remember { DemoWorld(scope, work) }
   val phone = remember { world.device("telefono", "Telefono") }
   val tablet = remember { world.device("tablet", "Tablet") }
   // Il terzo dispositivo non si vede: scrive solo per far arrivare una versione nuova a foglio aperto.
@@ -646,7 +658,8 @@ private fun NotePanel(
 @Composable
 private fun SleeperScene(onBack: () -> Unit) {
   val scope = rememberCoroutineScope()
-  val world = remember { DemoWorld(scope) }
+  val work = LocalDemoSyncDispatcher.current
+  val world = remember { DemoWorld(scope, work) }
   val phone = remember { world.device("telefono", "Telefono") }
   val old = remember { world.device("vecchio", "Vecchio tablet") }
   var ground by rememberSaveable { mutableStateOf(SyncBackdrop.Page) }

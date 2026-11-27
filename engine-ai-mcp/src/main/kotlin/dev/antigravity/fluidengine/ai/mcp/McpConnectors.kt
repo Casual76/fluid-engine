@@ -143,10 +143,12 @@ class McpConnectors(
       store.edit(id) { it.copy(needsSignIn = true, resourceMetadataUrl = e.resourceMetadataUrl ?: it.resourceMetadataUrl, scope = e.scope ?: it.scope, lastError = null) }
       return McpConnectorStatus.NEEDS_SIGN_IN
     } catch (e: McpError) {
+      // Il messaggio e' locale: niente testo del servizio nella lista, che e' in chiaro (R3-S1).
       store.edit(id) { it.copy(lastError = e.message) }
       return McpConnectorStatus.ERROR
     } catch (e: IllegalArgumentException) {
-      store.edit(id) { it.copy(lastError = e.message) }
+      // Il messaggio di un JSON che non si legge ripete il JSON: qui una frase fissa (R3-S1).
+      store.edit(id) { it.copy(lastError = "risposta o indirizzo del connettore non validi") }
       return McpConnectorStatus.ERROR
     }
   }
@@ -171,20 +173,27 @@ class McpConnectors(
   suspend fun completeSignIn(callback: String): String? {
     val state = McpOAuth.query(callback)["state"] ?: return null
     val id = tokens.pendingFor(state) ?: return null
+    // La generazione prima dell'accesso a meta': se intanto l'utente esce o toglie il connettore, i gettoni non si
+    // salvano (R3-S1).
+    val generation = tokens.generation(id)
     val request = tokens.pending(id) ?: return null
-    try {
-      tokens.setTokens(id, oauth.complete(request, callback))
+    val entered = try {
+      tokens.completeSignIn(id, generation, request.state, oauth.complete(request, callback))
     } finally {
-      tokens.setPending(id, null)
+      tokens.dropPending(id, request.state)
     }
+    if (!entered) return null
     clients.remove(id)
     refresh(id)
     return id
   }
 
-  /** Esce: i gettoni si cancellano, il connettore resta (da collegare). */
+  /**
+   * Esce: i gettoni e l'accesso a meta' si cancellano in una scrittura sola, e un rinnovo o un ritorno dal browser ancora
+   * in corso non li rimettono (R3-S1). Il connettore resta (da collegare).
+   */
   suspend fun signOut(id: String) {
-    tokens.setTokens(id, null)
+    tokens.signOut(id)
     clients.remove(id)?.close()
     store.edit(id) { it.copy(needsSignIn = true) }
   }

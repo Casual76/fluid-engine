@@ -132,6 +132,17 @@ internal abstract class InkPdfPages(val sizes: List<Size>) : Closeable {
   /** Disegna la pagina [index] in [bitmap] (gia' bianca), scalata alla sua misura. */
   protected abstract fun draw(index: Int, bitmap: Bitmap)
 
+  /**
+   * Chiude le risorse vere (il `PdfRenderer`, il descrittore). R3: **mai mentre una pagina si disegna**: [close] dal filo
+   * principale (l'utente esce, l'attivita' si ricrea) mentre [draw] lavora sul filo IO la rimanda alla fine del disegno.
+   */
+  protected open fun closeResources() {}
+
+  /** R3: chi disegna adesso (al piu' uno, [render] passa dal lucchetto) e se le risorse sono gia' chiuse. */
+  private val use = Any()
+  private var drawing = false
+  private var released = false
+
   /** Disegna la pagina [index] larga [widthPx] (con la carta bianca sotto, come Anteprima). */
   suspend fun render(index: Int, widthPx: Int): Bitmap? = withContext(Dispatchers.IO) {
     lock.withLock {
@@ -141,7 +152,23 @@ internal abstract class InkPdfPages(val sizes: List<Size>) : Closeable {
       val h = (w * s.height / s.width).roundToInt().coerceIn(16, MaxPagePixels)
       val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
       bitmap.eraseColor(android.graphics.Color.WHITE)
-      draw(index, bitmap)
+      val open = synchronized(use) {
+        if (!closed) drawing = true
+        !closed
+      }
+      if (!open) {
+        bitmap.recycle()
+        return@withLock null
+      }
+      try {
+        draw(index, bitmap)
+      } finally {
+        val release = synchronized(use) {
+          drawing = false
+          (closed && !released).also { if (it) released = true }
+        }
+        if (release) closeResources()
+      }
       bitmap
     }
   }
@@ -227,10 +254,18 @@ internal abstract class InkPdfPages(val sizes: List<Size>) : Closeable {
     ready.put(index, page)?.credit?.close()
   }
 
-  override fun close() {
-    closed = true
+  /**
+   * Chiude il foglio: niente piu' pagine, le pronte restituiscono la loro parte nel tetto. Le risorse vere
+   * ([closeResources]) si chiudono subito, o alla fine del disegno in corso (R3). Si puo' chiamare due volte.
+   */
+  final override fun close() {
+    val release = synchronized(use) {
+      closed = true
+      (!drawing && !released).also { if (it) released = true }
+    }
     ready.values.forEach { it.credit?.close() }
     ready.clear()
+    if (release) closeResources()
   }
 
   companion object {
@@ -255,8 +290,8 @@ internal class InkPdfRendererPages private constructor(
     renderer.openPage(index).use { it.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY) }
   }
 
-  override fun close() {
-    super.close()
+  /** R3: dopo l'ultimo disegno, mai sotto di lui ([InkPdfPages.close]). */
+  override fun closeResources() {
     try {
       renderer.close()
     } catch (_: RuntimeException) {

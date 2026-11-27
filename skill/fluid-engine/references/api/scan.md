@@ -159,13 +159,13 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun rotate(id: String)` — Gira la pagina [id] di un quarto in senso orario.
   - `fun setFilter(id: String, filter: FluidScanFilter)` — Il filtro della pagina [id].
   - `fun setFilterForAll(filter: FluidScanFilter)` — Il filtro di tutte le pagine (il menu dei filtri sulla fotocamera vale per tutte, come VisionKit).
-  - `suspend fun retake(id: String, photo: Bitmap, quad: FluidScanQuad? = null)` — Rifà la pagina [id] con una foto nuova (il «Riprendi» di VisionKit): stessa posizione nella fila. Lo scatto nuovo prende il posto della foto solo quando la pagina nuova è pronta: annullato a metà (Indietro mentre si scrive), lascia la foto e la pagina di prima.
+  - `suspend fun retake(id: String, photo: Bitmap, quad: FluidScanQuad? = null)` — Rifà la pagina [id] con una foto nuova (il «Riprendi» di VisionKit): stessa posizione nella fila. Lo scatto nuovo prende il posto della foto solo quando la pagina nuova è pronta: annullato a metà (Indietro mentre si scrive), lascia la foto e la pagina di prima. Se lo scatto nuovo non si scrive per intero (il disco pieno) lancia `IOException`, e anche allora resta tutto com'era (R3).
   - `suspend fun awaitProcessed()` — Aspetta che tutte le pagine pulite siano sul disco (o fallite).
   - `suspend fun export(output: FluidScanOutput = options.output, title: String = options.title ?: defaultTitle()): FluidScanResult` — Scrive la consegna (il PDF, le immagini o tutte e due, come dice [output]) e la restituisce. Le pagine pulite che mancano si finiscono prima (e quelle fallite si rifanno una volta). Gira fuori dal filo principale.
   - `suspend fun cleanPage(id: String, maxLongSide: Int = Int.MAX_VALUE): Bitmap?` — La pagina pulita [id] intera, dal disco (per la revisione a tutto schermo); `null` se non c'è o non si legge.
   - `suspend fun photo(id: String, maxLongSide: Int): Bitmap?` — La foto della pagina [id], ridotta a [maxLongSide] (per il ritaglio); `null` se non c'è o non si legge.
   - `fun clear()` — Toglie tutte le pagine e i file della scansione. I file si cancellano in sottofondo anche dopo che la schermata si è chiusa, dopo i lavori che li stavano scrivendo.
-  - `fun defaultTitle(): String` — «Scansione 25 nov 2026, 14:32», nella lingua del telefono.
+  - `fun defaultTitle(): String` — «Scansione 25 nov 2026, 14.32»: la data nella lingua del telefono, la parola in italiano come le altre parole di serie ([FluidScanStrings]). Un'app in un'altra lingua passa il suo nome con [FluidScanOptions.title] (R3).
 - `@Composable fun rememberFluidScanState(options: FluidScanOptions = FluidScanOptions()): FluidScanState` — Lo stato di una scansione, ricordato fra le ricreazioni dell'attività: le pagine sono sul disco, e si ritrovano. Con [options] le scelte (cosa consegnare, il filtro, lo scatto automatico).
 
 ## `engine-scan/scan/FluidScanTracker.kt`

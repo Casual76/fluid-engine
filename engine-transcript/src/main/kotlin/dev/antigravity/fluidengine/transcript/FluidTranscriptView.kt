@@ -306,7 +306,7 @@ private fun TranscriptParagraph(
             Modifier.pointerInput(paragraph) {
               detectTapGestures { offset ->
                 val result = layout ?: return@detectTapGestures
-                onSeek(FluidTranscriptSeek.target(paragraph, result.getOffsetForPosition(offset)))
+                onSeek(FluidTranscriptSeek.target(paragraph, spokenCharAt(result, offset)))
               }
             }
           } else {
@@ -362,3 +362,24 @@ private suspend fun keepInView(
 
 /** La chiave delle voci dei paragrafi (una stringa: le chiavi di una lista devono stare in un `Bundle`). */
 private fun transcriptKey(value: Any): String = "fluid-transcript:$value"
+
+/**
+ * Il **carattere sotto il dito** in [layout], per [FluidTranscriptSeek.target] (R3). `getOffsetForPosition` dà il punto
+ * di inserimento più vicino, non il carattere: la metà destra dell'ultima lettera di una parola e la metà sinistra dello
+ * spazio dopo danno lo stesso numero. Qui si guarda in quale carattere cade il dito, in orizzontale (la riga la sceglie già
+ * `getOffsetForPosition`). Lo spazio in fondo a una riga che va a capo resta della parola prima: non si vede, e il dito
+ * dopo l'ultima parola della riga vuole quella.
+ */
+internal fun spokenCharAt(layout: TextLayoutResult, position: androidx.compose.ui.geometry.Offset): Int {
+  val text = layout.layoutInput.text
+  if (text.isEmpty()) return 0
+  val caret = layout.getOffsetForPosition(position)
+  val char = if (caret < text.length && layout.getBoundingBox(caret).let { position.x >= it.left && position.x < it.right }) {
+    caret
+  } else {
+    (caret - 1).coerceAtLeast(0)
+  }
+  val line = layout.getLineForOffset(char)
+  val wrappedSpace = text[char].isWhitespace() && line < layout.lineCount - 1 && char == layout.getLineEnd(line) - 1
+  return if (wrappedSpace && char > 0) char - 1 else char
+}

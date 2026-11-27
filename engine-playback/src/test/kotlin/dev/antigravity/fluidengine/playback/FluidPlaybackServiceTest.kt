@@ -298,6 +298,26 @@ class FluidPlaybackServiceTest {
   }
 
   @Test
+  fun aRememberedQueueWithoutDurationsCanStillBeSeekedFromTheTranscript() {
+    // R3 (difetto 13): la coda ricordata riaperta ferma, ma l'app non aveva dato `durationMillis` agli elementi. Il lettore
+    // non è preparato e la durata non si sa: il tocco sull'ora di un paragrafo deve saltare lo stesso.
+    FluidPlaybackStore(RuntimeEnvironment.getApplication())
+      .save(listOf(item("lezione").copy(durationMillis = null).toMediaItem()), 0, 2_000L)
+    val service = startService()
+    val player = service.player!!
+    assertEquals(Player.STATE_IDLE, player.playbackState)
+    val controller = FluidPlaybackController(player)
+    controller.attach()
+    assertNull("la durata non si sa ancora", controller.durationMillis)
+    controller.seekTo(13_000L)
+    assertEquals("il salto arriva al lettore", 13_000L, player.currentPosition)
+    assertEquals(13_000L, controller.positionMillis)
+    assertEquals("e non lo fa suonare", false, player.playWhenReady)
+    assertEquals("ne' lo prepara da solo", Player.STATE_IDLE, player.playbackState)
+    controller.close()
+  }
+
+  @Test
   fun theControllerStateFollowsThePlayer() {
     val service = startService()
     val controller = FluidPlaybackController(service.player!!)

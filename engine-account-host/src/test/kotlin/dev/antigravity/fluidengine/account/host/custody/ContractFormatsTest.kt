@@ -12,6 +12,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -49,5 +50,9 @@ class ContractFormatsTest {
     assertEquals(setOf("v", "transferId", "N", "s"), mine.keys)
     assertEquals(32, PampaBase64.decode(mine["N"]!!.jsonPrimitive.content).size)
     assertEquals(16, PampaBase64.decode(mine["s"]!!.jsonPrimitive.content).size)
+    // F10.7b · Il ritiro si ripete finché il telefono nuovo non conferma: la rotta della conferma è quella di CustodyService.
+    val pickup = qr["pickup"]!!.jsonPrimitive.content
+    assertTrue(pickup, "POST /v1/keys/transfers/{id}/received" in pickup)
+    assertTrue(pickup, "state sealed" in pickup)
   }
 }

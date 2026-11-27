@@ -15,6 +15,9 @@ import android.net.Uri
 import android.os.Build
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -37,8 +40,9 @@ import kotlinx.coroutines.withContext
  * 3. se il ritaglio supera [defaultMaxPixels] (secondo la memoria del telefono) esce ridotto, e [Result.reduced] lo dice.
  *
  * **Cosa resta del file di partenza**: il profilo colore (una foto Display P3 esce P3), i metadati di scatto (data, ora,
- * fotocamera, obiettivo, esposizione) e, se [keepLocation], la posizione. Il verso dell'EXIF si scrive «normale», perche'
- * la rotazione e' gia' nei pixel. **Non resta** l'HDR delle foto Ultra HDR (la mappa di guadagno): il file esce SDR
+ * fotocamera, obiettivo, esposizione) e la posizione (di serie si', come Foto di iOS; `keepLocation = false` la toglie,
+ * R3). Il verso dell'EXIF si scrive «normale», perche' la rotazione e' gia' nei pixel. **Non resta** l'HDR delle foto
+ * Ultra HDR (la mappa di guadagno): il file esce SDR
  * (domanda per Alessio nel rapporto di F8.15).
  */
 object FluidImageExport {
@@ -75,7 +79,23 @@ object FluidImageExport {
     }
   }
 
-  /** Salva la foto [source] modificata da [edit] nel file [target] (sovrascritto). */
+  /**
+   * R3 · Se la copia tiene la posizione GPS dello scatto quando chi chiama non lo dice: **di serie sì**, come Foto di iOS
+   * (scelta di Alessio, R3-M2b). Vale per tutti gli `export`, anche quelli dello stato dell'editor. La persona la toglie
+   * dal foglio di condivisione (l'opzione «Posizione», verificata sul file); chi manda la copia senza il foglio passa
+   * `keepLocation = false`.
+   */
+  internal const val KeepLocationByDefault: Boolean = true
+
+  /**
+   * Salva la foto [source] modificata da [edit] nel file [target] (sovrascritto solo a salvataggio riuscito).
+   *
+   * Il file si scrive accanto a [target] e prende il suo posto solo se il codificatore l'ha scritto per intero: con il
+   * disco pieno (`Bitmap.compress` falso) lancia `IOException` e [target] resta com'era (R3).
+   *
+   * @param keepLocation se la posizione GPS dello scatto resta nella copia: di serie **sì**, come Foto di iOS (R3);
+   *   `false` la toglie, campo GPS per campo GPS (un allegato che parte senza il foglio di condivisione).
+   */
   suspend fun export(
     context: Context,
     source: FluidEditorSource,
@@ -83,15 +103,23 @@ object FluidImageExport {
     target: File,
     format: Format = Format.jpeg(),
     maxPixels: Long = defaultMaxPixels(context),
-    keepLocation: Boolean = true,
+    keepLocation: Boolean = KeepLocationByDefault,
   ): Result = withContext(Dispatchers.Default) {
     val rendered = renderFull(context, source, edit, maxPixels)
+    val temp = File(target.absoluteFile.parentFile, ".${target.name}.${System.nanoTime()}.tmp")
     try {
-      FileOutputStream(target).use { rendered.bitmap.compress(format.compress, format.quality, it) }
+      val written = try {
+        FileOutputStream(temp).use { rendered.bitmap.compress(format.compress, format.quality, it) }
+      } finally {
+        rendered.bitmap.recycle()
+      }
+      // R3: `compress` dice falso (non lancia) quando lo scrittore fallisce a meta': prima usciva un successo col file tronco.
+      if (!written) throw IOException("La foto non si e' scritta per intero (il disco e' pieno?): ${target.name}")
+      source.uri?.let { copyMetadata(context, it, temp, keepLocation, rendered.width, rendered.height) }
+      replace(temp, target)
     } finally {
-      rendered.bitmap.recycle()
+      temp.delete()
     }
-    source.uri?.let { copyMetadata(context, it, target, keepLocation, rendered.width, rendered.height) }
     Result(rendered.width, rendered.height, rendered.reduced, target.length(), format.mimeType)
   }
 
@@ -106,7 +134,7 @@ object FluidImageExport {
     target: Uri,
     format: Format = Format.jpeg(),
     maxPixels: Long = defaultMaxPixels(context),
-    keepLocation: Boolean = true,
+    keepLocation: Boolean = KeepLocationByDefault,
   ): Result = withContext(Dispatchers.IO) {
     val temp = File.createTempFile("fluid-edit", ".tmp", context.cacheDir)
     try {
@@ -294,6 +322,25 @@ object FluidImageExport {
       to.setAttribute(ExifInterface.TAG_PIXEL_X_DIMENSION, w.toString())
       to.setAttribute(ExifInterface.TAG_PIXEL_Y_DIMENSION, h.toString())
       to.saveAttributes()
+    }
+  }
+
+  /**
+   * Mette [from] al posto di [to] in un colpo (sul telefono un `rename`). Sulla JVM di Windows delle prove un file appena
+   * scritto puo' restare aperto un attimo da altri (l'antivirus): si riprova per mezzo secondo, come lo scanner.
+   */
+  private fun replace(from: File, to: File) {
+    var tries = 0
+    while (true) {
+      try {
+        Files.move(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        return
+      } catch (missing: java.nio.file.NoSuchFileException) {
+        throw missing
+      } catch (busy: java.nio.file.FileSystemException) {
+        if (++tries >= 20) throw busy
+        Thread.sleep(25)
+      }
     }
   }
 

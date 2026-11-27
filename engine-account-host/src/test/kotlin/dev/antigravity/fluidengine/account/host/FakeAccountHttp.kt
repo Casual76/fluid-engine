@@ -68,6 +68,11 @@ class FakeAccountHttp(val keys: FakeKeysServer = FakeKeysServer()) : Dispatcher(
   @Volatile var waitingRecovery = false
   /** R2 · Chiamata col «metodo percorso» dopo il lavoro e prima della risposta: per fermare una risposta a metà. */
   @Volatile var beforeReply: ((String) -> Unit)? = null
+  /**
+   * F10.7b · Il server di prima di F10.7b: il `GET` del passaggio dà il sigillo una volta sola (e risponde `taken`), e la
+   * conferma `POST …/received` non c'è (404).
+   */
+  @Volatile var transferBeforeF107b = false
 
   /** La risposta d'ingresso che darebbe `login/verify`: la sessione nuova, con la pubblica del dispositivo. */
   fun login(deviceKey: JsonObject): JsonObject {
@@ -151,15 +156,24 @@ class FakeAccountHttp(val keys: FakeKeysServer = FakeKeysServer()) : Dispatcher(
         ok(JsonObject(emptyMap()))
       }
       method == "GET" && path.matches(Regex("^/v1/keys/transfers/[^/]+$")) -> {
-        // Come il server vero (`src/routes/keys.ts`): senza sigillo risponde lo stato, non un errore.
+        // Come il server vero (`src/routes/keys.ts`): senza sigillo risponde lo stato, non un errore. Dal F10.7b il
+        // sigillo resta, e torna a ogni ritiro, finché il telefono nuovo non conferma.
         val id = path.split("/")[4]
         when (val state = keys.transferState(id)) {
-          "sealed" -> {
+          "sealed" -> if (transferBeforeF107b) {
             val seal = keys.takeTransfer(id)
-            ok(buildJsonObject { put("state", "taken"); put("sealed", seal.sealed); put("mac", seal.mac) })
+            ok(buildJsonObject { put("transferId", id); put("state", "taken"); put("sealed", seal.sealed); put("mac", seal.mac) })
+          } else {
+            val seal = keys.pickUpTransfer(id)
+            ok(buildJsonObject { put("transferId", id); put("state", "sealed"); put("sealed", seal.sealed); put("mac", seal.mac) })
           }
           else -> ok(buildJsonObject { put("transferId", id); put("state", state) })
         }
+      }
+      method == "POST" && path.matches(Regex("^/v1/keys/transfers/[^/]+/received$")) && !transferBeforeF107b -> {
+        val id = path.split("/")[4]
+        keys.confirmReceived(id)
+        ok(buildJsonObject { put("transferId", id); put("state", "taken") })
       }
       else -> error(404, "not_found")
     }

@@ -131,6 +131,17 @@ internal object GlassBalanceRegistry {
   private val Phase = Regex("""(entrata|posa|uscita|rilascio)|(moto|posa)(:[a-z0-9-]+)?""")
   private val Version = Regex("""F\d+\.\d+[a-z0-9]*""")
 
+  /** F7.32d · Il nome di una prova nel motivo di una riga NV («…Test»). */
+  private val ProofName = Regex("""\b[A-Z]\w*Test\b""")
+
+  /** F7.32d · Le colonne che a riposo devono essere zero, salvo una cadenza dichiarata. */
+  private val QuietColumns = listOf(BalanceColumn.Captures, BalanceColumn.Factories, BalanceColumn.Effects, BalanceColumn.Redraws)
+
+  /**
+   * F7.32d · Le fasi in più che vogliono le scene di F8 e F9: la posa dopo il gesto ([BalanceRuns.measureElement]).
+   */
+  val ElementPhases = listOf("posa:dopo")
+
   fun parse(name: String, text: String): BalanceFile {
     val rows = ArrayList<BalanceRow>()
     val expected = ArrayList<ExpectedEntry>()
@@ -196,9 +207,18 @@ internal object GlassBalanceRegistry {
       val version = fields[2 + columns.size]
       if (!Version.matches(version)) fail("versione «$version» non valida (per esempio F7.28)")
       val proof = fields[3 + columns.size]
+      // F7.32d · Il posto dove si verifica davvero: «tablet», o il nome di una prova («…Test»). Fino a F7.32c bastava che il
+      // motivo contenesse «NV».
       if (values.values.any { it == BalanceValue.NotVerifiable } && !reason.contains("tablet", ignoreCase = true) &&
-        !reason.contains("NV", ignoreCase = false)) {
-        fail("una colonna NV vuole nel motivo dove si verifica (per esempio «sul tablet»)")
+        !ProofName.containsMatchIn(reason)) {
+        fail("una colonna NV vuole nel motivo dove si verifica (per esempio «sul tablet», o il nome della prova)")
+      }
+      // F7.32d · A riposo zero vuol dire zero (le pose di F8 e F9): un tetto sopra zero di catture, fabbriche, filtri o
+      // ridisegni dice nel motivo la cadenza della scena. Fino a F7.32c le righe «ferma» avevano 2, 3, 3 e 3.
+      if ((name.startsWith("f8p") || name.startsWith("f9p")) && phase.startsWith("posa") &&
+        QuietColumns.any { ((values[it] as? BalanceValue.Ceiling)?.value ?: 0L) > 0L } && !reason.contains("cadenza")
+      ) {
+        fail("a riposo zero vuol dire zero: un tetto sopra zero nella posa vuole nel motivo la «cadenza» (che cosa lavora, quanto)")
       }
       if (rows.any { it.id == id && it.phase == phase }) fail("riga doppia per $id $phase")
       rows += BalanceRow(name, line, id, phase, values, version, proof, reason)
@@ -244,7 +264,8 @@ internal object GlassBalanceRegistry {
           problems += "$owner/$scene: scena disponibile senza bilancio in ${file.name}"
           continue
         }
-        val missing = RequiredPhases.filter { phase -> rows.none { it.phase == phase || it.phase.startsWith("$phase:") } }
+        val required = RequiredPhases + if (owner.startsWith("F")) ElementPhases else emptyList()
+        val missing = required.filter { phase -> rows.none { it.phase == phase || it.phase.startsWith("$phase:") } }
         if (missing.isNotEmpty()) problems += "$owner/$scene: mancano le fasi $missing in ${file.name}"
       }
       val known = scenes.toSet()

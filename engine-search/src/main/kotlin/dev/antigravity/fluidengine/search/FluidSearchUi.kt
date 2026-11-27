@@ -93,6 +93,8 @@ data class FluidSearchLabels(
   val kinds: String = "Tipo",
   /** «Cerco…», mentre il significato arriva. */
   val searching: String = "Cerco…",
+  /** L'indice non ha risposto ([FluidSearchState.failure]): al posto di «Nessun risultato», che non sarebbe vero (R3). */
+  val failed: String = "Impossibile cercare adesso",
 )
 
 /**
@@ -175,6 +177,15 @@ class FluidSearchState internal constructor(
   var searching: Boolean by mutableStateOf(false)
     internal set
 
+  /**
+   * L'errore dell'indice nell'ultima domanda (una cassaforte chiusa, un file illeggibile, un indice chiuso), o null. Con
+   * un errore [results] e' vuoto per la domanda di adesso e la pagina dice [FluidSearchLabels.failed]; la domanda dopo
+   * riprova (R3: prima l'errore sembrava «Nessun risultato», o restavano i risultati della domanda di prima). Un modello
+   * del significato che non parte non e' un errore: restano i risultati per parole.
+   */
+  var failure: Throwable? by mutableStateOf(null)
+    internal set
+
   /** Le domande recenti dell'indice. */
   var recents: List<String> by mutableStateOf(emptyList())
     internal set
@@ -200,8 +211,10 @@ class FluidSearchState internal constructor(
     val idx = index ?: return
     if (text.isEmpty()) return
     scope.launch {
-      idx.addRecent(text)
-      recents = idx.recents()
+      quietly {
+        idx.addRecent(text)
+        recents = idx.recents()
+      }
     }
   }
 
@@ -209,8 +222,24 @@ class FluidSearchState internal constructor(
   fun removeRecent(text: String) {
     val idx = index ?: return
     scope.launch {
-      idx.removeRecent(text)
-      recents = idx.recents()
+      quietly {
+        idx.removeRecent(text)
+        recents = idx.recents()
+      }
+    }
+  }
+
+  /**
+   * Le recenti sono una comodita': un indice che non risponde (la cassaforte chiusa) non le scrive, e non fa cadere
+   * l'app (R3: prima l'eccezione usciva dal lancio).
+   */
+  private suspend fun quietly(block: suspend () -> Unit) {
+    try {
+      block()
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      // Niente: la domanda resta da ricordare alla prossima volta.
     }
   }
 
@@ -230,7 +259,7 @@ class FluidSearchState internal constructor(
   }
 
   internal suspend fun refreshRecents() {
-    recents = index?.recents().orEmpty()
+    quietly { recents = index?.recents().orEmpty() }
   }
 
   internal suspend fun run(input: SearchInput) {
@@ -238,27 +267,48 @@ class FluidSearchState internal constructor(
     if (idx == null || input.query.isBlank()) {
       results = FluidSearchResults.Empty
       completions = emptyList()
+      failure = null
       searching = false
       return
     }
     searching = true
     try {
       delay(FluidSearchDefaults.DebounceMillis)
-      results = idx.search(FluidSearchQuery(input.query, input.kinds, limit, typos))
-      completions = completionsFor(idx, input.query)
-      val model = embedder
-      if (model != null && input.query.trim().length >= FluidSearchDefaults.MeaningMinChars && idx.usesMeaningSpace(model.space)) {
-        delay(FluidSearchDefaults.MeaningDelayMillis)
-        val vector = model.embed(listOf(input.query.trim())).firstOrNull()
-        if (vector != null) results = idx.search(FluidSearchQuery(input.query, input.kinds, limit, typos, meaning = vector))
+      // R3: un errore dell'indice si vede. Prima un `catch` solo, pensato per il modello, ingoiava anche questo: la
+      // pagina diceva «Nessun risultato», o lasciava i risultati della domanda di prima sotto il testo nuovo.
+      val words = try {
+        idx.search(FluidSearchQuery(input.query, input.kinds, limit, typos))
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        results = FluidSearchResults(query = input.query, hits = emptyList(), total = 0)
+        completions = emptyList()
+        failure = e
+        return
       }
-    } catch (e: CancellationException) {
-      throw e
-    } catch (e: Exception) {
-      // Un modello che non parte non toglie le parole: restano i risultati per parole.
+      results = words
+      failure = null
+      // I suggerimenti e il significato sono in piu': se non arrivano restano i risultati per parole.
+      completions = optional { completionsFor(idx, input.query) }.orEmpty()
+      val model = embedder
+      if (model != null && input.query.trim().length >= FluidSearchDefaults.MeaningMinChars && optional { idx.usesMeaningSpace(model.space) } == true) {
+        delay(FluidSearchDefaults.MeaningDelayMillis)
+        // Un modello che non parte non toglie le parole: restano i risultati per parole.
+        val vector = optional { model.embed(listOf(input.query.trim())).firstOrNull() }
+        if (vector != null) optional { idx.search(FluidSearchQuery(input.query, input.kinds, limit, typos, meaning = vector)) }?.let { results = it }
+      }
     } finally {
       searching = false
     }
+  }
+
+  /** [block], o null se lancia (l'annullo risale). */
+  private suspend fun <T> optional(block: suspend () -> T): T? = try {
+    block()
+  } catch (e: CancellationException) {
+    throw e
+  } catch (e: Exception) {
+    null
   }
 
   private suspend fun completionsFor(idx: FluidSearchIndex, query: String): List<String> {
@@ -414,13 +464,17 @@ fun LazyListScope.fluidSearchResults(
 private fun SearchResultsHeader(state: FluidSearchState, labels: FluidSearchLabels) {
   val results = state.results
   val count = results.hits.size
+  // R3: l'indice non ha risposto: lo si dice, a vista e a TalkBack (non «Nessun risultato»).
+  val failed = state.failure != null && !state.searching && results.query == state.query
   val spoken = when {
+    failed -> labels.failed
     count == 0 -> labels.noResults.format(state.query.trim())
     count == 1 -> labels.oneResult
     else -> labels.results.format(count)
   }
   val corrected = results.corrected
   val visible = when {
+    failed -> labels.failed
     corrected != null && count > 0 -> labels.corrected.format(corrected, results.query.trim())
     count == 0 && !state.searching && results.query == state.query -> labels.noResults.format(state.query.trim())
     else -> null

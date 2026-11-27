@@ -12,14 +12,19 @@ import android.os.Parcel
 import android.os.Process
 import android.os.RemoteException
 import dev.antigravity.fluidengine.ai.bridge.BridgeProtocol
+import dev.antigravity.fluidengine.ai.memory.AiMemoryProposalResult
+import dev.antigravity.fluidengine.ai.memory.AiMemoryProtocol
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
 /**
  * L'ospite dell'assistenza, per PampAI: un `ContentProvider` «solo `call`» con autorita' `<applicationId>.ai.assist`,
  * `exported="true"` **senza `android:permission`** e il meta-data `dev.antigravity.fluidengine.ai.ASSIST_HOST` con
- * valore `3`. La sottoclasse da' soltanto l'[AiAssistHost] del processo (con l'esecutore, il registro del consenso e la
- * tabella); il resto sta qui.
+ * valore `3`. La sottoclasse da' l'[AiAssistHost] del processo (con l'esecutore, il registro del consenso e la tabella) e,
+ * se vuole, la memoria per i ricordi delle altre app (`memory`, R3-S1b); il resto sta qui.
  *
  * **Il cancello**, a ogni chiamata e prima di leggere la richiesta, su ogni metodo (anche uno sconosciuto):
  * 1. la firma di chi chiama (`Binder.getCallingUid()`) e' quella dell'ospite ([compareSignatures]), altrimenti
@@ -32,6 +37,9 @@ import kotlinx.serialization.json.JsonObject
  * invii come transazioni a senso unico e, se muore (`linkToDeath`), ferma la domanda. In risposta da' un suo `Binder`
  * (`token`), che l'app osserva per sapere se PampAI muore a meta'. L'app tiene aperto il provider per tutta la domanda,
  * e il sistema tiene il processo di PampAI alla priorita' dell'app.
+ *
+ * **I ricordi delle altre app** (F9.3, R3-S1b): i metodi di `AiMemoryProtocol` passano dalla stessa porta, dopo lo stesso
+ * cancello, se la sottoclasse da' la memoria ([memory]).
  */
 abstract class AiAssistHostProvider : ContentProvider() {
 
@@ -57,6 +65,7 @@ abstract class AiAssistHostProvider : ContentProvider() {
         AiAssistProtocol.METHOD_ASK -> ask(host, caller(host, packageName, withTools = true), request, extras?.getBinder(AiAssistProtocol.KEY_CALLBACK), out)
         AiAssistProtocol.METHOD_POLL -> host.poll(caller(host, packageName, withTools = false), request)
         AiAssistProtocol.METHOD_CANCEL -> host.cancel(caller(host, packageName, withTools = false), request)
+        in AiMemoryProtocol.Methods -> memoryCall(host, method, extras?.getString(AiAssistProtocol.KEY_JSON), packageName)
         else -> BridgeProtocol.errorResponse("metodo sconosciuto: $method")
       }
     } catch (e: CancellationException) {
@@ -82,6 +91,38 @@ abstract class AiAssistHostProvider : ContentProvider() {
     }
     return outcome.response
   }
+
+  /**
+   * **I ricordi delle altre app** (F9.3, `AiMemoryProtocol`: `memory_propose`, `memory_answer`, `memory_undo`,
+   * `memory_forget_mine`). Arrivano qui **dopo il cancello** (la firma, il pacchetto dal sistema) e **dopo il «no» di
+   * F9.1**: a un'app che l'utente ha rifiutato o bloccato in «App che usano PampAI» l'ospite risponde `not_allowed` senza
+   * chiamare qui (D5 di Alessio, R3-S1b). Il resto lo decide la memoria: la tabella delle app che propongono e i loro
+   * argomenti, il blocco della memoria, i tetti. In PampAI:
+   *
+   * ```kotlin
+   * override suspend fun memory(method: String, json: String, caller: AiAssistCaller): String =
+   *   graph().memoryInbox.handle(method, json, AiMemoryCaller(caller.packageName, caller.label))   // engine-ai-memory
+   * ```
+   *
+   * Torna il JSON dell'esito (`AiMemoryProposalResult`), o null (di serie): PampAI non ha la memoria, e i metodi
+   * rispondono «metodo sconosciuto» come prima. [caller] e' verificato dal sistema e il suo nome viene dalla tabella di F9.1
+   * (o dal sistema). Si chiama sul filo di Binder, al piu' per [MemoryTimeoutMillis].
+   */
+  protected open suspend fun memory(method: String, json: String, caller: AiAssistCaller): String? = null
+
+  private fun memoryCall(host: AiAssistHost, method: String, json: String?, packageName: String): JsonObject {
+    if (host.consents.appConsent(packageName) == AiAssistConsentState.Denied) return memoryResult(AiMemoryProposalResult.OutcomeNotAllowed)
+    val caller = caller(host, packageName, withTools = false)
+    var handled = true
+    val answer = runBlocking {
+      withTimeoutOrNull(MemoryTimeoutMillis) { memory(method, json ?: "{}", caller).also { if (it == null) handled = false } }
+    }
+    if (!handled) return BridgeProtocol.errorResponse("metodo sconosciuto: $method")
+    val out = answer?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
+    return out ?: memoryResult(AiMemoryProposalResult.OutcomeInvalid)
+  }
+
+  private fun memoryResult(outcome: String): JsonObject = Json.parseToJsonElement(AiMemoryProposalResult(outcome).toJson()) as JsonObject
 
   private fun caller(host: AiAssistHost, packageName: String, withTools: Boolean): AiAssistCaller = AiAssistCaller(
     packageName = packageName,
@@ -111,6 +152,11 @@ abstract class AiAssistHostProvider : ContentProvider() {
     val pm = context?.packageManager ?: return null
     val info = pm.getPackageInfo(packageName, PackageManager.GET_PROVIDERS or PackageManager.GET_META_DATA)
     return info.providers?.firstOrNull { it.metaData?.getInt(BridgeProtocol.META_TOOL_HOST, 0) == 1 }?.authority?.substringBefore(';')
+  }
+
+  companion object {
+    /** Quanto aspetta al piu' la memoria per un metodo dei ricordi: 10 s, a occhio (27/11/2026; una scrittura cifrata). */
+    const val MemoryTimeoutMillis: Long = 10_000L
   }
 
   // Un provider «solo call»: le query non esistono.

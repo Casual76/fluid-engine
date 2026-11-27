@@ -126,7 +126,7 @@ class McpTool<C>(
           result = ToolResultDetails(ToolOutcome.UNCERTAIN, error = ToolError("connector_uncertain", e.message.orEmpty())),
         )
       } else {
-        ToolOutput.error(e.message ?: "errore del connettore")
+        McpGuard.errorOutput(e, connector.name)
       }
     }
   }

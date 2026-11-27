@@ -15,6 +15,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -36,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalGraphicsContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -459,4 +462,51 @@ class GlassBalanceGuardsTest {
     assertEquals("all'entrata il pannello registra il suo materiale una volta per fotogramma", emptyList<String>(),
       doubles.filter { "drawGlass" in it })
   }
+
+  // ---- F7.32d · La posa dopo il gesto ---------------------------------------------------------------------------
+
+  /** Una lastra su cui si trascina il dito; con [keepsDrawing] dopo il rilascio comincia a respirare e non smette più. */
+  @Composable
+  private fun AfterTheGesture(keepsDrawing: Boolean) {
+    Stage { backdrop ->
+      var released by remember { mutableStateOf(false) }
+      Box(Modifier.fillMaxSize().pointerInput(Unit) { detectDragGestures(onDragEnd = { released = true }) { _, _ -> } }) {
+        if (keepsDrawing && released) {
+          val alpha by rememberInfiniteTransition(label = "dopo il gesto").animateFloat(
+            0.2f, 1f, infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Reverse), label = "alpha",
+          )
+          Slab(backdrop, modifier = Modifier.drawBehind { drawRect(Color.White.copy(alpha = alpha)) })
+        } else {
+          Slab(backdrop)
+        }
+      }
+    }
+  }
+
+  /**
+   * F7.32d (D3 della review R3) · Un componente che dopo il rilascio continua a disegnare, come il righello di F7.24b
+   * prima della correzione (120 fps per 2,4 s), o un'animazione che dopo il tocco gira per sempre. Il copione degli
+   * elementi misurava la posa solo prima del gesto, e lo lasciava passare; la posa dopo il gesto lo fa cadere.
+   */
+  @Test
+  fun unComponenteCheDopoIlRilascioContinuaADisegnareCadeNellaPosaDopo() {
+    val zero = GlassBalanceRegistry.parse(
+      "prova.bilancio",
+      "gesto posa 9 9 9 0 999999 9999 0 0 0 - F7.32d GlassBalanceGuardsTest | la lastra ferma prima del gesto\n" +
+        "gesto posa:dopo 9 9 9 0 999999 9999 0 0 0 - F7.32d GlassBalanceGuardsTest | la lastra ferma dopo il gesto",
+    )
+    fun poses(meter: GlassBalanceMeter) = meter.compare(zero, "gesto").filter { it.startsWith("gesto/posa") && "senza riga" !in it }
+
+    val base = BalanceRuns.measureElement(harness, "gesto", 0) { AfterTheGesture(keepsDrawing = false) }
+    assertEquals("base: niente registrazioni dopo il gesto", 0L, checkNotNull(base.results["posa:dopo"]).getValue(BalanceColumn.Redraws))
+    assertEquals("base verde", emptyList<String>(), poses(base))
+
+    // Mutazione: dopo il rilascio la lastra respira per sempre.
+    val spinning = BalanceRuns.measureElement(harness, "gesto", 0) { AfterTheGesture(keepsDrawing = true) }
+    val problems = poses(spinning)
+    assertTrue("la mutazione deve cadere nella posa dopo il gesto: $problems", problems.any { it.startsWith("gesto/posa:dopo") && "rid" in it })
+    assertTrue("e nella posa prima del gesto non si vede (il copione di prima la lasciava passare): $problems",
+      problems.none { it.startsWith("gesto/posa (") })
+  }
+
 }

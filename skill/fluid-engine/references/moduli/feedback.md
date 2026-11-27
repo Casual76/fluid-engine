@@ -46,7 +46,10 @@ Catalogo completo delle firme: [`../api/feedback.md`](../api/feedback.md).
    screenshot può mostrare dati tuoi, coprili col pennarello.
 4. **«Cosa parte»**: un interruttore per lo screenshot, l'app e il telefono, le funzioni in prova accese, gli ultimi
    arresti e gli ultimi eventi del registro **coi dati personali tolti**; «Mostra tutto quello che parte» mostra il
-   testo esatto. Spento vuol dire che non c'è, né nel file né nella issue.
+   testo esatto. Spento vuol dire che non c'è, né nel file né nella issue. Con «L'app e il telefono» spento resta solo
+   il nome dell'app, che dice di che app è la segnalazione (è anche nel nome dello ZIP): via la versione, il pacchetto,
+   il codice, il tipo di build e la versione dell'engine, in `LEGGIMI.txt`, in `segnalazione.json` (`app` ha solo
+   `name`) e nel titolo della issue (R3).
 5. **Le due strade**:
    - **«Manda un file»**: lo ZIP `Segnalazione-pampa-notes-20261126-1403.zip` (scelta di Alessio, F8.24b) e il foglio
      Condividi con l'azione «WhatsApp» in cima quando WhatsApp c'è; WhatsApp lo manda come documento. Dentro, nell'ordine:
@@ -59,6 +62,9 @@ Catalogo completo delle firme: [`../api/feedback.md`](../api/feedback.md).
      va nella cartella Download (MediaStore, Android 10+, senza permessi) e il corpo dice di allegarlo. Il browser lo
      apre Android; la issue la manda l'utente.
 6. Partita, la bozza si dimentica. Chiuso il foglio senza mandare, la bozza resta per la prossima volta.
+   Dimenticare la bozza (`discard`) cancella anche lo screenshot di lavoro (in `cacheDir/fluid-feedback`; un file dell'app
+   messo nella bozza da lei resta), e alla riapertura del foglio si cancellano quelli rimasti da un processo ucciso
+   prima che la bozza partisse (R3). Lo ZIP e la copia in Download sono già fatti, altrove.
 
 ## I dati personali
 
@@ -92,6 +98,11 @@ a tutti. **La repo dev'essere pubblica**, o chi segnala vede un 404.
   in prova; la issue precompilata coi ringraziamenti; quello che è spento non parte; il tetto dell'indirizzo che toglie
   prima gli eventi più vecchi; lo ZIP con `LEGGIMI.txt` per primo, il JSON, lo screenshot al byte e il registro pulito; le
   parti spente che non sono in nessun file; **i dati personali tolti anche dentro lo ZIP**; i nomi dei file).
+  R3 (review `sol-ai`): `FluidFeedbackR3Test` (gli IPv6 compressi che non entrano nello ZIP, dal registro, dalla frase e
+  negli indirizzi web; lo screenshot di lavoro che se ne va con la bozza, e il file dell'app che resta; «L'app e il
+  telefono» spento senza i dati dell'app, acceso con tutti).
+- `sample/src/testDebug/.../novita/F8p24FeedbackR3Test.kt` (R3): lo screenshot di un processo morto si cancella alla
+  riapertura del foglio, quello di questo processo resta.
 - `sample/src/testDebug/.../novita/F8p24DiagnosticsUiTest.kt`: il foglio chiuso finché non lo si chiede, i tasti spenti
   senza frase, l'anteprima di quello che parte coi dati tolti, l'interruttore che toglie gli eventi, la issue aperta nel
   browser già scritta, lo ZIP che arriva al foglio Condividi coi dati tolti, la capsula della cattura e «Annulla».

@@ -62,12 +62,15 @@ class AiMemoryAppPolicy(
 
 /**
  * **I ricordi che nascono in un'altra app passano da PampAI** (F9.3): l'aggancio per il provider dell'assistenza di F9.1.
- * Il provider fa i suoi controlli (chi chiama, la firma, la tabella), poi passa qui i metodi dei ricordi
- * ([AiMemoryProtocol.Methods]) con la richiesta JSON e chi chiama; la risposta e' un [AiMemoryProposalResult] in JSON.
+ * `AiAssistHostProvider` fa i suoi controlli (chi chiama, la firma, il pacchetto dal sistema) e il «no» di F9.1 (un'app
+ * rifiutata o bloccata in «App che usano PampAI» riceve `not_allowed`), poi passa qui i metodi dei ricordi
+ * ([AiMemoryProtocol.Methods]) con la richiesta JSON e chi chiama; la risposta e' un [AiMemoryProposalResult] in JSON
+ * (D5 di Alessio, R3-S1b).
  *
  * ```kotlin
- * // Nel provider dell'assistenza di PampAI (F9.1), dopo il cancello:
- * if (method in AiMemoryProtocol.Methods) return bundleOf("json" to inbox.handle(method, json, AiMemoryCaller(pkg, label)))
+ * // Nel provider dell'assistenza di PampAI (F9.1), la sottoclasse di AiAssistHostProvider:
+ * override suspend fun memory(method: String, json: String, caller: AiAssistCaller): String =
+ *   graph().memoryInbox.handle(method, json, AiMemoryCaller(caller.packageName, caller.label))
  * ```
  *
  * Qui si decide: l'app e' nella tabella e l'argomento e' suo ([AiMemoryAppPolicy], di serie quella della memoria),
@@ -76,6 +79,10 @@ class AiMemoryAppPolicy(
  * [AiMemoryProtocol.MethodAnswer]; la stessa domanda resta anche nella pagina di PampAI); col salvataggio automatico torna
  * `remembered` e l'app mostra la sua card con Annulla. Un'app risponde, annulla e dimentica solo quello che ha proposto
  * lei.
+ *
+ * **La risposta non porta niente della memoria** (R3-S1): l'esito, l'id dell'avviso e al piu' il fatto che l'app ha
+ * scritto. Il ricordo con la stessa chiave che resta (`kept`) o che viene sostituito (`pending`, `updated`) e' dell'utente:
+ * lo mostra solo la pagina di PampAI.
  */
 class AiMemoryInbox(
   private val book: AiMemoryBook,
@@ -96,9 +103,10 @@ class AiMemoryInbox(
       AiMemoryProtocol.MethodAnswer -> {
         val id = request["noticeId"].string() ?: return AiMemoryProposalResult(AiMemoryProposalResult.OutcomeInvalid)
         val accept = (request["accept"] as? JsonPrimitive)?.booleanOrNull ?: return AiMemoryProposalResult(AiMemoryProposalResult.OutcomeInvalid)
+        // Il fatto della domanda e' quello che l'app ha scritto: si prende prima, dalla domanda sua (R3-S1).
+        val own = book.pending.value.firstOrNull { it.id == id && it.source.fromApp && it.source.app == caller.packageName }?.text
         val outcome = book.answer(id, accept, app = caller.packageName)
-        AiMemoryProposalResult(outcome.result, noticeId = outcome.notice?.id, text = outcome.memory?.text ?: outcome.notice?.text,
-          previousText = outcome.notice?.previousText)
+        AiMemoryProposalResult(outcome.result, noticeId = outcome.notice?.id, text = own?.takeIf { outcome.notice != null })
       }
       AiMemoryProtocol.MethodUndo -> {
         val id = request["noticeId"].string() ?: return AiMemoryProposalResult(AiMemoryProposalResult.OutcomeInvalid)
@@ -117,12 +125,12 @@ class AiMemoryInbox(
     // Un'app non dice «vale per ogni domanda»: lo decide solo l'utente (il nome, come rispondere).
     val outcome = book.remember(proposal.copy(always = false), AiMemorySource.app(caller.packageName, caller.label))
     val notice = outcome.notice
+    // Torna solo cio' che l'app sa gia': l'esito, l'avviso e il fatto che ha scritto lei. Mai un ricordo di PampAI (il
+    // fatto che resta per «kept», quello di prima per «pending» e «updated»): quelli sono della pagina di PampAI (R3-S1).
     return AiMemoryProposalResult(
       outcome = outcome.result,
       noticeId = notice?.id,
-      // Per una domanda il fatto e' quello proposto (il ricordo non c'e' ancora); per gli altri, com'e' nella memoria.
-      text = if (outcome.result == AiMemoryProposalResult.OutcomePending) notice?.text else outcome.memory?.text,
-      previousText = notice?.previousText,
+      text = proposal.text.takeIf { notice != null },
     )
   }
 }

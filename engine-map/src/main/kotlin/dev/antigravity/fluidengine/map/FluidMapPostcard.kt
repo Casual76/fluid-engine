@@ -75,14 +75,19 @@ object FluidMapPostcardDefaults {
 
   /**
    * La cartolina piu' stretta che tiene i crediti in vista: 80 dp. Li' «© OpenStreetMap» sta su una riga, sopra
-   * [CreditsMinFontSize]; piu' stretta non e' garantito (F8.26d). Una prova lo tiene fermo a questa misura.
+   * [CreditsMinFontSize]; piu' stretta non e' garantito (F8.26d). Vale a ogni grandezza del carattere di sistema (R3): le
+   * prove la tengono ferma a carattere 1, 1,3 e 2.
    */
   val MinWidth: Dp = 80.dp
 
   /** Il corpo dei crediti sulla cartolina: 9 sp, e giu' fino a [CreditsMinFontSize] se la cartolina e' piccola. */
   val CreditsFontSize = 9.sp
 
-  /** Il corpo piu' piccolo dei crediti sulla cartolina: 7 sp. */
+  /**
+   * Il corpo piu' piccolo dei crediti sulla cartolina: 7 sp a carattere normale. Col carattere grande di sistema il
+   * minimo resta quello di 1× (7 dp veri): la scritta cresce col carattere dove c'e' posto, e nella cartolina stretta
+   * scende fin li' invece di tagliarsi (R3: a 1,3× i 7 sp erano 9 dp e «© OpenStreetMap» non stava piu' negli 80 dp).
+   */
   val CreditsMinFontSize = 7.sp
 }
 
@@ -210,13 +215,20 @@ private fun FluidMapPostcardCredits(
       .clickable(onClickLabel = labels.credits, role = Role.Button) { open = true }
       .padding(horizontal = PostcardCreditsInner, vertical = 1.5.dp),
   ) {
+    // Il minimo in dp veri (quello di 1×): col carattere grande di sistema i 7 sp diventerebbero 9 o 14 dp, e la scritta
+    // compatta non starebbe piu' nella cartolina piu' stretta (R3).
+    val minFontSize = remember(density) {
+      val min = FluidMapPostcardDefaults.CreditsMinFontSize
+      val oneX = with(density) { min.value.dp.toSp() }
+      if (oneX.value < min.value) oneX else min
+    }
     BasicText(
       text,
       style = textStyle,
       maxLines = 1,
       softWrap = false,
       autoSize = TextAutoSize.StepBased(
-        minFontSize = FluidMapPostcardDefaults.CreditsMinFontSize,
+        minFontSize = minFontSize,
         maxFontSize = FluidMapPostcardDefaults.CreditsFontSize,
         stepSize = 0.25.sp,
       ),

@@ -781,6 +781,17 @@ private fun PickerAlbums(env: PickerEnv, tabs: @Composable () -> Unit) {
           val albums = state.albumsOf(source)
           when {
             !source.access.allowsListing() -> PickerSourceRow(env, source)
+            // R3: album che non arrivano (il MediaStore che non risponde, il NAS spento) lo dicono, con «Riprova», invece
+            // di un gruppo vuoto.
+            state.albumsFailed(source) -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+              PickerMessage(
+                icon = { FluidIcon(FluidIcons.Warning, null, size = 32.dp) },
+                title = env.labels.unavailableTitle(source.label),
+                detail = env.labels.unavailableDetail,
+              ) {
+                FluidButton(text = env.labels.retry, onClick = { state.loadAlbums(source, force = true) }, style = FluidButtonStyle.Plain)
+              }
+            }
             albums == null -> Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) { FluidSpinner(size = 20.dp) }
             else -> FluidListGroup {
               albums.forEachIndexed { index, album ->
@@ -1013,19 +1024,25 @@ private fun PickerDelivering(state: FluidMediaPickerState, labels: FluidMediaLab
 @Composable
 private fun PickerNotice(state: FluidMediaPickerState, labels: FluidMediaLabels) {
   val notice = state.notice ?: return
+  MediaNoticeAlert(notice, labels, state.request.limit) { state.notice = null }
+}
+
+/** L'avviso di una consegna non riuscita o dei saltati: lo stesso nel selettore e nel pannello degli allegati (R3). */
+@Composable
+internal fun MediaNoticeAlert(notice: FluidMediaPickerNotice, labels: FluidMediaLabels, limit: Int, onDismiss: () -> Unit) {
   val refusal = notice.refusal
   val message = when {
     refusal == null -> labels.skipped(notice.skipped)
     refusal == FluidMediaRefusal.Unreachable -> labels.refusedUnreachable
     refusal == FluidMediaRefusal.NothingAvailable -> labels.refusedNothing
     refusal == FluidMediaRefusal.LocationNotRemoved -> labels.refusedLocation
-    refusal.code == "too-many" -> labels.refusedTooMany(refusal.limit ?: state.request.limit)
+    refusal.code == "too-many" -> labels.refusedTooMany(refusal.limit ?: limit)
     else -> labels.refusedFailed
   }
   FluidAlert(
-    onDismissRequest = { state.notice = null },
+    onDismissRequest = onDismiss,
     title = if (refusal == null) labels.ok else labels.refusedTitle,
     message = message,
-    actions = listOf(FluidAlertAction(labels.ok, { state.notice = null }, FluidAlertAction.Emphasis.Preferred)),
+    actions = listOf(FluidAlertAction(labels.ok, onDismiss, FluidAlertAction.Emphasis.Preferred)),
   )
 }

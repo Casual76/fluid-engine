@@ -92,6 +92,10 @@ interface FluidSearchJob {
  *
  * Con l'app aperta ([update]) si fa il lavoro leggero, fino a [FluidSearchIndexPolicy.foregroundDocs]; se resta lavoro
  * (la prima volta, con migliaia di note) si chiama [FluidSearchWork.schedule] e il resto lo fa il lavoro in carica.
+ *
+ * Una sorgente che dice «ce n'e' ancora» ([FluidSearchChanges.hasMore]) senza dare niente e senza far avanzare il segno
+ * ferma il giro con [FluidSearchProgress.error] e [FluidSearchProgress.hasMore] falso (R3): la stessa domanda darebbe la
+ * stessa pagina. Una pagina vuota col segno nuovo (una sorgente che salta cio' che non indicizza) va bene.
  */
 class FluidSearchIndexer(
   val index: FluidSearchIndex,
@@ -128,6 +132,13 @@ class FluidSearchIndexer(
       while (hasMore) {
         if (done >= maxDocs || stop() || SystemClock.elapsedRealtime() >= deadlineMillis) break
         val changes = source.changes(cursor, policy.chunk)
+        // R3: «ce n'e' ancora» senza niente di nuovo e con lo stesso segno: richiamarla darebbe la stessa pagina, per
+        // sempre (in primo piano non c'e' una scadenza). Ci si ferma e lo si dice; il lavoro in carica non riparte.
+        if (changes.hasMore && changes.upserts.isEmpty() && changes.deletes.isEmpty() && changes.cursor == cursor) {
+          _progress.value = FluidSearchProgress(indexed = done, hasMore = false, tookMillis = SystemClock.elapsedRealtime() - started,
+            error = "la sorgente ${source.id} non va avanti: nessuna modifica e lo stesso segno")
+          return _progress.value
+        }
         index.apply(source.id, changes)
         done += changes.upserts.size + changes.deletes.size
         cursor = changes.cursor

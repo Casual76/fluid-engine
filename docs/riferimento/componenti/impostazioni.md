@@ -590,8 +590,15 @@ if (lab.isEnabled(NuovoEditor)) { … }                                    // un
   prossimo avvio» (per ciò che si decide una volta: un motore, il materiale prima del primo fotogramma).
 - `expires`: dopo l'ultimo giorno la funzione **sparisce** dalla pagina e torna com'è di serie (finita nell'app o tolta),
   come le voci di Safari. La scelta di una funzione che non c'è più si dimentica: un nome riusato non si ritrova acceso.
-- La memoria: le `SharedPreferences` `fluid-lab` (`FluidLabStore.preferences`), scritte con `apply()`; una scelta uguale
-  al valore di serie non resta scritta. `FluidLabStore.inMemory()` per le prove.
+  La scadenza si guarda **a ogni lettura** (R3): un'app che resta aperta oltre la mezzanotte dell'ultimo giorno la vede
+  tornare di serie subito in `isEnabled`, non al prossimo avvio; la pagina la toglie quando si riapre. Il giorno è
+  quello del telefono; `FluidLab(esperimenti, memoria, today = { giorno })` per le prove (con un `LocalDate` fisso vale
+  sempre quel giorno).
+- La memoria: le `SharedPreferences` tutte sue `fluid-lab` di `FluidLab.create`, scritte con `apply()`; una scelta
+  uguale al valore di serie non resta scritta. `FluidLabStore.preferences(prefs)` va bene anche sulle preferenze
+  dell'app: le scelte stanno sotto `fluid-lab.<nome>` e le altre chiavi non si leggono e non si toccano, nemmeno da
+  «Ripristina tutto» (R3: prima la nascita del Laboratorio toglieva ogni booleano dell'app e il ripristino svuotava il
+  file). `FluidLabStore.inMemory()` per le prove.
 - `lab.state` (`FluidLabState`, un valore intero sostituito a ogni cambio: la regola di F7.21) dice la scelta di ogni
   funzione e quelle che aspettano il riavvio; `lab.enabledExperiments()` serve a una segnalazione.
 

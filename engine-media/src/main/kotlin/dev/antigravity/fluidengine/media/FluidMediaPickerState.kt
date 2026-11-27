@@ -147,6 +147,7 @@ class FluidMediaPickerState internal constructor(
   private val known = HashMap<String, FluidMediaItem>()
   private val feeds = HashMap<Pair<String, FluidMediaQuery>, FluidMediaFeed>()
   private val albumLists = mutableStateMapOf<String, List<FluidMediaAlbum>>()
+  private val albumFailures = mutableStateMapOf<String, Boolean>()
 
   /** La sorgente di partenza (la prima). */
   val primary: FluidMediaSource get() = sources.first()
@@ -163,7 +164,16 @@ class FluidMediaPickerState internal constructor(
   /** Gli album di [source], se sono gia' arrivati; [loadAlbums] li chiede. */
   fun albumsOf(source: FluidMediaSource): List<FluidMediaAlbum>? = albumLists[source.id]
 
-  /** Chiede gli album di [source] (una volta; [force] di nuovo). */
+  /**
+   * Vero se gli album di [source] non sono arrivati (R3): la sorgente ha lanciato (il MediaStore che non risponde, il NAS
+   * spento). Il selettore lo dice con «Riprova» ([loadAlbums] con `force`) invece di un gruppo vuoto.
+   */
+  internal fun albumsFailed(source: FluidMediaSource): Boolean = albumFailures[source.id] == true
+
+  /**
+   * Chiede gli album di [source] (una volta; [force] di nuovo). Un errore non si tiene come «nessun album» (R3): resta da
+   * chiedere, e [albumsOf] resta null finché non arrivano.
+   */
   fun loadAlbums(source: FluidMediaSource, force: Boolean = false) {
     if (!force && albumLists.containsKey(source.id)) return
     scope.launch {
@@ -172,9 +182,11 @@ class FluidMediaPickerState internal constructor(
       } catch (e: CancellationException) {
         throw e
       } catch (_: Exception) {
-        emptyList()
+        albumFailures[source.id] = true
+        return@launch
       }
       list.forEach { album -> album.cover?.let { known[it.key] = it } }
+      albumFailures.remove(source.id)
       albumLists[source.id] = list
     }
   }
@@ -192,6 +204,7 @@ class FluidMediaPickerState internal constructor(
         }
         if (s.access != before) {
           albumLists.remove(s.id)
+          albumFailures.remove(s.id)
           feeds.filterKeys { it.first == s.id }.values.forEach { it.reload() }
         }
       }

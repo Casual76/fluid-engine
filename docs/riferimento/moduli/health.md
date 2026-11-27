@@ -50,7 +50,9 @@ I dati (`FluidHealthSample`) sono di tre forme: `FluidHealthInterval` (passi, mi
 (battiti al minuto, chilogrammi) e `FluidHealthSession` (una notte con le fasi, un allenamento col tipo). Ognuno porta
 **la fonte** (`FluidHealthSource`: il pacchetto, il nome dell'app, l'apparecchio — orologio, telefono, anello, bilancia —
 e il suo nome). Il battito di Health Connect è un record con tanti campioni: qui diventa un punto per campione, con l'id
-`record#indice`.
+`record#indice`. Un record cambiato arriva **intero**: nella copia i suoi campioni di prima escono e restano solo quelli
+arrivati (R3: un battito corretto da 10 campioni a 6 lasciava gli altri quattro per 30 giorni). Nel Health Connect finto
+(`FluidMemoryHealthGateway`) un battito si mette quindi intero, tutti i campioni del record insieme.
 
 ## I totali sono di Health Connect: `FluidHealthReadings`
 
@@ -82,7 +84,10 @@ Cosa resta all'engine è **come dirlo**:
 - **il peso** è l'ultima misura (`gateway.latest`), mai una media inventata.
 
 `gateway.day(metrica, data)`, `gateway.week(metrica, lunedì)` e `gateway.night(data)` fanno le letture delle card in una
-riga; `FluidHealthReadings.reading(totale, tratti)` le fa da un totale già letto.
+riga; `FluidHealthReadings.reading(totale, tratti)` le fa da un totale già letto. Per le misure che **non si sommano**
+(peso, battito) `day` dà **l'ultima misura del giorno**, con l'app che l'ha scritta e senza buchi (R3: prima dava la media
+di Health Connect, un peso che nessuna bilancia aveva detto); `week` e `reading` danno per loro la **media** del tratto
+(`WEIGHT_AVG`, `BPM_AVG`), come la settimana di Salute di Apple che la chiama «Media»: la card che la mostra lo dica.
 
 ## La sincronizzazione: `FluidHealthSync`
 
@@ -95,6 +100,14 @@ sincronizzazione alla volta; i dati fuori dal thread principale.
 **La copia** (`FluidHealthStore`) di serie è **un file della cassaforte** (`FluidVaultHealthStore`): AES-GCM a pezzi con
 una chiave del Keystore, **fuori dal backup**. Una sezione `VaultAccess.Device()` basta; con l'impronta, la copia si legge
 solo a sezione aperta. Il formato è binario con la versione in testa (`FluidHealthCodec`).
+
+**Una copia illeggibile vale come assente** (R3): un pezzo cifrato rovinato sul disco, un file di un'altra versione o
+tronco. `FluidHealthSync.snapshot()` la dà vuota e la `sync()` la butta e rilegge tutto da Health Connect (i dati restano
+lì: la copia è solo una copia); `FluidVaultHealthStore.load()` da solo continua a dire l'errore (`IOException`). Prima
+ogni `sync()` e ogni `snapshot()` cadevano sulla stessa eccezione, per sempre. `FluidHealthCodec.decode` non si fida del
+file: un conteggio negativo o più grande dei byte che restano, o un istante fuori misura, danno `IOException`, mai memoria
+chiesta a caso. Una sezione chiusa o una chiave che chiede l'impronta non sono una copia rovinata: quelle eccezioni della
+cassaforte passano com'erano, e la copia resta.
 
 ## Fuori da ogni telemetria
 
@@ -169,6 +182,10 @@ di attività) **non ci sono, e non si fanno finché non c'è un'app di allenamen
   `aggregate`), che toglie i doppioni con l'ordine della persona.
 - *Sintomo*: un permesso tolto e i dati ancora in vista. → La copia si aggiorna alla `sync()` dopo: chiamarla al ritorno
   da Health Connect.
+- *Sintomo*: la card del peso dice un valore che la bilancia non ha mai detto. → `week`/`reading` su una misura che non si
+  somma danno la media del tratto: per «il peso di oggi» `day` (l'ultima pesata) o `latest`.
+- *Sintomo*: dopo un aggiornamento la salute rilegge 30 giorni una volta. → La copia della versione di prima non si
+  leggeva più (o era rovinata) ed è stata rifatta: è voluto, non è un errore.
 - *Sintomo*: i dati della salute in un rapporto di errori. → Un oggetto dell'app che li copia in un suo `toString`: le
   classi del modulo non lo fanno.
 
@@ -183,6 +200,8 @@ di attività) **non ci sono, e non si fanno finché non c'è un'app di allenamen
 - `FluidHealthSyncTest` (JVM): la prima lettura e poi le sole modifiche, il battito tolto coi suoi campioni, il segno
   scaduto, i permessi tolti e parziali, Health Connect assente, la scrittura di Sounds, **la copia cifrata** che sul disco
   non si legge e un'altra sezione non apre, il formato.
+- `FluidHealthR3Test` (JVM, R3): la copia tronca e il pezzo cifrato rovinato che si rifanno, i conteggi fuori misura che
+  danno `IOException`, il peso e il battito del giorno che sono l'ultima misura, il battito corretto con meno campioni.
 - `FluidHealthConnectGatewayTest` (Robolectric): un client finto che implementa l'interfaccia vera `HealthConnectClient`:
   i record veri con la fonte e l'apparecchio, le pagine, le modifiche, i permessi, il sonno scritto; **il totale dei passi
   è `COUNT_TOTAL` del provider** anche coi record che si sovrappongono (nessun record letto), il giorno senza aggregato è

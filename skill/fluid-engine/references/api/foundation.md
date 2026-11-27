@@ -430,9 +430,9 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun clear()` — Cancella tutte le scelte.
   - `companion object`
     - `fun inMemory(initial: Map<String, Boolean> = emptyMap()): FluidLabStore` — Una memoria che dura quanto l'oggetto: per le prove.
-    - `fun preferences(preferences: SharedPreferences): FluidLabStore` — Le `SharedPreferences` [preferences]: si scrive con `apply()`, quindi senza aspettare il disco.
-- `class FluidLab(experiments: List<FluidExperiment>, private val store: FluidLabStore, today: LocalDate = LocalDate.now())` — Il Laboratorio di un'app: le [experiments] che l'utente può accendere, con la sua scelta ricordata (F8.24).
-  - `val experiments: List<FluidExperiment>` — Le funzioni della pagina, nell'ordine dato, senza quelle scadute.
+    - `fun preferences(preferences: SharedPreferences): FluidLabStore` — Le `SharedPreferences` [preferences], anche quelle dell'app: si scrive con `apply()`, quindi senza aspettare il disco. Le scelte stanno sotto le chiavi `fluid-lab.<nome>` e il Laboratorio non legge, non toglie e non svuota le altre (R3: prima, nelle preferenze dell'app, la nascita del Laboratorio toglieva ogni booleano che non conosceva e «Ripristina tutto» svuotava il file intero).
+- `class FluidLab(experiments: List<FluidExperiment>, private val store: FluidLabStore, private val today: () -> LocalDate = LocalDate::now)` — Il Laboratorio di un'app: le [experiments] che l'utente può accendere, con la sua scelta ricordata (F8.24).
+  - `val experiments: List<FluidExperiment> get()` — Le funzioni della pagina, nell'ordine dato, senza quelle scadute oggi.
   - `val state: StateFlow<FluidLabState>` — Lo stato da osservare (la pagina, la riga delle impostazioni).
   - `fun experiment(key: String): FluidExperiment?` — La funzione [key], o nulla se non c'è (o è scaduta).
   - `fun isEnabled(experiment: FluidExperiment): Boolean` — Vero se la funzione è accesa **ora**. Per una funzione [FluidExperimentApplies.NextLaunch] è il valore di quando il processo è partito. Una funzione che il Laboratorio non conosce (o scaduta) dà il suo valore di serie.

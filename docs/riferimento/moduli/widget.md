@@ -128,7 +128,7 @@ e il contenuto chiede esattamente cio' che il budget permette.
 
 ```kotlin
 data class EngineWidgetLayout(val padding: Dp, val compact: Boolean, val rowLimit: Int, val showSubtitle: Boolean, val showFooter: Boolean, val stacked: Boolean = false)
-fun resolveEngineWidgetLayout(size: DpSize, hasFooter: Boolean = false, maxRows: Int = EngineWidgetMetrics.MaxRows): EngineWidgetLayout
+fun resolveEngineWidgetLayout(size: DpSize, hasFooter: Boolean = false, maxRows: Int = EngineWidgetMetrics.MaxRows, fontScale: Float = /* quella del sistema */): EngineWidgetLayout
 ```
 
 **Uso.**
@@ -164,14 +164,25 @@ items.take(layout.rowLimit).forEachIndexed { i, item -> ... }
   | 300 × 900 | normale | 4 (tetto) | 4 |
 
 - `hasFooter` e' **chiesto, non dedotto**: un piede che non ha niente da dire non va disegnato, e lo spazio deve tornare alle righe — e questo e' cio' che succede solo se passi `false`.
+- **La grandezza del carattere di sistema** (R3, `fontScale`, di serie quella del sistema, con cui il launcher disegna i
+  testi): i testi sono in `sp` e i margini in `dp`, quindi col carattere grande una riga e' piu' alta dei 48 dp delle
+  misure. Sopra 1× intestazione, righe e piede si contano coi loro testi a quella grandezza e coi margini fermi; l'altezza
+  di una riga di testo si misura sul carattere di sistema del telefono, dall'alto al basso del carattere (un limite
+  superiore: 1,33 volte il corpo con Roboto). Fino a 1× sono le misure di sopra, uguali. Se a quella grandezza non ci sta
+  nemmeno una riga normale il widget prende la forma compatta. A 1,3×, per esempio, il 158 × 158 tiene una riga impilata
+  (due a 1×) e il 338 × 354 col piede due o tre (quattro a 1×), secondo il carattere. Prima il budget non la guardava e il
+  launcher tagliava l'ultima riga a meta', proprio dove il carattere grande si usa di piu'.
+- `maxRows` sotto 1 si rifiuta con `IllegalArgumentException` (prima cadeva dentro `coerceIn`).
 
 **Trappole.**
 - **Il budget non taglia niente da solo**: `rowLimit` e' un numero; sei tu a fare `take(layout.rowLimit)`. I componenti non lo applicano.
 - **`hasFooter = true` senza disegnare il piede (o viceversa)** sbaglia il conto delle righe. Disegna il piede quando `layout.showFooter` e' vero, non quando hai dati.
-- Il conto non include le hairline fra le righe (1 dp l'una): e' un limite superiore ragionevole, non una misura al pixel.
+- Il conto a 1× non include le hairline fra le righe (1 dp l'una): e' un limite superiore ragionevole, non una misura al pixel. Col carattere grande le include.
+- **Il carattere grande si legge quando il widget si compone**: se l'utente lo cambia con il widget sulla Home, il budget
+  giusto arriva al prossimo aggiornamento del widget (`update` o `updateAll`).
 - Senza `SizeMode.Exact` (o `Responsive`) `LocalSize` non e' la dimensione reale della cella e il budget sbaglia.
 
-**Test.** `EngineWidgetLayoutTest` (6): la cella piu' piccola tiene una riga e lascia cadere l'opzionale; l'altezza decide la compattezza come la larghezza; un piede prende lo spazio dalle righe; una cella piu' alta compra piu' righe; si ferma al tetto (e `maxRows = 2` vale); la taglia piccola si impila (158 e 130 dp) e da 170 dp no. La prova col widget vero alla taglia vera e' `F8p25WidgetSmallTest` della galleria: a 130, 158 e 178 dp nessun nome troncato, e sotto 170 l'orario sta sotto il nome.
+**Test.** `EngineWidgetLayoutTest` (6): la cella piu' piccola tiene una riga e lascia cadere l'opzionale; l'altezza decide la compattezza come la larghezza; un piede prende lo spazio dalle righe; una cella piu' alta compra piu' righe; si ferma al tetto (e `maxRows = 2` vale); la taglia piccola si impila (158 e 130 dp) e da 170 dp no. La prova col widget vero alla taglia vera e' `F8p25WidgetSmallTest` della galleria: a 130, 158 e 178 dp nessun nome troncato, e sotto 170 l'orario sta sotto il nome. `EngineWidgetR3Test` (R3) applica le `RemoteViews` vere dell'agenda alle tre taglie di iPhone a carattere 1, 1,3 e 2 e controlla che nessuna scritta sia tagliata.
 
 ## I componenti
 
@@ -267,6 +278,10 @@ FluidWidgetShowcase(
   taglia) e la vetrina applica le `RemoteViews` come farebbe il launcher. Il widget e' **disposto alla sua misura in dp**
   e solo rimpicciolito se la colonna e' piu' stretta (`fluidWidgetPreviewScale`, mai sopra 1). Un widget `RemoteViews`
   passa `FluidWidgetPreview.Remote`; un'anteprima preparata `Image`.
+- Un contenuto che **lancia** in anteprima (legge uno stato che sul telefono c'e' e in vetrina no, `RemoteViews` che non
+  si applicano) lascia l'anteprima **vuota**, alla sua misura, e la pagina resta (R3). Le taglie che calano a scheda
+  viva (lo stesso widget con meno taglie) non la fanno cadere: la taglia mostrata resta dentro l'elenco nuovo.
+  `FluidWidgetSize` rifiuta alla nascita una misura non positiva o meno di una cella.
 - L'anteprima **non si tocca** (i tocchi non arrivano al widget) e per TalkBack e' **un'immagine sola**
   («Anteprima del widget Agenda, taglia Medio»).
 - **Le taglie si sfogliano col dito** (un `HorizontalPager`, nitido: e' il dito che lo muove) coi punti sotto

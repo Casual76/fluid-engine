@@ -394,6 +394,8 @@ abstract class F8p22DemoHost : AiToolHostProvider<Unit>() {
   override fun registry(): ToolRegistry<Unit> {
     val index = F8p22Demo.index(app) ?: return ToolRegistry(emptyList(), emptyList())
     val exposure = FluidSearchExposure(
+      // Di serie un'app non mostra niente alle altre (R3): le app finte elencano i loro tipi.
+      kinds = FluidSearchSamples.kinds.keys,
       kindLabels = FluidSearchSamples.kinds,
       locked = { app == "notes" && F8p22Demo.notesLocked },
       embedder = F8p22Demo.model,

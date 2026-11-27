@@ -20,12 +20,17 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.max
 import kotlin.math.pow
 
-/** La posizione di chi usa la mappa, come la da' l'app: il punto, l'incertezza in metri e la direzione (se si sa). */
+/**
+ * La posizione di chi usa la mappa, come la da' l'app: il punto, l'incertezza in metri, la direzione (se si sa) e
+ * l'istante in cui e' stata presa ([timeMillis], millisecondi dal 1970 come `Location.getTime`; null se l'app non lo sa).
+ * Con l'istante l'app si accorge di una posizione vecchia (R3: l'ultima posizione conosciuta puo' essere di ieri).
+ */
 @Immutable
 data class FluidMapUserLocation(
   val point: FluidGeoPoint,
   val accuracyMeters: Float? = null,
   val headingDegrees: Float? = null,
+  val timeMillis: Long? = null,
 )
 
 /**

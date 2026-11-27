@@ -90,6 +90,10 @@ object FluidHealthReadings {
   /**
    * La lettura di [aggregate]: «Nessun dato» se Health Connect non ha niente, altrimenti il suo totale con le app che
    * l'hanno dato. I [buckets] (i tratti con dati di [FluidHealthGateway.aggregateByDuration]) servono solo a dire i buchi.
+   *
+   * Per le misure che non si sommano (peso, battito) Health Connect non ha un totale: il valore e' la **media** del tratto
+   * (`WEIGHT_AVG`, `BPM_AVG`), come la settimana di Salute di Apple che la chiama «Media». Per la lettura di un giorno c'e'
+   * [day], che per queste misure da' l'ultima misura (R3).
    */
   fun reading(
     aggregate: FluidHealthAggregate,
@@ -150,6 +154,10 @@ val FluidHealthGapBucket: Duration = Duration.ofMinutes(15)
 /**
  * La lettura del giorno [date] di una misura che si somma (passi, acqua, minuti di allenamento): il totale di Health
  * Connect, le app che l'hanno dato e i buchi lunghi. Oggi si ferma a [now].
+ *
+ * Per le misure che non si sommano (peso, battito) e' **l'ultima misura del giorno** ([FluidHealthGateway.latest]), con
+ * l'app che l'ha scritta e senza buchi: il peso della card e' l'ultima pesata, mai una media (R3: prima tornava la media
+ * di Health Connect, un peso che nessuna bilancia aveva detto).
  */
 suspend fun FluidHealthGateway.day(
   metric: FluidHealthMetric,
@@ -162,6 +170,15 @@ suspend fun FluidHealthGateway.day(
   if (!to.isAfter(from)) return FluidHealthReading.NoData
   val total = aggregate(metric, from, to)
   if (!total.hasData) return FluidHealthReading.NoData
+  if (total.total == null) {
+    val last = latest(metric, from, to) ?: return FluidHealthReading.NoData
+    val value = when (last) {
+      is FluidHealthPoint -> last.value
+      is FluidHealthInterval -> last.value
+      is FluidHealthSession -> return FluidHealthReading.NoData
+    }
+    return FluidHealthReading.Value(value, listOf(last.source))
+  }
   val buckets = if (gapRule == null) emptyList() else aggregateByDuration(metric, from, to, FluidHealthGapBucket)
   return FluidHealthReadings.reading(total, buckets, zone, gapRule)
 }

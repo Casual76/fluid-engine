@@ -169,6 +169,33 @@ class FluidMediaPickerStateTest {
     assertEquals(feed.items.map { it.key }.distinct(), feed.items.map { it.key })
   }
 
+  /** Una sorgente i cui album non arrivano finche' [failing] e' vero. */
+  private class AlbumsFlaky(private val inner: FluidFakeMediaSource) : FluidMediaSource by inner {
+    var failing = true
+    var asked = 0
+    override suspend fun albums(): List<FluidMediaAlbum> {
+      asked++
+      if (failing) throw java.io.IOException("Il NAS non risponde")
+      return inner.albums()
+    }
+  }
+
+  @Test fun gliAlbumCheNonArrivanoNonSiTengonoComeNessunAlbum() = runTest {
+    // R3 (difetto 2c): prima l'errore diventava una lista vuota messa in cache come «gia' letti», e senza forzare non si
+    // riprovava piu'.
+    val flaky = AlbumsFlaky(FluidFakeMediaSource.sample(count = 12))
+    val state = picker(10, flaky)
+    state.loadAlbums(flaky)
+    advanceUntilIdle()
+    assertNull("niente album, non zero album", state.albumsOf(flaky))
+    // Tornando sulla pagina degli album si richiedono, senza forzare.
+    flaky.failing = false
+    state.loadAlbums(flaky)
+    advanceUntilIdle()
+    assertEquals(2, flaky.asked)
+    assertTrue(state.albumsOf(flaky)!!.isNotEmpty())
+  }
+
   @Test fun gliElementiSceltiSiSalvanoESiRitrovano() {
     // R1 (Muse 1): i campi degli elementi scelti nel Bundle, e un formato che non torna non fa cadere niente.
     val items = FluidFakeMediaSource.sample(count = 12).entries.map { it.item }

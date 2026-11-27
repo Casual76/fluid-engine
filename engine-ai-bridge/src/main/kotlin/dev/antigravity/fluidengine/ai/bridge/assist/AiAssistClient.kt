@@ -192,9 +192,11 @@ class AiAssistClient internal constructor(
             continue
           }
           if (next === HostDied) {
-            // PampAI e' morta: forse l'ultimo invio e' gia' nella casella.
-            while (true) { val rest = inbox.tryReceive().getOrNull() ?: break; handle(assembler, rest) }
+            // PampAI e' morta: forse l'ultimo invio e' gia' nella casella. Se c'era la fine, l'ultimo stato e' lei (R3-S1).
+            var changed = false
+            while (true) { val rest = inbox.tryReceive().getOrNull() ?: break; if (handle(assembler, rest)) changed = true }
             if (assembler.fail(AiAssistError(AiAssistError.Interrupted))) { endedHere = true; send(assembler.progress) }
+            else if (changed) send(assembler.progress)
             break
           }
           val batch = next as String

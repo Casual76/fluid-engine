@@ -12,6 +12,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import android.os.Looper
+import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -51,7 +52,10 @@ class FluidSystemLocation(context: Context) {
     return null
   }
 
-  /** L'ultima posizione conosciuta, se c'e' e se l'app ha il permesso. */
+  /**
+   * L'ultima posizione conosciuta, se c'e' e se l'app ha il permesso: puo' essere vecchia (di ore o di giorni), e lo dice
+   * [FluidMapUserLocation.timeMillis].
+   */
   @SuppressLint("MissingPermission")
   fun last(): FluidMapUserLocation? {
     if (!hasPermission()) return null
@@ -63,6 +67,9 @@ class FluidSystemLocation(context: Context) {
   /**
    * Le posizioni, una ogni [intervalMillis] al piu', finche' qualcuno ascolta. Niente senza permesso o senza fornitore.
    * Sul thread principale (il `Looper` principale), come vuole lo stato della mappa.
+   *
+   * La prima e' l'ultima posizione conosciuta solo se e' recente (al piu' [LastKnownMaxAgeMillis]): una di ieri non entra
+   * come se fosse adesso, e la mappa che segue non ci vola (R3). Senza, il punto arriva col primo rilevamento.
    */
   @SuppressLint("MissingPermission")
   fun updates(intervalMillis: Long = 2_000): Flow<FluidMapUserLocation> = callbackFlow {
@@ -72,7 +79,7 @@ class FluidSystemLocation(context: Context) {
       awaitClose { }
       return@callbackFlow
     }
-    runCatching { m.getLastKnownLocation(p) }.getOrNull()?.let { trySend(it.toFluid()) }
+    runCatching { m.getLastKnownLocation(p) }.getOrNull()?.takeIf { it.ageMillis() <= LastKnownMaxAgeMillis }?.let { trySend(it.toFluid()) }
     val listener = LocationListener { location -> trySend(location.toFluid()) }
     m.requestLocationUpdates(p, intervalMillis, 0f, listener, Looper.getMainLooper())
     awaitClose { m.removeUpdates(listener) }
@@ -97,7 +104,23 @@ private fun Location.toFluid(): FluidMapUserLocation = FluidMapUserLocation(
   point = FluidGeoPoint(latitude.coerceIn(-90.0, 90.0), longitude),
   accuracyMeters = if (hasAccuracy()) accuracy else null,
   headingDegrees = if (hasBearing()) bearing else null,
+  timeMillis = time.takeIf { it > 0L },
 )
+
+/**
+ * Quanto puo' essere vecchia l'ultima posizione conosciuta per entrare come posizione di adesso: 30 secondi, lo stesso
+ * confine con cui Android dice «attuale» una posizione gia' in memoria (`MAX_CURRENT_LOCATION_AGE_MS` di
+ * `LocationProviderManager` in AOSP, la regola di `getCurrentLocation`; fiducia media, letto a memoria del sorgente).
+ */
+internal const val LastKnownMaxAgeMillis: Long = 30_000L
+
+/**
+ * L'eta' della posizione: dall'orologio che non torna indietro (`elapsedRealtimeNanos`, come `getElapsedRealtimeAgeMillis`
+ * di Android 13), e dall'ora di sistema se il fornitore non l'ha messo.
+ */
+private fun Location.ageMillis(): Long =
+  if (elapsedRealtimeNanos > 0L) (SystemClock.elapsedRealtimeNanos() - elapsedRealtimeNanos) / 1_000_000L
+  else System.currentTimeMillis() - time
 
 /**
  * Le licenze di `engine-map`, da aggiungere alla pagina «Licenze e crediti»: MapLibre Native, i dati di OpenStreetMap,

@@ -102,9 +102,12 @@ object FluidLog {
 object FluidPrivacyScrubber {
   private val rules: List<Pair<Regex, (MatchResult) -> String>> = listOf(
     Regex("""(?i)\b(?:content|file)://\S+""") to { _ -> "«[file]»" },
-    Regex("""(?i)\b(https?)://([A-Za-z0-9.-]+)(?::\d+)?([/?#]\S*)?""") to { m ->
+    // R3 · Anche con un IPv6 fra parentesi quadre al posto del dominio (`http://[2001:db8::1]:8080/…`): prima la
+    // regola non lo riconosceva, e restavano l'indirizzo, il percorso e i parametri.
+    Regex("""(?i)\b(https?)://(\[[0-9A-Za-z:.%_-]+\]|[A-Za-z0-9.-]+)(?::\d+)?([/?#]\S*)?""") to { m ->
       val tail = m.groupValues[3]
-      "${m.groupValues[1].lowercase()}://${m.groupValues[2]}" + if (tail.length > 1) "/«…»" else ""
+      val host = m.groupValues[2].let { if (it.startsWith("[")) "«[ip]»" else it }
+      "${m.groupValues[1].lowercase()}://$host" + if (tail.length > 1) "/«…»" else ""
     },
     Regex("""(?i)(?:/storage/|/sdcard/|/data/user/|/data/data/)\S+""") to { _ -> "«[file]»" },
     Regex("""[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}""") to { _ -> "«[email]»" },
@@ -119,6 +122,13 @@ object FluidPrivacyScrubber {
     Regex("""(?<![\d.])(?:\d[ -]?){12,18}\d(?![\d.])""") to { m ->
       if (luhn(m.value.filter(Char::isDigit))) "«[carta]»" else m.value
     },
+    // R3 · L'IPv6 in forma compressa (`2001:db8::1`, `::1`, `fe80::1%wlan0`, `::ffff:192.0.2.10`): un `::` con almeno un
+    // gruppo, la zona e un IPv4 in coda facoltativi. Prima dell'IPv4, che altrimenti ne toglierebbe solo la coda. Mai
+    // dentro una parola (`Note::class`) e mai un `::` da solo.
+    Regex(
+      """(?i)(?<![0-9a-z_:])(?:(?:[0-9a-f]{1,4}:){1,7}:(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?|::[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})""" +
+        """(?::(?:\d{1,3}\.){3}\d{1,3})?(?:%[0-9a-z._-]+)?(?![0-9a-z_]|\.\d)""",
+    ) to { _ -> "«[ip]»" },
     Regex("""\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b""") to { _ -> "«[ip]»" },
     Regex("""(?i)\b(?:[0-9a-f]{1,4}:){4,7}[0-9a-f]{1,4}\b""") to { _ -> "«[ip]»" },
     Regex("""(?<![\w.])(?:\+|00)?\d(?:[\s./-]?\d){8,14}(?![\w.])""") to { _ -> "«[telefono]»" },

@@ -29,11 +29,18 @@ class TransferOffer private constructor(val transferId: String, private var pair
   internal fun secretS(): ByteArray = (s ?: error("passaggio già dimenticato")).copyOf()
   internal fun keyPair(): X25519KeyPair = pair ?: error("passaggio già dimenticato")
 
+  /**
+   * R3 · Il sigillo già ritirato dal server (che non lo ha più) e non ancora chiuso nel Keystore: se la rete cade prima,
+   * il ritiro dopo riparte da qui invece di chiedere un QR nuovo. È cifrato per `n`, che sta già qui.
+   */
+  @Volatile internal var heldSeal: TransferSeal? = null
+
   /** Cancella `n` e `s`: un passaggio vale una volta. */
   fun forget() {
     s?.fill(0)
     s = null
     pair = null
+    heldSeal = null
   }
 
   override fun toString(): String = "TransferOffer($transferId)"

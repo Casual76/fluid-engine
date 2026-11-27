@@ -34,7 +34,7 @@ Catalogo delle firme: [`../api/audio.md`](../api/audio.md).
 | il microfono di un assistente (soppressore, guadagno) | `FluidRecorderConfig(microphone = FluidMicrophoneConfig.speech)` |
 | l'onda di un file già registrato | `FluidAudioEnvelopes.load(file)` (quella salvata accanto, o decodificata e salvata) |
 | l'onda di un audio qualunque per `Uri` | `FluidAudioEnvelopes.decode(context, uri)` |
-| tagliare un file fra due tempi | `FluidAudioTrim.trim(file, format, fromMillis, toMillis)` |
+| tagliare un file fra due tempi | `FluidAudioTrim.trim(file, format, fromMillis, toMillis)` (anche il WAV di un'altra app: sotto, «Il taglio») |
 | provarlo senza microfono | `FluidAudioRecorder(source = mioMicrofonoFinto, config)` con un `FluidPcmSource` |
 
 ## Come funziona
@@ -76,8 +76,21 @@ restano 300 ms prima della prima parola e dopo l'ultima; l'AAC si taglia copiand
 l'onda accanto al file (`<file>.fluidwave`, un byte per valore: due ore sono 360 KB). Riaprendo il memo l'onda c'è subito.
 
 **L'onda di un file.** `FluidAudioEnvelopes.load` legge prima quella salvata accanto (se non è più vecchia del file); se no
-il WAV si legge da sé (PCM 8–32 bit, mono o stereo mescolati) e gli altri formati si decodificano con `MediaExtractor` e
-`MediaCodec`, fuori dal thread principale.
+il WAV si legge da sé (PCM 8–32 bit, da 1 a 8 canali mescolati) e gli altri formati si decodificano con `MediaExtractor` e
+`MediaCodec`, fuori dal thread principale. Le misure dell'intestazione di un WAV si controllano prima di allocare (R3): un
+pezzo `fmt ` fuori da 16–64 byte, più di 8 canali o una frequenza fuori da 1–768 kHz sono un'`IOException` (e `load` dà
+null), anche per un allegato rovinato o costruito apposta.
+
+**Il taglio** (`FluidAudioTrim.trim`). Il WAV si taglia copiando i byte, l'AAC copiando i pacchetti; il file si
+sostituisce solo a taglio riuscito. Il WAV di un'altra app (R3) si taglia se è uno di quelli che il modulo sa leggere: PCM
+intero a 8–32 bit, fino a 8 canali, coi pezzi in qualsiasi ordine (`LIST`, `fact`, `bext`, `JUNK` prima o dopo i dati).
+Il file tagliato tiene il formato com'era (per primo), i dati del tratto e **i pezzi di testo** (R3-M1b, scelta di
+Alessio): i titoli e le note (`LIST`/`INFO`) e i tag `id3 `, prima o dopo i dati come nel file di partenza. Il blocco
+della radio `bext` resta se è coerente col taglio: l'ora d'inizio (`TimeReference`) si sposta al primo campione tenuto, e
+la loudness della versione 2, che misurava il file intero, si toglie (il blocco torna alla versione 1); un `bext` senza
+tutti i campi non passa. Non passano i pezzi che parlano di tempi del file intero: `fact` (la durata), `cue ` e le sue
+etichette (`LIST`/`adtl`), `smpl`, `iXML`, `_PMX`, e quelli che il modulo non conosce. Un WAV in virgola mobile,
+compresso o rovinato non si taglia: `trim` è falso e il file resta com'era.
 
 ## La qualità (F8.13b)
 
@@ -127,7 +140,15 @@ pausa il microfono è spento e il tempo è fermo; un'interruzione va in pausa e 
 lato, con l'onda tagliata insieme; il WAV stereo si legge in un'onda mescolata; un WAV che si sta registrando dice sul disco
 quanto audio contiene, al più un secondo indietro; dopo una cattura fallita `reset()` e `start()` buttano il file a metà, e `stop()` lo
 consegna chiuso (R1). `FluidAacWriterTest.kt` (Robolectric, col codificatore e il contenitore contati): un contenitore che non si apre libera
-il codificatore; uno che non si chiude libera tutti e due, e `stop()` torna null con `Failed` (R1). Nella galleria
+il codificatore; uno che non si chiude libera tutti e due, e `stop()` torna null con `Failed` (R1). `FluidAudioWavTest.kt`
+(R3, coi WAV scritti byte per byte nella prova): un WAV a 24 bit stereo con `LIST` prima dei dati, uno a 32 bit con
+`bext`, `fact` e un `JUNK` dispari, il formato esteso col PCM si tagliano tenendo il formato vero e i byte giusti, col
+riempimento di un tratto dispari; virgola mobile, ADPCM, dati prima del formato, niente dati e un file che non è un WAV
+danno falso e restano identici; una misura dei dati più lunga del file si ferma ai byte veri; un pezzo `fmt ` di 2 GB o
+negativo, uno di 6 byte, 30 000 canali e 1 Hz sono un'`IOException`. R3-M1b: i titoli e le note (`LIST`/`INFO`) prima
+e dopo i dati e i tag `id3 ` passano al loro posto, `cue `, `adtl` e `iXML` no; il file tagliato si rilegge con
+`fromWav` e col lettore WAV del JDK (`javax.sound.sampled`), anche a 24 bit; `bext` sposta l'ora d'inizio di 24 000
+campioni a 48 kHz, nella versione 2 perde la loudness e torna alla 1, e un `bext` corto non passa. Nella galleria
 (`sample/src/testDebug/.../F8p13AudioUiTest.kt`) il registratore vero dietro il pannello, coi tocchi veri. Sul tablet: un
 memo vero, registrato e riascoltato.
 

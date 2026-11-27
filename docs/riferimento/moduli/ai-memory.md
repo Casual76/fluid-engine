@@ -166,6 +166,10 @@ dentro, testo fuori), così l'engine non dipende dalla libreria: il legame lo fa
 **250 gettoni** e 10 ricordi; una domanda che non c'entra con niente paga **zero**. La riga è
 `- è in 5F al liceo Galilei (2026-11-26)`, con l'app e la scadenza quando ci sono.
 
+**Dopo l'attesa, lo stato di adesso** (R3): AICore che allarga la domanda e l'indice fanno aspettare; `prompt` e
+`relevant` rileggono i ricordi e l'ora **dopo** l'attesa, così un ricordo tolto, sfissato o scaduto nel frattempo non
+entra nel prompt né nel contesto dell'estrattore.
+
 **La ricerca** usa l'indice di `engine-search` (l'italiano, gli errori di battitura, i plurali, BM25F) **solo in memoria**:
 si rifà a ogni apertura dai ricordi, così sul disco non c'è niente oltre al file cifrato. Una domanda all'assistente nomina
 un ricordo con una parola sola, quindi ogni parola è una ricerca a sé e i punteggi si sommano (l'indice di F8.22 vuole
@@ -184,7 +188,16 @@ azzerato) fa lanciare l'eccezione e **non** azzera la memoria da solo.
 
 Passano da PampAI col contratto inverso di F9.1 (`ContentResolver.call` sul provider dell'assistenza, la firma, il
 pacchetto detto dal sistema). I metodi sono di `AiMemoryProtocol`: `memory_propose`, `memory_answer`, `memory_undo`,
-`memory_forget_mine`. `AiMemoryInbox` decide dopo il cancello di F9.1:
+`memory_forget_mine`. `AiMemoryInbox` decide dopo il cancello di F9.1.
+
+**L'aggancio** (R3-S1b, D5 di Alessio): la sottoclasse di `AiAssistHostProvider` di PampAI dà la memoria con
+`override suspend fun memory(method, json, caller) = inbox.handle(method, json, AiMemoryCaller(caller.packageName,
+caller.label))`. Il provider passa i metodi dei ricordi dopo il cancello (la firma, il pacchetto dal sistema), e **il
+«no» di F9.1 vale anche qui**: un'app rifiutata o bloccata in «App che usano PampAI» riceve `not_allowed` e la memoria
+non la sente. Il sì di F9.1 «da chiedere» non ferma i ricordi. Senza l'aggancio i metodi rispondono «metodo
+sconosciuto». La galleria chiama ancora l'inbox nello stesso processo.
+
+L'inbox controlla:
 
 - **la tabella** (`AiMemoryAppPolicy.DEFAULT`, risposta 3 di Alessio): Pampa Mail le chiavi `scrittura.*` e `mail.*`,
   MyCloud Gallery `foto.*`, `luoghi.*` e `persone.*`, ClasseViva `scuola.*`; le varianti `.debug` solo con un PampAI di
@@ -199,6 +212,15 @@ L'esito torna all'app (`AiMemoryProposalResult`): di serie `pending`, e l'app mo
 ora)` è un `KindAsk`) e manda la risposta con `memory_answer`; col salvataggio automatico `remembered`, e l'app mostra la
 sua card con Annulla. PampAI ha il suo avviso (la chat «Dalle app» e la pagina, dove la domanda resta «Da confermare»).
 Un'app risponde, annulla e dimentica solo quello che ha proposto lei.
+
+**L'app riceve solo il suo** (R3): l'esito, l'id dell'avviso e il fatto che ha scritto lei (`text`). Il ricordo con la
+stessa chiave che resta (`kept`) o che viene sostituito (`pending`, `updated`) è dell'utente: `previousText` non arriva
+più dal ponte e per `kept` l'app non mostra una card (`notice` torna null, come per `duplicate`). Il «al posto di…» e il
+conflitto si vedono nella pagina di PampAI.
+
+**Lo stesso testo di un ricordo non suo** (R3-S1b, D2 di Alessio): se un'app propone il testo di un ricordo che non ha
+proposto lei (scritto dall'utente, detto in chat, di un'altra app), quel ricordo non si tocca, né la scadenza né la
+chiave né le parole, e l'esito è `duplicate`. Un ricordo proposto dall'app stessa si aggiorna come prima.
 
 ## Una memoria sola: il profilo dentro
 
@@ -216,7 +238,11 @@ Il profilo della ricerca di PampAI 1.4.0 (`aria_profile` con `aria_dependencies`
 - **la correzione**: `book.correct` fa del fatto una cosa detta (`statement`);
 - **l'esclusione** (`AiMemoryExclusion`: un argomento o un tipo di dato, un'app, un'autorizzazione, un dato): ciò che la
   memoria non deve più imparare; toglie anche ciò che aveva già imparato da lì (non le cose dette dall'utente);
-- **la revoca di una fonte**: `book.forgetFromGrant(grant, record)`.
+- **la revoca di una fonte**: `book.forgetFromGrant(grant, record)`. Con i ricordi se ne vanno, nella stessa scrittura,
+  le domande ancora aperte che vengono da lì e le versioni di prima che Annulla rimetterebbe (R3). Lo stesso vale per
+  `exclude` e `forgetFromApp`; `setAppBlocked` chiude le domande dell'app. «Ricorda» e Annulla ricontrollano le regole
+  di adesso: un'app bloccata, un argomento escluso o un fatto già scaduto non entrano (`not_allowed`, `excluded`,
+  `refused`).
 
 Il lettore di prova `AiMemoryLegacyImport.readPampaiProfile(file)` legge le cinque tabelle in sola lettura: solo le voci
 `ACTIVE` passano (le altre restano nella copia di Room), solo le prove valide, l'app dall'autorizzazione. Un'esclusione
@@ -249,8 +275,13 @@ toglie con una migrazione dopo, quando il passaggio è andato bene.
   l'altra chiave, la revoca), `AiMemoryLegacyImportTest` (un database finto con lo schema v7), `AiMemoryInboxTest` (il
   ponte), `AiMemoryAskAndProfileTest` (F9.3b: la domanda di serie, Ricorda e No, l'esclusione, «ricordati» che entra
   subito, l'interruttore che resta, le app della tabella e lo strumento, il profilo da un database v7 finto con prove,
-  esclusioni e revoca di una fonte, AICore finto per la domanda allargata e l'estrattore sul telefono).
+  esclusioni e revoca di una fonte, AICore finto per la domanda allargata e l'estrattore sul telefono), `AiMemoryR3Test`
+  (R3: il ponte non porta il ricordo privato con la stessa chiave, la revoca chiude le domande e l'Annulla, «Ricorda»
+  ricontrolla blocco, esclusione e scadenza, il prompt dopo l'attesa di AICore; R3-S1b: lo stesso testo di un ricordo
+  dell'utente non gli cambia scadenza né chiave).
 - `engine-ai-ui/src/test/.../aiui/memory/FluidMemoryTextsTest` (JVM): le frasi della card, della domanda e della pagina.
+- `sample/src/testDebug/.../novita/F9p3MemoryBridgeTest` (Robolectric, R3-S1b): i ricordi dal provider vero, col
+  cancello, il «no» di F9.1, il blocco della memoria e un'app fuori tabella.
 - `sample/src/testDebug/.../novita/F9p3MemoryUiTest` (Compose): la conversazione con la domanda, Ricorda e No, «Ricorda da
   solo», la card e Annulla, TalkBack, «Riduci movimento», la chat temporanea, ClasseViva col ponte, Pampa Notes e lo
   strumento, la pagina con «Da confermare», il fatto dedotto e le esclusioni.

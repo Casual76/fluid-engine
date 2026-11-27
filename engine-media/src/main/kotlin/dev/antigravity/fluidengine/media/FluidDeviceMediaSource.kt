@@ -21,8 +21,11 @@ import androidx.core.content.ContextCompat
 import dev.antigravity.fluidengine.ui.fluid.viewer.FluidFileInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import kotlin.coroutines.coroutineContext
+import kotlin.coroutines.resume
 
 /**
  * Le foto e i video del telefono, dal MediaStore (F8.14). Coi tre regimi dei permessi delle foto di Android:
@@ -109,19 +112,25 @@ class FluidDeviceMediaSource(
   override suspend fun thumbnail(item: FluidMediaItem, sizePx: Int): Bitmap? = withContext(Dispatchers.IO) {
     val id = item.id.toLongOrNull() ?: return@withContext null
     val signal = CancellationSignal()
-    try {
-      if (Build.VERSION.SDK_INT >= 29) {
-        resolver.loadThumbnail(contentUri(item.kind, id), Size(sizePx, sizePx), signal)
-      } else {
-        @Suppress("DEPRECATION")
-        if (item.kind == FluidMediaKind.Video) {
-          MediaStore.Video.Thumbnails.getThumbnail(resolver, id, MediaStore.Video.Thumbnails.MINI_KIND, null)
+    // R3: la cella che esce dallo schermo annulla la sua lettura, e il segnale la ferma anche nel MediaStore (prima il
+    // segnale non era legato a niente, e la decodifica continuava tenendo un posto delle letture).
+    suspendCancellableCoroutine { continuation ->
+      continuation.invokeOnCancellation { signal.cancel() }
+      val bitmap = try {
+        if (Build.VERSION.SDK_INT >= 29) {
+          resolver.loadThumbnail(contentUri(item.kind, id), Size(sizePx, sizePx), signal)
         } else {
-          MediaStore.Images.Thumbnails.getThumbnail(resolver, id, MediaStore.Images.Thumbnails.MINI_KIND, null)
+          @Suppress("DEPRECATION")
+          if (item.kind == FluidMediaKind.Video) {
+            MediaStore.Video.Thumbnails.getThumbnail(resolver, id, MediaStore.Video.Thumbnails.MINI_KIND, null)
+          } else {
+            MediaStore.Images.Thumbnails.getThumbnail(resolver, id, MediaStore.Images.Thumbnails.MINI_KIND, null)
+          }
         }
+      } catch (_: Exception) {
+        null
       }
-    } catch (_: Exception) {
-      null
+      continuation.resume(bitmap)
     }
   }
 
@@ -167,6 +176,11 @@ class FluidDeviceMediaSource(
     return row?.takeIf { it.kind == kind }
   }
 
+  /**
+   * Una domanda al MediaStore. Un MediaStore che lancia (una colonna che un produttore non ha, un permesso tolto) o che non
+   * risponde (il cursore nullo di un provider morto) **risale** come eccezione (R3): prima diventava una pagina vuota e
+   * finita, e il selettore diceva «Nessuna foto» invece di «… non è disponibile» con «Riprova».
+   */
   private inline fun query(
     selection: String,
     args: Array<String>,
@@ -176,29 +190,25 @@ class FluidDeviceMediaSource(
     read: (Cursor) -> Unit,
   ) {
     val uri = filesUri()
-    val cursor = try {
-      if (Build.VERSION.SDK_INT >= 30) {
-        val bundle = Bundle().apply {
-          putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
-          putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, args)
-          if (sort != null) putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sort)
-          if (limit != null) {
-            putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
-            putInt(ContentResolver.QUERY_ARG_OFFSET, offset)
-          }
+    val cursor = if (Build.VERSION.SDK_INT >= 30) {
+      val bundle = Bundle().apply {
+        putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+        putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, args)
+        if (sort != null) putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sort)
+        if (limit != null) {
+          putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+          putInt(ContentResolver.QUERY_ARG_OFFSET, offset)
         }
-        resolver.query(uri, Projection, bundle, null)
-      } else {
-        val order = buildString {
-          append(sort ?: "${MediaStore.MediaColumns._ID} DESC")
-          if (limit != null) append(" LIMIT $limit OFFSET $offset")
-        }
-        resolver.query(uri, Projection, selection, args, order)
       }
-    } catch (_: Exception) {
-      null
-    }
-    cursor?.use(read)
+      resolver.query(uri, Projection, bundle, null)
+    } else {
+      val order = buildString {
+        append(sort ?: "${MediaStore.MediaColumns._ID} DESC")
+        if (limit != null) append(" LIMIT $limit OFFSET $offset")
+      }
+      resolver.query(uri, Projection, selection, args, order)
+    } ?: throw IOException("Il MediaStore non risponde")
+    cursor.use(read)
   }
 
   override fun toString(): String = "FluidDeviceMediaSource"

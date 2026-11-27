@@ -40,7 +40,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `suspend fun refresh(id: String): McpConnectorStatus` — Legge gli strumenti del server e li salva. Torna lo stato a cui si e' arrivati: un errore non lancia, finisce nel connettore ([McpConnector.lastError], [McpConnector.needsSignIn]).
   - `suspend fun beginSignIn(id: String): String` — L'inizio dell'accesso: l'indirizzo da aprire nel browser (o in una Custom Tab).
   - `suspend fun completeSignIn(callback: String): String?` — Il ritorno dal browser: [callback] e' l'indirizzo con cui l'app e' stata riaperta. Torna l'id del connettore entrato, o null se il ritorno non e' di nessun connettore in attesa.
-  - `suspend fun signOut(id: String)` — Esce: i gettoni si cancellano, il connettore resta (da collegare).
+  - `suspend fun signOut(id: String)` — Esce: i gettoni e l'accesso a meta' si cancellano in una scrittura sola, e un rinnovo o un ritorno dal browser ancora in corso non li rimettono (R3-S1). Il connettore resta (da collegare).
   - `suspend fun remove(id: String)` — Toglie il connettore: la sessione si chiude, i gettoni e la lista lo dimenticano.
   - `suspend fun rename(id: String, name: String)`
   - `suspend fun setPolicy(id: String, tool: String, policy: McpToolPolicy)` — La regola di uno strumento. «Sempre» vale solo per gli strumenti che il server dice di sola lettura: una scrittura chiede sempre, e la regola resta «Chiedi». Uno strumento nuovo o cambiato si approva con [approve].
@@ -126,11 +126,12 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `class AuthRequired(val resourceMetadataUrl: String?, val scope: String?, val insufficientScope: Boolean = false) :` — Il server vuole un accesso (401), o uno piu' ampio (403 con `insufficient_scope`).
   - `class UnsupportedVersion(val serverVersion: String?) :` — Il server ha risposto con una versione che il cliente non conosce.
   - `class Http(val status: Int, val body: String) : McpError("il connettore ha risposto $status")` — Un errore HTTP che non e' l'accesso: lo stato e il testo, gia' accorciato.
-  - `class Rpc(val code: Int, val rpcMessage: String) : McpError("errore del connettore ($code): $rpcMessage")` — Un errore JSON-RPC del server.
+  - `class Rpc(val code: Int, val rpcMessage: String) : McpError("errore del connettore ($code)")` — Un errore JSON-RPC del server. [rpcMessage] e' il suo testo, che il messaggio non porta (R3-S1).
   - `class Interrupted(cause: Throwable? = null) : McpError("il collegamento col connettore si e' interrotto", cause, uncertain = true)` — Il flusso si e' interrotto prima della risposta e non si e' potuto riprendere.
   - `class Timeout : McpError("il connettore non ha risposto in tempo", uncertain = true)` — Nessuna risposta entro il tempo.
-  - `class Network(cause: Throwable) : McpError("connettore non raggiungibile: ${cause.message ?: cause::class.simpleName}", cause)` — La rete non c'e' o il server non risponde.
-  - `class Protocol(detail: String) : McpError("risposta del connettore non valida: $detail")` — Un messaggio che non e' JSON-RPC, o un campo obbligatorio che manca.
+  - `class Network(cause: Throwable) : McpError("connettore non raggiungibile: ${AiErrorMapper.shorten(cause.message) ?: cause::class.simpleName}", cause)` — La rete non c'e' o il server non risponde. Il motivo e' quello dell'eccezione del telefono («connessione rifiutata»), accorciato e senza niente che somigli a un gettone (R3-S1).
+  - `class Protocol(detail: String) : McpError("risposta del connettore non valida: $detail")` — Un messaggio che non e' JSON-RPC, o un campo obbligatorio che manca. [detail] e' dell'app, non del servizio.
+  - `companion object`
 
 ## `engine-ai-mcp/ai/mcp/McpStores.kt`
 
@@ -156,7 +157,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `suspend fun pending(id: String): McpAuthRequest?` — L'accesso cominciato, che aspetta il ritorno dal browser.
   - `suspend fun setPending(id: String, request: McpAuthRequest?)`
   - `suspend fun pendingFor(state: String): String?` — Il connettore che aspetta il ritorno con questo `state`, se c'e'.
-  - `suspend fun forget(id: String)` — Dimentica tutto di un connettore (quando l'utente lo toglie).
+  - `suspend fun forget(id: String)` — Dimentica tutto di un connettore (quando l'utente lo toglie). Resta solo la generazione, avanzata: un rinnovo o un ritorno dal browser ancora in corso non lasciano gettoni di un connettore che non c'e' piu' (R3-S1).
   - `companion object`
     - `const val ALIAS` — L'alias del Keystore dei connettori: diverso da quello delle chiavi dei provider.
     - `fun open(file: java.io.File, cipher: SecretCipher = KeystoreCipher(ALIAS)): McpTokenStore`

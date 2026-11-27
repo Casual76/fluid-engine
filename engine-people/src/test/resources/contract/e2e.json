@@ -80,7 +80,8 @@
       },
       "nBytes": 32,
       "sBytes": 16,
-      "rule": "il QR passa solo dallo schermo alla fotocamera: N e s non vanno mai al server; il telefono nuovo li dimentica dopo il ritiro o dopo 10 minuti"
+      "rule": "il QR passa solo dallo schermo alla fotocamera: N e s non vanno mai al server; il telefono nuovo li dimentica dopo il ritiro o dopo 10 minuti",
+      "pickup": "GET /v1/keys/transfers/{id} dà il sigillo (state sealed) ogni volta che il telefono nuovo lo chiede, finché non conferma con POST /v1/keys/transfers/{id}/received, dopo averlo chiuso nel suo Keystore, o finché non scadono i 10 minuti; dopo la conferma state è taken, senza sigillo. Ritirare e confermare li può solo il telefono nuovo"
     }
   },
   "people": {

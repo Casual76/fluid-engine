@@ -323,7 +323,8 @@ fun FluidFastScroller(
   // composte (il vetro col suo modello e la sua sonda, la transizione, il testo misurato per la prima volta), sul Tab S9
   // 2,3 ms di ricomposizione e 1,1 ms di misura del testo in un fotogramma da 8,4 ms. Ora la sua composizione vive con lo
   // scorrimento rapido: a maniglia libera sta in un contenitore che la misura ma non la posa ([ScrubberBubbleHost]: niente
-  // disegno, niente cattura, e la sonda del vetro non legge senza una posizione), e quando la si prende la stessa
+  // disegno, niente cattura, e la sonda del vetro, non posata, non si iscrive alla pagina e non chiede letture: F7.25e),
+  // e quando la si prende la stessa
   // composizione si sposta dentro l'`AnimatedVisibility` di sempre (`movableContentOf`), senza ricomporsi. Nel primo
   // fotogramma si compone solo la transizione della bolla. Contenuto, tempi e animazione sono quelli di prima: chi
   // decide se la bolla si vede e' lo stesso gesto, con la stessa condizione (`scrubbing` e un'etichetta non vuota).
@@ -556,8 +557,9 @@ fun FluidFastScroller(
 
 /**
  * F7.25 · Dove la bolla dello scorrimento rapido aspetta, gia' composta, quando non si vede: la misura (testo e caratteri
- * pronti) ma non la posa, quindi non si disegna, non cattura lo sfondo, e la sonda del suo vetro non legge (non ha una
- * posizione). Fuori dall'albero di TalkBack. La tiene solo quando l'`AnimatedVisibility` della bolla non la mostra e non
+ * pronti) ma non la posa, quindi non si disegna e non cattura lo sfondo. La sonda del suo vetro non ha una posizione:
+ * dalla F7.25e (review R3, difetto 1) non si iscrive alla pagina e non chiede letture finché la bolla non è posata.
+ * Prima ci riprovava a ogni ridisegno della pagina, a vuoto. Fuori dall'albero di TalkBack. La tiene solo quando l'`AnimatedVisibility` della bolla non la mostra e non
  * la sta togliendo: [content] e' la stessa `movableContentOf`, e passa da un posto all'altro senza ricomporsi.
  */
 @Composable

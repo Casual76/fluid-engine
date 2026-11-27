@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -51,8 +53,12 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.antigravity.fluidengine.map.icons.NearMe
@@ -264,7 +270,8 @@ private fun FluidMapLayersButton(state: FluidMapState, styles: List<FluidMapStyl
  * L'attribuzione: la scritta corta sempre in vista sulla mappa, su un vetro piccolo, che toccata apre i crediti con i
  * collegamenti (ODbL: «© OpenStreetMap» e openstreetmap.org/copyright a un tocco). Il bersaglio del dito e' di 44 dp
  * anche se il vetro e' basso. Su uno schermo stretto la scritta va a capo (al piu' due righe) invece di finire sotto i
- * comandi.
+ * comandi; se nemmeno in due righe ci sta (il carattere grande di sistema, R3) resta quella compatta
+ * ([FluidMapAttribution.compact], «© OpenStreetMap»), come sulla cartolina piccola.
  *
  * TalkBack la legge una volta: «Crediti della mappa: OpenFreeMap © OpenMapTiles © OpenStreetMap», un tasto. Fino alla
  * F8.26b la scritta sul vetro si univa alla descrizione e i crediti si sentivano due volte.
@@ -278,7 +285,10 @@ internal fun FluidMapAttributionChip(
 ) {
   var open by remember { mutableStateOf(false) }
   var origin by remember { mutableStateOf<Rect?>(null) }
-  Box(
+  val textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 10.5.sp, fontWeight = FontWeight.Medium)
+  val measurer = rememberTextMeasurer()
+  val density = LocalDensity.current
+  BoxWithConstraints(
     modifier
       .heightIn(min = 44.dp)
       .onGloballyPositioned { origin = it.boundsInRoot() }
@@ -292,15 +302,37 @@ internal fun FluidMapAttributionChip(
       .clickable { open = true },
     contentAlignment = Alignment.BottomStart,
   ) {
-    Box(Modifier.fluidGlass(FluidGlass.Regular, FluidCapsuleShape, backdrop).padding(horizontal = 8.dp, vertical = 3.dp)) {
-      BasicText(
-        attribution.short,
-        style = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 10.5.sp, fontWeight = FontWeight.Medium),
-        maxLines = 2,
-      )
+    val textWidth = if (constraints.hasBoundedWidth) constraints.maxWidth - with(density) { (AttributionPadding * 2).roundToPx() } else 0
+    val text = remember(attribution, textWidth, textStyle, density) {
+      fluidMapAttributionText(attribution, textWidth, textStyle, measurer, density)
+    }
+    Box(Modifier.fluidGlass(FluidGlass.Regular, FluidCapsuleShape, backdrop).padding(horizontal = AttributionPadding, vertical = 3.dp)) {
+      BasicText(text, style = textStyle, maxLines = AttributionMaxLines)
     }
   }
   FluidMapCreditsPopover(open, onDismiss = { open = false }, origin = { origin }, attribution = attribution, labels = labels)
+}
+
+private val AttributionPadding = 8.dp
+private const val AttributionMaxLines = 2
+
+/**
+ * La scritta dei crediti sulla mappa larga [maxWidthPx]: quella corta se sta in due righe, se no quella compatta. Col
+ * carattere di sistema a 2× su un telefono da 360 dp la corta ne vuole tre, e la terza, quella di «© OpenStreetMap», si
+ * tagliava (R3). Con una larghezza che non si sa ancora resta la corta.
+ */
+internal fun fluidMapAttributionText(
+  attribution: FluidMapAttribution,
+  maxWidthPx: Int,
+  style: TextStyle,
+  measurer: TextMeasurer,
+  density: Density,
+): String {
+  if (maxWidthPx <= 0) return attribution.short
+  val layout = measurer.measure(
+    attribution.short, style, maxLines = AttributionMaxLines, constraints = Constraints(maxWidth = maxWidthPx), density = density,
+  )
+  return if (layout.didOverflowHeight) attribution.compact else attribution.short
 }
 
 /**

@@ -202,7 +202,8 @@ data class FluidTimedWord(val text: String, val startMillis: Long, val endMillis
 object FluidTranscriptSeek {
 
   /**
-   * Dove saltare per un tocco sul carattere [offset] di [paragraph]:
+   * Dove saltare per un tocco sul carattere [offset] di [paragraph] (l'indice del carattere toccato, non un punto di
+   * inserimento: la vista lo calcola dal dito):
    *  1. con i tempi per parola, **la parola toccata** (il tocco sullo spazio dopo una parola va alla parola dopo, nella
    *     stessa frase; la punteggiatura in fondo resta sull'ultima);
    *  2. in una frase senza parole (o senza parole in tutto il paragrafo), l'inizio **della frase toccata**;
@@ -224,8 +225,8 @@ object FluidTranscriptSeek {
         // date) salta al suo inizio, non all'ultima parola della frase prima.
         val sameSegment = segment == null || word.start >= segment.start
         if (sameSegment) {
-          // Dentro la parola (o sul suo ultimo carattere): lei.
-          if (offset <= word.end) return word.startMs
+          // Dentro la parola: lei. La fine e' esclusa (R3): il carattere `end` e' gia' lo spazio dopo.
+          if (offset < word.end) return word.startMs
           // Nello spazio dopo: la prossima, se e' nella stessa frase; se no (la punteggiatura in fondo) l'ultima.
           val next = words.getOrNull(index + 1)
           if (next != null && (segment == null || next.start < segment.end)) return next.startMs

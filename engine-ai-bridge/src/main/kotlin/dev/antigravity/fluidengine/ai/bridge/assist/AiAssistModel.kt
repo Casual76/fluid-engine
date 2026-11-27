@@ -271,6 +271,14 @@ data class AiAssistProgress(
   val error: AiAssistError? = null,
 ) {
   val finished: Boolean get() = done || error != null
+
+  /**
+   * Se offrire «Riprova» per questa domanda: come [AiAssistError.retryable], ma **non dopo una scrittura** (R3-S1). Una
+   * ricevuta fatta o da verificare vuol dire che un tool ha gia' scritto qualcosa (un evento, un promemoria): rifare la
+   * stessa domanda lo rifarebbe. Allora decide l'utente, guardando le ricevute.
+   */
+  val retryable: Boolean
+    get() = error?.retryable == true && receipts.none { it.outcome != AiAssistReceipt.OutcomeFailed }
 }
 
 /**

@@ -558,7 +558,11 @@ internal fun CountdownScene(onBack: () -> Unit) {
 
 @Composable
 internal fun TimesScene(onBack: () -> Unit) {
-  val opened = remember { Instant.now() }
+  // F7.32d · «Adesso» dallo stesso orologio dei tempi vivi (`LocalFluidTimeSource`, di serie quello del sistema), come il
+  // conto alla rovescia: nelle prove dei bilanci è l'orologio della prova. Con `Instant.now()` i testi relativi cambiavano
+  // quando capitava col tempo vero (`tempi/posa`, 3 registrazioni con F8BalanceTest per prima nella JVM).
+  val time = LocalFluidTimeSource.current
+  val opened = remember { Instant.ofEpochMilli(time.nowMillis()) }
   val zone = ZoneId.systemDefault()
   val yesterday = remember { opened.atZone(zone).minusDays(1).withHour(9).withMinute(4).toInstant() }
   val lives = remember {

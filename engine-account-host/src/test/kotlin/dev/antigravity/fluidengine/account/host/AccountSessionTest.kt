@@ -277,7 +277,7 @@ class AccountSessionTest {
     assertNotNull((p.custody.appKey("dev.pampa.pampai", AppKeyPurpose.APP) as AppKeyOutcome.Ok).keys)
   }
   @Test
-  fun `F10_7 - il telefono nuovo guarda prima del sigillo - null, l'offerta resta buona, poi ritira una volta sola`() = runBlocking {
+  fun `F10_7 - il telefono nuovo guarda prima del sigillo - null, l'offerta resta buona, poi ritira e conferma`() = runBlocking {
     val keys = FakeKeysServer()
     val old = Phone(keys)
     old.signIn()
@@ -297,7 +297,72 @@ class AccountSessionTest {
     val got = new.custody.pollTransfer(offer)
     assertNotNull(got)
     assertTrue(new.custody.appKey("dev.pampa.pampai", AppKeyPurpose.APP) is AppKeyOutcome.Ok)
-    // Il sigillo si ritira una volta sola: chi ci riprova sa che il passaggio è finito.
+    // F10.7b: dopo il salvataggio la conferma, e il sigillo non c'è più. Chi ci riprova sa che il passaggio è finito.
+    assertEquals(1, keys.transferConfirmations)
+    try {
+      new.custody.pollTransfer(offer)
+      fail("un passaggio già ritirato non dà un altro sigillo")
+    } catch (e: TransferEndedException) {
+      assertEquals("taken", e.state)
+    }
+  }
+
+  @Test
+  fun `F10_7b - la risposta del ritiro si perde - lo stesso QR ritrova il sigillo, poi la conferma lo toglie`() = runBlocking {
+    // R3-S2, difetto 11; scelta A di Alessio del 27/11. Il server dà il sigillo, ma la risposta non arriva.
+    val keys = FakeKeysServer()
+    val old = Phone(keys)
+    old.signIn()
+    old.custody.startEncryption(RecoveryCode.generate())
+    val new = Phone(keys)
+    new.signIn()
+    val offer = new.custody.beginTransfer()
+    old.custody.confirmTransfer(TransferQr.parse(offer.qr)!!)
+    val pickUp = "GET /v1/keys/transfers/${offer.transferId}"
+    new.fake.dropping += pickUp
+    try {
+      new.custody.pollTransfer(offer)
+      fail("la risposta persa è un errore di rete")
+    } catch (e: TransferEndedException) {
+      fail("una risposta persa non chiude il passaggio")
+    } catch (_: Exception) {
+      // L'errore di rete: lo Store tiene l'offerta e riprova.
+    }
+    assertTrue("il server ha dato il sigillo almeno una volta", keys.transferPickups >= 1)
+    assertEquals("ancora nessuna conferma", 0, keys.transferConfirmations)
+    assertEquals("sealed", keys.transferState(offer.transferId))
+    new.fake.dropping -= pickUp
+    // Il tentativo dopo, con la stessa offerta (lo stesso QR sullo schermo): stesso sigillo, chiave chiusa, conferma.
+    assertNotNull(new.custody.pollTransfer(offer))
+    assertTrue(new.keyring.hasCustody)
+    assertTrue(new.custody.appKey("dev.pampa.pampai", AppKeyPurpose.APP) is AppKeyOutcome.Ok)
+    assertEquals(1, keys.transferConfirmations)
+    assertEquals("taken", keys.transferState(offer.transferId))
+    assertTrue(new.fake.recorded.any { it.method == "POST" && it.path == "/v1/keys/transfers/${offer.transferId}/received" })
+    try {
+      new.custody.pollTransfer(offer)
+      fail("dopo la conferma il sigillo non c'è più")
+    } catch (e: TransferEndedException) {
+      assertEquals("taken", e.state)
+    }
+  }
+
+  @Test
+  fun `F10_7b - con un server di prima la conferma manca, e il passaggio riesce lo stesso`() = runBlocking {
+    val keys = FakeKeysServer()
+    val old = Phone(keys)
+    old.signIn()
+    old.custody.startEncryption(RecoveryCode.generate())
+    val new = Phone(keys)
+    new.signIn()
+    new.fake.transferBeforeF107b = true
+    val offer = new.custody.beginTransfer()
+    old.custody.confirmTransfer(TransferQr.parse(offer.qr)!!)
+    assertNotNull(new.custody.pollTransfer(offer))
+    assertTrue(new.keyring.hasCustody)
+    // La conferma è partita, il server di prima ha risposto 404, e non è un errore.
+    assertTrue(new.fake.recorded.any { it.method == "POST" && it.path == "/v1/keys/transfers/${offer.transferId}/received" })
+    assertEquals("taken", keys.transferState(offer.transferId))
     try {
       new.custody.pollTransfer(offer)
       fail("un passaggio già ritirato non dà un altro sigillo")

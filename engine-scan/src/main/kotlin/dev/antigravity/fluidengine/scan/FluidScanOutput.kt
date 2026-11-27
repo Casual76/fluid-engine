@@ -64,13 +64,35 @@ data class FluidScanResult(
   /** Tutti gli indirizzi, il PDF per primo. */
   val uris: List<Uri> get() = listOfNotNull(pdf) + images
 
-  /** Un intent con gli indirizzi e il permesso di lettura, per consegnarli a un'altra app o come esito d'attività. */
+  /**
+   * Un intent con gli indirizzi e il permesso di lettura, per consegnarli a un'altra app o come esito d'attività.
+   *
+   * R3: per un invio mette anche quello che le altre app leggono, se l'app non l'ha già messo: con `ACTION_SEND` il tipo
+   * e `EXTRA_STREAM` del PDF (o della prima pagina, se il PDF non c'è); con `ACTION_SEND_MULTIPLE` tutti gli indirizzi,
+   * col tipo comune (`image/jpeg`, `application/pdf`, o quello generico, asterisco/asterisco, se sono tutti e due). Per
+   * le altre azioni (l'esito del contratto) solo gli indirizzi e il permesso, come prima.
+   */
   fun grantTo(intent: Intent): Intent {
     val all = uris
     if (all.isEmpty()) return intent
     intent.clipData = android.content.ClipData.newRawUri(title, all.first()).apply { all.drop(1).forEach { addItem(android.content.ClipData.Item(it)) } }
     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    val single = intent.action == Intent.ACTION_SEND
+    if (single || intent.action == Intent.ACTION_SEND_MULTIPLE) {
+      val sent = if (single) all.take(1) else all
+      if (intent.type == null) intent.setType(sent.map { if (it == pdf) PdfType else JpegType }.distinct().singleOrNull() ?: AnyType)
+      if (!intent.hasExtra(Intent.EXTRA_STREAM)) {
+        if (single) intent.putExtra(Intent.EXTRA_STREAM, sent.first())
+        else intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(sent))
+      }
+    }
     return intent
+  }
+
+  private companion object {
+    const val PdfType = "application/pdf"
+    const val JpegType = "image/jpeg"
+    const val AnyType = "*/*"
   }
 }
 

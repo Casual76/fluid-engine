@@ -194,8 +194,13 @@ class FluidFeedbackState internal constructor(
     draft = transform(draft)
   }
 
-  /** Dimentica la bozza: dopo l'invio, o quando l'utente la butta. */
+  /**
+   * Dimentica la bozza: dopo l'invio, o quando l'utente la butta. R3 · Con lei se ne va lo screenshot di lavoro, se è
+   * della cartella di lavoro ([FluidFeedbackFile.workDir]; un file dell'app messo nella bozza da lei resta): lo ZIP e
+   * la copia in Download, se c'erano, sono già fatti.
+   */
   fun discard() {
+    draft.screenshot?.let(FluidFeedbackFile::deleteWorkFile)
     draft = FluidFeedbackDraft()
     info = null
   }
@@ -358,7 +363,11 @@ private fun FeedbackSheet(state: FluidFeedbackState, labels: FluidFeedbackLabels
   // Le informazioni si raccolgono all'apertura (la coda si legge in sottofondo) e restano per la bozza.
   if (visible && state.info == null) {
     androidx.compose.runtime.LaunchedEffect(state) {
-      state.info = withContext(Dispatchers.IO) { FluidFeedbackInfo.collect(context, state.config, state.lab, state.diagnostics) }
+      state.info = withContext(Dispatchers.IO) {
+        // R3 · Gli screenshot di lavoro rimasti da un processo ucciso dopo averli scritti se ne vanno alla riapertura.
+        FluidFeedbackFile.deleteOrphanWorkFiles(context)
+        FluidFeedbackInfo.collect(context, state.config, state.lab, state.diagnostics)
+      }
     }
   }
   val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->

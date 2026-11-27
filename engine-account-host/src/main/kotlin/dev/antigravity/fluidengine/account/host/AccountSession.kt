@@ -72,6 +72,9 @@ class AccountSession(
    * R2 · Ogni entrata e ogni uscita cambiano la generazione, sotto [lock]: un rinnovo o un token d'app partiti prima
    * non mettono in cache (né puliscono) quello che vale per la sessione di dopo. [adopt] non è sospesa e non può
    * prendere [mutex]; il lucchetto corto protegge solo «confronta e metti in cache».
+   *
+   * R3 · Sotto [lock] si pubblica anche [state], nello stesso giro in cui si scrive la sessione: chi scrive per ultimo
+   * nel deposito è anche l'ultimo a pubblicare, e [promote] non rimette in vista il conto di prima dopo un'entrata.
    */
   private val lock = Any()
   private var generation = 0L
@@ -86,8 +89,10 @@ class AccountSession(
 
   /** Rilegge la sessione dal disco all'avvio dello Store. */
   fun restore() {
-    val s = runCatching { sessions.load() }.getOrNull()
-    _state.value = s?.let { HostSession.SignedIn(it.accountId, it.deviceId, it.displayName, it.kind) } ?: HostSession.SignedOut
+    synchronized(lock) {
+      val s = runCatching { sessions.load() }.getOrNull()
+      _state.value = s?.let { HostSession.SignedIn(it.accountId, it.deviceId, it.displayName, it.kind) } ?: HostSession.SignedOut
+    }
   }
 
   /**
@@ -104,8 +109,8 @@ class AccountSession(
       tokens.clear()
       tokens.put(STORE_KEY, "account", emptySet(), access, (response["expiresIn"] as? JsonPrimitive)?.longOrNull ?: 900)
       generation++
+      _state.value = HostSession.SignedIn(session.accountId, session.deviceId, displayName, session.kind)
     }
-    _state.value = HostSession.SignedIn(session.accountId, session.deviceId, displayName, session.kind)
     notify(listOf("state"))
   }
 
@@ -117,12 +122,14 @@ class AccountSession(
   fun promote() {
     // R2 · Leggere e riscrivere sotto lo stesso lucchetto di [adopt]: un'entrata con un altro account nel mezzo non
     // si fa sovrascrivere dalla sessione di prima. La generazione non cambia: è la stessa sessione, coi suoi token.
-    val full = synchronized(lock) {
+    // R3 · E si pubblica nello stesso giro: fuori dal lucchetto un'entrata passata in mezzo veniva ricoperta da A.
+    synchronized(lock) {
       val s = runCatching { sessions.load() }.getOrNull() ?: return
       if (s.kind != SessionKind.RECOVERY) return
-      StoredSession(s.accountId, s.deviceId, s.refreshToken, SessionKind.FULL, s.displayName, s.storePackage).also { sessions.save(it) }
+      val full = StoredSession(s.accountId, s.deviceId, s.refreshToken, SessionKind.FULL, s.displayName, s.storePackage)
+      sessions.save(full)
+      _state.value = HostSession.SignedIn(full.accountId, full.deviceId, full.displayName, full.kind)
     }
-    _state.value = HostSession.SignedIn(full.accountId, full.deviceId, full.displayName, full.kind)
     notify(listOf("state"))
   }
 
@@ -234,14 +241,16 @@ class AccountSession(
   }
 
   private fun clearLocked(kind: ExitKind) {
-    synchronized(lock) {
+    val gen = synchronized(lock) {
       tokens.clear()
       sessions.clear()
-      generation++
+      ++generation
     }
     keyring.wipe()
     deviceKey.destroy()
-    _state.value = HostSession.SignedOut
+    // R3 · «Fuori» si pubblica dopo le chiavi, come prima, ma solo se nel frattempo nessuno è entrato: non ricopre
+    // un'entrata già pubblicata.
+    synchronized(lock) { if (generation == gen) _state.value = HostSession.SignedOut }
     if (kind == ExitKind.REMOTE) {
       sessions.markRemoteExit(System.currentTimeMillis())
       notify(listOf("state", "wiped"))

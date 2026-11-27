@@ -1040,6 +1040,9 @@ private class DrawBackdropNode(
     /** I layer su richiesta che il fondale contiene: devono sapere che qualcuno li guarda. */
     private var registeredReads: List<LayerBackdrop> = emptyList()
 
+    /** F7.25f: [registerReads] è stata chiesta prima che la superficie fosse posata; la fa il primo posizionamento. */
+    private var readsAwaitPlacement = false
+
     /** La domanda "su quale pannello sto?" va rifatta al prossimo disegno. */
     private var containerDirty = false
 
@@ -1650,7 +1653,7 @@ private class DrawBackdropNode(
             // interval buys back almost all of that cost and gives up nothing the eye can see.
             // Read unconditionally: the hold below needs a clock even when no resample
             // interval was asked for.
-            val now = System.currentTimeMillis()
+            val now = GlassCaptureClock.nowMillis()
             val tooSoon = resampleIntervalMillis > 0L &&
                 lastRecordedAt != 0L &&
                 now - lastRecordedAt < resampleIntervalMillis &&
@@ -2049,6 +2052,11 @@ private class DrawBackdropNode(
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
         if (coordinates.isAttached) {
             lastCoordinates = coordinates
+            // F7.25f: posata, adesso conta fra i lettori (vedi [registerReads]).
+            if (readsAwaitPlacement) {
+                readsAwaitPlacement = false
+                registerReads()
+            }
             if (sampledBackdrop.isCoordinatesDependent) {
                 layoutCoordinates = coordinates
             } else {
@@ -2358,9 +2366,18 @@ private class DrawBackdropNode(
         nestedReaders.toList().forEach { it.onContainerChanged() }
     }
 
-    /** Conta questa superficie fra i lettori dei layer su richiesta che campiona. */
+    /**
+     * Conta questa superficie fra i lettori dei layer su richiesta che campiona. F7.25f: solo quando è posata (il primo
+     * [onGloballyPositioned] dopo l'attacco). Un vetro composto e non posato, come la bolla dello scorrimento rapido a
+     * maniglia libera, non si disegna. Prima contava lo stesso fra i lettori, e dove era l'unico vetro teneva la pagina
+     * registrata. È la regola della sonda (F7.25e).
+     */
     fun registerReads() {
         if (!isAttached || readsSuspended || registeredReads.isNotEmpty()) return
+        if (lastCoordinates == null) {
+            readsAwaitPlacement = true
+            return
+        }
         val reads = ArrayList<LayerBackdrop>(0)
         backdrop.forEachPart { part ->
             if (part is LayerBackdrop && part.onDemand && part !in reads) reads += part
@@ -2372,6 +2389,7 @@ private class DrawBackdropNode(
     fun unregisterReads() {
         registeredReads.forEach { it.removeReader() }
         registeredReads = emptyList()
+        readsAwaitPlacement = false
         releaseFallbacks()
     }
 

@@ -14,6 +14,7 @@ import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.node.LayoutNode
 import androidx.compose.ui.node.RootForTest
@@ -21,10 +22,13 @@ import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.getAllSemanticsNodes
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.foundation.FluidFirstUseMemory
 import dev.antigravity.fluidengine.foundation.memory.FluidMemoryCategory
 import dev.antigravity.fluidengine.ui.fluid.FluidTimeSource
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidFirstUseMemory
 import dev.antigravity.fluidengine.ui.fluid.LocalFluidTimeSource
 import dev.antigravity.fluidengine.ui.glass.backdrop.FluidGlassDiagnostics
+import dev.antigravity.fluidengine.ui.glass.backdrop.GlassCaptureClock
 import dev.antigravity.fluidengine.ui.glass.backdrop.GlassFrameDiagnostics
 import dev.antigravity.fluidengine.ui.glass.backdrop.RuntimeShader
 import dev.antigravity.fluidengine.ui.glass.backdrop.SharedRuntimeShaders
@@ -73,6 +77,14 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
     // consegna mai l'immagine, e la sonda ritenterebbe a vuoto, un lavoro che sul tablet non c'è.
     val previousReader = FluidGlassProbeDiagnostics.readerForTesting
     FluidGlassProbeDiagnostics.readerForTesting = { ProbeColor }
+    // F7.32c · Le decisioni di cattura del vetro (la cattura tenuta, 110 ms; l'intervallo fra due ricampionamenti) sull'orologio
+    // della prova, come i fotogrammi: con l'orologio di sistema le catture dipendevano da quanto il PC ci metteva a disegnare
+    // un fotogramma (`sync-due-dispositivi/entrata`, 11 catture su 9 a volte). Un'origine lontana da zero: per il vetro
+    // zero vuol dire «mai registrata».
+    val previousCaptureClock = GlassCaptureClock.clockForTesting
+    if (System.getProperty(SystemCaptureClockProperty) != "1") {
+      GlassCaptureClock.clockForTesting = { CaptureClockOrigin + compose.mainClock.currentTime }
+    }
     GlassFactoryCounters.reset()
     val node = RenderNode("bilanci • finestra")
     display = node
@@ -90,6 +102,7 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
       display = null
       GlassCostLevers.onCapture = previousObserver
       FluidGlassProbeDiagnostics.readerForTesting = previousReader
+      GlassCaptureClock.clockForTesting = previousCaptureClock
       val cache = ReflectionHelpers.getStaticField<MutableMap<String, RuntimeShader>>(SharedRuntimeShaders::class.java, "shaders")
       substitutes.forEach(cache::remove)
       ReflectionHelpers.setField(lazy, "_value", previousLog)
@@ -134,10 +147,15 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
       compose.setContent {
         CompositionLocalProvider(LocalFluidTimeSource provides time) {
           key(generation.intValue) {
-            if (System.getProperty(SharedRouteSignalsProperty) == "1") {
-              scene.value?.invoke()
-            } else {
-              CompositionLocalProvider(LocalRouteMotionSignals provides rememberRouteMotionSignals()) { scene.value?.invoke() }
+            // F7.32d · Ogni scena la sua memoria della prima volta: quella di serie (LocalFluidFirstUseMemory) dura quanto
+            // il processo, e il benvenuto di F8.11 si segna come visto quando compare. Una prova di prima che l'aveva
+            // aperto (BalanceOrderTest con F8.11) toglieva il foglio alla scena dopo: 3 nodi o 4, secondo l'ordine delle classi.
+            CompositionLocalProvider(LocalFluidFirstUseMemory provides remember { FluidFirstUseMemory.inMemory() }) {
+              if (System.getProperty(SharedRouteSignalsProperty) == "1") {
+                scene.value?.invoke()
+              } else {
+                CompositionLocalProvider(LocalRouteMotionSignals provides rememberRouteMotionSignals()) { scene.value?.invoke() }
+              }
             }
           }
         }
@@ -275,13 +293,15 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
   }
 
   /**
-   * La posa: due campioni separati da 2 s (un disegno ogni 25 fotogrammi). Ogni lavoro autonomo nel mezzo (una cattura,
-   * un layer, una registrazione, un filtro) si vede al disegno dopo, anche se il fotogramma in cui è nato non si disegna.
+   * La posa: due campioni separati da 2 s, con un disegno a ogni fotogramma. F7.32d: fino a F7.32c un disegno ogni 25
+   * fotogrammi (5 in 2 s): il lavoro dei fotogrammi non disegnati si raccoglieva nel disegno dopo, e un ridisegno a ogni
+   * fotogramma ne contava 5 invece di 125, un'animazione di 200 ms uno invece di 12. Ora la posa conta il lavoro di ogni
+   * fotogramma come sul tablet, e il suo tetto è la misura (zero resta zero).
    */
   fun quiet(meter: GlassBalanceMeter, name: String = "posa") {
     draw()
     meter.beginQuiet(name)
-    idle(QuietMillis, drawEvery = 25, meter = meter)
+    idle(QuietMillis, drawEvery = 1, meter = meter)
     meter.end()
   }
 
@@ -338,6 +358,12 @@ internal class BalanceHarness(private val compose: AndroidComposeTestRule<*, Com
     /** F7.32 · Per `BalanceOrderTest`: i millisecondi per cui i fili in sottofondo restano occupati quando entra una scena. */
     const val BackgroundDelayProperty = "fluid.bilanci.ritardoSottofondo"
     const val FrameTag = "FluidGlassFrame"
+
+    /** F7.32c · Dove comincia l'orologio delle catture del vetro nelle prove ([GlassCaptureClock]): un milione di ms. */
+    const val CaptureClockOrigin = 1_000_000L
+
+    /** F7.32c · Per `BalanceOrderTest`: a `1` le decisioni di cattura del vetro usano l'orologio di sistema, com'era prima. */
+    const val SystemCaptureClockProperty = "fluid.bilanci.orologioDiSistemaCatture"
     const val FrameMillis = 16L
     const val QuietMillis = 2_000L
 

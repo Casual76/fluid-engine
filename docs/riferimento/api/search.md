@@ -7,14 +7,14 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-search/search/FluidPampaSearch.kt`
 
-- `class FluidPampaSearch(private val calls: BridgeCalls, private val discover: suspend () -> List<FluidPampaApp>, private val embedder: FluidTextEmbedder? = null, val timeoutMillis: Long = DefaultTimeoutMillis)` — «Cerca in Pampa» (F8.22, `ricerca-in-tutte-le-app`): la domanda va insieme a tutte le app Pampa del telefono che la sanno ricevere (il tool [FluidSearchBridge.ToolName] sul ponte firmato), e i risultati tornano **per app**, come i gruppi di Spotlight. Con un [embedder] il vettore della domanda si calcola **una volta** e va a tutte le app, che confrontano i loro (stesso spazio: MyCloud Gallery compresa).
+- `class FluidPampaSearch(private val calls: BridgeCalls, private val discover: suspend () -> List<FluidPampaApp>, private val embedder: FluidTextEmbedder? = null, val timeoutMillis: Long = DefaultTimeoutMillis, val language: String = "it")` — «Cerca in Pampa» (F8.22, `ricerca-in-tutte-le-app`): la domanda va insieme a tutte le app Pampa del telefono che la sanno ricevere (il tool [FluidSearchBridge.ToolName] sul ponte firmato), e i risultati tornano **per app**, come i gruppi di Spotlight. Con un [embedder] il vettore della domanda si calcola **una volta** e va a tutte le app, che confrontano i loro (stesso spazio: MyCloud Gallery compresa).
   - `suspend fun apps(): List<FluidPampaApp>` — Le app di adesso (tenute un minuto: la scoperta chiede il catalogo a ogni app).
   - `suspend fun refresh()` — Dimentica le app trovate: la prossima domanda le cerca di nuovo (un'app installata adesso).
   - `fun search(query: String, kinds: Set<String> = emptySet(), limit: Int = DefaultLimit): Flow<FluidPampaResults>` — Cerca [query] in tutte le app. Il primo valore ha tutte le app in attesa; poi un valore nuovo a ogni app che risponde, fino all'ultima. I gruppi restano nell'ordine delle app: niente salti mentre si legge.
   - `companion object`
     - `const val DefaultTimeoutMillis: Long` — Quanto si aspetta un'app: 2,5 s (a occhio, 25/11/2026: un'app chiusa si avvia in 0,4–1,2 s sul Tab S9, poi cerca in ms).
     - `const val DefaultLimit: Int` — Quanti risultati per app: come Spotlight, che ne mostra pochi per app e «Mostra altro».
-    - `fun create(context: Context, embedder: FluidTextEmbedder? = null): FluidPampaSearch` — «Cerca in Pampa» con le app del telefono trovate col ponte.
+    - `fun create(context: Context, embedder: FluidTextEmbedder? = null, language: String = "it"): FluidPampaSearch` — «Cerca in Pampa» con le app del telefono trovate col ponte, nella lingua [language] di chi cerca.
     - `suspend fun discoverApps(client: AiToolClient): List<FluidPampaApp>` — Le app del telefono che rispondono a «Cerca in Pampa»: quelle col ponte (`AiToolClient.discover`) che hanno il tool della ricerca nel catalogo. Il catalogo stabilisce anche il protocollo 2 (i risultati tipizzati). Un'app con un'altra firma non risponde e resta fuori. In ordine di nome.
     - `fun open(context: Context, hit: FluidPampaHit): Boolean` — Apre il risultato nella sua app (il suo indirizzo, solo in quell'app). Falso se l'app non sa aprirlo.
     - `fun launch(context: Context, app: FluidPampaApp): Boolean` — Apre l'app (per sbloccarla, o quando un risultato non ha indirizzo).
@@ -29,14 +29,14 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 
 ## `engine-search/search/FluidSearchBridge.kt`
 
-- `class FluidSearchExposure(val kinds: Set<String>? = null, val kindLabels: Map<String, String> = emptyMap(), val snippets: Boolean = true, val locked: () -> Boolean = { false }, val maxHits: Int = 20, val embedder: FluidTextEmbedder? = null)` — Cosa un'app mostra di se' alle altre app Pampa quando cercano.
+- `class FluidSearchExposure(val kinds: Set<String>? = emptySet(), val kindLabels: Map<String, String> = emptyMap(), val snippets: Boolean = true, val locked: () -> Boolean = { false }, val maxHits: Int = 20, val embedder: FluidTextEmbedder? = null)` — Cosa un'app mostra di se' alle altre app Pampa quando cercano.
 - `object FluidSearchBridge` — I tool della ricerca fra app, per il registry dell'app (quello che il suo `AiToolHostProvider` espone).
   - `const val ActionSearch: String` — L'azione dell'intent-filter che chi risponde mette sul suo provider del ponte: rende l'app visibile a chi cerca (Android 11+, i `<queries>` del manifest del modulo). Il provider resta quello di `AiToolHostProvider`.
   - `const val ToolName: String` — Il nome del tool della ricerca: e' cosi' che «Cerca in Pampa» lo riconosce in ogni app.
   - `const val EmbedToolName: String` — Il nome del tool dei vettori: l'app che tiene il modello lo presta alle altre ([remoteEmbedder]).
-  - `const val MaxEmbedTexts: Int` — Quanti testi al piu' per una chiamata a [EmbedToolName] (768 float a testo: 32 stanno ben sotto il mega di Binder).
+  - `const val MaxEmbedTexts: Int` — Quanti testi al piu' per una chiamata a [EmbedToolName] (768 float a testo: 32 stanno ben sotto il mega di Binder). Il tool lo impone (R3): una chiamata con piu' testi risponde con un errore, senza calcolarne nessuno.
   - `val Group: AiToolGroup` — Il gruppo dei due tool, se l'app non ne ha uno suo.
-  - `fun <C> searchTool(index: FluidSearchIndex, exposure: FluidSearchExposure = FluidSearchExposure(), group: AiToolGroup = Group): AiTool<C>` — Il tool della ricerca nell'[index], per gli assistenti e per «Cerca in Pampa». Legge e basta (niente conferma). I campi riservati non si cercano e non escono mai ([FluidSearchQuery.includeSensitive] falso).
+  - `fun <C> searchTool(index: FluidSearchIndex, exposure: FluidSearchExposure = FluidSearchExposure(), group: AiToolGroup = Group): AiTool<C>` — Il tool della ricerca nell'[index], per gli assistenti e per «Cerca in Pampa». Legge e basta (niente conferma). I campi riservati non si cercano e non escono mai ([FluidSearchQuery.includeSensitive] falso). Mostra solo i tipi elencati in [FluidSearchExposure.kinds]: con l'esposizione di serie non trova niente (R3).
   - `fun <C> embedTool(embedder: FluidTextEmbedder, group: AiToolGroup = Group): AiTool<C>` — Il tool dei vettori: l'app che ha il modello del significato lo presta alle altre app firmate come lei.
   - `suspend fun remoteEmbedder(calls: BridgeCalls, authority: String): FluidTextEmbedder?` — Il modello del significato di un'altra app ([authority], col suo [EmbedToolName]): un'app senza il modello (157 MB) chiede i vettori a quella che lo tiene. Restituisce null se l'app non risponde o non lo presta.
 - `data class FluidPampaApp(val packageName: String, val authority: String, val label: String)` — Un'app Pampa che risponde a «Cerca in Pampa»: dove sta il suo ospite del ponte e come si chiama.
@@ -169,7 +169,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
 ## `engine-search/search/FluidSearchUi.kt`
 
 - `class FluidSearchKindStyle(val label: String, val icon: ImageVector? = null, val tone: FluidTone = FluidTone.Neutral)` — Il nome e il simbolo di un tipo di documento, per il suo gruppo e per il suo gettone.
-- `data class FluidSearchLabels(val results: String = "%d risultati", val oneResult: String = "1 risultato", val noResults: String = "Nessun risultato per «%s»", val corrected: String = "Risultati per %1\$s · cercato anche «%2\$s»", val byMeaning: String = "per significato", val kinds: String = "Tipo", val searching: String = "Cerco…")` — Le parole della ricerca. **In italiano di serie**: un'app tradotta le passa a [fluidSearchResults].
+- `data class FluidSearchLabels(val results: String = "%d risultati", val oneResult: String = "1 risultato", val noResults: String = "Nessun risultato per «%s»", val corrected: String = "Risultati per %1\$s · cercato anche «%2\$s»", val byMeaning: String = "per significato", val kinds: String = "Tipo", val searching: String = "Cerco…", val failed: String = "Impossibile cercare adesso")` — Le parole della ricerca. **In italiano di serie**: un'app tradotta le passa a [fluidSearchResults].
 - `object FluidSearchSemantics` — Le proprieta' di semantica della ricerca, per le prove e le tracce (TalkBack non le legge).
   - `val Arriving: SemanticsPropertyKey<Boolean>` — Vero sulla riga (o sul gruppo) che arriva sfocato perche' l'app l'ha aggiunto da sola; con «Riduci movimento» no.
 - `object FluidSearchDefaults` — I numeri della ricerca nel campo.
@@ -187,6 +187,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `var active: Boolean by mutableStateOf(false)` — Il campo e' aperto.
   - `var results: FluidSearchResults by mutableStateOf(FluidSearchResults.Empty)` — I risultati dell'ultima domanda.
   - `var searching: Boolean by mutableStateOf(false)` — Vero mentre una domanda e' in corso (il significato compreso).
+  - `var failure: Throwable? by mutableStateOf(null)` — L'errore dell'indice nell'ultima domanda (una cassaforte chiusa, un file illeggibile, un indice chiuso), o null. Con un errore [results] e' vuoto per la domanda di adesso e la pagina dice [FluidSearchLabels.failed]; la domanda dopo riprova (R3: prima l'errore sembrava «Nessun risultato», o restavano i risultati della domanda di prima).
   - `var recents: List<String> by mutableStateOf(emptyList())` — Le domande recenti dell'indice.
   - `var completions: List<String> by mutableStateOf(emptyList())` — Le parole dell'indice che completano quella che si sta scrivendo.
   - `val kinds: Set<String>` — I tipi scelti coi gettoni.

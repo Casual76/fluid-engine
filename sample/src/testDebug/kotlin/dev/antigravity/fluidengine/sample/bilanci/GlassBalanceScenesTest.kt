@@ -1,7 +1,13 @@
 package dev.antigravity.fluidengine.sample.bilanci
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.unit.IntSize
+import dev.antigravity.fluidengine.foundation.EngineSettings
 import dev.antigravity.fluidengine.sample.GlassBenchDevice
 import dev.antigravity.fluidengine.sample.GlassBenchHeap
 import dev.antigravity.fluidengine.sample.measure.MeasureScenario
@@ -17,11 +23,18 @@ import androidx.compose.ui.unit.dp
 import dev.antigravity.fluidengine.ui.fluid.FluidFloatingTabBar
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassContainer
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassIconButton
+import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalHost
 import dev.antigravity.fluidengine.ui.fluid.FluidGlassModalPortal
 import dev.antigravity.fluidengine.ui.fluid.FluidTabItem
+import dev.antigravity.fluidengine.ui.fluid.LocalFluidGlassModalHostState
 import dev.antigravity.fluidengine.ui.fluid.icons.FluidIcons
 import dev.antigravity.fluidengine.ui.fluid.icons.Search
 import dev.antigravity.fluidengine.ui.fluid.rememberFluidFloatingTabBarScrollConnection
+import dev.antigravity.fluidengine.ui.fluid.rememberFluidGlassModalHostState
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidFileViewer
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidPageSource
+import dev.antigravity.fluidengine.ui.fluid.viewer.FluidViewerContent
+import dev.antigravity.fluidengine.ui.theme.FluidTheme
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -41,6 +54,11 @@ import org.robolectric.annotation.GraphicsMode
  * foglio si rinfresca ogni 110 ms di orologio vero, fuori dall'orologio della prova), e il lavoro in più per fotogramma
  * del misuratore spostava di una cattura i suoi tetti storici (`foglio-trascinato/su` 38 → 39). Qui i tetti delle
  * catture lo sanno (vedi il motivo delle righe).
+ *
+ * F7.32d · E `pdf-finto`: il visore dei file su un PDF di 5000 pagine con le pagine finte di `F7p25ScrubberFirstFrameTest`,
+ * col copione degli elementi nuovi ([BalanceRuns.measureElement], con la posa dopo il gesto). Le scene PDF della galleria
+ * (`annota-pdf`, `leggi-testo-pdf`, `pdf-gigante`, `sfoglia-file`, `riprendi`) al PC non si montano (PdfRenderer e
+ * PdfDocument di Robolectric): questa misura al PC il visore che hanno intorno, senza il file vero.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -84,6 +102,14 @@ class GlassBalanceScenesTest {
     assertTrue("$label:\n  ${problems.joinToString("\n  ")}", problems.isEmpty())
   }
 
+  /** F7.32d · Un elemento col copione degli elementi nuovi, fuori dalla galleria. */
+  private fun element(label: String, content: @androidx.compose.runtime.Composable () -> Unit) {
+    val registry = GlassBalanceRegistry.require(VetroFile)
+    val meter = BalanceRuns.measureElement(harness, label, registry.margins[label] ?: 0, content = content)
+    val problems = meter.compare(registry, label, version = "F7.32d", proof = "GlassBalanceScenesTest")
+    assertTrue("$label:\n  ${problems.joinToString("\n  ")}", problems.isEmpty())
+  }
+
   @Test fun tasto() = component("tasto") { backdrop ->
     FluidGlassIconButton(onClick = {}, backdrop = backdrop) { Text("+") }
   }
@@ -112,6 +138,23 @@ class GlassBalanceScenesTest {
     )
   }
 
+  /**
+   * F7.32d · Il visore dei file su un PDF finto di 5000 pagine (le pagine di `F7p25ScrubberFirstFrameTest`: una bitmap
+   * vuota della misura chiesta), con la barra, la striscia dello scorrimento rapido e il dito che scorre le pagine.
+   */
+  @Test fun pdfFinto() = element("pdf-finto") {
+    FluidTheme(settings = remember { EngineSettings() }) {
+      val host = rememberFluidGlassModalHostState()
+      CompositionLocalProvider(LocalFluidGlassModalHostState provides host) {
+        Box(Modifier.fillMaxSize()) {
+          val document = remember { FluidViewerContent.Pages(FakePages()) }
+          FluidFileViewer(1, content = { document })
+          FluidGlassModalHost(state = host, backdrop = null)
+        }
+      }
+    }
+  }
+
   @Test fun menuTasto() = check(MeasureScenario.MenuButton)
   @Test fun menuGruppo() = check(MeasureScenario.MenuGroup)
   @Test fun menuGruppoBarra() = check(MeasureScenario.MenuGroupBar)
@@ -138,4 +181,13 @@ class GlassBalanceScenesTest {
     /** Le scene di «Misure» misurate qui: tutte (la completezza lo controlla in `GlassBalanceRegistryTest`). */
     internal val Measured = MeasureScenario.entries
   }
+}
+
+/** F7.32d · Le pagine finte di `F7p25ScrubberFirstFrameTest`: 5000 pagine A4, ognuna una bitmap vuota della misura chiesta. */
+private class FakePages : FluidPageSource {
+  override val count = 5_000
+
+  override suspend fun size(index: Int) = IntSize(595, 842)
+
+  override suspend fun render(index: Int, target: IntSize) = ImageBitmap(target.width, target.height)
 }

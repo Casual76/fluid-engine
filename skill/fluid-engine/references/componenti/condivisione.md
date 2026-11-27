@@ -195,7 +195,9 @@ tolta resta tolta) e la copia si rifa' per quella scelta (R2).
 
 `FluidCopyTools` porta gli attrezzi delle foto: `copyWithoutLocation` (copia il JPEG e svuota i campi GPS dell'EXIF) e
 `hasLocation` (legge il file), con `android.media.ExifInterface`. Una ricompressione perde tutto l'EXIF: chi riduce una
-foto rimette i dati che l'utente ha chiesto di tenere.
+foto rimette i dati che l'utente ha chiesto di tenere. Una foto modificata con `engine-editor` tiene di serie la
+posizione, come Foto (R3): è qui, con «Posizione» nelle opzioni, che la persona la toglie, e il foglio lo verifica sul file
+([`../moduli/editor.md`](../moduli/editor.md)).
 
 ## L'immagine da condividere: `FluidShareImageRenderer`
 

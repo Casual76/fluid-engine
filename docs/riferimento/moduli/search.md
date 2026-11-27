@@ -124,6 +124,9 @@ nuove, le cambiate e le tolte da un segno in poi. [`FluidSearchIndexer`](../api/
 meta' riparte dal pezzo dopo (`FluidSearchIndexingTest`).
 
 - **Con l'app aperta** (`update()`) si fa il lavoro leggero, fino a `foregroundDocs` (300).
+- **Una sorgente che non va avanti** (`hasMore` vero, niente modifiche e lo stesso segno) ferma il giro con
+  `FluidSearchProgress.error` e `hasMore` falso (R3): la stessa domanda darebbe la stessa pagina, e in primo piano non
+  c'e' una scadenza. Una pagina vuota col segno nuovo (una sorgente che salta cio' che non indicizza) va bene.
 - **Il resto e' pesante**: `FluidSearchWork.schedule(context)` lo mette in coda per WorkManager **solo in carica e con la
   batteria non scarica** (e solo in Wi-Fi con `heavyNeedsWifi`, per una sorgente che scarica). Il lavoro
   (`FluidSearchWorker`) chiede alla `Application` dell'app (`FluidSearchHost.fluidSearchJobs`) cosa far girare, un giro
@@ -146,7 +149,10 @@ il campo di serie (`FluidSearchSpec.search`) gia' agganciato:
 Nel contenuto della pagina `fluidSearchResults(state, kinds, onOpen, meta)` mette i **gruppi per tipo** («NOTE · 2»,
 «TRASCRIZIONI · 1»), una riga per risultato col titolo e il pezzo evidenziati (la `FluidListRow` col sottotitolo
 annotato, F8.22), la riga «Risultati per … · cercato anche …» quando la parola e' corretta e «Nessun risultato per …»
-solo dopo una ricerca finita. Si cerca **60 ms** dopo l'ultima lettera (`FluidSearchDefaults.DebounceMillis`); il
+solo dopo una ricerca finita. **Un indice che non risponde** (la cassaforte chiusa, un file illeggibile, un indice chiuso
+dall'app) non e' «nessun risultato»: `state.failure` ha l'errore, i risultati sono vuoti per la domanda di adesso (non
+restano quelli di prima) e la pagina dice «Impossibile cercare adesso» (`FluidSearchLabels.failed`); la domanda dopo
+riprova (R3). Un modello del significato che non parte invece non e' un errore: restano i risultati per parole. Si cerca **60 ms** dopo l'ultima lettera (`FluidSearchDefaults.DebounceMillis`); il
 significato **300 ms** dopo (come il selettore di foto), da 4 lettere.
 
 **Il movimento.** I risultati che cambiano mentre si scrive cambiano **nitidi e subito**, come Spotlight: li muove il
@@ -163,7 +169,8 @@ La domanda va a tutte le app Pampa che la sanno ricevere, **col ponte firmato** 
 una chiamata Binder fra app con la stessa firma, mai la rete.
 
 **Chi risponde** (ogni app con un indice) aggiunge il tool della ricerca al registry che il suo `AiToolHostProvider`
-espone gia' a PampAI, e l'azione `FluidSearchBridge.ActionSearch` al suo provider, che lo rende visibile a chi cerca
+espone gia' a PampAI, **coi tipi da mostrare** (`FluidSearchExposure.kinds`: di serie nessuno, R3, come Spotlight che
+trova solo cio' che l'app gli dona; `null` li mostra tutti, anche quelli futuri), e l'azione `FluidSearchBridge.ActionSearch` al suo provider, che lo rende visibile a chi cerca
 (Android 11+; i `<queries>` li dichiara il modulo):
 
 ```kotlin
@@ -193,7 +200,8 @@ vettore, la risposta è «bloccata» e vuota.
 
 **Chi cerca**: [`FluidPampaSearch`](../api/search.md) trova le app (`discoverApps`: il catalogo di ogni ospite del ponte,
 che stabilisce anche il protocollo 2), le chiama **insieme** (2,5 s al piu' per app) e restituisce un valore a ogni
-risposta: i gruppi restano **nell'ordine delle app**, niente salti mentre si legge. Con un modello del significato il
+risposta: i gruppi restano **nell'ordine delle app**, niente salti mentre si legge. La domanda porta la lingua di chi
+cerca (`FluidPampaSearch(language = "en")`, `create(context, embedder, language)`; di serie «it», R3). Con un modello del significato il
 vettore della domanda si calcola **una volta** e va a tutte: chi ha i vettori dello stesso spazio li confronta (MyCloud
 Gallery compresa, che usa lo stesso modello). `fluidPampaResults` mostra «Cercato sul telefono, in 5 app» (o «Cerco in 2
 app…»), un gruppo per app («PAMPA MAIL · 2») e la riga di un'app bloccata, che la apre. `FluidPampaSearch.open` apre un
@@ -225,7 +233,10 @@ significato 0,8): chi ha la parola esatta resta in cima.
 
 **Dove sta il modello.** 157 MiB per ogni app che cerca per significato sono troppi: e' una delle Domande di F8.22. Il
 contratto e' pronto per tenerlo **una volta sola** sul telefono: l'app che lo ha espone `FluidSearchBridge.embedTool` e
-le altre chiedono i vettori con `FluidSearchBridge.remoteEmbedder` (fino a 32 testi per chiamata). Il motore va acceso
+le altre chiedono i vettori con `FluidSearchBridge.remoteEmbedder` (fino a 32 testi per chiamata). Il tool impone il
+tetto (R3): oltre `MaxEmbedTexts` testi risponde con un errore senza calcolarne nessuno (fra due app l'ospite del ponte
+lo ferma gia' con lo schema; dentro l'app, nell'orchestratore di PampAI, no), e un testo oltre 4 096 caratteri arriva al
+modello tagliato (ne legge comunque 256 parti di parola). Il motore va acceso
 quando si apre la ricerca e spento quando si chiude (`release`).
 
 **LiteRT-LM e il build.** `litertlm-android` 0.18.1 e' compilata con Kotlin 2.4: il modulo la legge con
@@ -250,7 +261,13 @@ volta sul PC (`fluid-search/meaning-embeddinggemma2-270m.tsv`) e il motore si pr
   sorgenti ripartono da soli).
 - **Le transazioni di SQLite sono del filo che le apre**: l'indice ha un filo suo, e una scrittura che sospende (la
   cassaforte che cifra) riprende su quello. Non chiamare il `SQLiteDatabase` dell'indice da fuori.
+- **`close()` con un'operazione in corso** chiude il database appena l'operazione finisce, sul filo dell'indice (R3:
+  prima una scrittura che aspettava la cassaforte restava a meta' e il file restava bloccato, «database is locked» alla
+  riapertura). Dopo `close()` ogni chiamata lancia `IllegalStateException` («e' chiuso»). Per cancellare anche il
+  file, `destroy()`, che aspetta.
 - **Un campo riservato non si trova con gli errori di battitura** e non da' pezzi alle altre app: e' voluto.
+- **`searchTool(index)` senza tipi non mostra niente** alle altre app (R3): elenca `kinds` (o `null` per tutti). Un
+  `maxHits` fuori da 1..500 si ferma quando nasce l'esposizione.
 - **Il significato vuole i vettori dello stesso spazio**: `useMeaningSpace` butta quelli di un modello diverso, e
   `usesMeaningSpace` dice se una domanda per significato ha senso.
 - **Un'app che risponde a «Cerca in Pampa» senza l'intent-filter** non si vede dalle altre app su Android 11+ (si vede
@@ -265,9 +282,13 @@ volta sul PC (`fluid-search/meaning-embeddinggemma2-270m.tsv`) e il motore si pr
   parole riservate e recenti; la chiave persa), `FluidSearchIndexingTest` (i pezzi col segno, l'errore a meta', il lavoro
   in carica coi vincoli), `FluidSemanticSearchTest` (i vettori veri: «la mail del dentista», le dieci domande, parole e
   significato insieme), `FluidPampaSearchTest` (due app finte e il ponte vero: per app, la firma diversa, l'app bloccata,
-  il significato una volta sola, i campi riservati), `IcuWordsTest` (le parole di ICU e le nostre).
+  il significato una volta sola, i campi riservati), `IcuWordsTest` (le parole di ICU e le nostre). R3: `R3SearchTest`
+  (il tetto del tool dei vettori dentro l'app e alla porta del ponte, la sorgente che non va avanti, i tipi di serie, il
+  tetto dei risultati) e `R3SearchStateTest` (l'errore dell'indice nello stato, il modello che non parte, la lingua).
 - `sample/src/testDebug/.../novita/F8p22SearchUiTest.kt` (Compose): i gruppi e la parola corretta, TalkBack, il
   significato che arriva sfocato e fermo con «Riduci movimento», «Cerca in Pampa» con le cinque app della galleria.
+  `R3m3FilesSearchTest.kt`: la cassaforte chiusa sotto la ricerca non dice «Nessun risultato», non lascia i risultati di
+  prima e ricordare la domanda non fa cadere l'app.
 
 ## Dove guardare
 

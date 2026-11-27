@@ -173,7 +173,8 @@ data class AiMemoryProposal(
  * pagina di PampAI. Col salvataggio automatico acceso torna subito `remembered`, con Annulla.
  *
  * Un'app risponde, annulla e dimentica **solo quello che ha proposto lei**: le altre revoche (un ricordo, tutti, quelli
- * di un'app) le fa l'utente in PampAI.
+ * di un'app) le fa l'utente in PampAI. E **riceve solo il suo**: l'esito, l'avviso e il fatto che ha scritto, mai un
+ * ricordo di PampAI (R3-S1).
  */
 object AiMemoryProtocol {
   /** La versione del formato dei ricordi. */
@@ -210,9 +211,15 @@ data class AiMemoryProposalResult(
   val outcome: String,
   /** L'avviso di PampAI, da passare a [AiMemoryProtocol.MethodUndo] per annullare. */
   val noticeId: String? = null,
-  /** Il fatto come lo ricorda PampAI adesso (puo' essere tagliato o ripulito; per [OutcomeKept] quello piu' recente che resta). */
+  /**
+   * Il fatto che l'app ha proposto, come l'ha ripulito PampAI (puo' essere tagliato). Mai un ricordo che l'app non ha
+   * scritto lei: per [OutcomeKept] il fatto che resta non torna (R3-S1).
+   */
   val text: String? = null,
-  /** Per [OutcomeUpdated]: quello che c'era prima. Per [OutcomeKept]: quello proposto, che non e' entrato. */
+  /**
+   * Il fatto di prima. **Il ponte non lo manda piu'** (R3-S1): il ricordo sostituito o quello che resta sono dell'utente, e
+   * li mostra solo la pagina di PampAI. Resta nel formato per chi lo legge.
+   */
   val previousText: String? = null,
   /** Per [OutcomeForgotten]: quanti. */
   val count: Int? = null,
@@ -222,13 +229,13 @@ data class AiMemoryProposalResult(
 
   /**
    * L'avviso da mostrare nell'app che ha proposto (la card o la notifica di `engine-ai-ui`), o null se non c'e' niente
-   * da dire. [source] e' l'app stessa.
+   * da dire. [source] e' l'app stessa. Per [OutcomeKept] niente, come per [OutcomeDuplicate]: il fatto non e' entrato, e
+   * quello che resta lo vede l'utente in PampAI (R3-S1).
    */
   fun notice(source: AiMemorySource, atMillis: Long): AiMemoryNotice? {
     val kind = when (outcome) {
       OutcomeRemembered -> AiMemoryNotice.KindRemembered
       OutcomeUpdated -> AiMemoryNotice.KindUpdated
-      OutcomeKept -> AiMemoryNotice.KindKept
       OutcomePending -> AiMemoryNotice.KindAsk
       else -> return null
     }

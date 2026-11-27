@@ -34,22 +34,29 @@ import kotlinx.serialization.json.putJsonObject
 /**
  * Cosa un'app mostra di se' alle altre app Pampa quando cercano.
  *
- * @property kinds i tipi che si possono trovare da fuori (null: tutti). Una nota privata, un diario, si tengono fuori.
+ * @property kinds i tipi che si possono trovare da fuori. **Di serie nessuno** (R3): l'app elenca quelli da mostrare, come
+ *   un'app di iOS dona a Spotlight solo cio' che sceglie; null li mostra tutti, anche i tipi che aggiungera' dopo. Una
+ *   nota privata, un diario, si tengono fuori.
  * @property kindLabels il nome di ogni tipo, per il gruppo nella pagina di chi cerca («Note», «Allegati»).
  * @property snippets manda i pezzi di testo (di serie si'); falso: solo i titoli.
  * @property locked vero se l'app e' bloccata adesso (il blocco con l'impronta di `engine-security`): allora non risponde
  *   coi dati, e chi cerca mostra «… e' bloccata».
- * @property maxHits quanti risultati al piu' per domanda.
+ * @property maxHits quanti risultati al piu' per domanda, da 1 a [FluidSearchQuery.MaxLimit].
  * @property embedder il modello del significato dell'app, se ne ha uno: lo usa quando chi cerca non manda il vettore.
  */
 class FluidSearchExposure(
-  val kinds: Set<String>? = null,
+  val kinds: Set<String>? = emptySet(),
   val kindLabels: Map<String, String> = emptyMap(),
   val snippets: Boolean = true,
   val locked: () -> Boolean = { false },
   val maxHits: Int = 20,
   val embedder: FluidTextEmbedder? = null,
-)
+) {
+  init {
+    // R3: fuori misura ogni ricerca fallirebbe (FluidSearchQuery lo rifiuta): meglio dirlo quando nasce.
+    require(maxHits in 1..FluidSearchQuery.MaxLimit) { "FluidSearchExposure: maxHits fuori da 1..${FluidSearchQuery.MaxLimit}" }
+  }
+}
 
 /** I tool della ricerca fra app, per il registry dell'app (quello che il suo `AiToolHostProvider` espone). */
 object FluidSearchBridge {
@@ -65,8 +72,25 @@ object FluidSearchBridge {
   /** Il nome del tool dei vettori: l'app che tiene il modello lo presta alle altre ([remoteEmbedder]). */
   const val EmbedToolName: String = "vettori_del_testo"
 
-  /** Quanti testi al piu' per una chiamata a [EmbedToolName] (768 float a testo: 32 stanno ben sotto il mega di Binder). */
+  /**
+   * Quanti testi al piu' per una chiamata a [EmbedToolName] (768 float a testo: 32 stanno ben sotto il mega di Binder).
+   * Il tool lo impone (R3): una chiamata con piu' testi risponde con un errore, senza calcolarne nessuno.
+   */
   const val MaxEmbedTexts: Int = 32
+
+  /**
+   * Quanti caratteri di un testo arrivano al modello per [EmbedToolName]: 4 096. Il modello di serie ne legge 256 parti
+   * di parola (circa 1 000 caratteri in italiano): il taglio non cambia il vettore di un testo vero, e tiene fermo il
+   * conto di un testo lunghissimo (a occhio, 27/11/2026: quattro volte la finestra del modello).
+   */
+  internal const val MaxEmbedChars: Int = 4_096
+
+  /** [text] tagliato a [MaxEmbedChars], senza spezzare una coppia di surrogati. */
+  internal fun clip(text: String): String {
+    if (text.length <= MaxEmbedChars) return text
+    val end = if (Character.isHighSurrogate(text[MaxEmbedChars - 1])) MaxEmbedChars - 1 else MaxEmbedChars
+    return text.substring(0, end)
+  }
 
   /** Il gruppo dei due tool, se l'app non ne ha uno suo. */
   val Group: AiToolGroup = object : AiToolGroup {
@@ -78,7 +102,8 @@ object FluidSearchBridge {
 
   /**
    * Il tool della ricerca nell'[index], per gli assistenti e per «Cerca in Pampa». Legge e basta (niente conferma).
-   * I campi riservati non si cercano e non escono mai ([FluidSearchQuery.includeSensitive] falso).
+   * I campi riservati non si cercano e non escono mai ([FluidSearchQuery.includeSensitive] falso). Mostra solo i tipi
+   * elencati in [FluidSearchExposure.kinds]: con l'esposizione di serie non trova niente (R3).
    */
   fun <C> searchTool(index: FluidSearchIndex, exposure: FluidSearchExposure = FluidSearchExposure(), group: AiToolGroup = Group): AiTool<C> =
     SearchTool(index, exposure, group)
@@ -218,7 +243,8 @@ object FluidSearchBridge {
 
   private class EmbedTool<C>(private val embedder: FluidTextEmbedder, override val group: AiToolGroup) : AiTool<C> {
     override val name: String = EmbedToolName
-    override val description: String = "Calcola i vettori del significato di brevi testi, sul telefono (per la ricerca delle altre app)."
+    override val description: String =
+      "Calcola i vettori del significato di brevi testi (al piu' $MaxEmbedTexts per chiamata), sul telefono (per la ricerca delle altre app)."
     override val parameters: JsonObject = buildJsonObject {
       put("type", "object")
       putJsonObject("properties") {
@@ -228,7 +254,12 @@ object FluidSearchBridge {
     }
 
     override suspend fun run(args: JsonObject, ctx: C): ToolOutput {
-      val texts = (args["texts"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+      val asked = (args["texts"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+      // R3: il tetto si impone qui, non solo nello schema. Fra due app l'ospite del ponte controlla gia' `maxItems`;
+      // dentro l'app (l'orchestratore di PampAI, che di serie non controlla) la chiamata arriverebbe intera.
+      if (asked.size > MaxEmbedTexts) return ToolOutput.error("al piu' $MaxEmbedTexts testi per chiamata, non ${asked.size}")
+      // Un testo oltre [MaxEmbedChars] si taglia: il modello ne legge comunque solo l'inizio (256 parti di parola).
+      val texts = asked.map { clip(it) }
       val vectors = if (texts.isEmpty()) emptyList() else embedder.embed(texts)
       val data = buildJsonObject {
         put("space", embedder.space.id)

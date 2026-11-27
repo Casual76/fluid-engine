@@ -26,8 +26,11 @@ class FluidTranscriptTest {
     assertEquals(2_200L, FluidTranscriptSeek.target(withWords, 20))
     assertEquals(1_000L, FluidTranscriptSeek.target(withWords, 0))
     assertEquals(1_400L, FluidTranscriptSeek.target(withWords, 9))
-    // L'ultimo carattere della parola e' ancora lei; lo spazio dopo e' la parola dopo.
-    assertEquals(1_000L, FluidTranscriptSeek.target(withWords, 4))
+    // R3 (difetto 20): l'ultimo carattere di «Oggi» e' il 3 (la fine, 4, e' esclusa) ed e' ancora lei; il 4 e' lo spazio
+    // dopo, e va alla parola dopo, come dicono il KDoc e la scheda. Prima la prova dava il 4 per «ultimo carattere».
+    assertEquals(' ', text[4])
+    assertEquals(1_000L, FluidTranscriptSeek.target(withWords, 3))
+    assertEquals(1_400L, FluidTranscriptSeek.target(withWords, 4))
     assertEquals(1_400L, FluidTranscriptSeek.target(withWords, 5))
     // Il punto finale resta sull'ultima parola.
     assertEquals(2_200L, FluidTranscriptSeek.target(withWords, 24))

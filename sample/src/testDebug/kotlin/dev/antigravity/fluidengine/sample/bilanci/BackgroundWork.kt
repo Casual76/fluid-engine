@@ -63,7 +63,29 @@ internal object BackgroundWork {
     val cpuQueue = globalCpu.find(text)?.groupValues?.get(1)?.toInt() ?: return null
     val blockingQueue = globalBlocking.find(text)?.groupValues?.get(1)?.toInt() ?: return null
     val pendingBlocking = blockingTasks.find(text)?.groupValues?.get(1)?.toInt() ?: return null
-    return cpu > 0 || blocking > 0 || localBusy || cpuQueue > 0 || blockingQueue > 0 || pendingBlocking > 0
+    return cpu > 0 || blocking > 0 || localBusy || cpuQueue > 0 || blockingQueue > 0 || pendingBlocking > 0 || ownThreadsBusy()
+  }
+
+  /**
+   * F7.32c · I fili propri dell'engine, che lo scheduler di kotlinx.coroutines non vede: il riconoscimento del testo
+   * (Tesseract, `fluid-ocr`), gli indici di ricerca (`fluid-search-<nome>`), il modello dei vettori (`fluid-embedder`). Sono
+   * esecutori a filo singolo: fermi aspettano il prossimo compito (`WAITING`), al lavoro sono `RUNNABLE` (o `BLOCKED`).
+   */
+  private fun isOwnThread(name: String): Boolean =
+    name.startsWith("fluid-ocr") || name.startsWith("fluid-search-") || name.startsWith("fluid-embedder")
+
+  private fun ownThreadsBusy(): Boolean {
+    var group = Thread.currentThread().threadGroup
+    while (group.parent != null) group = group.parent
+    val threads = arrayOfNulls<Thread>(group.activeCount() + 16)
+    val count = group.enumerate(threads, true)
+    for (i in 0 until count) {
+      val thread = threads[i] ?: continue
+      if (!isOwnThread(thread.name)) continue
+      val state = thread.state
+      if (state == Thread.State.RUNNABLE || state == Thread.State.BLOCKED) return true
+    }
+    return false
   }
 
   /**
@@ -94,12 +116,15 @@ internal object BackgroundWork {
   fun await() {
     if (!available) return
     val end = System.nanoTime() + CapNanos
-    while (busyOrNull() == true) {
+    // Fermi due volte di fila, a un millisecondo: un compito appena consegnato a un filo proprio lo sveglia un attimo dopo.
+    var quiet = 0
+    while (quiet < 2) {
       if (System.nanoTime() > end) {
         cappedWaits++
         return
       }
-      Thread.sleep(1)
+      quiet = if (busyOrNull() == true) 0 else quiet + 1
+      if (quiet < 2) Thread.sleep(1)
     }
   }
 }

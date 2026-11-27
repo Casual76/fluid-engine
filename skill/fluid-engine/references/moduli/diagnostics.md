@@ -62,14 +62,18 @@ Le regole stanno nel tipo dei rapporti (`FluidDiagnosticsRecord`), non nella buo
 ## Il consenso
 
 `FluidDiagnosticsConsent`: `NotAsked` (di serie), `Granted`, `Denied`. Si ricorda nelle `SharedPreferences`
-`fluid-diagnostics`.
+`fluid-diagnostics` con un nome fisso (`consenso-scelta`: `granted` o `denied`; senza, non ancora chiesta), mai col posto
+dell'enum (R3): un riordino non fa diventare un no un sì. Il numero salvato prima di R3 (`consenso`: 1 il sì, 2 il no) si
+legge una volta e si riscrive col nome; un valore che non si legge, nuovo o vecchio, è un no.
 
 - **Prima della scelta** i rapporti si raccolgono sul telefono e non partono (come MetricKit, che raccoglie sul
   dispositivo e condivide solo col consenso).
 - **Col sì** parte subito un invio, poi al massimo uno al giorno (`sendIntervalMillis`, come MetricKit che consegna una
   volta al giorno).
 - **Col no** la coda si svuota, i fotogrammi contati si buttano e non si raccoglie più niente. Il gestore dei crash
-  resta e passa ogni crash al sistema.
+  resta e passa ogni crash al sistema. Un invio già partito si ferma prima del gruppo dopo: il consenso si rilegge
+  prima di ogni POST, e solo quello in volo arriva (R3). Se il processo muore prima di svuotare la coda, il no salvato
+  la svuota al prossimo avvio, prima di ogni altro lavoro.
 - **Il foglio** (`FluidDiagnosticsConsentPrompt`) si apre da sé finché la scelta non c'è: «Condividi con lo
   sviluppatore» è il sì; «Non condividere» **e chiudere il foglio** sono il no. Senza un sì esplicito non parte niente.
   Dice cosa parte (tre righe) e cosa non parte mai.
@@ -143,6 +147,10 @@ codice di versione come chiave, in un bucket R2 privato del Worker; il cruscotto
 - **Il foglio del consenso è un portale**: serve un `FluidGlassModalHost` alla radice.
 - **`FluidLog` è in memoria**: un crash lo perde, ed è voluto (niente dati personali sul disco). Si scrive cosa è
   successo, non i dati: un voto, un nome o il testo di una nota il filtro non li riconosce.
+- **Gli IPv6** il filtro li toglie per intero e in forma compressa (`2001:db8::1`, `::1`, `fe80::1%wlan0`,
+  `::ffff:192.0.2.10`), e fra parentesi quadre al posto del dominio (`http://[2001:db8::1]:8080/…` diventa
+  `http://«[ip]»/«…»`; R3). Un `::` da solo e `Note::class` restano. Anche una parola di sole cifre esadecimali attorno
+  a `::` (`dead::beef`) è un IPv6 valido e si toglie.
 
 ## Prove
 
@@ -153,12 +161,19 @@ codice di versione come chiave, in un bucket R2 privato del Worker; il cruscotto
   cade, una sola `install`, le chiusure di sistema lette una volta con le righe dell'ANR, i gruppi sotto i limiti del
   server, solo HTTPS), `FluidFramesTest` (le soglie di Apple e di Android, «altre», l'ascoltatore che legge pagina e
   ritardo, il nome che non porta dati, le pagine segnate in pila), `FluidLogAndScrubberTest` (14 dati personali tolti,
-  il testo normale che resta, il registro circolare).
+  il testo normale che resta, il registro circolare). R3 (review `sol-ai`): `FluidLogR3Test` (gli IPv6 compressi, con
+  la zona, con un IPv4 in coda e fra parentesi quadre in un indirizzo web, anche nel registro esportato; le ore e
+  `Note::class` che restano), `FluidDiagnosticsR3Test` (il no detto mentre parte il primo gruppo ferma gli altri; il no
+  salvato senza pulizia svuota la coda all'avvio), `FluidDiagnosticsConsentR3Test` (la scelta col nome fisso, il numero
+  di prima migrato, un valore che non si legge che conta come no).
 - `src/testDebug`: `FluidTraceDebugTest` (le sezioni, la chiusura quando il blocco lancia, gli intervalli fra i fili,
   i nomi). `src/testRelease`: `FluidTraceReleaseTest` (**nessuna** chiamata a Trace, e la classe della release non
   nomina AndroidX Tracing). Gira con `:engine-diagnostics:testReleaseUnitTest`.
 - `sample/src/testDebug/.../novita/F8p24DiagnosticsUiTest.kt`: il foglio del consenso (una volta, il sì che manda, il
   no che svuota, «Chiedi di nuovo»), la riga delle impostazioni, la pagina dei dati col JSON vero e «Cancella».
+- `F8p24DataPageR3Test` (galleria, R3): la pagina dei dati che sta leggendo la coda non dice «Niente da mandare» (lo
+  dice solo quando sa che è vuota), e i rapporti sono una riga della lista l'uno, composti quando si vedono (prima,
+  fino a 200, tutti in un elemento solo).
 - Il Worker: `node engine-diagnostics/worker/test.mjs`.
 
 ## Dove guardare

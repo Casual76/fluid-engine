@@ -220,14 +220,18 @@ class FluidImageEditorState internal constructor(
    */
   suspend fun render(maxSide: Int = 2048): Bitmap = FluidImageExport.render(appContext, source, edit, maxSide)
 
-  /** Salva la foto modificata a piena risoluzione in [target] (un file nuovo: l'originale non si tocca). */
+  /**
+   * Salva la foto modificata a piena risoluzione in [target] (un file nuovo: l'originale non si tocca). La posizione GPS
+   * dello scatto di serie resta, come Foto di iOS, e `keepLocation = false` la toglie (R3); un salvataggio che non riesce
+   * lancia `IOException`.
+   */
   suspend fun export(target: File, format: FluidImageExport.Format = FluidImageExport.Format.jpeg(),
-    keepLocation: Boolean = true): FluidImageExport.Result =
+    keepLocation: Boolean = FluidImageExport.KeepLocationByDefault): FluidImageExport.Result =
     FluidImageExport.export(appContext, source, edit, target, format, keepLocation = keepLocation)
 
   /** Lo stesso in un indirizzo aperto in scrittura (MediaStore, «Salva come»). */
   suspend fun export(target: Uri, format: FluidImageExport.Format = FluidImageExport.Format.jpeg(),
-    keepLocation: Boolean = true): FluidImageExport.Result =
+    keepLocation: Boolean = FluidImageExport.KeepLocationByDefault): FluidImageExport.Result =
     FluidImageExport.export(appContext, source, edit, target, format, keepLocation = keepLocation)
 
   internal suspend fun load(maxSide: Int) {

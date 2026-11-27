@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.glance.appwidget.ExperimentalGlanceRemoteViewsApi
 import androidx.glance.appwidget.GlanceRemoteViews
+import kotlinx.coroutines.CancellationException
 
 /**
  * Una taglia di widget, come nella galleria dei widget di iPhone: piccola, media, grande.
@@ -47,6 +48,8 @@ import androidx.glance.appwidget.GlanceRemoteViews
  * @property provider il provider di questa taglia, se l'app ne ha uno per taglia. Android non sa chiedere al launcher
  * una taglia (`requestPinAppWidget` mette il widget alla sua misura di serie): con un provider per taglia la richiesta
  * mette quella giusta; senza, la vetrina dice che la taglia si cambia sulla Home.
+ * @throws IllegalArgumentException se la misura non e' positiva o le celle sono meno di una (R3: prima l'anteprima cadeva
+ * dopo, nella disposizione della pagina).
  */
 @Immutable
 data class FluidWidgetSize(
@@ -57,6 +60,11 @@ data class FluidWidgetSize(
   val rows: Int,
   val provider: ComponentName? = null,
 ) {
+  init {
+    require(width > 0.dp && height > 0.dp) { "la taglia «$label» ha una misura che non c'e': $width × $height" }
+    require(columns >= 1 && rows >= 1) { "la taglia «$label» occupa almeno una cella: $columns × $rows" }
+  }
+
   /** La misura come [DpSize]. */
   val dpSize: DpSize get() = DpSize(width, height)
 
@@ -111,6 +119,9 @@ data class FluidWidgetEntry(
  * L'anteprima vera di [entry] alla taglia [size]: disposta alla sua misura in dp e rimpicciolita solo se lo spazio è più
  * stretto (mai ingrandita). Non si tocca (è un'anteprima: i tocchi non arrivano al widget) e per TalkBack è un'immagine
  * sola con [contentDescription].
+ *
+ * Un contenuto che lancia (legge uno stato che sul telefono c'è e in vetrina no, RemoteViews che non si applicano) lascia
+ * l'anteprima **vuota**, alla sua misura: la pagina resta (R3; prima cadeva la composizione intera).
  */
 @OptIn(ExperimentalGlanceRemoteViewsApi::class)
 @Composable
@@ -148,14 +159,14 @@ fun FluidWidgetPreviewBox(
           is FluidWidgetPreview.Glance -> {
             val context = LocalContext.current
             val views by produceState<RemoteViews?>(null, preview, size.dpSize) {
-              value = GlanceRemoteViews().compose(context, size.dpSize, content = preview.content).remoteViews
+              value = previewOrNull { GlanceRemoteViews().compose(context, size.dpSize, content = preview.content).remoteViews }
             }
             views?.let { RemoteViewsHost(it, size) }
           }
           is FluidWidgetPreview.Remote -> {
             val context = LocalContext.current
             val views by produceState<RemoteViews?>(null, preview, size.dpSize) {
-              value = preview.build(context, size.dpSize)
+              value = previewOrNull { preview.build(context, size.dpSize) }
             }
             views?.let { RemoteViewsHost(it, size) }
           }
@@ -163,6 +174,15 @@ fun FluidWidgetPreviewBox(
       }
     }
   }
+}
+
+/** Le RemoteViews dell'anteprima, o null se il contenuto dell'app lancia; l'annullo della coroutine passa. */
+private suspend fun previewOrNull(make: suspend () -> RemoteViews): RemoteViews? = try {
+  make()
+} catch (e: CancellationException) {
+  throw e
+} catch (_: Exception) {
+  null
 }
 
 /**
@@ -192,12 +212,12 @@ internal class PreviewFrame(context: Context) : FrameLayout(context) {
     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
   }
 
-  /** Mostra [views]; le stesse `RemoteViews` non si riapplicano. */
+  /** Mostra [views]; le stesse `RemoteViews` non si riapplicano. RemoteViews che non si applicano lasciano il telaio vuoto. */
   fun show(views: RemoteViews) {
     if (views === shown) return
     shown = views
     removeAllViews()
-    addView(views.apply(context, this))
+    runCatching { views.apply(context, this) }.getOrNull()?.let { addView(it) }
   }
 
   override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean = true

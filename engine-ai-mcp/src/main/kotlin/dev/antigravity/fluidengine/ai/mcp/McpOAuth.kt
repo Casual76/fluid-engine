@@ -218,7 +218,8 @@ class McpOAuth(
    */
   suspend fun complete(request: McpAuthRequest, callback: String): McpTokens {
     val params = query(callback)
-    params["error"]?.let { throw McpError.Protocol("accesso rifiutato: ${params["error_description"] ?: it}") }
+    // Solo il codice: la descrizione e' testo del server di accesso (R3-S1).
+    params["error"]?.let { throw McpError.Protocol("accesso rifiutato (${McpError.code(it) ?: "errore"})") }
     if (params["state"] != request.state) throw McpError.Protocol("il ritorno dall'accesso non corrisponde (state)")
     val code = params["code"] ?: throw McpError.Protocol("il ritorno dall'accesso non ha il codice")
     return tokens(request.server, mapOf(
@@ -248,7 +249,7 @@ class McpOAuth(
     if (reply.status !in 200..299 || json == null) {
       val error = (json?.get("error") as? JsonPrimitive)?.contentOrNull
       if (error == "invalid_grant") throw McpError.AuthRequired(null, null)
-      throw McpError.Protocol("gettoni rifiutati (${reply.status}${error?.let { ", $it" } ?: ""})")
+      throw McpError.Protocol("gettoni rifiutati (${reply.status}${McpError.code(error)?.let { ", $it" } ?: ""})")
     }
     val access = (json["access_token"] as? JsonPrimitive)?.contentOrNull ?: throw McpError.Protocol("manca access_token")
     val expiresIn = (json["expires_in"] as? JsonPrimitive)?.longOrNull

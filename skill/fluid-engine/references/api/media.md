@@ -174,7 +174,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `fun source(id: String): FluidMediaSource?` — La sorgente con l'[id] dato.
   - `fun feed(source: FluidMediaSource, query: FluidMediaQuery): FluidMediaFeed` — Gli elementi di [source] per [query]: sempre lo stesso oggetto per la stessa coppia, cosi' tornando si ritrova.
   - `fun albumsOf(source: FluidMediaSource): List<FluidMediaAlbum>?` — Gli album di [source], se sono gia' arrivati; [loadAlbums] li chiede.
-  - `fun loadAlbums(source: FluidMediaSource, force: Boolean = false)` — Chiede gli album di [source] (una volta; [force] di nuovo).
+  - `fun loadAlbums(source: FluidMediaSource, force: Boolean = false)` — Chiede gli album di [source] (una volta; [force] di nuovo). Un errore non si tiene come «nessun album» (R3): resta da chiedere, e [albumsOf] resta null finché non arrivano.
   - `fun refreshAccess()` — Rilegge l'accesso di tutte le sorgenti e ricarica cio' che serve (dopo un permesso, uno sblocco).
   - `fun item(key: String): FluidMediaItem?` — L'elemento con la chiave data, se e' gia' passato da una pagina.
   - `val selectedItems: List<FluidMediaItem>` — Gli elementi scelti, nell'ordine della scelta.

@@ -28,6 +28,9 @@ import androidx.compose.runtime.Stable
  *   e [FluidMediaItem.name] solo se la persona li vedrebbe;
  * - **mai attese infinite**: ogni chiamata ha una scadenza sua, e un backup che non risponde si dice subito
  *   ([FluidMediaRefusal.Unreachable]);
+ * - **un errore non e' un vuoto** (R3): una pagina o gli album che non si possono leggere (la sorgente che non risponde,
+ *   una scadenza, un errore) **lanciano**; il selettore lo dice con «… non è disponibile» e «Riprova». Una pagina vuota vuol dire
+ *   «qui non c'e' niente»;
  * - **la consegna rispetta l'ordine chiesto** (l'ordine della scelta) e si annulla: una consegna annullata non lascia
  *   niente di consegnato.
  *

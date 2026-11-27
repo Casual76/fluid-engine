@@ -274,6 +274,12 @@ class AiMemoryBook private constructor(
 
     // Lo stesso fatto detto di nuovo: resta uno, con la data piu' recente e le parole di tutti e due. Nessun avviso.
     current.memories.firstOrNull { sameText(it.text, p.text) }?.let { same ->
+      // Un'app che propone il testo di un ricordo non suo (dell'utente, di un'altra fonte) non lo cambia: ne' la scadenza,
+      // ne' la chiave, ne' le parole o le prove. Sa solo che era un doppione (D2 di Alessio, R3-S1b): se no, indovinando il
+      // testo, potrebbe farlo scadere.
+      if (source.fromApp && !(same.source.fromApp && same.source.app == source.app)) {
+        return AiMemoryOutcome(AiMemoryProposalResult.OutcomeDuplicate, same)
+      }
       val refreshed = same.copy(
         observedAtMillis = maxOf(same.observedAtMillis, observed),
         topics = (same.topics + p.topics).distinct().take(AiMemoryProposal.MaxTopics),
@@ -391,8 +397,21 @@ class AiMemoryBook private constructor(
       replaceNotice(declined)
       return@withLock AiMemoryOutcome(AiMemoryProposalResult.OutcomeDeclined, notice = declined)
     }
+    // Ricorda vale con le regole di adesso, non con quelle di quando e' nata la domanda (R3-S1): un'app bloccata, un
+    // argomento escluso dopo, un fatto gia' scaduto chiudono la domanda senza che il fatto entri.
+    val now = clock()
+    val refused = when {
+      entry.source.fromApp && entry.source.app in current.blockedApps -> AiMemoryProposalResult.OutcomeNotAllowed
+      current.exclusions.any { it.matches(entry.proposal.key, entry.source.app, entry.proposal.evidence) } -> AiMemoryProposalResult.OutcomeExcluded
+      (entry.proposal.expiresAtMillis ?: Long.MAX_VALUE) <= now -> AiMemoryProposalResult.OutcomeRefused
+      else -> null
+    }
     commit(current.copy(pending = rest))
-    val outcome = storeLocked(entry.proposal, entry.source, clock(), entry.automatic, ask = false, noticeId = noticeId)
+    if (refused != null) {
+      closeAsks(setOf(noticeId))
+      return@withLock AiMemoryOutcome(refused)
+    }
+    val outcome = storeLocked(entry.proposal, entry.source, now, entry.automatic, ask = false, noticeId = noticeId)
     if (outcome.notice == null) {
       // Lo sapeva gia' (un doppione): la domanda si chiude come risposta, senza un ricordo nuovo da annullare.
       replaceNotice(askNotice(entry).copy(stale = true))
@@ -438,6 +457,13 @@ class AiMemoryBook private constructor(
       return@withLock false
     }
     val before = entry.before
+    // La versione di prima torna solo se vale ancora (R3-S1): non scaduta, e non da un argomento o una fonte che l'utente
+    // ha escluso dopo (le fonti revocate tolgono l'annulla da se': [forgetWhere]).
+    if (before != null && (before.expired(clock()) ||
+        (before.origin != AiMemory.OriginStatement && current.exclusions.any { it.matches(before.key, before.source.app, before.evidence) }))) {
+      commit(current.copy(undo = rest))
+      return@withLock false
+    }
     if (before == null) {
       commit(current.copy(memories = current.memories.filter { it.id != memory.id }, undo = rest, vectors = current.vectors - memory.id), deleted = listOf(memory.id))
     } else {
@@ -495,57 +521,50 @@ class AiMemoryBook private constructor(
   }
 
   /** Dimentica tutto (i ricordi, le domande, gli annulla, i vettori). Restano le app bloccate, le esclusioni e l'interruttore. */
-  suspend fun forgetAll(): Int {
-    val n = forgetWhere { true }
-    mutex.withLock {
-      val gone = state.pending.map { it.noticeId }.toSet()
-      if (gone.isNotEmpty()) {
-        commit(state.copy(pending = emptyList()))
-        closeAsks(gone)
-      }
-    }
-    return n
-  }
+  suspend fun forgetAll(): Int = forgetWhere(asks = { true }) { true }
 
   /**
    * Dimentica i ricordi nati dall'app [app]: quelli che ha proposto lei, quelli detti nella chat «Dalle app» partita da
    * lei, quelli chiesti dal modello coi suoi dati e quelli imparati dalla ricerca sui suoi dati ([onlyProposed] vero: solo
    * i primi, la revoca chiesta dall'app stessa col ponte). Per non riceverne altri: [setAppBlocked].
    */
-  suspend fun forgetFromApp(app: String, onlyProposed: Boolean = false): Int {
-    val n = forgetWhere { m -> (m.source.app == app || m.evidence.any { it.app == app }) && (!onlyProposed || m.source.fromApp) }
-    mutex.withLock {
-      val rest = state.pending.filter { it.source.app != app || (onlyProposed && !it.source.fromApp) }
-      if (rest.size != state.pending.size) {
-        val gone = (state.pending - rest.toSet()).map { it.noticeId }.toSet()
-        commit(state.copy(pending = rest))
-        closeAsks(gone)
-      }
-    }
-    return n
-  }
+  suspend fun forgetFromApp(app: String, onlyProposed: Boolean = false): Int = forgetWhere(
+    asks = { p -> (p.source.app == app || p.proposal.evidence.any { it.app == app }) && (!onlyProposed || p.source.fromApp) },
+  ) { m -> (m.source.app == app || m.evidence.any { it.app == app }) && (!onlyProposed || m.source.fromApp) }
 
   /**
    * Dimentica cio' che e' stato letto o dedotto dalla fonte autorizzata [grant] (e, con [record], solo da quel dato): la
-   * revoca di una fonte della ricerca. I fatti detti dall'utente restano, anche se una prova veniva da li'.
+   * revoca di una fonte della ricerca. I fatti detti dall'utente restano, anche se una prova veniva da li'. Con loro se ne
+   * vanno le domande ancora aperte che vengono da li' e le versioni di prima che Annulla rimetterebbe (R3-S1).
    */
-  suspend fun forgetFromGrant(grant: String, record: String? = null): Int =
-    forgetWhere { m -> m.origin != AiMemory.OriginStatement && m.evidence.any { it.grant == grant && (record == null || it.record == record) } }
+  suspend fun forgetFromGrant(grant: String, record: String? = null): Int {
+    fun from(evidence: List<AiMemoryEvidence>) = evidence.any { it.grant == grant && (record == null || it.record == record) }
+    return forgetWhere(asks = { from(it.proposal.evidence) }) { m -> m.origin != AiMemory.OriginStatement && from(m.evidence) }
+  }
 
-  private suspend fun forgetWhere(which: (AiMemory) -> Boolean): Int = mutex.withLock {
+  /**
+   * Toglie, in una scrittura sola, i ricordi [which], le versioni di prima che Annulla rimetterebbe e che [which] toglie
+   * anche loro, e le domande ancora aperte [asks] (R3-S1: una revoca vale anche per cio' che aspetta un si' o un
+   * Annulla). Torna quanti ricordi.
+   */
+  private suspend fun forgetWhere(asks: (PendingEntry) -> Boolean = { false }, which: (AiMemory) -> Boolean): Int = mutex.withLock {
     val current = state
     val gone = current.memories.filter(which)
-    if (gone.isEmpty()) return@withLock 0
     val ids = gone.map { it.id }.toSet()
+    val undo = current.undo.filter { u -> u.memoryId !in ids && u.before.let { it == null || !which(it) } }
+    val closed = current.pending.filter(asks)
+    if (gone.isEmpty() && undo.size == current.undo.size && closed.isEmpty()) return@withLock 0
     commit(
       current.copy(
         memories = current.memories.filter { it.id !in ids },
-        undo = current.undo.filter { it.memoryId !in ids },
+        undo = undo,
         vectors = current.vectors - ids,
+        pending = current.pending - closed.toSet(),
       ),
       deleted = ids,
     )
     _notices.value = _notices.value.map { if (it.memoryId in ids) it.copy(undone = true) else it }
+    closeAsks(closed.map { it.noticeId }.toSet())
     gone.size
   }
 
@@ -558,7 +577,10 @@ class AiMemoryBook private constructor(
     mutex.withLock {
       if (exclusion !in state.exclusions) commit(state.copy(exclusions = state.exclusions + exclusion))
     }
-    return forgetWhere { m -> m.origin != AiMemory.OriginStatement && exclusion.matches(m.key, m.source.app, m.evidence) }
+    // Le domande aperte su quell'argomento si chiudono: non le ha chieste l'utente (come in [remember]).
+    return forgetWhere(asks = { exclusion.matches(it.proposal.key, it.source.app, it.proposal.evidence) }) { m ->
+      m.origin != AiMemory.OriginStatement && exclusion.matches(m.key, m.source.app, m.evidence)
+    }
   }
 
   /** Toglie l'esclusione [exclusion]: la memoria puo' di nuovo imparare quell'argomento. */
@@ -566,10 +588,15 @@ class AiMemoryBook private constructor(
     if (exclusion in state.exclusions) commit(state.copy(exclusions = state.exclusions - exclusion))
   }
 
-  /** Toglie (o ridà) all'app [app] il permesso di proporre ricordi. I suoi ricordi restano: [forgetFromApp]. */
+  /**
+   * Toglie (o ridà) all'app [app] il permesso di proporre ricordi. I suoi ricordi restano ([forgetFromApp]); le sue
+   * proposte ancora da confermare no (R3-S1): senza permesso non entrano neanche con Ricorda.
+   */
   suspend fun setAppBlocked(app: String, blocked: Boolean) = mutex.withLock {
     val next = if (blocked) state.blockedApps + app else state.blockedApps - app
-    if (next != state.blockedApps) commit(state.copy(blockedApps = next))
+    val closed = if (blocked) state.pending.filter { it.source.fromApp && it.source.app == app } else emptyList()
+    if (next != state.blockedApps || closed.isNotEmpty()) commit(state.copy(blockedApps = next, pending = state.pending - closed.toSet()))
+    closeAsks(closed.map { it.noticeId }.toSet())
   }
 
   /**
@@ -577,11 +604,13 @@ class AiMemoryBook private constructor(
    * ([AiMemoryConfig.onDevice]) la domanda si allarga con le parole del suo argomento, entro il suo tempo massimo.
    */
   suspend fun relevant(question: String, limit: Int = 8, language: String = "it"): List<AiMemoryMatch> {
+    val extra = config.onDevice?.let { AiMemoryQueryExpansion.expand(it, question, language, config.onDeviceTimeoutMillis) }.orEmpty()
+    val hits = index.search(question, limit * 2, extra)
+    // Dopo l'attesa (il modello del telefono, l'indice) valgono i ricordi e l'ora di adesso: uno tolto o scaduto nel
+    // frattempo non torna (R3-S1).
     val now = clock()
     val byId = state.memories.associateBy { it.id }
-    val extra = config.onDevice?.let { AiMemoryQueryExpansion.expand(it, question, language, config.onDeviceTimeoutMillis) }.orEmpty()
-    return index.search(question, limit * 2, extra)
-      .mapNotNull { (id, score, meaning) -> byId[id]?.takeIf { !it.expired(now) }?.let { AiMemoryMatch(it, score, meaning) } }
+    return hits.mapNotNull { (id, score, meaning) -> byId[id]?.takeIf { !it.expired(now) }?.let { AiMemoryMatch(it, score, meaning) } }
       .take(limit)
   }
 
@@ -591,13 +620,16 @@ class AiMemoryBook private constructor(
    * Gli scaduti e quelli che sembrano un segreto non entrano mai; le domande in attesa nemmeno.
    */
   suspend fun prompt(question: String, budget: AiMemoryPromptBudget = config.prompt, language: String = "it"): AiMemoryPrompt {
+    val found = relevant(question, budget.maxItems, language).map { it.memory.id }
+    // Tutto si legge dopo l'attesa, senza piu' sospendere fino al blocco: un ricordo tolto, sfissato o scaduto mentre il
+    // modello del telefono pensava non entra (R3-S1).
     val now = clock()
     val live = state.memories.filter { !it.expired(now) && !AiMemoryPolicy.looksSecret(it.text) }
     val pinned = live.filter { it.pinned }.sortedByDescending { it.observedAtMillis }
     val always = live.filter { it.always && !it.pinned }.sortedByDescending { it.observedAtMillis }.take(budget.maxAlways)
     val taken = (pinned + always).map { it.id }.toHashSet()
-    val liveIds = live.map { it.id }.toHashSet()
-    val pertinent = relevant(question, budget.maxItems, language).map { it.memory }.filter { it.id !in taken && it.id in liveIds }
+    val liveById = live.associateBy { it.id }
+    val pertinent = found.mapNotNull { liveById[it] }.filter { it.id !in taken }
     return AiMemoryPrompt.build(pinned + always + pertinent, budget, language, config.zone)
   }
 

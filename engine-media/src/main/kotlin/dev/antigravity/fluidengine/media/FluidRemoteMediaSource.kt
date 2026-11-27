@@ -116,7 +116,9 @@ object FluidMediaSources {
  * [FluidMediaSources.discover] (o [FluidMediaSources.connect]) e si passa al selettore come le altre.
  *
  * Ogni chiamata gira fuori dal filo principale con una scadenza: una sorgente che non risponde diventa
- * [FluidMediaAccess.Unavailable] ([FluidMediaSourceContract.UNAVAILABLE_GONE]) e la griglia lo dice, senza attese.
+ * [FluidMediaAccess.Unavailable] ([FluidMediaSourceContract.UNAVAILABLE_GONE]) e la griglia lo dice, senza attese. Una
+ * pagina o gli album che la sorgente non riesce a dare (la sua scadenza, un suo errore: la risposta con `error`) sono
+ * un'`IOException` (R3): il selettore dice «… non è disponibile» con «Riprova», mai una libreria vuota.
  */
 @Stable
 class FluidRemoteMediaSource internal constructor(

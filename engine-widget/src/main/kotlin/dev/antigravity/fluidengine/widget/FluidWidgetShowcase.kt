@@ -117,7 +117,9 @@ fun FluidWidgetShowcaseCard(
   val scope = rememberCoroutineScope()
   val reduced = LocalFluidMotionPolicy.current.reducedMotion
   // La pagina corrente cambia a meta' di uno scorrimento, non a ogni fotogramma: leggerla qui non ricompone il moto.
-  val size = entry.sizes[pager.currentPage]
+  // Dentro le taglie di adesso (R3): l'app puo' ricomporre la scheda dello stesso widget con meno taglie, e il pager
+  // dice la pagina di prima finche' non si rimisura.
+  val size = entry.sizes[pager.currentPage.coerceIn(0, entry.sizes.lastIndex)]
   val pin = rememberFluidWidgetPin(size.provider ?: entry.provider)
 
   fun goTo(page: Int) {
@@ -183,7 +185,7 @@ fun FluidWidgetShowcaseCard(
           state = pager,
           modifier = Modifier.fillMaxSize().testTag(FluidWidgetShowcaseTags.Pager),
         ) { page ->
-          val pageSize = entry.sizes[page]
+          val pageSize = entry.sizes[page.coerceIn(0, entry.sizes.lastIndex)]
           FluidWidgetPreviewBox(
             entry = entry,
             size = pageSize,

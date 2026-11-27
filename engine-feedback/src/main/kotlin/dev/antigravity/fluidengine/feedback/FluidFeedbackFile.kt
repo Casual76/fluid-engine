@@ -96,7 +96,8 @@ object FluidFeedbackFile {
   ): String {
     val created = DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT, locale).format(Date(info.createdAtMillis))
     val lines = ArrayList<String>()
-    lines += "${labels.fileTitle} · ${info.appName} ${info.appVersion}"
+    // R3 · Con «L'app e il telefono» spento resta solo il nome dell'app (di che app è la segnalazione), senza versione.
+    lines += "${labels.fileTitle} · ${info.appName}" + if (draft.includeDevice) " ${info.appVersion}" else ""
     lines += created
     lines += ""
     lines += labels.whatsWrong.uppercase(locale)
@@ -131,17 +132,22 @@ object FluidFeedbackFile {
     return lines.joinToString("\r\n") + "\r\n"
   }
 
-  /** Il testo di `segnalazione.json`: gli stessi dati di `LEGGIMI.txt`, per i programmi. Le parti spente non ci sono. */
+  /**
+   * Il testo di `segnalazione.json`: gli stessi dati di `LEGGIMI.txt`, per i programmi. Le parti spente non ci sono:
+   * con «L'app e il telefono» spento `app` ha solo `name` (R3).
+   */
   fun json(draft: FluidFeedbackDraft, info: FluidFeedbackInfo, withScreenshot: Boolean): String = buildJsonObject {
     put("schema", JsonSchema)
     put("createdAt", info.createdAtMillis)
     putJsonObject("app") {
       put("name", info.appName)
-      put("id", info.appId)
-      put("version", info.appVersion)
-      put("code", info.versionCode)
-      put("build", info.buildType)
-      put("engine", info.engineVersion)
+      if (draft.includeDevice) {
+        put("id", info.appId)
+        put("version", info.appVersion)
+        put("code", info.versionCode)
+        put("build", info.buildType)
+        put("engine", info.engineVersion)
+      }
     }
     put("description", FluidPrivacyScrubber.scrub(draft.description.trim()))
     if (draft.includeDevice) {
@@ -229,7 +235,32 @@ object FluidFeedbackFile {
   }
 
   /** La cartella dei file di lavoro delle segnalazioni, nella cache dell'app (Android la svuota se serve spazio). */
-  fun workDir(context: Context): File = File(context.cacheDir, "fluid-feedback").apply { mkdirs() }
+  fun workDir(context: Context): File = File(context.cacheDir, WorkDirName).apply { mkdirs() }
+
+  private const val WorkDirName = "fluid-feedback"
+
+  /**
+   * R3 · Quando questo processo ha toccato per la prima volta la cartella di lavoro: ogni file che ci scrive nasce dopo
+   * ([workDir] passa da qui), quindi uno più vecchio è di un processo di prima.
+   */
+  private val processStartMillis = System.currentTimeMillis()
+
+  /** R3 · Cancella [file] se è un file della cartella di lavoro (lo screenshot di una bozza dimenticata). */
+  internal fun deleteWorkFile(file: File) {
+    if (file.parentFile?.name == WorkDirName) runCatching { file.delete() }
+  }
+
+  /**
+   * R3 · Cancella i file di lavoro di un processo di prima: uno screenshot scritto e poi rimasto lì perché il processo
+   * è stato ucciso prima che la bozza partisse o si dimenticasse. Quelli di questo processo restano (una bozza aperta
+   * li usa). Da un filo in sottofondo.
+   */
+  internal fun deleteOrphanWorkFiles(context: Context) {
+    val files = File(context.cacheDir, WorkDirName).listFiles() ?: return
+    for (file in files) {
+      if (file.isFile && file.lastModified() < processStartMillis) runCatching { file.delete() }
+    }
+  }
 }
 
 /**

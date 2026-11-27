@@ -90,9 +90,9 @@ class FluidPampaSearchTest {
       FluidSemanticIndexer(index, FixtureEmbedder()).update()
       indexes[app] = index
     }
-    exposure["notes"] = FluidSearchExposure(kindLabels = FluidSearchSamples.kinds, locked = { notesLocked })
-    exposure["mail"] = FluidSearchExposure(kindLabels = FluidSearchSamples.kinds)
-    exposure["classeviva"] = FluidSearchExposure(kindLabels = FluidSearchSamples.kinds)
+    exposure["notes"] = FluidSearchExposure(kinds = null, kindLabels = FluidSearchSamples.kinds, locked = { notesLocked })
+    exposure["mail"] = FluidSearchExposure(kinds = null, kindLabels = FluidSearchSamples.kinds)
+    exposure["classeviva"] = FluidSearchExposure(kinds = null, kindLabels = FluidSearchSamples.kinds)
     Robolectric.buildContentProvider(NotesApp::class.java).create(notes.authority)
     Robolectric.buildContentProvider(MailApp::class.java).create(mail.authority)
     Robolectric.buildContentProvider(StrangerApp::class.java).create(stranger.authority)
@@ -198,7 +198,7 @@ class FluidPampaSearchTest {
         return model.embed(texts)
       }
     }
-    val tool = FluidSearchBridge.searchTool<Unit>(indexes.getValue("notes"), FluidSearchExposure(kindLabels = FluidSearchSamples.kinds, locked = { locked }, embedder = lockingModel))
+    val tool = FluidSearchBridge.searchTool<Unit>(indexes.getValue("notes"), FluidSearchExposure(kinds = null, kindLabels = FluidSearchSamples.kinds, locked = { locked }, embedder = lockingModel))
     val out = tool.run(kotlinx.serialization.json.buildJsonObject { put("query", kotlinx.serialization.json.JsonPrimitive("riunione")) }, Unit)
     assertTrue("il modello è stato chiamato", locked)
     val data = out.result!!.data!!
@@ -217,7 +217,7 @@ class FluidPampaSearchTest {
     }
     val index = FluidSearchIndex.inMemory(secretSchema, cipher)
     index.put(FluidSearchDocument("w", mapOf("title" to "Rete di casa", "secret" to "girasole"), kind = "nota"))
-    val tool = FluidSearchBridge.searchTool<Unit>(index)
+    val tool = FluidSearchBridge.searchTool<Unit>(index, FluidSearchExposure(kinds = null))
     val args = kotlinx.serialization.json.buildJsonObject { put("query", kotlinx.serialization.json.JsonPrimitive("girasole")) }
     val out = tool.run(args, Unit)
     assertEquals(0, (out.result!!.data!!["total"] as kotlinx.serialization.json.JsonPrimitive).content.toInt())

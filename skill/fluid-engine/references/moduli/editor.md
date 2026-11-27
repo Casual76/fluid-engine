@@ -118,10 +118,16 @@ punto, un volto, un'etichetta nella foto ritagliata).
 - **Il salvataggio** (`FluidImageExport`): solo la parte del file che il ritaglio usa, letta **a strisce** da 4 megapixel
   (`BitmapRegionDecoder`) e disegnata girata nel risultato; poi le regolazioni **a fasce** di 256 righe. Non c'è mai la foto
   intera due volte in memoria. Il tetto (`defaultMaxPixels`: 12, 24 o 50 megapixel secondo la memoria del telefono) riduce
-  il file e lo dice (`Result.reduced`).
+  il file e lo dice (`Result.reduced`). La RAM del telefono, non l'heap Java, perché da Android 8 i pixel di una bitmap
+  stanno nella memoria nativa: nell'heap restano solo la fascia di righe e la striscia (R3, la prova in
+  `FluidImageExportR3Test`).
+- **Un salvataggio che non riesce** (il disco pieno: `Bitmap.compress` torna falso a metà, senza lanciare) lancia
+  `IOException`: il file si scrive accanto a quello chiesto e prende il suo posto solo intero, quindi un file che c'era
+  resta com'era (R3). Prima usciva un `Result` di successo coi byte di un file tronco.
 - **Cosa resta del file**: il profilo colore (una foto Display P3 esce P3), i metadati di scatto (date, fotocamera,
-  obiettivo, esposizione) e la posizione se `keepLocation`; il verso dell'EXIF si scrive normale (la rotazione è nei
-  pixel). **Non resta l'HDR** delle foto Ultra HDR: il file esce SDR.
+  obiettivo, esposizione) e la posizione (di serie sì, come Foto di iOS; `keepLocation = false` la toglie, R3); il
+  verso dell'EXIF si scrive normale (la rotazione è nei pixel). **Non resta l'HDR** delle foto Ultra HDR: il file esce
+  SDR.
 
 ## Lo strumento del visore: `fluidImageEditTool`
 
@@ -170,6 +176,15 @@ non per il passaggio.
 
 - **`onDone` non salva.** Dà la ricetta: il file lo scrive l'app con `state.export(…)` (in una coroutine). Così l'app
   sceglie dove (accanto all'originale, la cache per un allegato, il MediaStore).
+- **La posizione GPS di serie resta** (scelta di Alessio, R3): come Foto di iOS, la copia modificata tiene la posizione
+  dello scatto (alla libreria della persona servono le mappe e i ricordi); `keepLocation = false` la toglie, campo GPS per
+  campo GPS. **Dove la persona la toglie è il foglio di condivisione** (R2-F4), come in Foto: la copia che parte passa da
+  `FluidShareSheet` con `copyOptions`, «Opzioni ›» ha l'interruttore «Posizione», e il `prepare` dell'app rifà la copia
+  senza (`FluidCopyTools.copyWithoutLocation`, o di nuovo `export` con `keepLocation = false`). Il foglio guarda **il
+  file**, non l'interruttore: «Posizione inclusa» sotto il nome e la verifica «Posizione — tolta» vengono da
+  `FluidCopyTools.hasLocation`, e una copia che la tiene ancora non parte. Così la posizione tenuta di serie
+  dall'editor è quella che il foglio mostra, e l'utente la può ancora togliere. Un'app che manda la copia **senza** il
+  foglio (un allegato scritto da lei) passa lei `keepLocation = false`.
 - **Un indirizzo di un'altra app** (MyCloud Gallery) si legge finché il permesso vale: `export` rilegge il file, quindi
   un'app che tiene l'editor aperto a lungo ne fa prima una copia. Una foto che non si apre (il permesso scaduto, il file
   che non c'è ancora) mostra «Impossibile aprire la foto» con **«Riprova»** (`FluidImageEditorStrings.retry`, R1), che
@@ -191,7 +206,9 @@ non per il passaggio.
   specchio come in Foto, il ritaglio dentro la foto girata con la formula chiusa, proporzioni, la ricetta scritta e
   riletta, annulla e ripristina, «Auto» che si spegne), `FluidImageExportTest` (Robolectric: pixel del ritaglio girato,
   specchio, EXIF del verso, metadati e posizione, originale identico, tetto, strisce uguali alla lettura intera, lo shader
-  uguale alla CPU).
+  uguale alla CPU), `FluidImageExportR3Test` (R3: la codifica che fallisce a metà con un'ombra di `Bitmap.compress` che
+  scrive un terzo dei byte e torna falso, il file di prima intero; la posizione che di serie resta e che
+  `keepLocation = false` toglie, campo GPS per campo GPS; l'heap Java che non conta i pixel del risultato).
 - `sample`: `F8p15EditorUiTest` col dito vero (il righello e un passo per gesto, la ruota col tic e TalkBack, «Auto»,
   l'originale tenendo premuto, le maniglie che non escono, il pizzico, lo spostamento e la rotazione a due dita, specchio,
   rotazione, raddrizza, proporzioni, «Reimposta», «Fine» e «Annulla» con la conferma, i pixel della rotazione col movimento

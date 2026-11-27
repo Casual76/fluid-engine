@@ -181,6 +181,47 @@ class FluidFileFolderStateTest {
     assertEquals(listOf("File 1.pdf"), recents.entries.map { it.item.name })
   }
 
+  /**
+   * R3 (Muse 6): una sorgente dell'app con un segno a spostamento, o che cambia mentre si scorre (un file nuovo in testa
+   * sposta le pagine), manda due volte gli stessi id. [overlap] elementi di ogni pagina sono gli ultimi della pagina prima.
+   */
+  private class OverlapSource(private val count: Int, private val pageSize: Int, private val overlap: Int) : FluidFileSource {
+    override val id = "sovrapposta"
+    override val title = "Sovrapposta"
+    val queries = mutableListOf<FluidFileQuery>()
+
+    override suspend fun list(query: FluidFileQuery): FluidFilePage {
+      queries += query
+      delay(100)
+      val start = query.cursor?.toInt() ?: 0
+      val end = minOf(count, start + pageSize)
+      val items = (start until end).map { i ->
+        FluidFileItem("f$i", "Nota %04d.txt".format(i), sizeBytes = i.toLong(), uri = Uri.parse("content://s/$i"))
+      }
+      return FluidFilePage(items, next = if (end >= count) null else (end - overlap).toString())
+    }
+  }
+
+  @Test
+  fun `pages that overlap with the same ids keep each item once`() = runTest(StandardTestDispatcher()) {
+    val source = OverlapSource(count = 30, pageSize = 10, overlap = 2)
+    val folder = folder(source)
+    folder.start()
+    advanceUntilIdle()
+    while (!folder.complete) {
+      folder.loadMore()
+      advanceUntilIdle()
+    }
+    val ids = folder.items.map { it.id }
+    assertEquals("ogni id una volta sola: $ids", ids.distinct(), ids)
+    assertEquals(30, folder.loadedCount)
+    assertEquals(30, folder.files.size)
+    // Rileggendo da capo si ricomincia: gli stessi id tornano, una volta.
+    folder.refresh()
+    advanceUntilIdle()
+    assertEquals((0 until 10).map { "f$it" }, folder.items.map { it.id })
+  }
+
   @Test
   fun `after a search the folder goes back to reading by pages`() = runTest(StandardTestDispatcher()) {
     val source = SlowSource(1000, sorts = true)

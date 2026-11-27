@@ -14,11 +14,13 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.Executors
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -65,7 +67,7 @@ class FluidSearchIndex private constructor(
   private val colTokens = LongArray(schema.fields.size)
   private val colDocs = LongArray(schema.fields.size)
   private val _generation = MutableStateFlow(0L)
-  private var closed = false
+  @Volatile private var closed = false
 
   /**
    * Cambia a ogni scrittura: chi mostra dei risultati la osserva e rifa' la domanda (una nota cambiata mentre si cerca
@@ -86,7 +88,13 @@ class FluidSearchIndex private constructor(
 
   private fun check() = check(!closed) { "FluidSearchIndex($name) e' chiuso" }
 
-  private suspend fun <T> locked(block: suspend () -> T): T = withContext(dispatcher) { mutex.withLock { check(); block() } }
+  private suspend fun <T> locked(block: suspend () -> T): T {
+    // R3: un indice chiuso lo dice subito («e' chiuso»). Dopo close() il filo dell'indice non c'e' piu': senza questo
+    // controllo la chiamata finiva con un annullo («The task was rejected»), che chi chiama scambia per un'attesa
+    // interrotta, e la pagina della ricerca taceva lasciando i risultati di prima.
+    check()
+    return withContext(dispatcher) { mutex.withLock { check(); block() } }
+  }
 
   private suspend fun prepare() {
     db.execSQL("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value BLOB)")
@@ -692,17 +700,38 @@ class FluidSearchIndex private constructor(
 
   private fun semanticText(fields: Map<String, String>): String? = semanticParts(fields)?.let { (t, b) -> listOfNotNull(t, b).joinToString("\n") }
 
+  /**
+   * Chiude l'indice. Le operazioni che arrivano dopo lanciano `IllegalStateException` («e' chiuso»). Senza operazioni in
+   * corso il database si chiude subito; con una in corso, appena finisce, sul filo dell'indice (R3).
+   */
   override fun close() {
     if (closed) return
     closed = true
-    db.close()
-    thread.shutdown()
+    if (mutex.tryLock()) {
+      try {
+        db.close()
+      } finally {
+        mutex.unlock()
+      }
+      thread.shutdown()
+    } else {
+      // R3 (sospetto 7 di R1): un'operazione e' in corso. Una scrittura che aspetta la cassaforte (che cifra su un altro
+      // filo e torna, `VaultSection.withKey`) deve riprendere sul filo dell'indice e finire: chiudere qui spegneva il
+      // filo a meta' transazione, la transazione restava aperta e chi riapriva l'indice trovava il file bloccato.
+      CoroutineScope(dispatcher).launch {
+        mutex.withLock { if (db.isOpen) db.close() }
+        thread.shutdown()
+      }
+    }
   }
 
   /** Chiude l'indice e cancella il suo file: «l'indice si cancella insieme ai dati». */
   suspend fun destroy(): Unit = withContext(Dispatchers.IO) {
     mutex.withLock {
-      close()
+      // Dopo l'operazione in corso (il lucchetto), e prima di cancellare il file: il database si chiude qui.
+      closed = true
+      if (db.isOpen) db.close()
+      thread.shutdown()
       file?.let { f -> listOf(f, File(f.path + "-wal"), File(f.path + "-shm"), File(f.path + "-journal")).forEach { it.delete() } }
     }
     Unit

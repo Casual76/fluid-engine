@@ -296,7 +296,13 @@ fun FluidMap(
       },
       markerContent = markerContent,
     )
-    FluidMapControlsColumn(
+    // Col foglio in cima i comandi non servono (il foglio copre la mappa): spariscono **davvero**, per il dito e per
+    // TalkBack. Fino alla R3 erano solo trasparenti (alfa a zero): restavano li', toccabili e letti. Il confine si conta
+    // in uno stato derivato: la molla del foglio non ricompone a ogni fotogramma, solo quando i comandi escono o tornano.
+    val controlsHidden by remember(state, aboveSheet, density) {
+      derivedStateOf { aboveSheet && with(density) { lift.value.toPx() } > state.sizePx.height * 0.6f }
+    }
+    if (!controlsHidden) FluidMapControlsColumn(
       state = state,
       controls = controls,
       styles = styles,
@@ -311,8 +317,6 @@ fun FluidMap(
           .padding(bottom = contentPadding.calculateBottomPadding(), end = contentPadding.calculateEndPadding(layoutDirection))
           .padding(end = FluidMapControlsDefaults.EdgeMargin, bottom = FluidMapControlsDefaults.SheetGap)
           .offset { IntOffset(0, -lift.value.roundToPx()) }
-          // Col foglio in cima i comandi non servono (il foglio copre la mappa): spariscono, e non si toccano.
-          .graphicsLayer { alpha = if (lift.value.toPx() > state.sizePx.height * 0.6f) 0f else 1f }
       } else {
         Modifier
           .align(Alignment.TopEnd)

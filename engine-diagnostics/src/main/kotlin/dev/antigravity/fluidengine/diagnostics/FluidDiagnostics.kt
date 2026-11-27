@@ -163,10 +163,14 @@ class FluidDiagnostics internal constructor(
   /**
    * La scelta dell'utente: [granted] vero per il sì, falso per il no. Col no la coda si svuota subito e non si raccoglie
    * più niente; col sì parte un invio (se c'è un indirizzo e qualcosa in coda).
+   *
+   * R3 · Un invio già partito si ferma prima del gruppo dopo (quello in volo arriva comunque). Se il processo muore
+   * prima di svuotare la coda, il no salvato la svuota al prossimo avvio.
    */
   fun setConsent(granted: Boolean) {
     val value = if (granted) FluidDiagnosticsConsent.Granted else FluidDiagnosticsConsent.Denied
-    preferences.edit().putInt(KeyConsent, value.ordinal).putLong(KeyConsentAt, clock()).apply()
+    preferences.edit().putString(KeyChoice, if (granted) WireGranted else WireDenied).remove(KeyConsentOld)
+      .putLong(KeyConsentAt, clock()).apply()
     mutableConsent.value = value
     if (granted) {
       scope.launch { sendIfDue(force = true) }
@@ -181,7 +185,7 @@ class FluidDiagnostics internal constructor(
    * per una cosa non vale per un'altra). La coda resta com'è: col no di prima è già vuota.
    */
   fun askAgain() {
-    preferences.edit().remove(KeyConsent).putLong(KeyConsentAt, clock()).apply()
+    preferences.edit().remove(KeyChoice).remove(KeyConsentOld).putLong(KeyConsentAt, clock()).apply()
     mutableConsent.value = FluidDiagnosticsConsent.NotAsked
   }
 
@@ -217,6 +221,9 @@ class FluidDiagnostics internal constructor(
     if (records.isEmpty()) return FluidDiagnosticsSendResult.NothingToSend
     var sent = 0
     for (batch in batches(records)) {
+      // R3 · Il consenso si rilegge prima di ogni gruppo: un no detto mentre parte il primo ferma quelli dopo (il gruppo
+      // già in volo non si può richiamare).
+      if (mutableConsent.value != FluidDiagnosticsConsent.Granted) break
       val body = buildJsonObject {
         put("schema", SchemaVersion)
         put("reports", JsonArray(batch.map { it.toJson() }))
@@ -226,6 +233,7 @@ class FluidDiagnostics internal constructor(
       queue.remove(batch.map { it.id }.toSet())
       sent += batch.size
     }
+    if (sent == 0) return FluidDiagnosticsSendResult.NotAllowed
     preferences.edit().putLong(KeyLastSent, clock()).apply()
     return FluidDiagnosticsSendResult.Sent(sent)
   }
@@ -282,8 +290,35 @@ class FluidDiagnostics internal constructor(
     scope.launch { block() }
   }
 
-  private fun readConsent(): FluidDiagnosticsConsent =
-    FluidDiagnosticsConsent.entries.getOrNull(preferences.getInt(KeyConsent, 0)) ?: FluidDiagnosticsConsent.NotAsked
+  /**
+   * R3 · La scelta si salva con un nome fisso ([KeyChoice]: `granted` o `denied`; senza, non ancora chiesta), non col
+   * posto dell'enum: un riordino di [FluidDiagnosticsConsent] non fa diventare un no un sì. Il numero salvato prima
+   * ([KeyConsentOld], 1 il sì, 2 il no) si legge una volta e si riscrive col nome. Un valore che non si legge, nuovo o
+   * vecchio, è un no: mai un sì (prima un numero sconosciuto valeva «non chiesta», e un valore d'un altro tipo faceva
+   * cadere l'avvio).
+   */
+  private fun readConsent(): FluidDiagnosticsConsent {
+    if (preferences.contains(KeyChoice)) {
+      return when (runCatching { preferences.getString(KeyChoice, null) }.getOrNull()) {
+        WireGranted -> FluidDiagnosticsConsent.Granted
+        else -> FluidDiagnosticsConsent.Denied
+      }
+    }
+    if (!preferences.contains(KeyConsentOld)) return FluidDiagnosticsConsent.NotAsked
+    val migrated = when (runCatching { preferences.getInt(KeyConsentOld, -1) }.getOrNull()) {
+      0 -> FluidDiagnosticsConsent.NotAsked
+      1 -> FluidDiagnosticsConsent.Granted
+      else -> FluidDiagnosticsConsent.Denied
+    }
+    val editor = preferences.edit().remove(KeyConsentOld)
+    when (migrated) {
+      FluidDiagnosticsConsent.Granted -> editor.putString(KeyChoice, WireGranted)
+      FluidDiagnosticsConsent.Denied -> editor.putString(KeyChoice, WireDenied)
+      FluidDiagnosticsConsent.NotAsked -> Unit
+    }
+    editor.apply()
+    return migrated
+  }
 
   companion object {
     /** La versione del formato che parte verso il server. */
@@ -298,7 +333,13 @@ class FluidDiagnostics internal constructor(
     /** Il file delle `SharedPreferences` della diagnostica. */
     const val PreferencesName: String = "fluid-diagnostics"
 
-    private const val KeyConsent = "consenso"
+    /** La scelta col nome fisso (R3): [WireGranted] o [WireDenied]. */
+    private const val KeyChoice = "consenso-scelta"
+    private const val WireGranted = "granted"
+    private const val WireDenied = "denied"
+
+    /** La scelta di prima di R3, col posto dell'enum: si legge solo per migrarla. */
+    private const val KeyConsentOld = "consenso"
     private const val KeyConsentAt = "consenso-quando"
     private const val KeyLastSent = "ultimo-invio"
     private const val KeyExitsSeen = "chiusure-viste"
@@ -384,6 +425,8 @@ class FluidDiagnostics internal constructor(
       application.registerActivityLifecycleCallbacks(tracker)
     }
     launchBackground {
+      // R3 · Un no salvato col processo morto prima di svuotare la coda: la si svuota adesso, prima di ogni altra cosa.
+      if (mutableConsent.value == FluidDiagnosticsConsent.Denied) queue.clear()
       queue.refreshCount()
       delay(StartDelayMillis)
       if (config.systemExits) readSystemExits()

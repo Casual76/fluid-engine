@@ -1,5 +1,6 @@
 package dev.antigravity.fluidengine.ai.mcp
 
+import dev.antigravity.fluidengine.ai.net.AiErrorMapper
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -130,6 +131,11 @@ data class McpCallResult(val content: List<McpContent>, val structured: JsonObje
  * Gli errori del cliente MCP. Ognuno dice se l'effetto di una chiamata e' **incerto** ([uncertain]):
  * un flusso interrotto prima della risposta non dice se il server ha scritto o no, e una scrittura
  * incerta non si ripete da sola.
+ *
+ * **Il messaggio non porta il testo del servizio** (R3-S1), che puo' ripetere un dato della richiesta o un gettone: solo
+ * parole dell'app, codici e, per la rete, il motivo del telefono senza gettoni. Cosi' puo' finire nella lista salvata,
+ * nella pagina e nei log. Il testo del servizio resta nei campi ([Rpc.rpcMessage], [Http.body]) per chi lo usa apposta,
+ * dopo averlo ripulito (come [McpGuard.errorOutput] per il modello).
  */
 sealed class McpError(message: String, cause: Throwable? = null, val uncertain: Boolean = false) : Exception(message, cause) {
   /** Il server vuole un accesso (401), o uno piu' ampio (403 con `insufficient_scope`). */
@@ -138,13 +144,13 @@ sealed class McpError(message: String, cause: Throwable? = null, val uncertain: 
 
   /** Il server ha risposto con una versione che il cliente non conosce. */
   class UnsupportedVersion(val serverVersion: String?) :
-    McpError("il connettore parla una versione del protocollo che l'app non conosce (${serverVersion ?: "nessuna"})")
+    McpError("il connettore parla una versione del protocollo che l'app non conosce (${serverVersion?.takeIf { VersionShape.matches(it) } ?: "nessuna"})")
 
   /** Un errore HTTP che non e' l'accesso: lo stato e il testo, gia' accorciato. */
   class Http(val status: Int, val body: String) : McpError("il connettore ha risposto $status")
 
-  /** Un errore JSON-RPC del server. */
-  class Rpc(val code: Int, val rpcMessage: String) : McpError("errore del connettore ($code): $rpcMessage")
+  /** Un errore JSON-RPC del server. [rpcMessage] e' il suo testo, che il messaggio non porta (R3-S1). */
+  class Rpc(val code: Int, val rpcMessage: String) : McpError("errore del connettore ($code)")
 
   /** Il flusso si e' interrotto prima della risposta e non si e' potuto riprendere. */
   class Interrupted(cause: Throwable? = null) : McpError("il collegamento col connettore si e' interrotto", cause, uncertain = true)
@@ -152,9 +158,23 @@ sealed class McpError(message: String, cause: Throwable? = null, val uncertain: 
   /** Nessuna risposta entro il tempo. */
   class Timeout : McpError("il connettore non ha risposto in tempo", uncertain = true)
 
-  /** La rete non c'e' o il server non risponde. */
-  class Network(cause: Throwable) : McpError("connettore non raggiungibile: ${cause.message ?: cause::class.simpleName}", cause)
+  /**
+   * La rete non c'e' o il server non risponde. Il motivo e' quello dell'eccezione del telefono («connessione rifiutata»),
+   * accorciato e senza niente che somigli a un gettone (R3-S1).
+   */
+  class Network(cause: Throwable) : McpError("connettore non raggiungibile: ${AiErrorMapper.shorten(cause.message) ?: cause::class.simpleName}", cause)
 
-  /** Un messaggio che non e' JSON-RPC, o un campo obbligatorio che manca. */
+  /** Un messaggio che non e' JSON-RPC, o un campo obbligatorio che manca. [detail] e' dell'app, non del servizio. */
   class Protocol(detail: String) : McpError("risposta del connettore non valida: $detail")
+
+  companion object {
+    /** Una versione del protocollo MCP («2025-06-18»): solo questa forma passa nel messaggio. */
+    private val VersionShape = Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+    /** Un codice d'errore OAuth («access_denied», «invalid_scope»): solo questa forma passa nel messaggio. */
+    private val CodeShape = Regex("[A-Za-z0-9_.-]{1,40}")
+
+    /** [code] se ha la forma di un codice OAuth, se no null: il resto del testo del servizio non entra nel messaggio. */
+    internal fun code(code: String?): String? = code?.takeIf { CodeShape.matches(it) }
+  }
 }

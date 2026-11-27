@@ -805,6 +805,21 @@
       "scope": null
     },
     {
+      "method": "POST",
+      "path": "/v1/keys/transfers/{id}/received",
+      "auth": "session",
+      "recovery": false,
+      "strong": false,
+      "whileDeleting": false,
+      "perMinute": [
+        10,
+        "device"
+      ],
+      "perDay": null,
+      "idempotent": false,
+      "scope": null
+    },
+    {
       "method": "GET",
       "path": "/v1/sync/usage",
       "auth": "app",

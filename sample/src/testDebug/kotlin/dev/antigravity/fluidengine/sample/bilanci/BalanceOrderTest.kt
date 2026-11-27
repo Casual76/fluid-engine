@@ -128,6 +128,22 @@ class BalanceOrderTest {
     assertTrue("senza la barriera il PC carico doveva cambiare i bilanci", failures.isNotEmpty())
   }
 
+  /**
+   * Strumento (F7.32c): la sincronia di F8.21 col PC carico, la barriera accesa ma le decisioni di cattura del vetro
+   * sull'orologio di sistema, com'era prima di F7.32c. L'attesa della barriera allunga il tempo vero fra due fotogrammi, e
+   * la cattura tenuta (110 ms veri) si rinnova di più: le catture dell'entrata di `sync-due-dispositivi` cambiano.
+   */
+  @Test
+  fun conLOrologioDiSistemaLeCattureCambianoColPcCarico() {
+    tool()
+    val failures = withProperty(BalanceHarness.SystemCaptureClockProperty, "1") {
+      withProperty(BalanceHarness.BackgroundDelayProperty, LoadMillis.toString()) {
+        runInOrder(only(F8BalanceTest::class.java, "f8p21"))
+      }
+    }
+    println("Con l'orologio di sistema per le catture, col sottofondo in ritardo di $LoadMillis ms:\n  ${failures.joinToString("\n\n  ")}")
+  }
+
   /** Strumento: le scene di «Misure» prima di quelle di F8, l'ordine che nel lotto R3 faceva cadere dieci pose. */
   @Test
   fun misurePrimaDiF8() {

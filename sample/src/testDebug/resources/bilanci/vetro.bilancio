@@ -3,7 +3,7 @@
 # orologio a passi di 16 ms, la sonda che legge come sul dispositivo, i programmi condivisi già compilati (F7.29). Lo
 # misura GlassBalanceScenesTest: le scene di «Misure» (diciotto, più menu-gruppo-barra di F7.27 da F7.29) e i quattro
 # componenti che GlassNodeCountTest monta da soli (tasto, gruppo, popover, tab-bar), con lo stesso albero e gli stessi
-# gesti di GlassNodeCountTest.
+# gesti di GlassNodeCountTest; dal F7.32d anche il visore sul PDF finto (pdf-finto, in fondo).
 # I tetti di catture e filtri in entrata, moto e uscita sono il massimo di tre corse più un margine (catture 10%, almeno
 # 2; filtri 50%, almeno 3): il vetro decide alcune catture sull'orologio vero (la cattura tenuta si rinfresca ogni 110 ms
 # veri) e rifà alcuni filtri secondo la velocità stimata, che la prova non guida. Gli altri tetti sono la misura esatta.
@@ -161,6 +161,19 @@ foglio-sale                moto:scende          3       5       1      32  21967
 foglio-sale                posa                 1       2       0       0       0       0       0       0       0       -  F7.28 GlassBalanceScenesTest | posa (F7.28, 26/11): ferma, fra due campioni separati da 2 s niente catture, fabbriche, filtri o ridisegni.
 foglio-sale                uscita               1       2       0       2       0       0       0       3       -       -  F7.28 GlassBalanceScenesTest | uscita (F7.28, 26/11): 0 catture e 0 fabbriche nei 20 fotogrammi dopo aver tolto l'elemento, 0 filtri.
 foglio-sale                rilascio             0       0       0       0       0       0       0       0       -       -  F7.28 GlassBalanceScenesTest | rilascio (F7.28, 26/11): dopo 1 s nodi, layer e byte del vetro tornano dov'erano prima dell'elemento.
+#
+# F7.32d · pdf-finto: il visore dei file sul PDF finto di 5000 pagine (FluidFileViewer con le pagine di
+# F7p25ScrubberFirstFrameTest, bitmap vuote della misura chiesta, fatte sul filo principale), col copione degli elementi
+# nuovi: entrata, posa, il dito che trascina dal centro, la posa dopo il gesto, uscita e rilascio. Le scene PDF della
+# galleria al PC non si aprono (PdfRenderer e PdfDocument di Robolectric): questa misura il visore che hanno intorno.
+# I tetti seguono la regola del file (sopra); la misura è uguale in tre corse.
+@margine pdf-finto 13
+pdf-finto                  entrata             18      25       5      36  117750    1178     189     278       -       -  F7.32d GlassBalanceScenesTest | entrata (F7.32d, 27/11): 18 nodi e 25 layer del vetro, 32 catture (al più 5 per fotogramma, la più grande 117750 px), 1178 KiB del vetro, 189 layer, bitmap o programmi nuovi e 185 filtri; uguali in tre corse. Il margine ottico misurato è 13 px per lato (la sfocatura della barra).
+pdf-finto                  moto                12      17       1      26    1456       0       0       3       -       -  F7.32d GlassBalanceScenesTest | moto (F7.32d, 27/11), il dito che trascina dal centro in su per 24 fotogrammi e le pagine che scorrono: 23 catture, al più 1 per fotogramma, la più grande 1456 px; nel tratto stabile 0 fabbriche e 0 filtri nuovi per fotogramma.
+pdf-finto                  posa                12      17       0       0       0       0       0       0       0       -  F7.32d GlassBalanceScenesTest | posa (F7.32d, 27/11): ferma; fra due campioni separati da 2 s, con un disegno a ogni fotogramma, niente catture, fabbriche, filtri o ridisegni.
+pdf-finto                  posa:dopo           12      17       0       0       0       0       0       0       0       -  F7.32d GlassBalanceScenesTest | posa dopo il gesto (F7.32d, 27/11): dopo il dito alzato, 1,2 s e l'assestamento, fra due campioni separati da 2 s niente catture, fabbriche, filtri o ridisegni.
+pdf-finto                  uscita              12      17       0       2       0       0       0       3       -       -  F7.32d GlassBalanceScenesTest | uscita (F7.32d, 27/11): 0 catture e 0 fabbriche nei 20 fotogrammi dopo aver tolto l'elemento, 0 filtri.
+pdf-finto                  rilascio             0       0       0       0       0       0       0       0       -       -  F7.32d GlassBalanceScenesTest | rilascio (F7.32d, 27/11): dopo 1 s nodi, layer e byte del vetro tornano dov'erano prima dell'elemento.
 #
 # I difetti veri trovati dalla guardia «stesso campo, stessa revisione» (rapporto F7.28, «Difetti trovati»): si stampano
 # invece di cadere finché non si correggono. La correzione la decide Alessio; chi la fa toglie la riga.

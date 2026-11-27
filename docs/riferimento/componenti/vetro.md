@@ -406,7 +406,14 @@ parte una lettura, il contatore `Glass.sonda fotogrammi saltati` quanto ha aspet
 si legge come prima, subito dopo il disegno (`Glass.sonda come prima`). La sonda sta solo sulle **lastre radice**; un vetro
 dentro un altro vetro non misura, e prende il lato da chi lo contiene.
 
-**Quando legge.** Niente eventi, niente letture. Gli eventi sono tre: una **revisione** della sorgente (il layer che il vetro
+**Quando legge.** Niente eventi, niente letture, e **niente letture per un vetro che non è posato**. Dalla F7.25e (review
+R3) la sonda si iscrive alle sorgenti solo quando il suo vetro ha una posizione: un vetro composto e non posato, come la
+bolla dello scorrimento rapido a maniglia libera, non sente le revisioni, non chiede letture, non fa nascere il lettore
+della finestra e non conta fra i lettori della pagina. Prima ci riprovava a ogni ridisegno della pagina, sempre a vuoto.
+Dalla F7.25f vale anche per il disegno del vetro: una superficie non posata non conta fra i lettori dei layer su
+richiesta (la pagina di `rememberGlassBackdrop`), quindi non tiene la pagina registrata in un layer. Prima, dove la
+bolla nascosta era l'unico vetro, la pagina restava registrata anche a maniglia libera.
+Gli eventi sono tre: una **revisione** della sorgente (il layer che il vetro
 campiona si è registrato di nuovo, ed è l'unico modo di sapere che sotto un vetro fermo lo sfondo è cambiato), un cambio di
 **geometria** (il vetro si è spostato rispetto allo sfondo) e, per le sorgenti che non avvisano (un `CanvasBackdrop`), una
 cadenza fissa di 500 ms. Al più una lettura ogni 120 ms; la sonda tace durante un movimento veloce (sopra 500 dp/s di
@@ -1851,7 +1858,8 @@ colonna sono in `bilanci/LEGGIMI.txt`.
 1. Il componente entra in una scena vera: per F8 la sua scena della pagina «Elementi nuovi», per il vetro una scena di
    «Misure» o, se sta da solo, un metodo di `GlassBalanceScenesTest` col suo nome nel catalogo di
    `GlassBalanceRegistryTest` (`GlassComponents`). La misura usa un copione solo (`BalanceRuns`): entrata, due campioni di posa separati da 2 s, il moto (il
-   tratto della scena, o il dito che trascina dal centro), l'uscita, il rilascio.
+   tratto della scena, o il dito che trascina dal centro), l'uscita, il rilascio. Gli elementi nuovi hanno anche la
+   **posa dopo il gesto** (`posa:dopo`, F7.32d): il dito alzato, 1,2 s, l'assestamento e di nuovo due campioni.
 2. Si lancia la prova del proprietario (`F8BalanceTest` o `GlassBalanceScenesTest`). Senza righe
    cade, e nell'uscita stampa le righe misurate (`Bilancio misurato | …`): si copiano nel file, con la sigla del
    pacchetto in `ver`, la prova, e dopo `|` il motivo, cioè che cosa costa e perché.
@@ -1859,12 +1867,21 @@ colonna sono in `bilanci/LEGGIMI.txt`.
    manca, o ancora «atteso», è rosso. Un elemento futuro sta in `attesi.bilancio` finché non arriva; quando arriva, si
    misura e la riga «atteso» si toglie.
 4. Una scena che al PC non si monta (una libreria nativa, un servizio di sistema) ha le sue righe `NV` in ogni colonna e
-   nel motivo il posto dove si misura davvero, per esempio il tablet.
+   nel motivo il posto dove si misura davvero: «tablet», o il nome della prova che la misura («…Test»); dal F7.32d
+   «NV» da solo non basta. `BalanceNotVerifiableTest` prova a montare ogni scena tutta `NV` a ogni corsa, e cade se ci
+   riesce («la scena ora si misura: togliere NV»), con le righe misurate da copiare. Il visore dei PDF, che nelle scene
+   della galleria al PC non si apre (PdfRenderer), si misura su pagine finte: `pdf-finto` in `GlassBalanceScenesTest`.
 
 **Le guardie**, tutte con una prova che le fa cadere apposta (`GlassBalanceGuardsTest`, `GlassHotPathAllocationTest`,
 `GlassBalanceRegistryTest`):
-- **in quiete**, due campioni separati da 2 s: niente catture, fabbriche, filtri o ridisegni nuovi fra i due, e nodi,
-  layer e byte uguali. Un video, un cursore o un orologio visibile dichiara nella riga di posa la sua cadenza;
+- **in quiete**, due campioni separati da 2 s con un disegno a ogni fotogramma (F7.32d; prima uno ogni 25): niente
+  catture, fabbriche, filtri o ridisegni nuovi fra i due, e nodi, layer e byte uguali. Il tetto della posa è la misura
+  (zero resta zero); un video, un cursore o un orologio visibile dichiara nella riga di posa la sua **cadenza**, con la
+  parola nel motivo (nei frammenti di F8 e F9 il registro non si legge senza). Un lavoro in sottofondo che arriva nella
+  posa non è una cadenza: si dichiara `@sottofondo`, o la scena si aspetta (`F8BalanceTest.Ready`);
+- **dopo il gesto** (F7.32d), la stessa quiete dopo il dito alzato e l'assestamento: un componente che dopo il rilascio
+  continua a disegnare (il righello di F7.24b prima della correzione, 120 fps per 2,4 s) o un'animazione partita col
+  tocco che non si ferma cade nella riga `posa:dopo`;
 - **in moto**: nessun layer registrato due volte nello stesso fotogramma e nessun vetro che cattura due volte nello
   stesso fotogramma (lo stesso campo alla stessa revisione); nessuna colonna oltre il tetto; nessuna cattura più grande
   del vetro (o della sua finestra) alla scala scelta più il margine ottico (`@margine`, di serie zero); un figlio della
@@ -1894,9 +1911,10 @@ alto della misura si può abbassare (la prova lo stampa: «sotto il tetto»). I 
 fissa, profilo Pieno): dicono se un elemento costa di più di ieri, non quanto costa sul telefono; il tempo vero resta
 il lavoro del tablet (F7.14, S6). Dove il vetro decide sull'orologio vero (la cattura tenuta si rinfresca ogni 110 ms
 veri) o la scena finisce di arrivare in sottofondo (miniature, testo letto), il tetto di catture, filtri, fabbriche e
-ridisegni lascia un margine, scritto in testa a ogni file; nodi, layer, pixel, byte e rilascio sono esatti.
+ridisegni lascia un margine, scritto in testa a ogni file; nodi, layer, pixel, byte e rilascio sono esatti, e dal
+F7.32d anche le pose degli elementi nuovi.
 
-**Le prove non dipendono dall'ordine né dal tempo vero (F7.32).** Il banco tiene tre regole, e chi scrive una scena o un
+**Le prove non dipendono dall'ordine né dal tempo vero (F7.32).** Il banco tiene queste regole, e chi scrive una scena o un
 componente le rispetta:
 - **niente istanti assoluti in un oggetto di processo.** I segnali del movimento fra pagine di serie
   (`LocalRouteMotionSignals`) sono uno per processo, e il loro timbro («il vetro resta al minimo fino a…») è un istante di
@@ -1904,15 +1922,27 @@ componente le rispetta:
   rimette a 100 ms a ogni prova, e un timbro lasciato da `FluidPageHost` in una prova di prima teneva il vetro della prova
   dopo al minimo (qualità 0,25) e la sonda sospesa, che leggeva per la prima volta nella posa (le pose di dieci pacchetti
   di F8 quando le scene di «Misure» giravano prima). Il banco dà a ogni scena i suoi segnali. Un componente nuovo tiene un
-  istante come quello in uno stato della composizione, non in un oggetto di processo;
+  istante come quello in uno stato della composizione, non in un oggetto di processo. Lo stesso per la memoria della
+  prima volta (F7.32d): quella di serie (`LocalFluidFirstUseMemory`) dura quanto il processo, e il benvenuto di F8.11, visto
+  in una prova di prima, mancava nella scena dopo; il banco dà a ogni scena la sua;
 - **l'ora dei testi vivi è quella di `LocalFluidTimeSource`.** Una scena che prende «adesso» per un conto alla rovescia
-  lo prende da lì, non da `Instant.now()`: nel banco è l'orologio della prova, e i secondi scendono uguali a ogni corsa;
+  lo prende da lì, non da `Instant.now()`: nel banco è l'orologio della prova, e i secondi scendono uguali a ogni corsa
+  (F7.32d: anche i tempi vivi di F8.1, «ora», «tra 5 min», che prima cambiavano quando capitava col tempo vero);
 - **il lavoro in sottofondo si dichiara.** Una scena che finisce di arrivare con un lavoro su `Dispatchers.Default` o
   `IO` lo scrive nel suo frammento (`@sottofondo <id> | motivo`): il banco aspetta che quei fili siano fermi prima di far
   avanzare l'orologio della prova (`BackgroundWork`), e quello che torna al principale arriva al fotogramma dopo, a ogni
-  corsa, come sul telefono, dove prende pochi millisecondi. Oggi lo dichiarano la sincronia di F8.21, i dati nel testo
-  di F8.9 e «Senza PampAI» di F9.1 (lo stato di PampAI, F7.32b). Il lavoro su fili propri (un `HandlerThread`, un `Executor`) e le attese in tempo vero (una fotocamera finta)
-  restano fuori: per quelli c'è l'assestamento.
+  corsa, come sul telefono, dove prende pochi millisecondi. Dal F7.32c la barriera vede anche i fili propri dell'engine
+  (`fluid-ocr` di Tesseract, `fluid-search-<nome>` degli indici, `fluid-embedder`): fermi aspettano il prossimo compito,
+  al lavoro sono `RUNNABLE`. Oggi lo dichiarano i dati nel testo di F8.9, la sincronia di F8.21 (i suoi motori finti, nel
+  banco, girano anche sul filo principale: i salti fra due fili rientravano a volte nello stesso fotogramma), «Senza
+  PampAI» di F9.1, la griglia dei file di F8.4, lo scanner e il testo letto di F8.17, la ricerca di F8.22, la salute di
+  F8.26 e la ricerca dei tool di F9.2. Le attese in tempo vero su un filo proprio (una fotocamera finta) restano fuori: per
+  quelle c'è l'assestamento. Con la barriera il sottofondo arriva dentro l'entrata: una scena che la dichiara rimisura
+  le sue righe sulla scena intera, non sull'attesa;
+- **le decisioni di cattura del vetro sono sull'orologio della prova.** La cattura tenuta (110 ms), l'intervallo fra
+  due ricampionamenti e la sorgente sparita leggono `GlassCaptureClock`: sul telefono `System.currentTimeMillis()`, nelle
+  prove dei bilanci l'orologio della prova. Con l'orologio di sistema le catture dipendevano da quanto il PC ci metteva a
+  disegnare un fotogramma (F7.32c).
 
 `BalanceOrderTest` lo prova: un timbro lasciato a 4 s da una prova di prima fa cadere le pose coi segnali di serie e non
 col banco; un PC carico (i fili in sottofondo occupati per 1,5 s quando entra una scena) non cambia le righe. Una prova
@@ -1958,6 +1988,8 @@ dell'elenco numerato di R2-F6 ora conta le misure dei segni per disegno).
   di «Elementi nuovi»), `GlassHotPathAllocationTest` (il banco delle allocazioni) e `GlassBalanceGuardsTest` (ogni
   guardia con la mutazione che la fa cadere); sul dispositivo la quiete in `GlassNodeCountInstrumentedTest`.
   `BalanceOrderTest` (F7.32): le stesse righe con una prova di prima che lascia un timbro e col PC carico.
+  F7.32d: `BalanceNotVerifiableTest` (le scene `NV` provate a montare), `pdf-finto` (il visore su 5000 pagine finte) e
+  in `GlassBalanceGuardsTest` la lastra che dopo il rilascio continua a disegnare, rossa nella posa dopo il gesto.
 - **Non verificato dai test**: com'è il vetro. Gli host dei test non hanno fondale; sfocatura, lente, bordo e ombra si guardano in mano (dimensione D1 di `docs/10-coerenza.md`), e le tre costanti della taglia sono da giudicare su un dispositivo. Il materiale nuovo è misurato sul banco (`tools/glassbench`) e **visto su un solo dispositivo, un Tab S9** (vedi «I limiti dichiarati oggi»).
 
 ## Dove guardare

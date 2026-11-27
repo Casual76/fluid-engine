@@ -62,12 +62,16 @@ import kotlinx.serialization.json.putJsonArray
  *
  * @param discover le app da interrogare (di serie quelle che [discoverApps] trova col ponte).
  * @param timeoutMillis quanto si aspetta un'app prima di darla per assente.
+ * @param language la lingua di chi cerca («it» di serie, «en»): le app rispondono con le loro parole (un errore, un'app
+ *   da aggiornare) in questa lingua. Prima era sempre l'italiano (R3); come le altre parole dell'engine, l'app tradotta
+ *   la passa.
  */
 class FluidPampaSearch(
   private val calls: BridgeCalls,
   private val discover: suspend () -> List<FluidPampaApp>,
   private val embedder: FluidTextEmbedder? = null,
   val timeoutMillis: Long = DefaultTimeoutMillis,
+  val language: String = "it",
 ) {
   private val cacheLock = Mutex()
   private var cached: List<FluidPampaApp>? = null
@@ -119,7 +123,7 @@ class FluidPampaSearch(
         launch {
           val result = try {
             withTimeoutOrNull(timeoutMillis) {
-              calls.run(app.authority, FluidSearchBridge.ToolName, args, confirmed = false, requestId = UUID.randomUUID().toString(), language = "it")
+              calls.run(app.authority, FluidSearchBridge.ToolName, args, confirmed = false, requestId = UUID.randomUUID().toString(), language = language)
             }
           } catch (e: CancellationException) {
             throw e
@@ -146,10 +150,10 @@ class FluidPampaSearch(
     private const val AppsCacheMillis = 60_000L
     private const val NoAnswer = "non ha risposto in tempo"
 
-    /** «Cerca in Pampa» con le app del telefono trovate col ponte. */
-    fun create(context: Context, embedder: FluidTextEmbedder? = null): FluidPampaSearch {
+    /** «Cerca in Pampa» con le app del telefono trovate col ponte, nella lingua [language] di chi cerca. */
+    fun create(context: Context, embedder: FluidTextEmbedder? = null, language: String = "it"): FluidPampaSearch {
       val client = AiToolClient(context.applicationContext)
-      return FluidPampaSearch(client, discover = { discoverApps(client) }, embedder = embedder)
+      return FluidPampaSearch(client, discover = { discoverApps(client) }, embedder = embedder, language = language)
     }
 
     /**

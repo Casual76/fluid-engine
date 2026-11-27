@@ -44,9 +44,12 @@ tempi), le frasi (`FluidTranscriptSpan`) e il paragrafo (`startMillis`). Ognuno 
 quello dato, o la prima parola, o la prima frase. Senza nessun tempo il paragrafo si legge e basta (niente tocco).
 
 **Il salto** (`FluidTranscriptSeek.target`). Si cerca la frase del tocco e l'ultima parola cominciata prima del carattere
-toccato. Se la parola è **nella stessa frase**: dentro la parola (o sul suo ultimo carattere) si salta a lei; nello spazio dopo,
-alla parola dopo; sulla punteggiatura in fondo alla frase, all'ultima parola. Una frase **senza parole** (il riconoscitore non
+toccato. Se la parola è **nella stessa frase**: dentro la parola (fino al suo ultimo carattere: la fine è esclusa) si salta a
+lei; nello spazio dopo, alla parola dopo; sulla punteggiatura in fondo alla frase, all'ultima parola. Una frase **senza parole** (il riconoscitore non
 le ha date) salta al suo inizio, non all'ultima parola della frase prima. Senza parole né frasi, l'inizio del paragrafo.
+`offset` è l'indice del carattere toccato, non un punto di inserimento (R3): la vista guarda in quale carattere cade il
+dito, perché `getOffsetForPosition` dà lo stesso numero alla metà destra dell'ultima lettera e alla metà sinistra dello
+spazio dopo. Lo spazio in fondo a una riga che va a capo resta della parola prima.
 
 **Il paragrafo che si sente** è l'ultimo cominciato: nella pausa fra due paragrafi resta quello di prima (la pagina non salta
 avanti nel silenzio); un paragrafo senza tempi non «si sente».
@@ -80,10 +83,13 @@ l'intestazione dell'app la frase `FluidTranscriptStrings.empty` («Nessuna trasc
 ## Cosa è verificato dai test
 
 `engine-transcript/src/test/.../FluidTranscriptTest.kt`: il tocco su una parola va a quella parola e non alla frase (il caso
-di Pampa Notes), lo spazio alla parola dopo, la punteggiatura all'ultima; senza parole la frase, senza frasi il paragrafo,
+di Pampa Notes), l'ultimo carattere della parola a lei e lo spazio dopo alla parola dopo (R3: prima la prova dava lo spazio
+per «ultimo carattere»), la punteggiatura all'ultima; senza parole la frase, senza frasi il paragrafo,
 senza tempi niente; l'ora al paragrafo; il paragrafo che si sente resta nella pausa e salta quelli senza tempi; i paragrafi dai
 segmenti vanno a capo alle pause, ogni sei frasi e quando cambia chi parla, con le parole al loro posto. Nella galleria
-(`F8p13AudioUiTest`), col dito vero sulla lezione coi tempi veri: il tocco su «laghi» salta a «laghi»; l'ora e TalkBack al
+(`F8p13AudioUiTest`), col dito vero sulla lezione coi tempi veri: il tocco su «laghi» salta a «laghi»; in
+`R3m1TranscriptTest`, col testo impaginato davvero, la metà destra dell'ultima lettera di una parola resta sua e tutte e
+due le metà dello spazio vanno alla parola dopo (R3); l'ora e TalkBack al
 paragrafo; senza i tempi per parola, al paragrafo; la pagina segue la voce, si ferma per il dito, torna con «Torna alla voce»;
 con le animazioni ridotte si posa in un fotogramma.
 

@@ -837,7 +837,8 @@ private fun F9p1AnswerCard(question: String?, progress: AiAssistProgress, onRetr
         Spacer(Modifier.width(8.dp))
         Text(e.message(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
         // F9.1d: «Riprova» solo dove la stessa domanda puo' andare; mai per «non autorizzata» (il tasto e' gia' spento).
-        if (e.retryable) FluidButton("Riprova", onClick = onRetry, style = FluidButtonStyle.Plain, modifier = Modifier.testTag(F9p1Tags.Retry))
+        // R3-S1: e mai dopo una scrittura di un tool (una ricevuta), che si rifarebbe.
+        if (progress.retryable) FluidButton("Riprova", onClick = onRetry, style = FluidButtonStyle.Plain, modifier = Modifier.testTag(F9p1Tags.Retry))
       }
     }
   }

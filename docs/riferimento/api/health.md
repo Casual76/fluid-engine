@@ -131,7 +131,7 @@ _Generato sull'engine 3.1.2 da `scripts/gen_api_catalog.py`. Non si modifica a m
   - `data class Full(val count: Int, val denied: Set<FluidHealthMetric>) : FluidHealthSyncResult` — Letto tutto da capo (la prima volta, un segno scaduto, misure cambiate): [count] dati.
   - `data class Changes(val upserted: Int, val deleted: Int, val denied: Set<FluidHealthMetric>) : FluidHealthSyncResult` — Lette solo le modifiche: [upserted] dati nuovi o cambiati, [deleted] tolti.
 - `class FluidHealthSync(private val gateway: FluidHealthGateway, private val store: FluidHealthStore, val metrics: Set<FluidHealthMetric>, val window: Duration = Duration.ofDays(30), private val clock: () -> Instant = Instant::now)` — La sincronizzazione per differenze: la prima volta legge [window] all'indietro e prende il segno delle modifiche di Health Connect; dopo chiede solo le modifiche dal segno (i dati nuovi, cambiati e tolti), pagina per pagina. Un segno scaduto (Health Connect lo tiene 30 giorni), un permesso nuovo o tolto, o misure diverse rifanno la lettura intera.
-  - `suspend fun snapshot(): FluidHealthSnapshot` — La copia di adesso.
+  - `suspend fun snapshot(): FluidHealthSnapshot` — La copia di adesso; vuota se non si legge (la rifa' la [sync] dopo).
   - `suspend fun sync(): FluidHealthSyncResult` — Sincronizza: le modifiche se si puo', tutto da capo se serve.
   - `suspend fun reset()` — Dimentica la copia e il segno: la prossima [sync] rilegge tutto.
 - `object FluidHealthCodec` — Il formato della copia: binario, con una versione in testa. Le stringhe in UTF modificato di Java, gli istanti in secondi e nanosecondi. Pura: si prova sulla JVM.

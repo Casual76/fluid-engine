@@ -21,11 +21,35 @@ import org.robolectric.annotation.GraphicsMode
 
 /** La sorgente finta dietro il provider, come la mettera' MyCloud Gallery in F12. */
 class TestGalleryProvider : FluidMediaSourceProvider() {
-  override fun createSource(context: Context): FluidMediaSource = shared
+  override fun createSource(context: Context): FluidMediaSource = Switched()
 
   companion object {
     var shared: FluidFakeMediaSource = FluidFakeMediaSource.sample()
     var allowCaller: Boolean = true
+
+    /** R3: la sorgente dietro il provider lancia per pagine e album (il NAS spento a meta'). */
+    @Volatile var failing: Boolean = false
+  }
+
+  /** [shared] com'e' adesso, che lancia quando [failing]. */
+  private class Switched : FluidMediaSource {
+    private val inner: FluidFakeMediaSource get() = shared
+    override val id: String get() = inner.id
+    override val label: String get() = inner.label
+    override val capabilities: FluidMediaSourceCapabilities get() = inner.capabilities
+    override val access: FluidMediaAccess get() = inner.access
+    override suspend fun refresh() = inner.refresh()
+    override suspend fun albums(): List<FluidMediaAlbum> {
+      if (failing) throw java.io.IOException("Il NAS non risponde")
+      return inner.albums()
+    }
+    override suspend fun page(query: FluidMediaQuery, cursor: String?, limit: Int): FluidMediaPage {
+      if (failing) throw java.io.IOException("Il NAS non risponde")
+      return inner.page(query, cursor, limit)
+    }
+    override suspend fun thumbnail(item: FluidMediaItem, sizePx: Int) = inner.thumbnail(item, sizePx)
+    override suspend fun deliver(items: List<FluidMediaItem>, request: FluidMediaRequest, onProgress: (FluidMediaProgress) -> Unit) =
+      inner.deliver(items, request, onProgress)
   }
 
   override fun isCallerAllowed(callingPackage: String?): Boolean = allowCaller && super.isCallerAllowed(callingPackage)
@@ -48,6 +72,7 @@ class FluidMediaSourceContractTest {
   fun register() {
     TestGalleryProvider.shared = FluidFakeMediaSource.sample(count = 50)
     TestGalleryProvider.allowCaller = true
+    TestGalleryProvider.failing = false
     val info = ProviderInfo().apply {
       this.authority = this@FluidMediaSourceContractTest.authority
       packageName = context.packageName
@@ -59,6 +84,7 @@ class FluidMediaSourceContractTest {
   @After
   fun clean() {
     TestGalleryProvider.allowCaller = true
+    TestGalleryProvider.failing = false
   }
 
   private fun connect(): FluidRemoteMediaSource = runBlocking { FluidMediaSources.connect(context, authority) }
@@ -165,6 +191,23 @@ class FluidMediaSourceContractTest {
     delivery as FluidMediaDelivery.Refused
     assertEquals(FluidMediaRefusal.Unreachable, delivery.reason)
     assertTrue(TestGalleryProvider.shared.deliveries.isEmpty())
+  }
+
+  @Test fun unaPaginaOGliAlbumCheLaSorgenteNonDaNonSembranoVuoti() = runBlocking {
+    // R3 (difetto 2b): il provider risponde `error` (la scadenza o l'errore della sorgente dietro), e chi legge prima lo
+    // ignorava: pagina vuota e finita, accesso che restava pieno, nessun «Riprova».
+    val remote = connect()
+    assertEquals(5, remote.albums().size)
+    TestGalleryProvider.failing = true
+    val page = runCatching { remote.page(FluidMediaQuery(), null, 20) }
+    assertTrue("la pagina che non arriva e' un errore, non una pagina vuota: $page", page.exceptionOrNull() is java.io.IOException)
+    val albums = runCatching { remote.albums() }
+    assertTrue("gli album che non arrivano sono un errore, non zero album: $albums", albums.exceptionOrNull() is java.io.IOException)
+    assertEquals("il provider ha risposto: la sorgente c'e'", FluidMediaAccess.Full, remote.access)
+    // Il NAS torna: si riprova e arriva.
+    TestGalleryProvider.failing = false
+    assertEquals(20, remote.page(FluidMediaQuery(), null, 20).items.size)
+    assertEquals(5, remote.albums().size)
   }
 
   @Test fun ilTettoDellaConsegna() = runBlocking {
